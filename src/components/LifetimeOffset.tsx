@@ -8,102 +8,103 @@ import { WaitlistForm } from "./WaitlistForm";
 import { IMPACT_KEYS } from "@/lib/footprint";
 import { IMPACT_INFO } from "@/lib/impacts";
 import {
-  LIFETIME_COVERS,
+  DEFAULT_LIFETIME_INPUT,
+  DEVICE_LABELS,
+  INTERNET_ACTIVITIES,
+  ITEM_KEYS,
+  LIFETIME_ITEMS,
   lifetimeOffset,
-  type LifetimeCover,
+  type Device,
+  type InternetActivity,
   type LifetimeInput,
+  type LifetimeItem,
 } from "@/lib/lifetime";
 import { LIFETIME_MIN_DONATION_USD, usd } from "@/lib/pricing";
 
-const DEFAULTS: LifetimeInput = {
-  birthYear: 1995,
-  streamingHoursPerDay: 2,
-  aiPromptsPerDay: 10,
-  aiMediaPerWeek: 0,
-};
+const badgeName = (items: LifetimeItem[]) =>
+  items.length === ITEM_KEYS.length ? "Everything online" : items.map((k) => LIFETIME_ITEMS[k].label).join(" + ");
 
-/** One-time offset for a lifetime of internet use, AI use or both, priced live as people answer. */
-export function LifetimeOffset({
-  initialCover = "both",
-}: {
-  initialCover?: LifetimeCover;
-}) {
-  const [input, setInput] = useState<LifetimeInput>(DEFAULTS);
-  const [cover, setCover] = useState<LifetimeCover>(initialCover);
-  const o = lifetimeOffset(input, cover);
-  const showInternet = cover !== "ai";
-  const showAi = cover !== "internet";
-  const set = (patch: Partial<LifetimeInput>) =>
-    setInput((i) => ({ ...i, ...patch }));
+/** One-time offsets for a lifetime of internet use, AI use and devices, priced live as people answer. */
+export function LifetimeOffset({ initialItems = ITEM_KEYS }: { initialItems?: LifetimeItem[] }) {
+  const [input, setInput] = useState<LifetimeInput>(DEFAULT_LIFETIME_INPUT);
+  const [items, setItems] = useState<LifetimeItem[]>(initialItems);
+  const o = lifetimeOffset(input, items);
+  const has = (k: LifetimeItem) => items.includes(k);
+  const set = (patch: Partial<LifetimeInput>) => setInput((i) => ({ ...i, ...patch }));
+  const toggle = (k: LifetimeItem) =>
+    setItems((cur) => (cur.includes(k) ? (cur.length > 1 ? cur.filter((x) => x !== k) : cur) : ITEM_KEYS.filter((x) => x === k || cur.includes(x))));
+
+  const covered = [
+    has("internet") && `${Math.round(o.pastYears.internet)} years online so far`,
+    has("ai") && `${o.pastYears.ai.toFixed(1)} years of AI chat`,
+    `${Math.round(o.futureYears)} years to come`,
+  ].filter(Boolean);
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
       <div className="space-y-8">
-        <Field label="What do you want to cover?">
-          <div
-            className="flex flex-wrap gap-2"
-            role="radiogroup"
-            aria-label="What to cover"
-          >
-            {(Object.keys(LIFETIME_COVERS) as LifetimeCover[]).map((c) => (
+        <Field label="What do you want to cover?" hint="Pick one or more. Each has its own badge.">
+          <div className="flex flex-wrap gap-2">
+            {ITEM_KEYS.map((k) => (
               <button
-                key={c}
+                key={k}
                 type="button"
-                role="radio"
-                aria-checked={cover === c}
-                onClick={() => setCover(c)}
+                aria-pressed={has(k)}
+                onClick={() => toggle(k)}
                 className={`rounded-lg border px-4 py-2 font-medium ${
-                  cover === c
-                    ? "border-accent bg-accent text-white"
-                    : "border-border bg-card hover:border-accent"
+                  has(k) ? "border-accent bg-accent text-white" : "border-border bg-card hover:border-accent"
                 }`}
               >
-                {LIFETIME_COVERS[c].label} ·{" "}
-                {usd(lifetimeOffset(input, c).total)}
+                {LIFETIME_ITEMS[k].label} · {usd(lifetimeOffset(input, [k]).total)}
               </button>
             ))}
           </div>
         </Field>
+
         <Field label="What year were you born?">
           <NumberInput
             label="Birth year"
             min={1900}
             value={input.birthYear}
-            onChange={(n) => set({ birthYear: n ?? DEFAULTS.birthYear })}
+            onChange={(n) => set({ birthYear: n ?? DEFAULT_LIFETIME_INPUT.birthYear })}
           />
         </Field>
-        {showInternet && (
-          <Field
-            label="Hours of video a day"
-            hint="YouTube, Netflix, TikTok and the like. Video is most of what we use the internet for."
-          >
-            <NumberInput
-              label="Video hours a day"
-              step={0.5}
-              suffix="hours a day"
-              value={input.streamingHoursPerDay}
-              onChange={(n) => set({ streamingHoursPerDay: n ?? 0 })}
-            />
+
+        {has("internet") && (
+          <Field label="Hours online a day" hint="A rough average is fine. Count time on any device.">
+            <div className="grid gap-3 sm:grid-cols-2">
+              {(Object.keys(INTERNET_ACTIVITIES) as InternetActivity[]).map((k) => (
+                <label key={k} className="block">
+                  <span className="block text-sm font-medium">{INTERNET_ACTIVITIES[k].label}</span>
+                  {INTERNET_ACTIVITIES[k].hint && (
+                    <span className="block text-xs text-muted">{INTERNET_ACTIVITIES[k].hint}</span>
+                  )}
+                  <span className="mt-1 block">
+                    <NumberInput
+                      label={`${INTERNET_ACTIVITIES[k].label} hours a day`}
+                      step={0.25}
+                      suffix="hours a day"
+                      value={input.internetHoursPerDay[k]}
+                      onChange={(n) => set({ internetHoursPerDay: { ...input.internetHoursPerDay, [k]: n ?? 0 } })}
+                    />
+                  </span>
+                </label>
+              ))}
+            </div>
           </Field>
         )}
-        {showAi && (
+
+        {has("ai") && (
           <>
             <AiExportUpload
-              onResult={(s) =>
-                set({
-                  aiPromptsPerDay: Math.round(s.promptsPerDay * 10) / 10,
-                  aiFromExport: true,
-                })
-              }
+              onResult={(s) => set({ aiPromptsPerDay: Math.round(s.promptsPerDay * 10) / 10, aiFromExport: true })}
             />
             <Field label="AI chatbot prompts a day">
               <NumberInput
                 label="AI prompts a day"
                 suffix="prompts a day"
                 value={input.aiPromptsPerDay}
-                onChange={(n) =>
-                  set({ aiPromptsPerDay: n ?? 0, aiFromExport: false })
-                }
+                onChange={(n) => set({ aiPromptsPerDay: n ?? 0, aiFromExport: false })}
               />
             </Field>
             <Field label="AI images or videos made a week">
@@ -116,22 +117,55 @@ export function LifetimeOffset({
             </Field>
           </>
         )}
+
+        {has("devices") && (
+          <Field label="Devices you use" hint="How many of each you have at a time. We count each one you'll go through, and the power to run it.">
+            <div className="grid gap-3 sm:grid-cols-2">
+              {(Object.keys(DEVICE_LABELS) as Device[]).map((k) => (
+                <NumberInput
+                  key={k}
+                  label={DEVICE_LABELS[k]}
+                  min={0}
+                  suffix={k === "tv" ? "TVs" : DEVICE_LABELS[k].toLowerCase()}
+                  value={input.devices[k]}
+                  onChange={(n) => set({ devices: { ...input.devices, [k]: Math.max(0, Math.round(n ?? 0)) } })}
+                />
+              ))}
+            </div>
+          </Field>
+        )}
       </div>
 
       <aside className="h-fit space-y-5 rounded-2xl border border-border bg-card p-6 lg:sticky lg:top-6">
         <div className="flex items-center gap-4">
-          <Badge
-            area={LIFETIME_COVERS[cover].badge}
-            detail="for life"
-            size="sm"
-          />
+          <Badge area={badgeName(items)} detail="for life" size="sm" />
           <div>
             <div className="text-sm text-muted">One payment, for life</div>
             <div className="text-3xl font-semibold">{usd(o.total)}</div>
           </div>
         </div>
         <dl className="space-y-1 text-sm">
-          <div className="flex justify-between">
+          {items.map((k) => (
+            <div key={k}>
+              <div className="flex justify-between">
+                <dt className="text-muted">{LIFETIME_ITEMS[k].label}</dt>
+                <dd>{usd(o.parts[k].cost)}</dd>
+              </div>
+              {k === "internet" && (
+                <div className="mt-0.5 space-y-0.5 border-l-2 border-border pl-3 text-xs">
+                  {(Object.keys(INTERNET_ACTIVITIES) as InternetActivity[])
+                    .filter((a) => o.internetByActivity[a] > 0)
+                    .map((a) => (
+                      <div key={a} className="flex justify-between">
+                        <dt className="text-muted">{INTERNET_ACTIVITIES[a].label}</dt>
+                        <dd>{usd(o.internetByActivity[a])}</dd>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          ))}
+          <div className="flex justify-between border-t border-border pt-1">
             <dt className="text-muted">Donation to charities</dt>
             <dd>{usd(o.donation)}</dd>
           </div>
@@ -143,17 +177,7 @@ export function LifetimeOffset({
         <div className="border-t border-border pt-4 text-sm">
           <p className="font-medium">What it covers</p>
           <p className="mt-1 text-muted">
-            {[
-              showInternet &&
-                `${Math.round(o.pastYears.internet)} years online so far`,
-              showAi && `${o.pastYears.ai.toFixed(1)} years of AI chat`,
-              `${Math.round(o.futureYears)} years to come`,
-            ]
-              .filter(Boolean)
-              .join(", ")}
-            .
-            {showAi &&
-              " Future AI use is counted three times over in case it grows."}
+            {covered.join(", ")}.{has("ai") && " Future AI use is counted three times over in case it grows."}
             {o.donation === LIFETIME_MIN_DONATION_USD &&
               ` The math comes to less than ${usd(LIFETIME_MIN_DONATION_USD)}, so we round up to it.`}
           </p>
@@ -167,9 +191,7 @@ export function LifetimeOffset({
           </ul>
         </div>
         <div className="border-t border-border pt-4">
-          <p className="mb-3 text-sm text-muted">
-            Payments open soon. Join the waitlist to be first in line.
-          </p>
+          <p className="mb-3 text-sm text-muted">Payments open soon. Join the waitlist to be first in line.</p>
           <WaitlistForm />
         </div>
       </aside>

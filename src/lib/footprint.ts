@@ -179,6 +179,20 @@ const US_KG_PER_KWH = (F.US_GRID_LB_PER_MWH * F.KG_PER_LB) / 1000;
 const US_NOX_LB_PER_MWH = 0.5;
 const US_SO2_LB_PER_MWH = 0.359;
 
+/**
+ * Data center and network electricity for internet use. Carbon uses the IEA
+ * streaming rate per kWh, since much of the internet runs outside the US;
+ * water adds data center cooling.
+ */
+export function dataCenterImpacts(kwh: number): Impacts {
+  const g = gridImpacts(kwh);
+  return {
+    ...g,
+    carbon: kwh * (F.KG_PER_STREAMING_HOUR / F.STREAMING_KWH_PER_HOUR),
+    water: g.water + kwh * F.DATACENTER_L_PER_KWH,
+  };
+}
+
 /** Health damage in dollars per kWh from power plant NOx and SO2. */
 export function gridAirUsdPerKwh(noxLbPerMwh: number, so2LbPerMwh: number): number {
   return (
@@ -189,7 +203,7 @@ export function gridAirUsdPerKwh(noxLbPerMwh: number, so2LbPerMwh: number): numb
 }
 
 /** Carbon, air and water for electricity drawn from a grid. */
-function gridImpacts(kwh: number, state?: StateCode): Impacts {
+export function gridImpacts(kwh: number, state?: StateCode): Impacts {
   const s = state ? STATES[state] : undefined;
   return {
     carbon: kwh * (state ? gridKgPerKwh(state) : US_KG_PER_KWH),
@@ -340,7 +354,7 @@ export function computeFootprint(a: Answers): Footprint {
   const media = nonNeg(d.aiMediaPerWeek) * F.WEEKS_PER_MONTH;
   const ai = category(
     "ai",
-    aiImpacts((prompts * F.WH_PER_AI_PROMPT + media * F.WH_PER_AI_MEDIA) / 1000),
+    aiImpacts((prompts * F.WH_PER_AI_PROMPT + media * F.WH_PER_AI_MEDIA) / 1000 / (1 - F.AI_TRAINING_SHARE)),
     d.aiFromExport ? "measured" : "estimated",
     `About ${Math.round(prompts)} prompts${media ? ` and ${Math.round(media)} images or videos` : ""} a month${
       d.aiFromExport ? ", prompts from your data export" : ""
@@ -348,10 +362,9 @@ export function computeFootprint(a: Answers): Footprint {
   );
 
   const streamHours = nonNeg(d.streamingHoursPerDay) * F.DAYS_PER_MONTH;
-  const streamGrid = gridImpacts(streamHours * F.STREAMING_KWH_PER_HOUR);
   const streaming = category(
     "streaming",
-    scale({ ...streamGrid, carbon: streamHours * F.KG_PER_STREAMING_HOUR }, personCount),
+    scale(dataCenterImpacts(streamHours * F.STREAMING_KWH_PER_HOUR), personCount),
     "estimated",
     `${Math.round(streamHours)} hours a month, data centers and networks only`,
   );

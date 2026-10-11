@@ -54,6 +54,10 @@ export const SHOPPING_KG_PER_YEAR = {
 // Streaming: ~36 g CO2 per hour (IEA).
 export const WH_PER_AI_PROMPT = 0.3;
 export const WH_PER_AI_MEDIA = 10;
+// Share of machine learning energy spent training models rather than answering
+// prompts (Patterson et al. 2022, Google: about 2/5 training, 3/5 inference).
+// Each prompt carries its share of training.
+export const AI_TRAINING_SHARE = 0.4;
 export const KG_PER_STREAMING_HOUR = 0.036;
 export const US_GRID_LB_PER_MWH = 770.9;
 
@@ -141,11 +145,32 @@ export const SHOPPING_SHARES = { clothing: 0.15, electronics: 0.15, household: 0
 // ---------------------------------------------------------------------------
 // Lifetime internet and AI.
 
-// Video makes up most internet traffic; we scale streaming up to cover the rest
-// of a person's internet use (approximate share).
-export const VIDEO_SHARE_OF_INTERNET = 0.7;
+// Data center and network electricity per hour of each activity. Video is the
+// IEA figure; the others are scaled from typical data use and are rough.
+export const INTERNET_KWH_PER_HOUR = {
+  video: 0.077,
+  social: 0.06,
+  gaming: 0.2,
+  calls: 0.03,
+  music: 0.005,
+  browsing: 0.01,
+} as const;
+// Extra margin on the rough activity figures (everything but video).
+export const INTERNET_ROUGH_MARGIN = 0.5;
 // Years we count back to: mainstream home internet and ChatGPT's launch.
 export const INTERNET_START_YEAR = 1995;
 export const AI_START_YEAR = 2022.9;
 export const ONLINE_FROM_AGE = 12;
 export const LIFETIME_TO_AGE = 85;
+
+// Devices: carbon to make one (manufacturer life-cycle reports, rounded and
+// rough), typical years before it's replaced, and the electricity it uses a
+// year. Making devices is often the largest part of a digital footprint.
+export const DEVICES = {
+  phone: { kgToMake: 70, yearsKept: 3, kwhPerYear: 5 },
+  laptop: { kgToMake: 250, yearsKept: 5, kwhPerYear: 50 },
+  tablet: { kgToMake: 100, yearsKept: 4, kwhPerYear: 15 },
+  desktop: { kgToMake: 500, yearsKept: 6, kwhPerYear: 200 },
+  tv: { kgToMake: 400, yearsKept: 8, kwhPerYear: 100 },
+  console: { kgToMake: 150, yearsKept: 7, kwhPerYear: 100 },
+} as const;

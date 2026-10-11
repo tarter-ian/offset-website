@@ -27,6 +27,10 @@ const SOURCES = [
     url: "https://www.epa.gov/benmap/mobile-sector-source-apportionment-air-quality-and-benefits-ton",
   },
   { name: "EPA AP-42 natural gas combustion factors", url: "https://gaftp.epa.gov/ap42/ch01/s04/final/c1s4_2026.pdf" },
+  {
+    name: "Patterson et al. 2022, The Carbon Footprint of Machine Learning Training Will Plateau, Then Shrink",
+    url: "https://arxiv.org/abs/2204.05149",
+  },
   { name: "Li et al., Making AI Less Thirsty", url: "https://arxiv.org/html/2304.03271v4" },
   {
     name: "Google, environmental impact of AI inference (2025)",
@@ -104,7 +108,7 @@ const ROWS = [
   },
   {
     category: "AI",
-    method: `About ${F.WH_PER_AI_PROMPT} Wh a chatbot prompt on the US grid, plus data center cooling water. We count your prompts from your data export if you add it.`,
+    method: `About ${F.WH_PER_AI_PROMPT} Wh a chatbot prompt, plus its share of training the model, on the US grid, plus data center cooling water. We count your prompts from your data export if you add it.`,
   },
   {
     category: "Video streaming",
@@ -160,14 +164,29 @@ export default function MethodPage() {
         under {usd(MIN_DONATION_USD)} are rounded up to {usd(MIN_DONATION_USD)}, and all of it goes to the charities.
       </p>
 
-      <h2 className="mt-10 text-xl font-semibold">Lifetime internet and AI</h2>
+      <h2 className="mt-10 text-xl font-semibold">Lifetime internet, AI and devices</h2>
       <p className="mt-2 text-muted">
-        The one-time lifetime offset counts your internet use from age {F.ONLINE_FROM_AGE} (or {F.INTERNET_START_YEAR}, whichever is later) and your AI
-        use from late 2022, both at today&apos;s rates, through age {F.LIFETIME_TO_AGE}. Video is about {Math.round(F.VIDEO_SHARE_OF_INTERNET * 100)}% of
-        internet traffic, so we scale your streaming up to cover the rest. Future internet use counts at today&apos;s rate, since networks get more
-        efficient about as fast as use grows; future AI use counts at {LIFETIME_GROWTH_BUFFER} times today&apos;s rate in case it keeps growing. The
-        price uses expected-impact climate pricing, plus a one-time {usd(LIFETIME_FEE_USD)} fee.
+        The one-time lifetime offsets count from age {F.ONLINE_FROM_AGE} (or {F.INTERNET_START_YEAR}, whichever is later), and from late 2022 for AI,
+        through age {F.LIFETIME_TO_AGE}, at today&apos;s rates. Future internet use counts at today&apos;s rate, since networks get more efficient
+        about as fast as use grows; future AI use counts at {LIFETIME_GROWTH_BUFFER} times today&apos;s rate in case it keeps growing. Prices use
+        expected-impact climate pricing, plus a one-time {usd(LIFETIME_FEE_USD)} fee.
       </p>
+      <ul className="mt-3 list-disc space-y-1 pl-5 text-muted">
+        <li>
+          <strong className="font-medium text-foreground">Internet</strong> is split into video, social media, cloud gaming, video calls, music and
+          browsing, each with its own data center and network power per hour. Video uses the IEA figure ({F.INTERNET_KWH_PER_HOUR.video} kWh an
+          hour); the others are scaled from typical data use and are rough, so they carry an extra {Math.round(F.INTERNET_ROUGH_MARGIN * 100)}% margin.
+        </li>
+        <li>
+          <strong className="font-medium text-foreground">AI</strong> adds each prompt&apos;s share of training the models: about{" "}
+          {Math.round(F.AI_TRAINING_SHARE * 100)}% of machine learning energy goes to training.
+        </li>
+        <li>
+          <strong className="font-medium text-foreground">Devices</strong> counts the carbon to make each phone, laptop, tablet, computer, TV and
+          console you&apos;ll go through (for example {F.DEVICES.phone.kgToMake} kg for a phone kept {F.DEVICES.phone.yearsKept} years), plus the
+          power to run them. If you also cover home electricity month to month, the running power overlaps with it.
+        </li>
+      </ul>
 
       <h2 className="mt-10 text-xl font-semibold">What &ldquo;Fully Offset&rdquo; means</h2>
       <p className="mt-2 text-muted">
@@ -179,8 +198,8 @@ export default function MethodPage() {
 
       <h2 className="mt-10 text-xl font-semibold">What we don&apos;t count yet</h2>
       <p className="mt-2 text-muted">
-        Air pollution from flights, oil and propane heating, and food; water used for fuel and flights; and the water,
-        land and pollution behind the things you buy. Your summary marks each gap.
+        Air pollution from flights, oil and propane heating, and food; water used for fuel and flights; the water,
+        land and pollution behind the things you buy, including mining and making devices; e-waste; and building data centers. Your summary marks each gap.
       </p>
 
       <h2 className="mt-10 text-xl font-semibold">Sources</h2>
