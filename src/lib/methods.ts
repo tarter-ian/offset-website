@@ -32,6 +32,8 @@ const SHOPPING_NOTE = (what: string, share: number) => [
   `A yearly per-person carbon figure for your level of spending, with ${what} taking about ${Math.round(share * 100)}% of it.`,
 ];
 
+const GOODS_NOTE = "Water, land and air pollution scale with the carbon, using the EPA's supply-chain model of US spending.";
+
 export const HOW_ESTIMATED: Record<string, string[]> = {
   ai: [
     `About ${F.WH_PER_AI_PROMPT} Wh a prompt, or each prompt measured from your ChatGPT, Claude or Gemini export if you link it.`,
@@ -78,13 +80,16 @@ export const HOW_ESTIMATED: Record<string, string[]> = {
   meat: FOOD_NOTE("meat and fish"),
   dairy: FOOD_NOTE("dairy and eggs"),
   plants: FOOD_NOTE("plant foods"),
-  clothing: [...SHOPPING_NOTE("clothing", F.SHOPPING_SHARES.clothing), "Water, land and air pollution aren't counted yet."],
+  clothing: [
+    ...SHOPPING_NOTE("clothing", F.SHOPPING_SHARES.clothing),
+    "Water, land and air pollution scale with the carbon, using the EPA's supply-chain model of US spending. Water is raised for cotton grown abroad, from Levi's study of a pair of jeans.",
+  ],
   electronics: [
     ...SHOPPING_NOTE("electronics", F.SHOPPING_SHARES.electronics),
     "Water consumed and land used to mine and make them are scaled from studies of smartphones.",
   ],
-  household: [...SHOPPING_NOTE("home goods", F.SHOPPING_SHARES.household), "Water, land and air pollution aren't counted yet."],
-  services: [...SHOPPING_NOTE("services", F.SHOPPING_SHARES.services), "Water, land and air pollution aren't counted yet."],
+  household: [...SHOPPING_NOTE("home goods", F.SHOPPING_SHARES.household), GOODS_NOTE],
+  services: [...SHOPPING_NOTE("services", F.SHOPPING_SHARES.services), GOODS_NOTE],
 };
 
 export const howEstimated = (p: Product): string[] => HOW_ESTIMATED[p.id] ?? [];

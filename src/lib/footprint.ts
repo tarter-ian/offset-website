@@ -392,10 +392,20 @@ export function computeFootprint(a: Answers): Footprint {
   const shopTotal = (F.SHOPPING_KG_PER_YEAR[a.shopping] / 12) * personCount;
   const shopping = (["clothing", "electronics", "household", "services"] as const).map((k) => {
     const carbon = shopTotal * F.SHOPPING_SHARES[k];
-    // Electronics get the water and land of making them; the rest are carbon only for now.
-    return k === "electronics"
-      ? category(k, { carbon, ...electronicsMaking(carbon) }, "estimated", undefined, ["air"])
-      : category(k, { carbon }, "estimated", undefined, ["air", "water", "land"]);
+    // Electronics get the water and land of making them; the rest use EPA's supply-chain ratios.
+    if (k === "electronics") return category(k, { carbon, ...electronicsMaking(carbon) }, "estimated", undefined, ["air"]);
+    const g = F.GOODS_PER_KG_CO2[k];
+    return category(
+      k,
+      {
+        carbon,
+        water: carbon * g.water * F.scarcityWeight(k === "clothing" ? "food" : "grid"),
+        land: carbon * g.land,
+        air: (carbon * g.pm25 * 1000 * F.GOODS_USD_PER_TON_PM25) / F.G_PER_SHORT_TON,
+      },
+      "estimated",
+      undefined,
+    );
   });
 
   // AI: grid power plus on-site data center cooling water.

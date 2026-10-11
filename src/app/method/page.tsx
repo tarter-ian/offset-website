@@ -19,6 +19,9 @@ import {
 export const metadata: Metadata = { title: "How we calculate | Offset" };
 
 const SOURCES = [
+  { name: "EPA USEEIO v2.0 supply-chain model (clothing, home goods, services)", url: "https://www.epa.gov/land-research/us-environmentally-extended-input-output-useeio-models" },
+  { name: "USGS consumptive water use (Circular 1200)", url: "https://pubs.usgs.gov/circ/1998/1200/report.pdf" },
+  { name: "Levi Strauss 501 jeans life cycle assessment (2015)", url: "https://www.levistrauss.com/wp-content/uploads/2015/03/Full-LCA-Results-Deck-FINAL.pdf" },
   { name: "EPA eGRID2023 state emission rates (CO₂e, NOx, SO₂)", url: "https://www.epa.gov/egrid/summary-data" },
   { name: "EIA 2024 residential electricity use and prices", url: "https://www.eia.gov/electricity/sales_revenue_price/" },
   {
@@ -123,7 +126,7 @@ const ROWS = [
   {
     category: "Shopping",
     method:
-      "A yearly per-person carbon figure for your level of spending, split into clothing, electronics, home goods and services by typical shares. Electronics also counts the water and land to mine and make them; the rest is carbon only for now.",
+      "A yearly per-person carbon figure for your level of spending, split into clothing, electronics, home goods and services by typical shares. Electronics also counts the water and land to mine and make them. Clothing, home goods and services get water, land and air pollution from the EPA's USEEIO supply-chain model, with clothing water raised for imported cotton (Levi's 2015 jeans study).",
   },
   {
     category: "AI",
@@ -219,7 +222,7 @@ export default function MethodPage() {
 
       <h2 className="mt-10 text-xl font-semibold">What we don&apos;t count yet</h2>
       <p className="mt-2 text-muted">
-        Air pollution from oil and propane heating; the water, land and air pollution behind clothing, home goods and services;
+        Air pollution from oil and propane heating;
         air pollution from making devices; e-waste; building data centers for anything but AI; AI built into other products; and AI video. Your summary marks each gap.
       </p>
 

@@ -129,8 +129,8 @@ describe("monthlyCost", () => {
     const food = monthlyCost(f, ["meat", "dairy", "plants"]);
     const all = monthlyCost(f, CATEGORY_KEYS);
     expect(food.donation).toBeLessThan(all.donation);
-    // Land comes only from food and making electronics.
-    expect(monthlyCost(f, ["meat", "dairy", "plants", "electronics"]).byImpact.land).toBeCloseTo(all.byImpact.land, 6);
+    // Land comes only from food and shopping.
+    expect(monthlyCost(f, ["meat", "dairy", "plants", "clothing", "electronics", "household", "services"]).byImpact.land).toBeCloseTo(all.byImpact.land, 6);
   });
 
   it("only prices the chosen impact types", () => {
@@ -207,5 +207,13 @@ describe("holistic harms", () => {
   it("counts water and land for making electronics", () => {
     expect(cat(base, "electronics").impacts.water).toBeGreaterThan(0);
     expect(cat(base, "electronics").impacts.land).toBeGreaterThan(0);
+  });
+
+  it("counts every harm for clothing, home goods and services", () => {
+    for (const k of ["clothing", "household", "services"]) {
+      const c = cat(base, k);
+      for (const i of ["water", "land", "air"] as const) expect(c.impacts[i], `${k} ${i}`).toBeGreaterThan(0);
+      expect(c.notCounted, k).toEqual([]);
+    }
   });
 });

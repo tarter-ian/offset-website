@@ -214,6 +214,24 @@ export const KG_CO2_PER_KG_JET_FUEL = 3.16;
 export const ELECTRONICS_L_PER_KG_CO2 = 223 / 32.7;
 export const ELECTRONICS_M2_PER_KG_CO2 = 18 / 70;
 
+// Clothing, home goods and services, per kg CO2e, from EPA USEEIO v2.0.1
+// supply-chain intensities, weighted by US household spending (2012). Land is
+// USEEIO's land occupation (m²·yr) and air its PM2.5-equivalent respiratory
+// effects. USEEIO counts water withdrawn, so consumed water is derived with
+// USGS consumptive-use fractions (Circular 1200). USEEIO models imports as US-made,
+// which understates clothing water (irrigated cotton is mostly imported): Levi's
+// 501 LCA (2015) gives ~113 L/kg, so clothing uses the middle of 24 to 113.
+export const GOODS_PER_KG_CO2 = {
+  clothing: { water: 60, land: 3.4, pm25: 6.2e-4 },
+  household: { water: 10, land: 1.5, pm25: 3.8e-4 },
+  services: { water: 10, land: 1.2, pm25: 4.0e-4 },
+} as const;
+// Supply-chain PM2.5 is mostly from factories and power plants, often far from
+// cities and some abroad, so it gets an industrial rate, not the tailpipe one:
+// roughly the middle of EPA's benefit-per-ton figures for industrial sectors
+// (2018 technical support document, $140k to $470k). Approximate.
+export const GOODS_USD_PER_TON_PM25 = 250_000;
+
 // How goods and services split.
 export const SHOPPING_SHARES = { clothing: 0.15, electronics: 0.15, household: 0.15, services: 0.55 } as const;
 
