@@ -25,7 +25,7 @@ import {
   type LifetimeInput,
   type LifetimeItem,
 } from "@/lib/lifetime";
-import { BILLING, type Billing, defaultBilling, LIFETIME_MIN_DONATION_USD, recurringPrice, usd } from "@/lib/pricing";
+import { BILLING, type Billing, DEFAULT_BILLING, LIFETIME_MIN_DONATION_USD, recurringPrice, usd } from "@/lib/pricing";
 
 const badgeName = (items: LifetimeItem[]) =>
   items.length === ITEM_KEYS.length ? "Everything online" : items.map((k) => LIFETIME_ITEMS[k].label).join(" + ");
@@ -49,9 +49,9 @@ export function LifetimeOffset({ initialItems = ITEM_KEYS }: { initialItems?: Li
   const recur = (its: LifetimeItem[], b?: Billing) => {
     const m = lifetimeOffset(input, its, undefined, "monthly");
     const raw = its.reduce((s, k) => s + m.parts[k].cost, 0);
-    return recurringPrice(raw, m.fee, b ?? billingPick ?? defaultBilling(m.total));
+    return recurringPrice(raw, m.fee, b ?? billingPick ?? DEFAULT_BILLING);
   };
-  const billing = billingPick ?? defaultBilling(lifetimeOffset(input, items, undefined, "monthly").total);
+  const billing = billingPick ?? DEFAULT_BILLING;
   const price = (its: LifetimeItem[], sp: Span) => (sp === "monthly" ? recur(its, billing) : lifetimeOffset(input, its, undefined, sp));
   const shown = price(items, span);
   const per = (sp: Span) => (sp === "monthly" ? ` ${BILLING[billing].per}` : "");

@@ -3,7 +3,7 @@ import { DEFAULT_CONTEXT as C, defaultAmount, effectiveSpan, planTotals, PRODUCT
 import {
   ANNUAL_FEE_MONTHS,
   ANNUAL_MIN_DONATION_USD,
-  defaultBilling,
+  DEFAULT_BILLING,
   LIFETIME_FEE_USD,
   LIFETIME_MIN_DONATION_USD,
   MAX_FEE_USD,
@@ -47,10 +47,9 @@ describe("spans", () => {
   });
 });
 
-describe("defaultBilling", () => {
-  it("defaults small plans to yearly and bigger ones to monthly", () => {
-    expect(defaultBilling(8)).toBe("annual");
-    expect(defaultBilling(45)).toBe("monthly");
+describe("billing", () => {
+  it("defaults to monthly", () => {
+    expect(DEFAULT_BILLING).toBe("monthly");
   });
 });
 
@@ -74,7 +73,7 @@ describe("planTotals", () => {
   it("bills ongoing items yearly by default, with two months of fees free", () => {
     const line = [{ productId: "car", amount: 200, span: "monthly" as const }];
     const month = planTotals(line, C, "monthly").recurring!;
-    const year = planTotals(line, C).recurring!;
+    const year = planTotals(line, C, "annual").recurring!;
     expect(year.fee).toBe(month.fee * ANNUAL_FEE_MONTHS);
     expect(year.donation).toBeCloseTo(Math.ceil(p("car").cost(200, "monthly", C) * 12), 6);
   });
@@ -83,6 +82,6 @@ describe("planTotals", () => {
     const t = planTotals([{ productId: "transit", amount: 1, span: "monthly" }], C, "monthly");
     expect(t.oneTime).toBeNull();
     expect(t.recurring!.donation).toBe(MIN_DONATION_USD);
-    expect(planTotals([{ productId: "transit", amount: 1, span: "monthly" }], C).recurring!.donation).toBe(ANNUAL_MIN_DONATION_USD);
+    expect(planTotals([{ productId: "transit", amount: 1, span: "monthly" }], C, "annual").recurring!.donation).toBe(ANNUAL_MIN_DONATION_USD);
   });
 });

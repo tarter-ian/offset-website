@@ -10,7 +10,6 @@ import {
   ANNUAL_FEE_MONTHS,
   ANNUAL_MIN_DONATION_USD,
   FEE_PER_AREA_USD,
-  MONTHLY_BILLING_FROM_USD,
   LIFETIME_FEE_USD,
   LIFETIME_GROWTH_BUFFER,
   MAX_FEE_USD,
@@ -171,7 +170,7 @@ export default function MethodPage() {
 
       <h2 className="mt-10 text-xl font-semibold">Fees</h2>
       <p className="mt-2 text-muted">
-        Our fee is {usd(FEE_PER_AREA_USD)} for each area you cover (home, travel, food, shopping or digital), up to {usd(MAX_FEE_USD)} a month. Ongoing offsets are billed yearly when they come to under {usd(MONTHLY_BILLING_FROM_USD)} a month and monthly above that, and you can switch; paying yearly gets {12 - ANNUAL_FEE_MONTHS} months of our fee free. Donations
+        Our fee is {usd(FEE_PER_AREA_USD)} for each area you cover (home, travel, food, shopping or digital), up to {usd(MAX_FEE_USD)} a month. Ongoing offsets are billed monthly unless you choose yearly; paying yearly gets {12 - ANNUAL_FEE_MONTHS} months of our fee free. Donations
         under {usd(MIN_DONATION_USD)} a month, or {usd(ANNUAL_MIN_DONATION_USD)} a year, are rounded up, and all of it goes to the charities.
       </p>
 

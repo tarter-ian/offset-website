@@ -14,7 +14,7 @@ import {
   ANNUAL_MIN_DONATION_USD,
   BILLING,
   type Billing,
-  defaultBilling,
+  DEFAULT_BILLING,
   LIFETIME_MIN_DONATION_USD,
   MIN_DONATION_USD,
   usd,
@@ -95,7 +95,7 @@ export function Store() {
     const p = PRODUCTS.find((x) => x.id === id)!;
     return { productId: id, amount: amountOf(p), span: spanOf(p) };
   });
-  const billing = billingPick ?? defaultBilling(planTotals(lines, ctx, "monthly").recurring?.total ?? 0);
+  const billing = billingPick ?? DEFAULT_BILLING;
   const totals = planTotals(lines, ctx, billing);
   const toggle = (id: string) => setPlan((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
 

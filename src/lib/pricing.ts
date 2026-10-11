@@ -65,11 +65,8 @@ export const MIN_DONATION_USD = 1;
  * our fee free. Monthly billing stays available.
  */
 export type Billing = "annual" | "monthly";
-export const DEFAULT_BILLING: Billing = "annual";
-/** Small plans default to yearly, where card fees bite hardest; bigger ones to monthly so no one faces a large charge by default. */
-export const MONTHLY_BILLING_FROM_USD = 20;
-export const defaultBilling = (monthlyTotal: number): Billing =>
-  monthlyTotal >= MONTHLY_BILLING_FROM_USD ? "monthly" : "annual";
+/** Monthly by default: most consumers prefer it because it is easier to budget and cancel. Yearly is the discounted option. */
+export const DEFAULT_BILLING: Billing = "monthly";
 export const ANNUAL_FEE_MONTHS = 10;
 export const ANNUAL_MIN_DONATION_USD = 5;
 export const BILLING: Record<Billing, { label: string; per: string; approve: string }> = {

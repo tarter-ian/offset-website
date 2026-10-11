@@ -26,7 +26,7 @@ import {
   type CarbonMode,
   BILLING,
   type Billing,
-  defaultBilling,
+  DEFAULT_BILLING,
   ANNUAL_FEE_MONTHS,
   recurringPrice,
   DEFAULT_WATER_MODE,
@@ -128,7 +128,7 @@ export function Results({
   const cost = monthlyCost(footprint, covered, impacts, carbonMode, waterMode);
   const lifetime = lifetimeCost(cost);
   const rawDonation = cost.byImpact.carbon + cost.byImpact.air + cost.byImpact.water + cost.byImpact.land;
-  const billing = billingPick ?? defaultBilling(cost.total);
+  const billing = billingPick ?? DEFAULT_BILLING;
   const bill = recurringPrice(rawDonation, cost.fee, billing);
   const allImpacts = IMPACT_KEYS.every((k) => impacts.includes(k));
   const everything = allImpacts && CATEGORY_KEYS.every((k) => covered.includes(k));
