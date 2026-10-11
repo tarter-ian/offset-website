@@ -99,13 +99,17 @@ export const US_GRID_LB_PER_MWH = 770.9;
 // The US grid gets cleaner over time. EIA's 2025 outlook (full IRA) has power
 // CO2 per kWh falling ~6% a year to 2050; its no-IRA case ~2%. With 2025's cuts
 // to clean-power credits we take the cautious 2% a year to 2050, then flat.
-// Applied to future power use in lifetime prices, for every harm.
+// Applied to future power use in lifetime prices, for carbon and power plant water.
 export const GRID_CLEANER_PER_YEAR = 0.02;
 export const GRID_CLEANER_UNTIL = 2050;
+// Power plant SO2 and NOx fall faster than CO2 because coal, their main source,
+// retires first: in 2023 SO2 fell 24% and NOx 15% against CO2's 7% (EPA Power
+// Sector Progress Report). We take twice the carbon rate for air.
+export const GRID_AIR_CLEANER_PER_YEAR = 0.04;
 
 /** Years of future power use, counted at the grid each year is expected to have, from `from` for `years`. */
-export function gridYears(from: number, years: number): number {
-  const r = 1 - GRID_CLEANER_PER_YEAR;
+export function gridYears(from: number, years: number, rate = GRID_CLEANER_PER_YEAR): number {
+  const r = 1 - rate;
   const declining = Math.max(0, Math.min(years, GRID_CLEANER_UNTIL - from));
   // Integral of r^t from 0 to the end of the decline, then flat at its final level.
   const k = Math.log(r);

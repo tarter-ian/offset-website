@@ -24,6 +24,8 @@ const SOURCES = [
   { name: "Levi Strauss 501 jeans life cycle assessment (2015)", url: "https://www.levistrauss.com/wp-content/uploads/2015/03/Full-LCA-Results-Deck-FINAL.pdf" },
   { name: "EPA eGRID2023 state emission rates (CO₂e, NOx, SO₂)", url: "https://www.epa.gov/egrid/summary-data" },
   { name: "EIA 2024 residential electricity use and prices", url: "https://www.eia.gov/electricity/sales_revenue_price/" },
+  { name: "EIA Annual Energy Outlook (future grid carbon)", url: "https://www.eia.gov/outlooks/aeo/" },
+  { name: "EPA Power Sector Programs Progress Report (power plant SO2 and NOx trends)", url: "https://www.epa.gov/power-sector/progress-report-emissions-reductions" },
   {
     name: "EPA benefit-per-ton estimates for power plants",
     url: "https://epa.gov/benmap/sector-based-pm25-and-ozone-benefit-ton-estimates",
@@ -190,10 +192,12 @@ export default function MethodPage() {
       <p className="mt-2 text-muted">
         The one-time lifetime offsets count from age {F.ONLINE_FROM_AGE} (or {F.INTERNET_START_YEAR}, whichever is later), and from late 2022 for AI,
         through age {F.LIFETIME_TO_AGE}. Past years count at today&apos;s rates. Future years count at today&apos;s amount of use, since networks
-        get more efficient about as fast as use grows, but the power for it gets cleaner: we assume the US grid&apos;s carbon, air pollution and
-        water per kWh fall {Math.round(F.GRID_CLEANER_PER_YEAR * 100)}% a year until {F.GRID_CLEANER_UNTIL}, then hold steady. That&apos;s a cautious
-        pace; the EIA&apos;s outlooks range from about 2% to 6% a year depending on clean-power policy. Making devices happens mostly overseas, so
-        it isn&apos;t discounted. Future AI use counts {LIFETIME_GROWTH_BUFFER} times over in case it keeps growing. Prices use
+        get more efficient about as fast as use grows, but the power for it gets cleaner. We assume the US grid&apos;s carbon and power plant water
+        per kWh fall {Math.round(F.GRID_CLEANER_PER_YEAR * 100)}% a year until {F.GRID_CLEANER_UNTIL}, then hold steady. That&apos;s a cautious pace;
+        the EIA&apos;s outlooks range from about 2% to 6% a year depending on clean-power policy. Power plant air pollution falls faster, since
+        coal is its main source and retires first (in 2023 sulfur dioxide fell 24% and NOx 15%, against 7% for carbon), so we take{" "}
+        {Math.round(F.GRID_AIR_CLEANER_PER_YEAR * 100)}% a year for air. Data center cooling water and making devices, mostly overseas, aren&apos;t
+        discounted. Future AI use counts {LIFETIME_GROWTH_BUFFER} times over in case it keeps growing. Prices use
         expected-impact climate pricing, plus the one-time fee.
       </p>
       <ul className="mt-3 list-disc space-y-1 pl-5 text-muted">

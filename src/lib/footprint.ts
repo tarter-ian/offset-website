@@ -193,9 +193,15 @@ export function dataCenterImpacts(kwh: number): Impacts {
   return {
     ...g,
     carbon: kwh * (F.KG_PER_STREAMING_HOUR / F.STREAMING_KWH_PER_HOUR),
-    water: g.water + kwh * F.DATACENTER_L_PER_KWH * F.scarcityWeight("datacenter"),
+    water: g.water + coolingWater(kwh),
   };
 }
+
+/** Scarcity-weighted data center cooling water for this much server power (kWh). */
+export const coolingWater = (kwh: number) => kwh * F.DATACENTER_L_PER_KWH * F.scarcityWeight("datacenter");
+
+/** The cooling water inside aiImpacts for the same energy to answer prompts. */
+export const aiCoolingWater = (answerKwh: number) => coolingWater(answerKwh / (1 - F.AI_TRAINING_SHARE));
 
 /**
  * Everything behind AI use, from the energy to answer prompts (kWh): its share
@@ -208,7 +214,7 @@ export function aiImpacts(answerKwh: number): Impacts {
   return {
     carbon: g.carbon / (1 - F.AI_HARDWARE_SHARE),
     air: g.air * F.AI_LOCAL_AIR_WEIGHT,
-    water: g.water + kwh * F.DATACENTER_L_PER_KWH * F.scarcityWeight("datacenter"),
+    water: g.water + coolingWater(kwh),
     land: 0,
   };
 }

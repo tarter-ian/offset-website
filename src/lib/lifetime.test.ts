@@ -78,9 +78,17 @@ describe("spans", () => {
 
   it("makes a year of monthly payments add up to a year of use", () => {
     const month = lifetimeOffset(typical, ["internet"], now, "monthly");
-    const life = lifetimeOffset(typical, ["internet"], now, "lifetime");
-    const years = life.pastYears.internet + F.gridYears(now.getFullYear() + now.getMonth() / 12, life.futureYears);
-    expect(month.parts.internet.cost * 12 * years).toBeCloseTo(life.parts.internet.cost, 6);
+    const past = lifetimeOffset(typical, ["internet"], now, "past");
+    expect(month.parts.internet.cost * 12 * past.pastYears.internet).toBeCloseTo(past.parts.internet.cost, 6);
+  });
+
+  it("makes lifetime past use plus future use, with the future on a cleaner grid", () => {
+    for (const item of ["internet", "ai", "devices"] as const) {
+      const past = lifetimeOffset(typical, [item], now, "past").parts[item].cost;
+      const future = lifetimeOffset(typical, [item], now, "future").parts[item].cost;
+      const life = lifetimeOffset(typical, [item], now, "lifetime").parts[item].cost;
+      expect(past + future).toBeCloseTo(life, 6);
+    }
   });
 });
 
@@ -99,5 +107,6 @@ describe("gridYears", () => {
     expect(F.gridYears(2026, 1)).toBeCloseTo(0.99, 2);
     expect(F.gridYears(2026, 50)).toBeLessThan(50);
     expect(F.gridYears(2026, 50)).toBeGreaterThan(30);
+    expect(F.gridYears(2026, 50, F.GRID_AIR_CLEANER_PER_YEAR)).toBeLessThan(F.gridYears(2026, 50));
   });
 });

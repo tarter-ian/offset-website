@@ -1,5 +1,5 @@
 import * as F from "./factors";
-import { aiImpacts, dataCenterImpacts, electronicsMaking, gridImpacts, IMPACT_KEYS, MARGINS, type Impacts } from "./footprint";
+import { aiCoolingWater, aiImpacts, coolingWater, dataCenterImpacts, electronicsMaking, gridImpacts, IMPACT_KEYS, MARGINS, type Impacts } from "./footprint";
 import {
   MONTHLY_FEE_USD,
   impactCost,
@@ -12,7 +12,9 @@ import {
 // One-time offsets for everything someone has done and will do online, sold as
 // three items: internet, AI and devices. Past years count at today's rate.
 // Future use counts at today's amount of use, powered by a grid that gets cleaner
-// each year (see gridYears); future AI use is also multiplied by the growth buffer.
+// each year (see gridYears): carbon and power plant water at one pace, air faster.
+// Data center cooling water and land aren't discounted. Future AI use is also
+// multiplied by the growth buffer.
 
 export type InternetActivity = keyof typeof F.INTERNET_KWH_PER_HOUR;
 export type Device = keyof typeof F.DEVICES;
@@ -128,23 +130,18 @@ export function lifetimeOffset(
   const pastInternet = Math.max(0, year - onlineSince);
   const pastAi = Math.max(0, year - Math.max(F.AI_START_YEAR, onlineSince));
   const futureYears = Math.max(0, birth + F.LIFETIME_TO_AGE - year);
-  // Future power use counts at the cleaner grid expected in those years.
-  const futureGrid = F.gridYears(year, futureYears);
-  // Years of today's power use each item covers. Future AI use is counted with the growth buffer.
-  const years =
-    span === "monthly"
-      ? { internet: 1 / 12, ai: 1 / 12, devices: 1 / 12 }
-      : span === "past"
-        ? { internet: pastInternet, ai: pastAi, devices: pastInternet }
-        : span === "future"
-          ? { internet: futureGrid, ai: futureGrid * LIFETIME_GROWTH_BUFFER, devices: futureGrid }
-          : {
-            internet: pastInternet + futureGrid,
-            ai: pastAi + futureGrid * LIFETIME_GROWTH_BUFFER,
-            devices: pastInternet + futureGrid,
-          };
-  // Making devices isn't on the US grid, so it counts every year in full.
-  const makeYears = span === "monthly" ? 1 / 12 : span === "past" ? pastInternet : span === "future" ? futureYears : pastInternet + futureYears;
+  // Years counted at today's rates (past use, or a month of ongoing use) and years still to come.
+  const plain = (past: number) => (span === "monthly" ? 1 / 12 : span === "future" ? 0 : past);
+  const ahead = span === "lifetime" || span === "future" ? futureYears : 0;
+  const power = F.gridYears(year, ahead);
+  const air = F.gridYears(year, ahead, F.GRID_AIR_CLEANER_PER_YEAR);
+  // A year of use, repeated over the years ahead on a grid getting cleaner. Cooling water is the part that isn't power.
+  const future = (perYear: Impacts, cooling = 0): Impacts => ({
+    carbon: perYear.carbon * power,
+    air: perYear.air * air,
+    water: (perYear.water - cooling) * power + cooling * ahead,
+    land: perYear.land * ahead,
+  });
 
   // Internet: hours a day for each activity, with a wider margin on the rough ones.
   let internet = zero;
@@ -152,7 +149,9 @@ export function lifetimeOffset(
   for (const k of Object.keys(F.INTERNET_KWH_PER_HOUR) as InternetActivity[]) {
     const kwhPerYear = nonNeg(input.internetHoursPerDay[k]) * 365 * F.INTERNET_KWH_PER_HOUR[k];
     const margin = MARGINS.estimated + (k === "video" ? 0 : F.INTERNET_ROUGH_MARGIN);
-    const impacts = add(zero, dataCenterImpacts(kwhPerYear), years.internet * (1 + margin));
+    const perYear = dataCenterImpacts(kwhPerYear);
+    const used = add(add(zero, perYear, plain(pastInternet)), future(perYear, coolingWater(kwhPerYear)));
+    const impacts = add(zero, used, 1 + margin);
     internetByActivity[k] = part(impacts).cost;
     internet = add(internet, impacts);
   }
@@ -164,27 +163,25 @@ export function lifetimeOffset(
     (1 + (input.aiFromExport ? MARGINS.measured : MARGINS.estimated));
   // Past AI use is measured when an export covers it; otherwise it's today's rate since ChatGPT launched.
   // Only chat is measured, so images stay estimated at today's rate.
-  const measuredPast = input.aiPastWh !== undefined;
-  const aiPastKwh = measuredPast
-    ? (input.aiPastWh! / 1000) * (1 + MARGINS.measured) +
-      ((nonNeg(input.aiMediaPerWeek) * 52 * F.WH_PER_AI_MEDIA) / 1000) * (1 + MARGINS.estimated) * pastAi
-    : aiKwhPerYear * pastAi;
-  const aiKwh =
-    span === "past"
-      ? aiPastKwh
-      : span === "lifetime" && measuredPast
-        ? aiPastKwh + aiKwhPerYear * futureGrid * LIFETIME_GROWTH_BUFFER
-        : aiKwhPerYear * years.ai;
-  const ai = aiImpacts(aiKwh);
+  const aiPastKwh =
+    input.aiPastWh !== undefined
+      ? (input.aiPastWh / 1000) * (1 + MARGINS.measured) +
+        ((nonNeg(input.aiMediaPerWeek) * 52 * F.WH_PER_AI_MEDIA) / 1000) * (1 + MARGINS.estimated) * pastAi
+      : aiKwhPerYear * pastAi;
+  const aiPlainKwh = span === "monthly" ? aiKwhPerYear / 12 : span === "future" ? 0 : aiPastKwh;
+  const ai = add(aiImpacts(aiPlainKwh), future(aiImpacts(aiKwhPerYear), aiCoolingWater(aiKwhPerYear)), LIFETIME_GROWTH_BUFFER);
 
   // Devices: making each one you'd go through, plus the power to run it.
+  // Making them isn't on the US grid, so it counts every year in full.
   let devices = zero;
   for (const k of Object.keys(F.DEVICES) as Device[]) {
     const d = F.DEVICES[k];
     const count = nonNeg(input.devices[k]);
-    const madeKg = (count * d.kgToMake * makeYears) / d.yearsKept;
+    const madeKg = (count * d.kgToMake * (plain(pastInternet) + ahead)) / d.yearsKept;
     const made = { ...zero, carbon: madeKg, ...electronicsMaking(madeKg) };
-    devices = add(devices, add(made, gridImpacts(count * d.kwhPerYear * years.devices)), 1 + MARGINS.estimated);
+    const running = gridImpacts(count * d.kwhPerYear);
+    const used = add(add(made, running, plain(pastInternet)), future(running));
+    devices = add(devices, used, 1 + MARGINS.estimated);
   }
 
   const parts = { internet: part(internet), ai: part(ai), devices: part(devices) };

@@ -19,7 +19,7 @@ const DEVICE_NOTE = (id: keyof typeof F.DEVICES) => {
     `Making one takes about ${d.kgToMake} kg of CO₂e, and we assume you replace it every ${d.yearsKept} years.`,
     `Running it uses about ${d.kwhPerYear} kWh a year on the US grid.`,
     "Water consumed and land used to mine and make it are scaled from studies of smartphones by the carbon to make each device.",
-    `Lifetime covers every one you'll go through until age ${F.LIFETIME_TO_AGE}, with their power on a grid getting ${Math.round(F.GRID_CLEANER_PER_YEAR * 100)}% cleaner a year to ${F.GRID_CLEANER_UNTIL}.`,
+    `Lifetime covers every one you'll go through until age ${F.LIFETIME_TO_AGE}, with their power on a grid getting cleaner each year to ${F.GRID_CLEANER_UNTIL}.`,
   ];
 };
 
@@ -41,7 +41,7 @@ export const HOW_ESTIMATED: Record<string, string[]> = {
     `Signing in to Claude also reads how much of your plan's weekly limit you've used, which includes Claude Code. We turn that into hours of use from Anthropic's published limits, at about ${F.WH_PER_CLAUDE_CODE_HOUR} Wh an hour, and use it when it's more than your chats.`,
     `Adds each prompt's share of training the models (${Math.round(F.AI_TRAINING_SHARE * 100)}% of AI energy) and of making the chips and buildings (+${Math.round(F.AI_HARDWARE_SHARE * 100)}% carbon).`,
     "Power is on the US grid; water is the power plants' plus data center cooling.",
-    `Lifetime assumes use until age ${F.LIFETIME_TO_AGE}, allows for it to grow, and counts the grid getting ${Math.round(F.GRID_CLEANER_PER_YEAR * 100)}% cleaner a year to ${F.GRID_CLEANER_UNTIL}.`,
+    `Lifetime assumes use until age ${F.LIFETIME_TO_AGE}, allows for it to grow, and counts the grid getting cleaner each year to ${F.GRID_CLEANER_UNTIL} (cooling water isn't discounted).`,
   ],
   "ai-media": [`About ${F.WH_PER_AI_MEDIA} Wh per picture or short clip, with the same training, hardware and water as chat.`],
   video: [`About ${F.STREAMING_KWH_PER_HOUR} kWh and ${g(F.KG_PER_STREAMING_HOUR)} of CO₂ an hour, from the IEA.`, ONLINE_NOTE],
