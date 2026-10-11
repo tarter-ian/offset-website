@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { activityAmounts, parseActivityJson, parseNetflix, YOUTUBE_MIN_PER_VIDEO } from "./activity";
+import { activityAmounts, parseActivityJson, parseNetflix, YOUTUBE_MIN_PER_SHORT, YOUTUBE_MIN_PER_VIDEO, youtubeDays } from "./activity";
 
 const DAY = 86_400_000;
 const END = Date.UTC(2026, 9, 1);
@@ -85,5 +85,13 @@ describe("activity exports", () => {
     expect(parseActivityJson({ hello: 1 })).toBeNull();
     expect(parseActivityJson([{ a: 1 }])).toBeNull();
     expect(parseNetflix("a,b\n1,2")).toBeNull();
+  });
+
+  it("uses the extension's YouTube watch hours, except from versions that overcounted", () => {
+    // Before 0.5 the hours ran high (cappedDays marks that format), so a typical time per video is used instead.
+    const old = youtubeDays({ cappedDays: 1, daily: [{ date: "2026-10-01", videos: 10, shorts: 120, hours: 24 }] });
+    expect(old).toEqual([{ target: "video", time: Date.parse("2026-10-01"), amount: (10 * YOUTUBE_MIN_PER_VIDEO + 120 * YOUTUBE_MIN_PER_SHORT) / 60 }]);
+    const now = youtubeDays({ watchedHours: 2.5, daily: [{ date: "2026-10-01", videos: 10, shorts: 120, hours: 2.5 }] });
+    expect(now).toEqual([{ target: "video", time: Date.parse("2026-10-01"), amount: 2.5 }]);
   });
 });
