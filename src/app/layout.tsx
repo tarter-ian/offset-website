@@ -18,8 +18,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               Offset
             </Link>
             <div className="flex gap-5 text-sm text-muted">
-              <Link href="/method" className="hover:text-foreground">
+              <Link href="/method" className="hidden hover:text-foreground sm:inline">
                 How we calculate
+              </Link>
+              <Link href="/promises" className="hover:text-foreground">
+                Our promises
               </Link>
               <Link href="/estimate" className="font-medium text-accent hover:text-accent-strong">
                 Get your estimate
