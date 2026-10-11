@@ -47,12 +47,15 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               </Link>
               .
             </span>
-            <span className="flex gap-4">
+            <span className="flex flex-wrap gap-x-4 gap-y-1">
               <Link href="/ledger" className="underline hover:text-foreground">
                 Where the money goes
               </Link>
               <Link href="/data" className="underline hover:text-foreground">
                 Your data
+              </Link>
+              <Link href="/promises#who" className="underline hover:text-foreground">
+                Made by Ian Tarter
               </Link>
               <span>US only.</span>
             </span>

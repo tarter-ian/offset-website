@@ -66,6 +66,27 @@ export default function PromisesPage() {
           </div>
         ))}
       </dl>
+      <section id="who" className="mt-10 flex scroll-mt-24 items-start gap-5 border-t-2 border-rule pt-6">
+        {/* Same photo as iantarter.com. Swap for a local copy once there's a final one. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="https://iantarter.com/wp-content/uploads/2023/08/img-2643-edited-1.png?w=240"
+          alt="Ian Tarter"
+          width={96}
+          height={96}
+          className="size-24 shrink-0 rounded-md border border-border object-cover"
+        />
+        <div>
+          <h2 className="font-display text-lg font-bold">Who&apos;s behind this</h2>
+          <p className="mt-1">
+            Offset is made by Ian Tarter, a Cognitive Science student at Carleton College. It&apos;s one person, not a company with a
+            marketing team, and every number on this site traces back to a source you can check.{" "}
+            <a href="https://iantarter.com" target="_blank" rel="noreferrer" className="text-accent hover:underline">
+              iantarter.com
+            </a>
+          </p>
+        </div>
+      </section>
       <p className="mt-8 text-muted">
         See <Link href="/method" className="text-accent hover:underline">how we calculate</Link> for every factor and
         source.
