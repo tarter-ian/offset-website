@@ -154,8 +154,8 @@ export function AiQuickPick({
           <p className="mt-2 text-sm text-muted">
             The Offset extension checks ChatGPT, Claude, Gemini and YouTube in the background, where you&apos;re already logged in, and
             brings back your last 30 days. Only counts reach us, never your chats.{" "}
-            <a href="/data" className="underline hover:text-foreground">
-              What it reads
+            <a href="/extension" className="underline hover:text-foreground">
+              How it works
             </a>
           </p>
           {Object.keys(rows).length > 0 && (
@@ -310,8 +310,8 @@ function ExtensionOffer({ name, service }: { name: string; service: QuickService
         It installs with no access to any site. The first time you measure {name}, it asks, and Chrome adds its standard line that it can
         &ldquo;read and change your data&rdquo; there. Offset only counts, changes nothing, and runs only when you press the button. After
         each run you can see exactly what it sent.{" "}
-        <a href="/data#extension" className="underline hover:text-foreground">
-          More on what it reads
+        <a href="/extension" className="underline hover:text-foreground">
+          How it works
         </a>
       </p>
       {EXTENSION_URL ? (

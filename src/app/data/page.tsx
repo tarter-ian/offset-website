@@ -39,7 +39,10 @@ export default function DataPage() {
         On a computer, the free Offset extension for Chrome and Edge gets your real numbers. When you press Measure, it opens each service
         in a small window behind yours, where you&apos;re already logged in, counts in your browser, closes the window and hands this page
         only the counts below. It never sees your password and never reads or sends your chats or what you watched. It only runs when you
-        press Measure. It has no analytics, and the only places it contacts are the services it&apos;s counting.
+        press Measure. It has no analytics, and the only places it contacts are the services it&apos;s counting.{" "}
+        <Link href="/extension" className="text-accent hover:underline">
+          How the extension works
+        </Link>
       </p>
       <dl className="mt-3 border-t-2 border-rule">
         {(Object.keys(SIGN_IN_READS) as SignInService[]).map((s) => (
