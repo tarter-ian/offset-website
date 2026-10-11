@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  areaOf,
   CATEGORY_KEYS,
   computeFootprint,
   DEFAULT_ANSWERS,
@@ -54,18 +55,32 @@ describe("computeFootprint", () => {
   });
 
   it("multiplies personal habits by household size for a household", () => {
-    const one = cat(base, "food").impacts;
-    const three = cat({ ...base, scope: "household", householdSize: 3 }, "food").impacts;
+    const one = cat(base, "meat").impacts;
+    const three = cat({ ...base, scope: "household", householdSize: 3 }, "meat").impacts;
     expect(three.land).toBeCloseTo(one.land * 3, 6);
     expect(three.water).toBeCloseTo(one.water * 3, 6);
   });
 
-  it("gives a vegan diet a smaller footprint on every counted impact", () => {
-    const vegan = cat({ ...base, diet: "vegan" }, "food").impacts;
-    const meat = cat({ ...base, diet: "meat-heavy" }, "food").impacts;
-    expect(vegan.carbon).toBeLessThan(meat.carbon);
-    expect(vegan.water).toBeLessThan(meat.water);
-    expect(vegan.land).toBeLessThan(meat.land);
+  it("gives a vegan diet a smaller food footprint on every counted impact", () => {
+    const food = (a: Answers) =>
+      computeFootprint(a)
+        .categories.filter((c) => areaOf(c.key).key === "food")
+        .reduce((s, c) => s + c.impacts.carbon + c.impacts.water + c.impacts.land, 0);
+    expect(food({ ...base, diet: "vegan" })).toBeLessThan(food({ ...base, diet: "meat-heavy" }));
+    expect(cat({ ...base, diet: "vegan" }, "meat").impacts.carbon).toBe(0);
+  });
+
+  it("splits food and shopping without losing any of the total", () => {
+    const f = computeFootprint(base);
+    const areaCarbon = (key: string) =>
+      f.categories.filter((c) => areaOf(c.key).key === key).reduce((s, c) => s + c.impacts.carbon, 0);
+    expect(areaCarbon("food")).toBeCloseTo(2500 / 12, 6);
+    expect(areaCarbon("shopping")).toBeCloseTo(5000 / 12, 6);
+  });
+
+  it("counts bus and train miles", () => {
+    expect(cat({ ...base, transit: { milesPerWeek: 50 } }, "transit").impacts.carbon).toBeGreaterThan(0);
+    expect(cat(base, "transit").impacts.carbon).toBe(0);
   });
 
   it("does not double count electric heating or an EV charged at home on a known bill", () => {
@@ -103,17 +118,25 @@ describe("computeFootprint", () => {
 describe("monthlyCost", () => {
   const f = computeFootprint(base);
 
-  it("charges a dollar fee per covered category, capped", () => {
+  it("charges a dollar fee per area with anything covered, capped", () => {
     expect(monthlyCost(f, ["ai"]).fee).toBe(1);
-    expect(monthlyCost(f, ["ai", "food"]).fee).toBe(2);
+    expect(monthlyCost(f, ["car", "flights"]).fee).toBe(1);
+    expect(monthlyCost(f, ["ai", "meat"]).fee).toBe(2);
     expect(monthlyCost(f, CATEGORY_KEYS).fee).toBe(MAX_FEE_USD);
   });
 
   it("only prices the covered categories", () => {
-    const food = monthlyCost(f, ["food"]);
+    const food = monthlyCost(f, ["meat", "dairy", "plants"]);
     const all = monthlyCost(f, CATEGORY_KEYS);
     expect(food.donation).toBeLessThan(all.donation);
     expect(food.byImpact.land).toBeCloseTo(all.byImpact.land, 6);
+  });
+
+  it("only prices the chosen impact types", () => {
+    const water = monthlyCost(f, CATEGORY_KEYS, ["water"]);
+    expect(water.byImpact.carbon).toBe(0);
+    expect(water.byImpact.water).toBeGreaterThan(0);
+    expect(monthlyCost(f, CATEGORY_KEYS, []).total).toBe(0);
   });
 
   it("raises a tiny donation to the minimum and says so", () => {

@@ -207,6 +207,14 @@ export function EstimateWizard() {
                 )}
               </>
             )}
+            <Field label="Bus, train and subway miles in a typical week">
+              <NumberInput
+                label="Transit miles a week"
+                suffix="miles a week"
+                value={answers.transit?.milesPerWeek ?? 0}
+                onChange={(n) => set("transit", { milesPerWeek: n ?? 0 })}
+              />
+            </Field>
             <Field
               label="Round-trip flights in a typical year"
               hint={answers.scope === "household" ? "Count each traveler's trip separately." : undefined}

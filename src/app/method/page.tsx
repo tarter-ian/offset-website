@@ -4,7 +4,7 @@ import { CONFIDENCE_LABELS, MARGINS, type Confidence } from "@/lib/footprint";
 import {
   AIR_DAMAGE_SHARE,
   DONATION_PER_TONNE_USD,
-  FEE_PER_CATEGORY_USD,
+  FEE_PER_AREA_USD,
   MAX_FEE_USD,
   MIN_DONATION_USD,
   usd,
@@ -83,8 +83,20 @@ const ROWS = [
     category: "Flights",
     method: `Round trips a year, spread over 12 months, times ${F.FLIGHT_NON_CO2_MULTIPLIER} for contrails and other high-altitude warming.`,
   },
-  { category: "Food", method: "Yearly per-person figures for your type of diet, for carbon, water and land." },
-  { category: "Goods and services", method: "A yearly per-person carbon figure for your level of spending." },
+  {
+    category: "Bus and train",
+    method: `Miles a week at about ${F.TRANSIT_KG_PER_MILE} kg CO₂e a passenger-mile.`,
+  },
+  {
+    category: "Food",
+    method:
+      "Yearly per-person figures for your type of diet, for carbon, water and land, split into meat and fish, dairy and eggs, and plant foods by typical shares.",
+  },
+  {
+    category: "Shopping",
+    method:
+      "A yearly per-person carbon figure for your level of spending, split into clothing, electronics, home goods and services by typical shares.",
+  },
   {
     category: "AI",
     method: `About ${F.WH_PER_AI_PROMPT} Wh a chatbot prompt on the US grid, plus data center cooling water. We count your prompts from your data export if you add it.`,
@@ -139,15 +151,15 @@ export default function MethodPage() {
 
       <h2 className="mt-10 text-xl font-semibold">Fees</h2>
       <p className="mt-2 text-muted">
-        Our fee is {usd(FEE_PER_CATEGORY_USD)} for each category you cover, up to {usd(MAX_FEE_USD)} a month. Donations
+        Our fee is {usd(FEE_PER_AREA_USD)} for each area you cover (home, travel, food, shopping or digital), up to {usd(MAX_FEE_USD)} a month. Donations
         under {usd(MIN_DONATION_USD)} are rounded up to {usd(MIN_DONATION_USD)}, and all of it goes to the charities.
       </p>
 
       <h2 className="mt-10 text-xl font-semibold">What &ldquo;Fully Offset&rdquo; means</h2>
       <p className="mt-2 text-muted">
         A Fully Offset month is one where you approved donations covering the estimate plus its margin for every kind of
-        harm we count. Covering one category earns that category&apos;s badge; covering all of them earns the complete
-        badge. Donations fund charity work; they are not certified carbon credits. If you lower an estimate by hand by
+        harm we count. Covering an item or a whole area earns its badge; covering everything for all four kinds of harm earns the
+        complete badge. Donations fund charity work; they are not certified carbon credits. If you lower an estimate by hand by
         more than its margin, the badge pauses until a linked account confirms the new number.
       </p>
 
@@ -168,7 +180,7 @@ export default function MethodPage() {
         ))}
       </ul>
       <p className="mt-4 text-sm text-muted">
-        Shopping, heating and car tailpipe figures are approximate and will be refined. The car pollution rates date from
+        Shopping, heating, transit, food-group splits and car tailpipe figures are approximate and will be refined. The car pollution rates date from
         2008 and overstate today&apos;s cars.
       </p>
     </article>

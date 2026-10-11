@@ -15,7 +15,7 @@ const PROMISES = [
   },
   {
     title: "One simple fee, shown up front",
-    body: "Our fee is $1 for each area you cover, up to $4 a month. It's listed separately from your donation on every summary.",
+    body: "Our fee is $1 for each area of your life you cover, like home or travel, up to $4 a month. It's listed separately from your donation on every summary.",
   },
   {
     title: "We fund charities, not carbon credits",

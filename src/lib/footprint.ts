@@ -55,6 +55,8 @@ export interface Answers {
   /** Miles and trips are for the user alone, or the whole household, per `scope`. */
   car: { type: CarType; milesPerWeek: number; mpg?: number; chargedAtHome?: boolean };
   flights: { shortPerYear: number; longPerYear: number };
+  /** Bus, train and subway miles a week. Optional for older saved answers. */
+  transit?: { milesPerWeek: number };
   diet: Diet;
   shopping: Shopping;
   digital: {
@@ -66,19 +68,50 @@ export interface Answers {
   };
 }
 
-export type CategoryKey = "electricity" | "heating" | "car" | "flights" | "food" | "shopping" | "ai" | "streaming";
+export type CategoryKey =
+  | "electricity"
+  | "heating"
+  | "car"
+  | "flights"
+  | "transit"
+  | "meat"
+  | "dairy"
+  | "plants"
+  | "clothing"
+  | "electronics"
+  | "household"
+  | "services"
+  | "ai"
+  | "streaming";
 
 export const CATEGORY_LABELS: Record<CategoryKey, string> = {
-  electricity: "Home electricity",
-  heating: "Home heating",
-  car: "Car travel",
+  electricity: "Electricity",
+  heating: "Heating",
+  car: "Car",
   flights: "Flights",
-  food: "Food",
-  shopping: "Goods and services",
+  transit: "Bus and train",
+  meat: "Meat and fish",
+  dairy: "Dairy and eggs",
+  plants: "Plant foods",
+  clothing: "Clothing",
+  electronics: "Electronics",
+  household: "Furniture and home goods",
+  services: "Services and other",
   ai: "AI",
   streaming: "Video streaming",
 };
 export const CATEGORY_KEYS = Object.keys(CATEGORY_LABELS) as CategoryKey[];
+
+/** Areas group the subcategories people can cover. */
+export type AreaKey = "home" | "travel" | "food" | "shopping" | "digital";
+export const AREAS: { key: AreaKey; label: string; categories: CategoryKey[] }[] = [
+  { key: "home", label: "Home", categories: ["electricity", "heating"] },
+  { key: "travel", label: "Travel", categories: ["car", "flights", "transit"] },
+  { key: "food", label: "Food", categories: ["meat", "dairy", "plants"] },
+  { key: "shopping", label: "Shopping", categories: ["clothing", "electronics", "household", "services"] },
+  { key: "digital", label: "Digital", categories: ["ai", "streaming"] },
+];
+export const areaOf = (k: CategoryKey) => AREAS.find((a) => a.categories.includes(k))!;
 
 export interface CategoryResult {
   key: CategoryKey;
@@ -108,6 +141,7 @@ export const DEFAULT_ANSWERS: Answers = {
   heating: { fuel: "gas", mode: "average" },
   car: { type: "gas", milesPerWeek: 200 },
   flights: { shortPerYear: 1, longPerYear: 0 },
+  transit: { milesPerWeek: 0 },
   diet: "average",
   shopping: "average",
   digital: { aiPromptsPerDay: 10, aiMediaPerWeek: 0, streamingHoursPerDay: 2 },
@@ -269,39 +303,47 @@ export function computeFootprint(a: Answers): Footprint {
     ["air", "water"],
   );
 
-  // Food and shopping
-  const food = category(
-    "food",
-    {
-      carbon: (F.DIET_KG_PER_YEAR[a.diet] / 12) * personCount,
-      water: F.DIET_L_PER_DAY[a.diet] * F.DAYS_PER_MONTH * personCount,
-      land: (F.DIET_M2_PER_YEAR[a.diet] / 12) * personCount,
-    },
+  const transitMiles = nonNeg(a.transit?.milesPerWeek) * F.WEEKS_PER_MONTH;
+  const transit = category(
+    "transit",
+    { carbon: transitMiles * F.TRANSIT_KG_PER_MILE },
     "estimated",
-    undefined,
-    ["air"],
+    `${Math.round(transitMiles)} miles a month`,
+    ["air", "water"],
   );
-  const shopping = category(
-    "shopping",
-    { carbon: (F.SHOPPING_KG_PER_YEAR[a.shopping] / 12) * personCount },
-    "estimated",
-    undefined,
-    ["air", "water", "land"],
+
+  // Food, split from the diet total by food group (approximate shares).
+  const foodTotal: Impacts = {
+    carbon: (F.DIET_KG_PER_YEAR[a.diet] / 12) * personCount,
+    air: 0,
+    water: F.DIET_L_PER_DAY[a.diet] * F.DAYS_PER_MONTH * personCount,
+    land: (F.DIET_M2_PER_YEAR[a.diet] / 12) * personCount,
+  };
+  const shares = F.FOOD_SHARES[a.diet];
+  const food = (["meat", "dairy", "plants"] as const).map((k) =>
+    category(k, scale(foodTotal, shares[k]), "estimated", undefined, ["air"]),
+  );
+
+  // Goods and services, split by typical spending shares.
+  const shopTotal = (F.SHOPPING_KG_PER_YEAR[a.shopping] / 12) * personCount;
+  const shopping = (["clothing", "electronics", "household", "services"] as const).map((k) =>
+    category(k, { carbon: shopTotal * F.SHOPPING_SHARES[k] }, "estimated", undefined, ["air", "water", "land"]),
   );
 
   // AI: grid power plus on-site data center cooling water.
   const d = a.digital;
-  const aiKwh =
-    (nonNeg(d.aiPromptsPerDay) * F.DAYS_PER_MONTH * F.WH_PER_AI_PROMPT +
-      nonNeg(d.aiMediaPerWeek) * F.WEEKS_PER_MONTH * F.WH_PER_AI_MEDIA) /
-    1000;
-  const aiGrid = gridImpacts(aiKwh);
+  const aiImpacts = (kwh: number): Impacts => {
+    const g = gridImpacts(kwh);
+    return scale({ ...g, water: g.water + kwh * F.DATACENTER_L_PER_KWH }, personCount);
+  };
+  const prompts = nonNeg(d.aiPromptsPerDay) * F.DAYS_PER_MONTH;
+  const media = nonNeg(d.aiMediaPerWeek) * F.WEEKS_PER_MONTH;
   const ai = category(
     "ai",
-    scale({ ...aiGrid, water: aiGrid.water + aiKwh * F.DATACENTER_L_PER_KWH }, personCount),
+    aiImpacts((prompts * F.WH_PER_AI_PROMPT + media * F.WH_PER_AI_MEDIA) / 1000),
     d.aiFromExport ? "measured" : "estimated",
-    `About ${Math.round(nonNeg(d.aiPromptsPerDay) * F.DAYS_PER_MONTH)} prompts a month${
-      d.aiFromExport ? ", from your data export" : ""
+    `About ${Math.round(prompts)} prompts${media ? ` and ${Math.round(media)} images or videos` : ""} a month${
+      d.aiFromExport ? ", prompts from your data export" : ""
     }`,
   );
 
@@ -314,7 +356,7 @@ export function computeFootprint(a: Answers): Footprint {
     `${Math.round(streamHours)} hours a month, data centers and networks only`,
   );
 
-  const categories = [electricity, heating, car, flights, food, shopping, ai, streaming];
+  const categories = [electricity, heating, car, flights, transit, ...food, ...shopping, ai, streaming];
   return {
     categories,
     total: sumImpacts(categories.map((c) => c.impacts)),

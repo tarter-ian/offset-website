@@ -1,5 +1,5 @@
 import { M2_PER_ACRE } from "./factors";
-import { sumImpacts, type CategoryKey, type Footprint, type Impacts } from "./footprint";
+import { AREAS, IMPACT_KEYS, sumImpacts, type CategoryKey, type Footprint, type ImpactKey, type Impacts } from "./footprint";
 
 // Placeholder prices, to set before launch.
 
@@ -18,8 +18,8 @@ export const WATER_USD_PER_LITER = 4 / 3785.41;
  * says protecting an acre of rainforest costs about $10. */
 export const LAND_USD_PER_M2 = 10 / M2_PER_ACRE;
 
-/** Fee: $1 for each category covered, capped. */
-export const FEE_PER_CATEGORY_USD = 1;
+/** Fee: $1 for each area (home, travel, ...) with anything covered, capped. */
+export const FEE_PER_AREA_USD = 1;
 export const MAX_FEE_USD = 4;
 
 /** Smallest donation we pass on, so tiny plans still reach the charities. */
@@ -45,13 +45,21 @@ export function impactCost(i: Impacts): Impacts {
   };
 }
 
-export function monthlyCost(footprint: Footprint, covered: CategoryKey[]): MonthlyCost {
+export function monthlyCost(
+  footprint: Footprint,
+  covered: CategoryKey[],
+  impacts: ImpactKey[] = IMPACT_KEYS,
+): MonthlyCost {
   const chosen = footprint.categories.filter((c) => covered.includes(c.key));
-  const byImpact = impactCost(sumImpacts(chosen.map((c) => c.offset)));
+  const all = impactCost(sumImpacts(chosen.map((c) => c.offset)));
+  const byImpact: Impacts = { carbon: 0, air: 0, water: 0, land: 0 };
+  for (const k of impacts) byImpact[k] = all[k];
   const raw = byImpact.carbon + byImpact.air + byImpact.water + byImpact.land;
-  const minimumApplied = chosen.length > 0 && raw < MIN_DONATION_USD;
-  const donation = chosen.length ? cents(Math.max(raw, MIN_DONATION_USD)) : 0;
-  const fee = Math.min(MAX_FEE_USD, chosen.length * FEE_PER_CATEGORY_USD);
+  const active = chosen.length > 0 && impacts.length > 0;
+  const minimumApplied = active && raw < MIN_DONATION_USD;
+  const donation = active ? cents(Math.max(raw, MIN_DONATION_USD)) : 0;
+  const areas = active ? AREAS.filter((a) => a.categories.some((k) => covered.includes(k))).length : 0;
+  const fee = Math.min(MAX_FEE_USD, areas * FEE_PER_AREA_USD);
   return { byImpact, donation, fee, total: cents(donation + fee), minimumApplied };
 }
 

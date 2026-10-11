@@ -120,3 +120,20 @@ export const DIET_M2_PER_YEAR = {
 } as const;
 
 export const M2_PER_ACRE = 4046.86;
+
+// ---------------------------------------------------------------------------
+// Subcategory splits (approximate shares, to refine).
+
+// Bus and train, kg CO2e per passenger-mile (approximate EPA average).
+export const TRANSIT_KG_PER_MILE = 0.1;
+
+// How each diet's food footprint splits between food groups.
+export const FOOD_SHARES = {
+  "meat-heavy": { meat: 0.6, dairy: 0.2, plants: 0.2 },
+  average: { meat: 0.5, dairy: 0.25, plants: 0.25 },
+  vegetarian: { meat: 0, dairy: 0.45, plants: 0.55 },
+  vegan: { meat: 0, dairy: 0, plants: 1 },
+} as const;
+
+// How goods and services split.
+export const SHOPPING_SHARES = { clothing: 0.15, electronics: 0.15, household: 0.15, services: 0.55 } as const;
