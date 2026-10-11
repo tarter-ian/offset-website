@@ -3,7 +3,8 @@ import * as F from "@/lib/factors";
 import { CONFIDENCE_LABELS, MARGINS, type Confidence } from "@/lib/footprint";
 import {
   AIR_DAMAGE_SHARE,
-  DONATION_PER_TONNE_USD,
+  CARBON_MODES,
+  type CarbonMode,
   FEE_PER_AREA_USD,
   MAX_FEE_USD,
   MIN_DONATION_USD,
@@ -45,7 +46,9 @@ const IMPACTS = [
   {
     name: "Climate",
     measure: "Greenhouse gases in kg of CO₂e, which counts methane and nitrous oxide as well as CO₂.",
-    price: `We donate ${usd(DONATION_PER_TONNE_USD)} a tonne to climate charities. Founders Pledge estimates its top picks avert a tonne for under $10.`,
+    price: `You choose how: ${(Object.keys(CARBON_MODES) as CarbonMode[])
+      .map((m) => `${CARBON_MODES[m].label.toLowerCase()} at ${usd(CARBON_MODES[m].perTonne)} a tonne`)
+      .join(", ")}. Policy charities are estimated to avert a tonne for under $10 but can't be measured; certified removal is measured per tonne but costs far more. The default is expected impact; you can opt into the blend (90% policy, 10% removal) or verified-only.`,
   },
   {
     name: "Air pollution",
@@ -159,7 +162,7 @@ export default function MethodPage() {
       <p className="mt-2 text-muted">
         A Fully Offset month is one where you approved donations covering the estimate plus its margin for every kind of
         harm we count. Covering an item or a whole area earns its badge; covering everything for all four kinds of harm earns the
-        complete badge. Donations fund charity work; they are not certified carbon credits. If you lower an estimate by hand by
+        complete badge. Unless you choose verified-only climate, donations fund charity work rather than certified credits. If you lower an estimate by hand by
         more than its margin, the badge pauses until a linked account confirms the new number.
       </p>
 

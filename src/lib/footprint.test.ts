@@ -17,6 +17,7 @@ import {
   MAX_FEE_USD,
   MIN_DONATION_USD,
   monthlyCost,
+  type CarbonMode,
 } from "./pricing";
 
 const base: Answers = DEFAULT_ANSWERS;
@@ -170,5 +171,15 @@ describe("lifetimeCost", () => {
 
   it("is not offered for bigger plans", () => {
     expect(lifetimeCost(monthlyCost(f, CATEGORY_KEYS))).toBeNull();
+  });
+});
+
+describe("carbon modes", () => {
+  const f = computeFootprint(base);
+  it("prices climate higher as verification rises", () => {
+    const c = (m: CarbonMode) => monthlyCost(f, CATEGORY_KEYS, ["carbon"], m).byImpact.carbon;
+    expect(c("expected")).toBeLessThan(c("blend"));
+    expect(c("blend")).toBeLessThan(c("verified"));
+    expect(c("blend") / c("expected")).toBeCloseTo(49 / 15, 6);
   });
 });

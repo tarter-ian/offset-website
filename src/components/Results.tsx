@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Badge } from "./Badge";
 import { WaitlistForm } from "./WaitlistForm";
-import { CHARITIES } from "@/lib/charities";
+import { CARBON_REMOVAL, CHARITIES, type Charity } from "@/lib/charities";
 import {
   AREAS,
   CATEGORY_KEYS,
@@ -19,7 +19,11 @@ import {
 } from "@/lib/footprint";
 import { IMPACT_INFO } from "@/lib/impacts";
 import {
+  CARBON_MODES,
+  CARBON_POLICY_SHARE,
+  DEFAULT_CARBON_MODE,
   FEE_PER_AREA_USD,
+  type CarbonMode,
   impactCost,
   LIFETIME_GROWTH_BUFFER,
   LIFETIME_YEARS,
@@ -55,8 +59,8 @@ const PRESETS: { label: string; keys: CategoryKey[] }[] = [
   { label: "Just AI", keys: ["ai"] },
 ];
 
-const costOf = (c: CategoryResult, impacts: ImpactKey[]) => {
-  const i = impactCost(c.offset);
+const costOf = (c: CategoryResult, impacts: ImpactKey[], mode: CarbonMode = DEFAULT_CARBON_MODE) => {
+  const i = impactCost(c.offset, mode);
   return impacts.reduce((s, k) => s + i[k], 0);
 };
 
@@ -104,8 +108,9 @@ export function Results({
 }) {
   const [covered, setCovered] = useState<CategoryKey[]>(initialCovered);
   const [impacts, setImpacts] = useState<ImpactKey[]>(IMPACT_KEYS);
+  const [carbonMode, setCarbonMode] = useState<CarbonMode>(DEFAULT_CARBON_MODE);
   const rows = footprint.categories.filter((c) => show.includes(c.key));
-  const cost = monthlyCost(footprint, covered, impacts);
+  const cost = monthlyCost(footprint, covered, impacts, carbonMode);
   const lifetime = lifetimeCost(cost);
   const rawDonation = cost.byImpact.carbon + cost.byImpact.air + cost.byImpact.water + cost.byImpact.land;
   const allImpacts = IMPACT_KEYS.every((k) => impacts.includes(k));
@@ -180,6 +185,30 @@ export function Results({
             );
           })}
         </div>
+        {impacts.includes("carbon") && (
+          <div className="mt-4">
+            <p className="font-medium">How to cover climate</p>
+            <div className="mt-2 grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="How to cover climate">
+              {(Object.keys(CARBON_MODES) as CarbonMode[]).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  role="radio"
+                  aria-checked={carbonMode === m}
+                  onClick={() => setCarbonMode(m)}
+                  className={`rounded-lg border px-4 py-3 text-left ${
+                    carbonMode === m ? "border-accent bg-accent-soft" : "border-border bg-card hover:border-accent"
+                  }`}
+                >
+                  <span className="block font-medium">
+                    {CARBON_MODES[m].label}: {usd(CARBON_MODES[m].perTonne)} a tonne
+                  </span>
+                  <span className="block text-sm text-muted">{CARBON_MODES[m].detail}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
 
       <section>
@@ -220,7 +249,7 @@ export function Results({
             {groups.map((g) => {
               const keys = g.rows.map((c) => c.key);
               const n = keys.filter((k) => covered.includes(k)).length;
-              const areaCost = g.rows.reduce((s, c) => s + costOf(c, impacts), 0);
+              const areaCost = g.rows.reduce((s, c) => s + costOf(c, impacts, carbonMode), 0);
               return (
                 <tbody key={g.key} className="border-b border-border last:border-0">
                   {!single && (
@@ -281,7 +310,7 @@ export function Results({
                         <td className="px-4 py-3 text-muted">
                           {counted.length ? `${CONFIDENCE_LABELS[c.confidence]}, +${Math.round(c.margin * 100)}%` : ""}
                         </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-right font-medium">{usd(costOf(c, impacts))}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-right font-medium">{usd(costOf(c, impacts, carbonMode))}</td>
                       </tr>
                     );
                   })}
@@ -344,27 +373,27 @@ export function Results({
             <ul className="mt-4 space-y-3">
               {impacts
                 .filter((k) => cost.byImpact[k] > 0)
-                .map((k) => {
-                  const ch = CHARITIES[k];
-                  const share = rawDonation > 0 ? (cost.byImpact[k] / rawDonation) * cost.donation : 0;
-                  return (
-                    <li key={k} className="flex justify-between gap-4">
-                      <div>
-                        <div className="text-xs uppercase tracking-wide text-muted">{IMPACT_INFO[k].label}</div>
-                        <a
-                          href={ch.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="font-medium text-accent hover:underline"
-                        >
-                          {ch.name}
-                        </a>
-                        <div className="text-sm text-muted">{ch.focus}</div>
-                      </div>
-                      <div className="shrink-0">{usd(share)}</div>
-                    </li>
-                  );
-                })}
+                .flatMap((k): { key: string; impact: ImpactKey; ch: Charity; amount: number }[] => {
+                  const amount = rawDonation > 0 ? (cost.byImpact[k] / rawDonation) * cost.donation : 0;
+                  if (k !== "carbon") return [{ key: k, impact: k, ch: CHARITIES[k], amount }];
+                  const policy = CARBON_POLICY_SHARE[carbonMode];
+                  return [
+                    { key: "carbon-policy", impact: k, ch: CHARITIES.carbon, amount: amount * policy },
+                    { key: "carbon-removal", impact: k, ch: CARBON_REMOVAL, amount: amount * (1 - policy) },
+                  ].filter((x) => x.amount > 0);
+                })
+                .map(({ key, impact, ch, amount }) => (
+                  <li key={key} className="flex justify-between gap-4">
+                    <div>
+                      <div className="text-xs uppercase tracking-wide text-muted">{IMPACT_INFO[impact].label}</div>
+                      <a href={ch.url} target="_blank" rel="noreferrer" className="font-medium text-accent hover:underline">
+                        {ch.name}
+                      </a>
+                      <div className="text-sm text-muted">{ch.focus}</div>
+                    </div>
+                    <div className="shrink-0">{usd(amount)}</div>
+                  </li>
+                ))}
             </ul>
           ) : (
             <p className="mt-4 text-muted">Nothing selected yet.</p>

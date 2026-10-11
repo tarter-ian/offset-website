@@ -31,3 +31,10 @@ export const CHARITIES: Record<ImpactKey, Charity> = {
     focus: "Buys and protects threatened tropical forest",
   },
 };
+
+/** Where the measured-removal part of a climate donation goes. */
+export const CARBON_REMOVAL: Charity = {
+  name: "Certified biochar removal (Puro.earth)",
+  url: "https://puro.earth/",
+  focus: "Carbon locked away in biochar, measured and registered per tonne",
+};

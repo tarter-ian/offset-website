@@ -18,8 +18,8 @@ const PROMISES = [
     body: "Our fee is $1 for each area of your life you cover, like home or travel, up to $4 a month. It's listed separately from your donation on every summary.",
   },
   {
-    title: "We fund charities, not carbon credits",
-    body: "Many carbon credits have turned out not to deliver what they claimed. We give to charities chosen on evidence of impact instead, and we never claim your donation removed a set number of tonnes.",
+    title: "No cheap, unverified carbon credits",
+    body: "Many cheap carbon credits have turned out not to deliver what they claimed. We give to charities chosen on evidence of impact, and the only credits we buy are certified carbon removal, measured per tonne. We only say tonnes were removed when they were measured.",
   },
   {
     title: "Every number is explained",

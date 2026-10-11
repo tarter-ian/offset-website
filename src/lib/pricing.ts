@@ -3,9 +3,22 @@ import { AREAS, IMPACT_KEYS, sumImpacts, type CategoryKey, type Footprint, type 
 
 // Placeholder prices, to set before launch.
 
-/** Carbon: donation per tonne of CO2e. Founders Pledge estimates its top climate
- * charities avert a tonne for under $10 in expectation. */
-export const DONATION_PER_TONNE_USD = 15;
+/**
+ * Carbon: how a tonne is covered. Policy charities are cheap per expected tonne
+ * but can't be measured (Founders Pledge puts its top picks under $10/t);
+ * certified removal (Puro biochar, ~EUR 159/t) is measured but costly. The
+ * blend is 90% policy at a conservative $10/t plus 10% removal at ~$400/t.
+ */
+export type CarbonMode = "expected" | "blend" | "verified";
+export const CARBON_MODES: Record<CarbonMode, { label: string; perTonne: number; detail: string }> = {
+  expected: { label: "Expected impact", perTonne: 15, detail: "All to policy charities. Cheapest, but no tonne is measured." },
+  blend: { label: "Blend", perTonne: 49, detail: "90% policy charities, 10% measured carbon removal." },
+  verified: { label: "Verified only", perTonne: 185, detail: "Certified carbon removal. Every tonne is measured." },
+};
+export const DEFAULT_CARBON_MODE: CarbonMode = "expected";
+/** Share of the climate donation that goes to policy charities; the rest buys removal. */
+export const CARBON_POLICY_SHARE: Record<CarbonMode, number> = { expected: 1, blend: 9 / 49, verified: 0 };
+export const DONATION_PER_TONNE_USD = CARBON_MODES[DEFAULT_CARBON_MODE].perTonne;
 
 /** Air: share of the estimated health damage donated to clean-air work. */
 export const AIR_DAMAGE_SHARE = 0.1;
@@ -36,9 +49,9 @@ export interface MonthlyCost {
 
 const cents = (n: number) => Math.round(n * 100) / 100;
 
-export function impactCost(i: Impacts): Impacts {
+export function impactCost(i: Impacts, carbonMode: CarbonMode = DEFAULT_CARBON_MODE): Impacts {
   return {
-    carbon: (i.carbon / 1000) * DONATION_PER_TONNE_USD,
+    carbon: (i.carbon / 1000) * CARBON_MODES[carbonMode].perTonne,
     air: i.air * AIR_DAMAGE_SHARE,
     water: i.water * WATER_USD_PER_LITER,
     land: i.land * LAND_USD_PER_M2,
@@ -49,9 +62,10 @@ export function monthlyCost(
   footprint: Footprint,
   covered: CategoryKey[],
   impacts: ImpactKey[] = IMPACT_KEYS,
+  carbonMode: CarbonMode = DEFAULT_CARBON_MODE,
 ): MonthlyCost {
   const chosen = footprint.categories.filter((c) => covered.includes(c.key));
-  const all = impactCost(sumImpacts(chosen.map((c) => c.offset)));
+  const all = impactCost(sumImpacts(chosen.map((c) => c.offset)), carbonMode);
   const byImpact: Impacts = { carbon: 0, air: 0, water: 0, land: 0 };
   for (const k of impacts) byImpact[k] = all[k];
   const raw = byImpact.carbon + byImpact.air + byImpact.water + byImpact.land;
