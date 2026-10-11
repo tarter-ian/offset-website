@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { checkSessionToken, enabledReclaimServices, reclaimEvents, sessionToken } from "./reclaim";
+import { YOUTUBE_MIN_PER_SHORT, YOUTUBE_MIN_PER_VIDEO } from "./activity";
 
 describe("reclaim sign-in", () => {
   it("is off until its keys are set", () => {
@@ -41,8 +42,8 @@ describe("reclaim sign-in", () => {
 });
 
 describe("our own sign-ins", () => {
-  it("turns YouTube's daily counts into viewing time at a typical length", () => {
+  it("turns YouTube's daily counts into viewing time at a typical view each", () => {
     const yt = reclaimEvents("youtube", { loggedIn: "true" }, { videos: 10, shorts: 120, watchedHours: 900, daily: [{ date: "2026-10-01", videos: 10, shorts: 120, hours: 30 }] });
-    expect(yt).toEqual([{ target: "video", time: Date.parse("2026-10-01"), amount: (10 * 12 + 120 * 0.5) / 60 }]);
+    expect(yt).toEqual([{ target: "video", time: Date.parse("2026-10-01"), amount: (10 * YOUTUBE_MIN_PER_VIDEO + 120 * YOUTUBE_MIN_PER_SHORT) / 60 }]);
   });
 });

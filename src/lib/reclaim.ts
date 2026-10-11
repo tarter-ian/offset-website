@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { ActivityEvent } from "./activity";
-import { parseNetflix, YOUTUBE_MIN_PER_SHORT, YOUTUBE_MIN_PER_VIDEO } from "./activity";
+import { parseNetflix, youtubeDays } from "./activity";
 import { levelForPlan, type AiLevel } from "./ai/levels";
 
 // Signing in to Spotify, YouTube, Netflix, Uber or an AI service through Reclaim Protocol
@@ -113,31 +113,6 @@ const listIn = (raw: unknown, keys: string[]): Record<string, unknown>[] => {
   const list = keys.map((k) => data[k]).find(Array.isArray);
   return Array.isArray(list) ? list.filter(isObj) : [];
 };
-
-/**
- * Our YouTube sign-in (2026-10-11) returns daily counts, not a list of videos:
- * `daily[]` of {date, videos, shorts, hours}. YouTube's own watched-hours
- * figure runs far too high (long videos show as fully watched), so we use the
- * counts at a typical length each, as with a Takeout download.
- */
-function youtubeDays(publicData: unknown): ActivityEvent[] {
-  let data = publicData;
-  if (typeof data === "string") {
-    try {
-      data = JSON.parse(data);
-    } catch {
-      return [];
-    }
-  }
-  if (!isObj(data) || !Array.isArray(data.daily)) return [];
-  return data.daily.filter(isObj).flatMap((d): ActivityEvent[] => {
-    const time = parseTime(d.date);
-    const videos = Number(d.videos) || 0;
-    const shorts = Number(d.shorts) || 0;
-    const hours = (videos * YOUTUBE_MIN_PER_VIDEO + shorts * YOUTUBE_MIN_PER_SHORT) / 60;
-    return Number.isFinite(time) && hours > 0 ? [{ target: "video", time, amount: hours }] : [];
-  });
-}
 
 /**
  * Turns what a sign-in returned into activity. The providers chosen in the

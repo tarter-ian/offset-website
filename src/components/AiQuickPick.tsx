@@ -4,12 +4,22 @@ import { useEffect, useState } from "react";
 import { AI_LEVELS, type AiLevel } from "@/lib/ai/levels";
 import { claudeLimitWhPerDay, signInUsage, summaryFromSignIn, type SignInUsage } from "@/lib/ai/signin";
 import { CLAUDE_PLANS, usageFromQuickCount, type ClaudePlan, type QuickService } from "@/lib/ai/quickCount";
-import type { UsageSummary } from "@/lib/ai/exportParser";
-import { canInstallExtension, countWithExtension, detectExtension, EXTENSION_URL } from "@/lib/extension";
+import { combineSummaries, type UsageSummary } from "@/lib/ai/exportParser";
+import { activityAmounts, youtubeDays } from "@/lib/activity";
+import { canInstallExtension, detectExtension, EXTENSION_SERVICES, EXTENSION_URL, measure, type ExtensionError, type ExtensionService } from "@/lib/extension";
 import { SIGN_IN_READS } from "@/lib/signinReads";
 
 const AI_NAMES: Record<QuickService, string> = { chatgpt: "ChatGPT", claude: "Claude", gemini: "Gemini" };
 const SERVICES = Object.keys(AI_NAMES) as QuickService[];
+const EXT_NAMES: Record<ExtensionService, string> = { ...AI_NAMES, youtube: "YouTube" };
+const ERRORS: Record<ExtensionError, (name: string) => string> = {
+  "signed-out": (n) => `You're not logged in to ${n} in this browser.`,
+  closed: () => "The tab was closed before it finished.",
+  timeout: () => "It took too long.",
+  unavailable: () => "Couldn't count this one.",
+};
+
+type Row = { state: "counting" | "done" | "error"; text?: string; error?: ExtensionError };
 
 /**
  * Sizing AI use. One click: pick light, medium or heavy. Exact: the Offset
@@ -22,14 +32,19 @@ export function AiQuickPick({
   onPick,
   onExact,
   onMeasured,
+  onVideo,
 }: {
   level: AiLevel | null;
   onPick: (level: AiLevel, from: string) => void;
   onExact: () => void;
   /** A summary of real use. `note` is set when it's the person's own count rather than a measurement. */
   onMeasured: (s: UsageSummary, note?: string) => void;
+  /** Hours a day of video, measured from YouTube by the extension. */
+  onVideo?: (hoursPerDay: number) => void;
 }) {
-  const [ext, setExt] = useState<string[] | null>(null);
+  const [ext, setExt] = useState<string | null>(null);
+  const [rows, setRows] = useState<Partial<Record<ExtensionService, Row>>>({});
+  const [aiSummaries, setAiSummaries] = useState<Partial<Record<QuickService, UsageSummary>>>({});
   const [installable, setInstallable] = useState(false);
   const [open, setOpen] = useState<QuickService | null>(null);
   const [status, setStatus] = useState<{ kind: "idle" | "waiting" | "done" | "error"; text?: string; service?: QuickService }>({ kind: "idle" });
@@ -39,23 +54,50 @@ export function AiQuickPick({
     detectExtension().then(setExt);
   }, []);
 
-  async function measure(service: QuickService) {
-    const name = AI_NAMES[service];
+  function run(services: ExtensionService[], inFront = false) {
+    setStatus({ kind: "idle" });
     setOpen(null);
-    setStatus({ kind: "waiting", text: `Counting your ${name} use. This takes a few seconds…` });
-    try {
-      const u = signInUsage(await countWithExtension(service, (text) => setStatus({ kind: "waiting", text })));
-      if (!u) throw new Error(`We couldn't read your ${name} use. Are you logged in to ${name} in this browser?`);
-      setStatus({ kind: "done", service, text: resultText(name, u) });
-      onMeasured(summaryFromSignIn(service, u));
-    } catch (e) {
-      setStatus({ kind: "error", text: e instanceof Error ? e.message : `We couldn't count your ${name} use.` });
-    }
+    setRows((r) => ({ ...r, ...Object.fromEntries(services.map((x) => [x, { state: "counting" }])) }));
+    measure(
+      services,
+      {
+        onUsage: (service, usage) => {
+          if (service === "youtube") {
+            const days = youtubeDays(usage);
+            const video = activityAmounts(days)?.amounts.video;
+            const totals = youtubeTotals(usage);
+            setRows((r) => ({
+              ...r,
+              youtube: video
+                ? { state: "done", text: `${totals.videos.toLocaleString("en-US")} videos and ${totals.shorts.toLocaleString("en-US")} Shorts in 30 days, about ${video} hours a day` }
+                : { state: "error", error: "unavailable" },
+            }));
+            if (video) onVideo?.(video);
+            return;
+          }
+          const u = signInUsage(usage);
+          if (!u) {
+            setRows((r) => ({ ...r, [service]: { state: "error", error: "unavailable" } }));
+            return;
+          }
+          setRows((r) => ({ ...r, [service]: { state: "done", text: resultText(u) } }));
+          setAiSummaries((prev) => {
+            const next = { ...prev, [service]: summaryFromSignIn(service, u) };
+            const all = combineSummaries(Object.values(next) as UsageSummary[]);
+            if (all) onMeasured(all);
+            return next;
+          });
+        },
+        onError: (service, error) => setRows((r) => ({ ...r, [service]: { state: "error", error } })),
+      },
+      inFront,
+    );
   }
 
+  const busy = Object.values(rows).some((r) => r?.state === "counting");
+
   function connect(service: QuickService) {
-    if (ext?.includes(service)) measure(service);
-    else setOpen(open === service ? null : service);
+    setOpen(open === service ? null : service);
   }
 
   return (
@@ -83,33 +125,98 @@ export function AiQuickPick({
         })}
       </div>
       <p className="mt-5 font-semibold">Or get your real numbers</p>
-      <div className="mt-2 flex flex-wrap gap-2">
-        {SERVICES.map((s) => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => connect(s)}
-            aria-expanded={ext?.includes(s) ? undefined : open === s}
-            className={`min-h-11 rounded-md border-2 border-rule px-4 font-semibold ${open === s ? "bg-foreground text-background" : "hover:bg-foreground hover:text-background"}`}
-          >
-            Connect {AI_NAMES[s]}
-          </button>
-        ))}
-      </div>
       {ext ? (
-        <p className="mt-2 text-sm text-muted">
-          The Offset extension opens {ext.length > 1 ? "the service" : AI_NAMES[ext[0] as QuickService]} in a tab where you&apos;re already
-          logged in and counts your last 30 days. Only the counts reach us, never your chats.{" "}
-          <a href="/data" className="underline hover:text-foreground">
-            What it reads
-          </a>
-        </p>
-      ) : (
-        !open && (
+        <div className="mt-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => run(EXTENSION_SERVICES)}
+              disabled={busy}
+              className="min-h-11 rounded-md bg-foreground px-5 font-semibold text-background hover:opacity-90 disabled:opacity-60"
+            >
+              Measure everything
+            </button>
+            <span className="text-sm text-muted">or just</span>
+            {EXTENSION_SERVICES.map((x) => (
+              <button
+                key={x}
+                type="button"
+                onClick={() => run([x])}
+                disabled={busy}
+                className="min-h-11 rounded-md border-2 border-rule px-3 text-sm font-semibold hover:bg-foreground hover:text-background disabled:opacity-60"
+              >
+                {EXT_NAMES[x]}
+              </button>
+            ))}
+          </div>
           <p className="mt-2 text-sm text-muted">
-            {installable ? "Exact numbers with our free browser extension, or count your chats yourself in under a minute." : "Count your chats yourself in under a minute, no login needed."}
+            The Offset extension checks ChatGPT, Claude, Gemini and YouTube in the background, where you&apos;re already logged in, and
+            brings back your last 30 days. Only counts reach us, never your chats.{" "}
+            <a href="/data" className="underline hover:text-foreground">
+              What it reads
+            </a>
           </p>
-        )
+          {Object.keys(rows).length > 0 && (
+            <dl className="mt-3 border-t-2 border-rule text-sm">
+              {EXTENSION_SERVICES.filter((x) => rows[x]).map((x) => {
+                const r = rows[x]!;
+                return (
+                  <div key={x} className="grid grid-cols-[6rem_minmax(0,1fr)] gap-3 border-b border-border py-2">
+                    <dt className="font-semibold">{EXT_NAMES[x]}</dt>
+                    <dd>
+                      {r.state === "counting" && <span className="text-muted">Counting…</span>}
+                      {r.state === "done" && r.text}
+                      {r.state === "error" && (
+                        <span>
+                          <span className="text-muted">{ERRORS[r.error ?? "unavailable"](EXT_NAMES[x])}</span>{" "}
+                          <button type="button" onClick={() => run([x], r.error === "signed-out")} className="underline hover:text-muted">
+                            {r.error === "signed-out" ? `Log in to ${EXT_NAMES[x]}` : "Try again"}
+                          </button>
+                        </span>
+                      )}
+                    </dd>
+                  </div>
+                );
+              })}
+            </dl>
+          )}
+          {Object.keys(aiSummaries).length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setAiSummaries({});
+                setRows({});
+                onPick("medium", "you removed your measured numbers, so we use medium");
+              }}
+              className="mt-2 text-sm underline hover:text-muted"
+            >
+              Remove these numbers
+            </button>
+          )}
+        </div>
+      ) : (
+        <>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {SERVICES.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => connect(s)}
+                aria-expanded={open === s}
+                className={`min-h-11 rounded-md border-2 border-rule px-4 font-semibold ${open === s ? "bg-foreground text-background" : "hover:bg-foreground hover:text-background"}`}
+              >
+                Connect {AI_NAMES[s]}
+              </button>
+            ))}
+          </div>
+          {!open && (
+            <p className="mt-2 text-sm text-muted">
+              {installable
+                ? "Exact numbers with our free browser extension, or count your chats yourself in under a minute."
+                : "Count your chats yourself in under a minute, no login needed."}
+            </p>
+          )}
+        </>
       )}
 
       {open && (
@@ -157,9 +264,17 @@ export function AiQuickPick({
   );
 }
 
-function resultText(name: string, u: SignInUsage): string {
+function youtubeTotals(usage: unknown): { videos: number; shorts: number } {
+  const daily = typeof usage === "object" && usage && Array.isArray((usage as { daily?: unknown }).daily) ? (usage as { daily: Record<string, unknown>[] }).daily : [];
+  return daily.reduce<{ videos: number; shorts: number }>(
+    (t, d) => ({ videos: t.videos + (Number(d.videos) || 0), shorts: t.shorts + (Number(d.shorts) || 0) }),
+    { videos: 0, shorts: 0 },
+  );
+}
+
+function resultText(u: SignInUsage): string {
   return (
-    `From your ${name} account: ${u.prompts.toLocaleString("en-US")} prompts${u.images ? ` and ${u.images} images` : ""} in the last ${u.days} days.` +
+    `${u.prompts.toLocaleString("en-US")} prompts${u.images ? ` and ${u.images} images` : ""} in the last ${u.days} days.` +
     (claudeLimitWhPerDay(u) > 0
       ? ` You've also used ${Math.round(u.weeklyLimitUsedPercent!)}% of your plan's weekly limit, which counts Claude Code, so we estimate from that: about ${(claudeLimitWhPerDay(u) / 1000).toFixed(1)} kWh a day.`
       : "")

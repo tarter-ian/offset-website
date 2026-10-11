@@ -30,8 +30,14 @@ export const SOURCE_NAMES: Record<ActivitySource, string> = {
   uber: "Uber",
 };
 
-/** YouTube's history lists videos without how long you watched; this is a rough average. */
-export const YOUTUBE_MIN_PER_VIDEO = 12;
+/**
+ * YouTube's history logs every video that starts playing, including autoplay
+ * and ones skipped after a few seconds, without how long you watched. So each
+ * entry counts as a typical view, not a whole video: creators' analytics show
+ * 5 to 15 minute videos watched 40 to 55% of the way, and vidIQ's own long
+ * videos averaged 3 min 11 s a view over 16.5 million views (vidIQ, 2026).
+ */
+export const YOUTUBE_MIN_PER_VIDEO = 5;
 /** Shorts run up to a minute (three since late 2024); most are watched for well under one. */
 export const YOUTUBE_MIN_PER_SHORT = 0.5;
 export const YOUTUBE_MUSIC_MIN_PER_SONG = 3.5;
@@ -48,6 +54,31 @@ const time = (v: unknown): number => {
   return Date.parse(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(v) ? `${v.replace(" ", "T")}Z` : v);
 };
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null;
+
+/**
+ * YouTube daily counts from the Offset extension (or our older sign-in):
+ * `daily[]` of {date, videos, shorts, hours}. YouTube's own watched-hours
+ * figure runs far too high (long videos show as fully watched), so we use the
+ * counts at a typical view each, as with a Takeout download.
+ */
+export function youtubeDays(data: unknown): ActivityEvent[] {
+  let d0 = data;
+  if (typeof d0 === "string") {
+    try {
+      d0 = JSON.parse(d0);
+    } catch {
+      return [];
+    }
+  }
+  if (!isObj(d0) || !Array.isArray(d0.daily)) return [];
+  return d0.daily.filter(isObj).flatMap((d): ActivityEvent[] => {
+    const time = Date.parse(String(d.date));
+    const videos = Number(d.videos) || 0;
+    const shorts = Number(d.shorts) || 0;
+    const hours = (videos * YOUTUBE_MIN_PER_VIDEO + shorts * YOUTUBE_MIN_PER_SHORT) / 60;
+    return Number.isFinite(time) && hours > 0 ? [{ target: "video", time, amount: hours }] : [];
+  });
+}
 
 function spotify(rows: unknown[]): ActivityEvent[] | null {
   const first = rows.find(isObj);

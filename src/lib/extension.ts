@@ -1,65 +1,99 @@
 // Talking to the Offset browser extension from the site. The extension's
-// content script on our pages answers window messages; it opens the AI service
-// in a tab where the person is already logged in, counts the last 30 days and
-// sends back only the counts. See extension/README.md for the full contract.
+// content script on our pages answers window messages: it opens each service
+// in a background tab where the person is already logged in, counts the last
+// 30 days, closes the tab and sends back only the counts. The contract is in
+// extension/README.md.
 
-export type ExtensionService = "chatgpt" | "claude" | "gemini";
+export type ExtensionService = "chatgpt" | "claude" | "gemini" | "youtube";
+export const EXTENSION_SERVICES: ExtensionService[] = ["chatgpt", "claude", "gemini", "youtube"];
+/** Why a service couldn't be counted: logged out, tab closed by the person, too slow, or not supported. */
+export type ExtensionError = "signed-out" | "closed" | "timeout" | "unavailable";
 
 const SITE = "offset-site";
 const EXT = "offset-extension";
 
-interface ExtMessage {
+type ExtMessage = {
   source: typeof EXT;
-  type: "ready" | "progress" | "result" | "error";
-  id?: string;
+  type: "ready" | "started" | "usage" | "error";
   version?: string;
-  services?: string[];
-  text?: string;
+  requestId?: string;
+  service?: ExtensionService;
+  services?: ExtensionService[];
   usage?: unknown;
-  message?: string;
-}
+  error?: string;
+};
 
 const fromExtension = (e: MessageEvent): ExtMessage | null =>
   e.source === window && e.data && typeof e.data === "object" && e.data.source === EXT ? (e.data as ExtMessage) : null;
 
-/** Resolves with the services the extension can count, or null if it isn't installed. */
-export function detectExtension(timeoutMs = 600): Promise<string[] | null> {
+const post = (msg: Record<string, unknown>) => window.postMessage({ source: SITE, ...msg }, window.location.origin);
+
+/** Resolves with the extension's version, or null if it isn't installed. */
+export function detectExtension(timeoutMs = 1000): Promise<string | null> {
   return new Promise((resolve) => {
-    const done = (v: string[] | null) => {
+    const done = (v: string | null) => {
       window.removeEventListener("message", onMessage);
       clearTimeout(timer);
       resolve(v);
     };
     const onMessage = (e: MessageEvent) => {
       const m = fromExtension(e);
-      if (m?.type === "ready") done(m.services ?? ["chatgpt", "claude"]);
+      if (m?.type === "ready") done(m.version ?? "unknown");
     };
     window.addEventListener("message", onMessage);
     const timer = setTimeout(() => done(null), timeoutMs);
-    window.postMessage({ source: SITE, type: "ping" }, window.location.origin);
+    post({ type: "ping" });
   });
 }
 
-/** Asks the extension to count a service. Resolves with its usage counts; rejects with a readable message. */
-export function countWithExtension(service: ExtensionService, onProgress?: (text: string) => void): Promise<unknown> {
-  const id = Math.random().toString(36).slice(2);
-  return new Promise((resolve, reject) => {
-    const onMessage = (e: MessageEvent) => {
-      const m = fromExtension(e);
-      if (!m || m.id !== id) return;
-      if (m.type === "progress" && m.text) onProgress?.(m.text);
-      if (m.type === "result") {
-        window.removeEventListener("message", onMessage);
-        resolve(m.usage);
+export interface MeasureHandlers {
+  onUsage: (service: ExtensionService, usage: unknown) => void;
+  onError: (service: ExtensionService, error: ExtensionError) => void;
+  /** Called once every service has answered. */
+  onDone?: () => void;
+}
+
+/**
+ * Asks the extension to measure services. With one service and `inFront`, its tab opens in front
+ * so the person can log in first. Returns a function that stops listening.
+ */
+export function measure(services: ExtensionService[], handlers: MeasureHandlers, inFront = false): () => void {
+  const requestId = Math.random().toString(36).slice(2);
+  const waiting = new Set(services);
+  const settle = (s: ExtensionService) => {
+    waiting.delete(s);
+    if (!waiting.size) {
+      stop();
+      handlers.onDone?.();
+    }
+  };
+  const onMessage = (e: MessageEvent) => {
+    const m = fromExtension(e);
+    if (!m || m.requestId !== requestId) return;
+    // The extension couldn't start at all: every service fails the same way.
+    if (m.type === "error" && !m.service) {
+      for (const s of [...waiting]) {
+        handlers.onError(s, "unavailable");
+        settle(s);
       }
-      if (m.type === "error") {
-        window.removeEventListener("message", onMessage);
-        reject(new Error(m.message || "The extension couldn't count your use."));
-      }
-    };
-    window.addEventListener("message", onMessage);
-    window.postMessage({ source: SITE, type: "count", service, id }, window.location.origin);
-  });
+      return;
+    }
+    if (!m.service || !waiting.has(m.service)) return;
+    if (m.type === "usage") {
+      handlers.onUsage(m.service, m.usage);
+      settle(m.service);
+    }
+    if (m.type === "error") {
+      const err = (["signed-out", "closed", "timeout", "unavailable"] as const).find((x) => x === m.error) ?? "unavailable";
+      handlers.onError(m.service, err);
+      settle(m.service);
+    }
+  };
+  const stop = () => window.removeEventListener("message", onMessage);
+  window.addEventListener("message", onMessage);
+  if (inFront && services.length === 1) post({ type: "measure", service: services[0], requestId });
+  else post({ type: "measure-all", services, requestId });
+  return stop;
 }
 
 /** Chrome and Edge on a computer, where the extension can be installed. */
