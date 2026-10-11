@@ -10,7 +10,7 @@ export type Confidence = "estimated" | "entered" | "measured";
 export const MARGINS: Record<Confidence, number> = {
   estimated: 0.3, // questionnaire answer or regional average
   entered: 0.15, // amount typed in from a bill or statement
-  measured: 0.05, // linked account (step 2)
+  measured: 0.05, // linked account or data export
 };
 
 export const CONFIDENCE_LABELS: Record<Confidence, string> = {
@@ -18,6 +18,28 @@ export const CONFIDENCE_LABELS: Record<Confidence, string> = {
   entered: "From your bill",
   measured: "Measured",
 };
+
+/**
+ * The four kinds of harm we track.
+ * carbon: kg CO2e. air: dollars of health damage from air pollution.
+ * water: liters of fresh water consumed. land: square meters occupied for a year.
+ */
+export type ImpactKey = "carbon" | "air" | "water" | "land";
+export type Impacts = Record<ImpactKey, number>;
+export const IMPACT_KEYS: ImpactKey[] = ["carbon", "air", "water", "land"];
+
+const zero = (): Impacts => ({ carbon: 0, air: 0, water: 0, land: 0 });
+const scale = (i: Impacts, k: number): Impacts => ({
+  carbon: i.carbon * k,
+  air: i.air * k,
+  water: i.water * k,
+  land: i.land * k,
+});
+export const sumImpacts = (list: Impacts[]): Impacts =>
+  list.reduce(
+    (s, i) => ({ carbon: s.carbon + i.carbon, air: s.air + i.air, water: s.water + i.water, land: s.land + i.land }),
+    zero(),
+  );
 
 export type HeatingFuel = "electric" | "gas" | "oil" | "propane" | "none";
 export type CarType = "none" | "gas" | "hybrid" | "electric";
@@ -35,27 +57,47 @@ export interface Answers {
   flights: { shortPerYear: number; longPerYear: number };
   diet: Diet;
   shopping: Shopping;
-  digital: { aiPromptsPerDay: number; aiMediaPerWeek: number; streamingHoursPerDay: number };
+  digital: {
+    aiPromptsPerDay: number;
+    aiMediaPerWeek: number;
+    streamingHoursPerDay: number;
+    /** Set when the prompt count came from a ChatGPT or Claude data export. */
+    aiFromExport?: boolean;
+  };
 }
 
-export type CategoryKey = "electricity" | "heating" | "car" | "flights" | "food" | "shopping" | "digital";
+export type CategoryKey = "electricity" | "heating" | "car" | "flights" | "food" | "shopping" | "ai" | "streaming";
+
+export const CATEGORY_LABELS: Record<CategoryKey, string> = {
+  electricity: "Home electricity",
+  heating: "Home heating",
+  car: "Car travel",
+  flights: "Flights",
+  food: "Food",
+  shopping: "Goods and services",
+  ai: "AI",
+  streaming: "Video streaming",
+};
+export const CATEGORY_KEYS = Object.keys(CATEGORY_LABELS) as CategoryKey[];
 
 export interface CategoryResult {
   key: CategoryKey;
   label: string;
-  /** Best estimate, kg CO2e per month. */
-  kg: number;
+  /** Best estimate for one month. */
+  impacts: Impacts;
   confidence: Confidence;
   margin: number;
   /** Estimate plus margin, the amount that gets offset. */
-  offsetKg: number;
+  offset: Impacts;
   note?: string;
+  /** Impacts that apply to this category but we can't estimate yet. */
+  notCounted: ImpactKey[];
 }
 
 export interface Footprint {
   categories: CategoryResult[];
-  totalKg: number;
-  offsetKg: number;
+  total: Impacts;
+  offset: Impacts;
 }
 
 export const DEFAULT_ANSWERS: Answers = {
@@ -75,17 +117,57 @@ const nonNeg = (n: number | undefined) => (Number.isFinite(n) && (n as number) >
 
 function category(
   key: CategoryKey,
-  label: string,
-  kg: number,
+  impacts: Partial<Impacts>,
   confidence: Confidence,
-  note?: string,
+  note: string | undefined,
+  notCounted: ImpactKey[] = [],
 ): CategoryResult {
-  const margin = kg > 0 ? MARGINS[confidence] : 0;
-  return { key, label, kg, confidence, margin, offsetKg: kg * (1 + margin), note };
+  const full = { ...zero(), ...impacts };
+  const any = IMPACT_KEYS.some((k) => full[k] > 0);
+  const margin = any ? MARGINS[confidence] : 0;
+  return {
+    key,
+    label: CATEGORY_LABELS[key],
+    impacts: full,
+    confidence,
+    margin,
+    offset: scale(full, 1 + margin),
+    note,
+    notCounted,
+  };
 }
 
 export function gridKgPerKwh(state: StateCode): number {
   return (STATES[state].gridLbPerMwh * F.KG_PER_LB) / 1000;
+}
+
+const US_KG_PER_KWH = (F.US_GRID_LB_PER_MWH * F.KG_PER_LB) / 1000;
+const US_NOX_LB_PER_MWH = 0.5;
+const US_SO2_LB_PER_MWH = 0.359;
+
+/** Health damage in dollars per kWh from power plant NOx and SO2. */
+export function gridAirUsdPerKwh(noxLbPerMwh: number, so2LbPerMwh: number): number {
+  return (
+    ((noxLbPerMwh / F.LB_PER_SHORT_TON) * F.POWER_USD_PER_TON_NOX +
+      (so2LbPerMwh / F.LB_PER_SHORT_TON) * F.POWER_USD_PER_TON_SO2) /
+    1000
+  );
+}
+
+/** Carbon, air and water for electricity drawn from a grid. */
+function gridImpacts(kwh: number, state?: StateCode): Impacts {
+  const s = state ? STATES[state] : undefined;
+  return {
+    carbon: kwh * (state ? gridKgPerKwh(state) : US_KG_PER_KWH),
+    air: kwh * gridAirUsdPerKwh(s?.noxLbPerMwh ?? US_NOX_LB_PER_MWH, s?.so2LbPerMwh ?? US_SO2_LB_PER_MWH),
+    water: kwh * F.GRID_L_PER_KWH,
+    land: 0,
+  };
+}
+
+/** Health damage in dollars from ground-level NOx and PM2.5, in grams. */
+function groundAirUsd(gNox: number, gPm25: number): number {
+  return (gNox * F.GROUND_USD_PER_TON_NOX + gPm25 * F.GROUND_USD_PER_TON_PM25) / F.G_PER_SHORT_TON;
 }
 
 export function computeFootprint(a: Answers): Footprint {
@@ -94,7 +176,6 @@ export function computeFootprint(a: Answers): Footprint {
   // Home energy is billed per household; personal habits are per person.
   const homeShare = a.scope === "individual" ? 1 / people : 1;
   const personCount = a.scope === "household" ? people : 1;
-  const kgPerKwh = gridKgPerKwh(a.state);
 
   // Electricity
   let kwh: number;
@@ -109,97 +190,134 @@ export function computeFootprint(a: Answers): Footprint {
   }
   const electricity = category(
     "electricity",
-    "Home electricity",
-    kwh * kgPerKwh * homeShare,
+    scale(gridImpacts(kwh, a.state), homeShare),
     elecConfidence,
     `${Math.round(kwh)} kWh a month on the ${state.name} grid`,
   );
 
   // Heating
   const fuel = a.heating.fuel;
-  let heatKg = 0;
-  let heatConfidence: Confidence = "estimated";
+  const heat: Partial<Impacts> = {};
   let heatNote: string | undefined;
   const bill = a.heating.mode === "bill" ? nonNeg(a.heating.billAmount) : 0;
-  if (bill > 0) heatConfidence = "entered";
   if (fuel === "gas") {
     const therms = bill > 0 ? bill / F.GAS_PRICE_PER_THERM : F.AVG_THERMS_PER_MONTH;
-    heatKg = therms * F.KG_CO2_PER_THERM_GAS;
+    heat.carbon = therms * F.KG_CO2_PER_THERM_GAS;
+    heat.air = groundAirUsd(therms * F.GAS_G_NOX_PER_THERM, therms * F.GAS_G_PM25_PER_THERM);
     heatNote = `${Math.round(therms)} therms of natural gas a month`;
   } else if (fuel === "oil") {
     const gal = bill > 0 ? bill / F.OIL_PRICE_PER_GAL : F.AVG_OIL_GAL_PER_MONTH;
-    heatKg = gal * F.KG_CO2_PER_GAL_HEATING_OIL;
+    heat.carbon = gal * F.KG_CO2_PER_GAL_HEATING_OIL;
     heatNote = `${Math.round(gal)} gallons of heating oil a month`;
   } else if (fuel === "propane") {
     const gal = bill > 0 ? bill / F.PROPANE_PRICE_PER_GAL : F.AVG_PROPANE_GAL_PER_MONTH;
-    heatKg = gal * F.KG_CO2_PER_GAL_PROPANE;
+    heat.carbon = gal * F.KG_CO2_PER_GAL_PROPANE;
     heatNote = `${Math.round(gal)} gallons of propane a month`;
   } else if (fuel === "electric") {
     heatNote = "Included in home electricity";
   } else {
     heatNote = "No fuel heating";
   }
-  const heating = category("heating", "Home heating", heatKg * homeShare, heatConfidence, heatNote);
+  const heating = category(
+    "heating",
+    scale({ ...zero(), ...heat }, homeShare),
+    bill > 0 ? "entered" : "estimated",
+    heatNote,
+    fuel === "oil" || fuel === "propane" ? ["air"] : [],
+  );
 
   // Car
   const milesPerMonth = nonNeg(a.car.milesPerWeek) * F.WEEKS_PER_MONTH;
-  let carKg = 0;
-  let carNote: string | undefined;
+  let car: CategoryResult;
   if (a.car.type === "gas" || a.car.type === "hybrid") {
     const mpg = nonNeg(a.car.mpg) || (a.car.type === "hybrid" ? 50 : F.DEFAULT_MPG);
-    carKg = (milesPerMonth / mpg) * F.KG_CO2_PER_GAL_GASOLINE;
-    carNote = `${Math.round(milesPerMonth)} miles a month at ${mpg} mpg`;
+    car = category(
+      "car",
+      {
+        carbon: (milesPerMonth / mpg) * F.KG_CO2_PER_GAL_GASOLINE,
+        air: groundAirUsd(milesPerMonth * F.CAR_G_NOX_PER_MILE, milesPerMonth * F.CAR_G_PM25_PER_MILE),
+      },
+      "estimated",
+      `${Math.round(milesPerMonth)} miles a month at ${mpg} mpg`,
+      ["water"],
+    );
   } else if (a.car.type === "electric") {
     const homeBillCoversIt = a.car.chargedAtHome && a.electricity.mode !== "average";
-    if (homeBillCoversIt) {
-      carNote = "Charged at home, so already in your electricity bill";
-    } else {
-      carKg = milesPerMonth * F.EV_KWH_PER_MILE * kgPerKwh;
-      carNote = `${Math.round(milesPerMonth)} electric miles a month`;
-    }
+    car = homeBillCoversIt
+      ? category("car", {}, "estimated", "Charged at home, so already in your electricity bill")
+      : category(
+          "car",
+          gridImpacts(milesPerMonth * F.EV_KWH_PER_MILE, a.state),
+          "estimated",
+          `${Math.round(milesPerMonth)} electric miles a month`,
+        );
+  } else {
+    car = category("car", {}, "estimated", "No car");
   }
-  const car = category("car", "Car travel", carKg, "estimated", carNote);
 
   // Flights
   const short = nonNeg(a.flights.shortPerYear);
   const long = nonNeg(a.flights.longPerYear);
   const flights = category(
     "flights",
-    "Flights",
-    ((short * F.KG_PER_SHORT_ROUND_TRIP + long * F.KG_PER_LONG_ROUND_TRIP) * F.FLIGHT_NON_CO2_MULTIPLIER) / 12,
+    {
+      carbon:
+        ((short * F.KG_PER_SHORT_ROUND_TRIP + long * F.KG_PER_LONG_ROUND_TRIP) * F.FLIGHT_NON_CO2_MULTIPLIER) / 12,
+    },
     "estimated",
     `${short} short and ${long} long round trips a year, spread over 12 months, including contrail effects`,
+    ["air", "water"],
   );
 
   // Food and shopping
-  const food = category("food", "Food", (F.DIET_KG_PER_YEAR[a.diet] / 12) * personCount, "estimated");
+  const food = category(
+    "food",
+    {
+      carbon: (F.DIET_KG_PER_YEAR[a.diet] / 12) * personCount,
+      water: F.DIET_L_PER_DAY[a.diet] * F.DAYS_PER_MONTH * personCount,
+      land: (F.DIET_M2_PER_YEAR[a.diet] / 12) * personCount,
+    },
+    "estimated",
+    undefined,
+    ["air"],
+  );
   const shopping = category(
     "shopping",
-    "Goods and services",
-    (F.SHOPPING_KG_PER_YEAR[a.shopping] / 12) * personCount,
+    { carbon: (F.SHOPPING_KG_PER_YEAR[a.shopping] / 12) * personCount },
     "estimated",
+    undefined,
+    ["air", "water", "land"],
   );
 
-  // Digital
+  // AI: grid power plus on-site data center cooling water.
   const d = a.digital;
-  const usKgPerKwh = (F.US_GRID_LB_PER_MWH * F.KG_PER_LB) / 1000;
   const aiKwh =
     (nonNeg(d.aiPromptsPerDay) * F.DAYS_PER_MONTH * F.WH_PER_AI_PROMPT +
       nonNeg(d.aiMediaPerWeek) * F.WEEKS_PER_MONTH * F.WH_PER_AI_MEDIA) /
     1000;
-  const streamKg = nonNeg(d.streamingHoursPerDay) * F.DAYS_PER_MONTH * F.KG_PER_STREAMING_HOUR;
-  const digital = category(
-    "digital",
-    "AI and streaming",
-    (aiKwh * usKgPerKwh + streamKg) * personCount,
-    "estimated",
-    "Data centers and networks only",
+  const aiGrid = gridImpacts(aiKwh);
+  const ai = category(
+    "ai",
+    scale({ ...aiGrid, water: aiGrid.water + aiKwh * F.DATACENTER_L_PER_KWH }, personCount),
+    d.aiFromExport ? "measured" : "estimated",
+    `About ${Math.round(nonNeg(d.aiPromptsPerDay) * F.DAYS_PER_MONTH)} prompts a month${
+      d.aiFromExport ? ", from your data export" : ""
+    }`,
   );
 
-  const categories = [electricity, heating, car, flights, food, shopping, digital];
+  const streamHours = nonNeg(d.streamingHoursPerDay) * F.DAYS_PER_MONTH;
+  const streamGrid = gridImpacts(streamHours * F.STREAMING_KWH_PER_HOUR);
+  const streaming = category(
+    "streaming",
+    scale({ ...streamGrid, carbon: streamHours * F.KG_PER_STREAMING_HOUR }, personCount),
+    "estimated",
+    `${Math.round(streamHours)} hours a month, data centers and networks only`,
+  );
+
+  const categories = [electricity, heating, car, flights, food, shopping, ai, streaming];
   return {
     categories,
-    totalKg: categories.reduce((s, c) => s + c.kg, 0),
-    offsetKg: categories.reduce((s, c) => s + c.offsetKg, 0),
+    total: sumImpacts(categories.map((c) => c.impacts)),
+    offset: sumImpacts(categories.map((c) => c.offset)),
   };
 }

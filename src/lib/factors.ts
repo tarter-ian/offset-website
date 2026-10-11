@@ -59,3 +59,64 @@ export const US_GRID_LB_PER_MWH = 770.9;
 
 export const DAYS_PER_MONTH = 30.4;
 export const WEEKS_PER_MONTH = 4.35;
+
+// ---------------------------------------------------------------------------
+// Air pollution: health damage in dollars.
+
+/** Grams in a US short ton, the unit the damage values use. */
+export const G_PER_SHORT_TON = 907_185;
+export const LB_PER_SHORT_TON = 2000;
+
+// Power plants, EPA BenMAP sector benefit-per-ton, 2025, 2016 dollars,
+// 2% discount rate. NOx includes its PM2.5 and ozone effects.
+// https://epa.gov/benmap/sector-based-pm25-and-ozone-benefit-ton-estimates
+export const POWER_USD_PER_TON_NOX = 7_710 + 98_900;
+export const POWER_USD_PER_TON_SO2 = 57_000;
+
+// Ground-level sources (cars, home furnaces), Wolfe et al. 2019 on-road
+// light-duty gasoline values, Krewski model, 2015 dollars, 3% discount rate.
+// We also use these for home furnaces as an approximation.
+export const GROUND_USD_PER_TON_NOX = 7_100;
+export const GROUND_USD_PER_TON_PM25 = 700_000;
+
+// Gasoline car tailpipe, EPA420-F-08-024 (2008). Overstates today's cars;
+// replace with current MOVES rates (BTS NTS Table 4-43).
+export const CAR_G_NOX_PER_MILE = 0.693;
+export const CAR_G_PM25_PER_MILE = 0.0041;
+
+// Natural gas furnace, EPA AP-42 section 1.4.
+export const GAS_G_NOX_PER_THERM = 4.2;
+export const GAS_G_PM25_PER_THERM = 0.34;
+
+// ---------------------------------------------------------------------------
+// Water consumed, in liters.
+
+// US grid average consumption (not withdrawal), as used in Li et al.,
+// "Making AI Less Thirsty". https://arxiv.org/html/2304.03271v4
+export const GRID_L_PER_KWH = 3.14;
+// Data center on-site cooling, implied by Google's Aug 2025 Gemini figures
+// (0.26 mL for 0.24 Wh).
+// https://cloud.google.com/blog/products/infrastructure/measuring-the-environmental-impact-of-ai-inference
+export const DATACENTER_L_PER_KWH = 1.1;
+export const STREAMING_KWH_PER_HOUR = 0.077;
+
+// Food, liters per person per day, Scarborough et al. 2023 (Nature Food).
+export const DIET_L_PER_DAY = {
+  "meat-heavy": 890,
+  average: 780,
+  vegetarian: 530,
+  vegan: 410,
+} as const;
+
+// ---------------------------------------------------------------------------
+// Nature: land occupied, in square meter-years.
+
+// Food, per person per year, Scarborough et al. 2023.
+export const DIET_M2_PER_YEAR = {
+  "meat-heavy": 6125,
+  average: 4117,
+  vegetarian: 2194,
+  vegan: 1595,
+} as const;
+
+export const M2_PER_ACRE = 4046.86;

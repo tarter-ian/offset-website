@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AiExportUpload } from "./AiExportUpload";
 import { Choice, Field, NumberInput, Select } from "./fields";
 import { Results } from "./Results";
 import { STATE_OPTIONS, type StateCode } from "@/lib/data/states";
@@ -258,12 +259,21 @@ export function EstimateWizard() {
 
         {step === 4 && (
           <>
+            <AiExportUpload
+              onResult={(s) =>
+                set("digital", {
+                  ...answers.digital,
+                  aiPromptsPerDay: Math.round(s.promptsPerDay * 10) / 10,
+                  aiFromExport: true,
+                })
+              }
+            />
             <Field label="AI chatbot prompts a day" hint="ChatGPT, Claude, Gemini and similar.">
               <NumberInput
                 label="AI prompts a day"
                 suffix="prompts a day"
                 value={answers.digital.aiPromptsPerDay}
-                onChange={(n) => set("digital", { ...answers.digital, aiPromptsPerDay: n ?? 0 })}
+                onChange={(n) => set("digital", { ...answers.digital, aiPromptsPerDay: n ?? 0, aiFromExport: false })}
               />
             </Field>
             <Field label="AI images or videos made a week">

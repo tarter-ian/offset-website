@@ -15,8 +15,16 @@ const POINTS = [
     body: "Each month you see your footprint and approve the donation yourself. Nothing is charged automatically.",
   },
   {
+    title: "More than carbon",
+    body: "We also count the air pollution, water and land behind your footprint, and fund charities that work on each.",
+  },
+  {
+    title: "Cover what you care about",
+    body: "Offset everything, or just one part, like your AI use or your flights. Each part you cover earns its own badge.",
+  },
+  {
     title: "Show it off",
-    body: "Every approved month earns your Fully Offset badge and adds to your streak, with an optional spot on our public list.",
+    body: "Every approved month earns badges and adds to your streak, with an optional spot on our public list.",
   },
 ];
 
@@ -32,11 +40,11 @@ export default function Home() {
       <section className="py-16 sm:py-24">
         <p className="mb-3 text-sm font-medium uppercase tracking-wide text-accent">Personal carbon offsets</p>
         <h1 className="max-w-3xl text-4xl font-semibold tracking-tight sm:text-5xl">
-          Find your monthly carbon footprint and cover it, one month at a time.
+          Find your monthly footprint and cover it, one month at a time.
         </h1>
         <p className="mt-5 max-w-2xl text-lg text-muted">
-          We work out your footprint from your home, travel, food and spending, then turn it into a
-          donation to climate charities that offsets it.
+          We work out the carbon, air pollution, water and land behind your home, travel, food and spending,
+          then turn it into donations to charities that work on each.
         </p>
         <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
           <Link
@@ -45,8 +53,8 @@ export default function Home() {
           >
             Get your free estimate
           </Link>
-          <Link href="/method" className="text-center font-medium text-accent hover:text-accent-strong">
-            See how we calculate
+          <Link href="/ai" className="text-center font-medium text-accent hover:text-accent-strong">
+            Just offset my AI use
           </Link>
         </div>
       </section>

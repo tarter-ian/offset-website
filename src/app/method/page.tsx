@@ -1,42 +1,97 @@
 import type { Metadata } from "next";
 import * as F from "@/lib/factors";
 import { CONFIDENCE_LABELS, MARGINS, type Confidence } from "@/lib/footprint";
-import { DONATION_PER_TONNE_USD, usd } from "@/lib/pricing";
+import {
+  AIR_DAMAGE_SHARE,
+  DONATION_PER_TONNE_USD,
+  FEE_PER_CATEGORY_USD,
+  MAX_FEE_USD,
+  MIN_DONATION_USD,
+  usd,
+} from "@/lib/pricing";
 
 export const metadata: Metadata = { title: "How we calculate | Offset" };
 
 const SOURCES = [
-  { name: "EPA eGRID2023 state emission rates", url: "https://www.epa.gov/egrid/summary-data" },
+  { name: "EPA eGRID2023 state emission rates (CO₂e, NOx, SO₂)", url: "https://www.epa.gov/egrid/summary-data" },
   { name: "EIA 2024 residential electricity use and prices", url: "https://www.eia.gov/electricity/sales_revenue_price/" },
+  {
+    name: "EPA benefit-per-ton estimates for power plants",
+    url: "https://epa.gov/benmap/sector-based-pm25-and-ozone-benefit-ton-estimates",
+  },
+  {
+    name: "EPA benefit-per-ton estimates for vehicles (Wolfe et al. 2019)",
+    url: "https://www.epa.gov/benmap/mobile-sector-source-apportionment-air-quality-and-benefits-ton",
+  },
+  { name: "EPA AP-42 natural gas combustion factors", url: "https://gaftp.epa.gov/ap42/ch01/s04/final/c1s4_2026.pdf" },
+  { name: "Li et al., Making AI Less Thirsty", url: "https://arxiv.org/html/2304.03271v4" },
+  {
+    name: "Google, environmental impact of AI inference (2025)",
+    url: "https://cloud.google.com/blog/products/infrastructure/measuring-the-environmental-impact-of-ai-inference",
+  },
   { name: "Epoch AI, energy per ChatGPT query", url: "https://epoch.ai/gradient-updates/how-much-energy-does-chatgpt-use" },
   {
     name: "IEA, carbon footprint of streaming video",
     url: "https://www.iea.org/commentaries/the-carbon-footprint-of-streaming-video-fact-checking-the-headlines",
+  },
+  {
+    name: "Scarborough et al. 2023, diet water and land use (Nature Food)",
+    url: "https://ora.ox.ac.uk/objects/uuid:332d8ffb-75cf-4f59-bded-bc2042de955d",
+  },
+  { name: "Founders Pledge, climate donations and offsetting", url: "https://www.founderspledge.com/research/climate-and-lifestyle-donations-and-offsetting" },
+];
+
+const IMPACTS = [
+  {
+    name: "Climate",
+    measure: "Greenhouse gases in kg of CO₂e, which counts methane and nitrous oxide as well as CO₂.",
+    price: `We donate ${usd(DONATION_PER_TONNE_USD)} a tonne to climate charities. Founders Pledge estimates its top picks avert a tonne for under $10.`,
+  },
+  {
+    name: "Air pollution",
+    measure:
+      "The health damage, in dollars, from the NOx, SO₂ and fine particles released by power plants, cars and home furnaces, using EPA's per-ton estimates.",
+    price: `We donate ${Math.round(AIR_DAMAGE_SHARE * 100)}% of that damage to clean-air work.`,
+  },
+  {
+    name: "Water",
+    measure: "Fresh water consumed, in liters, to generate your electricity, cool data centers and grow your food.",
+    price: "We fund restoring the same amount to rivers and streams, at about $4 per 1,000 gallons.",
+  },
+  {
+    name: "Nature",
+    measure: "Land used to grow your food, in square meters for the month.",
+    price: "We fund permanently protecting the same area of threatened forest, at about $10 an acre.",
   },
 ];
 
 const ROWS = [
   {
     category: "Home electricity",
-    method: "Your bill or your state's average use, times your state's grid emission rate.",
+    method:
+      "Your bill or your state's average use, times your state's grid rates for greenhouse gases, NOx, SO₂ and water.",
   },
   {
     category: "Home heating",
-    method: `Your fuel bill or a typical home's use. Natural gas is ${F.KG_CO2_PER_THERM_GAS} kg CO₂ a therm.`,
+    method: `Your fuel bill or a typical home's use. Natural gas is ${F.KG_CO2_PER_THERM_GAS} kg CO₂ a therm, plus its NOx and particles.`,
   },
   {
     category: "Car travel",
-    method: `Miles driven divided by fuel economy, at ${F.KG_CO2_PER_GAL_GASOLINE} kg CO₂ a gallon of gasoline. Electric cars use ${F.EV_KWH_PER_MILE} kWh a mile on your state's grid.`,
+    method: `Miles divided by fuel economy, at ${F.KG_CO2_PER_GAL_GASOLINE} kg CO₂ a gallon, plus tailpipe NOx and particles. Electric cars use ${F.EV_KWH_PER_MILE} kWh a mile on your state's grid.`,
   },
   {
     category: "Flights",
     method: `Round trips a year, spread over 12 months, times ${F.FLIGHT_NON_CO2_MULTIPLIER} for contrails and other high-altitude warming.`,
   },
-  { category: "Food", method: "A yearly per-person figure for your type of diet." },
-  { category: "Goods and services", method: "A yearly per-person figure for your level of spending." },
+  { category: "Food", method: "Yearly per-person figures for your type of diet, for carbon, water and land." },
+  { category: "Goods and services", method: "A yearly per-person carbon figure for your level of spending." },
   {
-    category: "AI and streaming",
-    method: `About ${F.WH_PER_AI_PROMPT} Wh a chatbot prompt and ${F.KG_PER_STREAMING_HOUR * 1000} g CO₂ an hour of streaming. Your devices' own power is already in your electricity bill.`,
+    category: "AI",
+    method: `About ${F.WH_PER_AI_PROMPT} Wh a chatbot prompt on the US grid, plus data center cooling water. We count your prompts from your data export if you add it.`,
+  },
+  {
+    category: "Video streaming",
+    method: `About ${F.KG_PER_STREAMING_HOUR * 1000} g CO₂ and ${F.STREAMING_KWH_PER_HOUR} kWh an hour. Your devices' own power is already in your electricity bill.`,
   },
 ];
 
@@ -45,10 +100,21 @@ export default function MethodPage() {
     <article className="mx-auto max-w-3xl px-4 py-12">
       <h1 className="text-3xl font-semibold tracking-tight">How we calculate your footprint</h1>
       <p className="mt-4 text-lg text-muted">
-        We estimate each part of your footprint separately in kilograms of CO₂e, which counts methane and other
-        greenhouse gases as well as CO₂. Then we add a margin that depends on how good the data is, so you&apos;re never
-        under-offset.
+        We estimate four kinds of harm for each part of your life, add a margin that depends on how good the data is,
+        and turn the result into donations to charities that work on each kind.
       </p>
+
+      <h2 className="mt-10 text-xl font-semibold">What we measure and how we price it</h2>
+      <dl className="mt-4 divide-y divide-border rounded-xl border border-border bg-card">
+        {IMPACTS.map((i) => (
+          <div key={i.name} className="grid gap-1 p-4 sm:grid-cols-3">
+            <dt className="font-medium">{i.name}</dt>
+            <dd className="text-muted sm:col-span-2">
+              {i.measure} {i.price}
+            </dd>
+          </div>
+        ))}
+      </dl>
 
       <h2 className="mt-10 text-xl font-semibold">Categories</h2>
       <dl className="mt-4 divide-y divide-border rounded-xl border border-border bg-card">
@@ -71,18 +137,24 @@ export default function MethodPage() {
         ))}
       </ul>
 
+      <h2 className="mt-10 text-xl font-semibold">Fees</h2>
+      <p className="mt-2 text-muted">
+        Our fee is {usd(FEE_PER_CATEGORY_USD)} for each category you cover, up to {usd(MAX_FEE_USD)} a month. Donations
+        under {usd(MIN_DONATION_USD)} are rounded up to {usd(MIN_DONATION_USD)}, and all of it goes to the charities.
+      </p>
+
       <h2 className="mt-10 text-xl font-semibold">What &ldquo;Fully Offset&rdquo; means</h2>
       <p className="mt-2 text-muted">
-        A Fully Offset month is one where you approved a donation covering your estimated footprint plus its margin, at{" "}
-        {usd(DONATION_PER_TONNE_USD)} a tonne, to the climate charities listed on your summary. Donations fund charity
-        work; they are not certified carbon credits. If you lower an estimate by hand by more than its margin, the badge
-        pauses until a linked account confirms the new number.
+        A Fully Offset month is one where you approved donations covering the estimate plus its margin for every kind of
+        harm we count. Covering one category earns that category&apos;s badge; covering all of them earns the complete
+        badge. Donations fund charity work; they are not certified carbon credits. If you lower an estimate by hand by
+        more than its margin, the badge pauses until a linked account confirms the new number.
       </p>
 
       <h2 className="mt-10 text-xl font-semibold">What we don&apos;t count yet</h2>
       <p className="mt-2 text-muted">
-        Air pollution, water use and harm to nature are real costs, but they don&apos;t convert cleanly into tonnes of
-        CO₂e, so they aren&apos;t in your number.
+        Air pollution from flights, oil and propane heating, and food; water used for fuel and flights; and the water,
+        land and pollution behind the things you buy. Your summary marks each gap.
       </p>
 
       <h2 className="mt-10 text-xl font-semibold">Sources</h2>
@@ -96,7 +168,8 @@ export default function MethodPage() {
         ))}
       </ul>
       <p className="mt-4 text-sm text-muted">
-        Food, shopping and heating figures are approximate national averages and will be refined.
+        Shopping, heating and car tailpipe figures are approximate and will be refined. The car pollution rates date from
+        2008 and overstate today&apos;s cars.
       </p>
     </article>
   );
