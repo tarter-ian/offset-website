@@ -7,7 +7,7 @@ import * as F from "../factors";
 // model answered, and images made. Everything runs in the browser; the file is
 // never uploaded.
 
-export type AiProvider = "chatgpt" | "claude";
+export type AiProvider = "chatgpt" | "claude" | "openai-api" | "anthropic-api";
 
 export interface Turn {
   /** When the user sent the prompt (ms). */
@@ -187,7 +187,23 @@ export function summarize(usage: ExportUsage[], now = Date.now(), windowDays = 9
   };
 }
 
-/** The digital answers an export fills in. */
+/** Adds up use across several linked accounts. */
+export function combineSummaries(summaries: UsageSummary[]): UsageSummary | null {
+  if (!summaries.length) return null;
+  const sum = (k: "promptsPerDay" | "whPerDay" | "imagesPerWeek" | "totalPrompts") => summaries.reduce((s, x) => s + x[k], 0);
+  const prompts = sum("promptsPerDay");
+  return {
+    providers: [...new Set(summaries.flatMap((s) => s.providers))],
+    totalPrompts: sum("totalPrompts"),
+    promptsPerDay: prompts,
+    whPerDay: sum("whPerDay"),
+    imagesPerWeek: sum("imagesPerWeek"),
+    reasoningShare: prompts ? summaries.reduce((s, x) => s + x.reasoningShare * x.promptsPerDay, 0) / prompts : 0,
+    windowDays: Math.max(...summaries.map((s) => s.windowDays)),
+  };
+}
+
+/** The digital answers an export or linked account fills in. */
 export function digitalFromExport(s: UsageSummary) {
   const promptsPerDay = Math.round(s.promptsPerDay * 10) / 10;
   return {

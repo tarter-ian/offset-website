@@ -62,6 +62,8 @@ export const CHARS_PER_TOKEN = 4;
 export const WH_PER_OUTPUT_TOKEN = 0.0006;
 export const WH_PER_INPUT_TOKEN = 0.00025;
 export const REASONING_OUTPUT_MULTIPLIER = 4;
+// Input served from a prompt cache skips most of the work.
+export const CACHED_INPUT_SHARE = 0.1;
 // Share of machine learning energy spent training models rather than answering
 // prompts (Patterson et al. 2022, Google: about 2/5 training, 3/5 inference).
 // Each prompt carries its share of training.

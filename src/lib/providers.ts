@@ -5,7 +5,9 @@ import type { CategoryKey } from "./footprint";
 // variables (never committed). Until each is wired up, its button explains
 // that linking opens at launch and the estimate uses averages instead.
 
-export type ProviderId = "utility" | "bank" | "car" | "chatgpt" | "claude";
+import type { ApiProvider } from "./ai/usageApi";
+
+export type ProviderId = "utility" | "bank" | "car" | "chatgpt" | "claude" | ApiProvider;
 
 export interface Provider {
   id: ProviderId;
@@ -17,6 +19,8 @@ export interface Provider {
   via?: { service: string; envKey: string };
   /** AI accounts link by uploading a data export instead. */
   export?: boolean;
+  /** Developer accounts link with an admin key that reads usage totals. */
+  apiKey?: boolean;
 }
 
 export const PROVIDERS: Provider[] = [
@@ -41,6 +45,20 @@ export const PROVIDERS: Provider[] = [
     blurb: "Miles driven, from most cars made since 2015.",
     via: { service: "Smartcar", envKey: "SMARTCAR_CLIENT_SECRET" },
   },
-  { id: "chatgpt", name: "ChatGPT", covers: ["ai"], blurb: "Count your prompts from your data export.", export: true },
-  { id: "claude", name: "Claude", covers: ["ai"], blurb: "Count your prompts from your data export.", export: true },
+  { id: "chatgpt", name: "ChatGPT", covers: ["ai"], blurb: "Measure your use from your data export.", export: true },
+  { id: "claude", name: "Claude", covers: ["ai"], blurb: "Measure your use from your data export.", export: true },
+  {
+    id: "openai-api",
+    name: "OpenAI API",
+    covers: ["ai"],
+    blurb: "For developers: exact token use, read with an admin key.",
+    apiKey: true,
+  },
+  {
+    id: "anthropic-api",
+    name: "Anthropic API",
+    covers: ["ai"],
+    blurb: "For developers: exact token use, read with an admin key.",
+    apiKey: true,
+  },
 ];

@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { readExportFile, summarize, type UsageSummary } from "@/lib/ai/exportParser";
+import { AiApiLink } from "./AiApiLink";
+import { combineSummaries, readExportFile, summarize, type UsageSummary } from "@/lib/ai/exportParser";
+import type { ApiProvider } from "@/lib/ai/usageApi";
 import { WH_PER_AI_PROMPT } from "@/lib/factors";
 
-const NAMES = { chatgpt: "ChatGPT", claude: "Claude" } as const;
+const NAMES = { chatgpt: "ChatGPT", claude: "Claude", "openai-api": "OpenAI API", "anthropic-api": "Anthropic API" } as const;
 
 function describe(s: UsageSummary): string {
   const perPrompt = s.promptsPerDay > 0 ? s.whPerDay / s.promptsPerDay : 0;
@@ -19,10 +21,17 @@ function describe(s: UsageSummary): string {
 }
 
 /** Reads ChatGPT or Claude data exports in the browser and measures AI use. */
-export function AiExportUpload({ onResult }: { onResult: (s: UsageSummary) => void }) {
+export function AiExportUpload({ onResult, showApi = true }: { onResult: (s: UsageSummary) => void; showApi?: boolean }) {
   const [status, setStatus] = useState<{ kind: "idle" | "reading" | "done" | "error"; text?: string }>({
     kind: "idle",
   });
+  const [sources, setSources] = useState<Record<string, UsageSummary>>({});
+  const [api, setApi] = useState<ApiProvider | null>(null);
+  const add = (id: string, s: UsageSummary) => {
+    const next = { ...sources, [id]: s };
+    setSources(next);
+    onResult(combineSummaries(Object.values(next))!);
+  };
 
   async function handle(files: FileList | null) {
     if (!files?.length) return;
@@ -34,7 +43,7 @@ export function AiExportUpload({ onResult }: { onResult: (s: UsageSummary) => vo
         return;
       }
       const s = summarize(counts);
-      onResult(s);
+      add("export", s);
       setStatus({
         kind: "done",
         text: describe(s),
@@ -62,6 +71,24 @@ export function AiExportUpload({ onResult }: { onResult: (s: UsageSummary) => vo
       {status.kind === "reading" && <p className="mt-2 text-sm text-muted">Reading…</p>}
       {status.kind === "done" && <p className="mt-2 text-sm text-accent">{status.text}</p>}
       {status.kind === "error" && <p className="mt-2 text-sm text-red-600">{status.text}</p>}
+      {showApi && (
+      <p className="mt-4 text-sm text-muted">
+        Use AI through the API?{" "}
+        {(["openai-api", "anthropic-api"] as const).map((p, i) => (
+          <span key={p}>
+            {i > 0 && " or "}
+            <button type="button" onClick={() => setApi(p)} className="text-accent hover:underline">
+              {sources[p] ? `✓ ${NAMES[p]}` : `Connect ${NAMES[p]}`}
+            </button>
+          </span>
+        ))}
+      </p>
+      )}
+      {api && (
+        <div className="mt-3">
+          <AiApiLink key={api} provider={api} onResult={(s) => add(api, s)} />
+        </div>
+      )}
     </div>
   );
 }

@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { AiApiLink } from "./AiApiLink";
 import { AiExportUpload } from "./AiExportUpload";
 import { Field, Select } from "./fields";
 import { Results } from "./Results";
-import { digitalFromExport, type UsageSummary } from "@/lib/ai/exportParser";
+import { combineSummaries, digitalFromExport, type UsageSummary } from "@/lib/ai/exportParser";
+import type { ApiProvider } from "@/lib/ai/usageApi";
 import { STATE_OPTIONS, type StateCode } from "@/lib/data/states";
 import { computeFootprint, DEFAULT_ANSWERS, type Answers } from "@/lib/footprint";
 import { PROVIDERS } from "@/lib/providers";
@@ -14,9 +16,8 @@ type Status = "idle" | "open" | "linked" | "later";
 
 /** Adds up AI use across linked exports; nothing linked means averages. */
 function combined(summaries: UsageSummary[]) {
-  if (!summaries.length) return {};
-  const sum = (k: "promptsPerDay" | "whPerDay" | "imagesPerWeek") => summaries.reduce((s, x) => s + x[k], 0);
-  return digitalFromExport({ ...summaries[0], promptsPerDay: sum("promptsPerDay"), whPerDay: sum("whPerDay"), imagesPerWeek: sum("imagesPerWeek") });
+  const s = combineSummaries(summaries);
+  return s ? digitalFromExport(s) : {};
 }
 
 /** Link-first sign-up: pick a state, link what you can, and averages fill the rest. */
@@ -72,7 +73,7 @@ export function ConnectAccounts() {
                 ) : (
                   <button
                     type="button"
-                    onClick={() => setStatus((cur) => ({ ...cur, [p.id]: p.export ? "open" : "later" }))}
+                    onClick={() => setStatus((cur) => ({ ...cur, [p.id]: p.export || p.apiKey ? "open" : "later" }))}
                     className="shrink-0 rounded-lg bg-accent px-4 py-2 font-medium text-white hover:bg-accent-strong"
                   >
                     Link
@@ -82,6 +83,18 @@ export function ConnectAccounts() {
               {s === "open" && p.export && (
                 <div className="mt-4">
                   <AiExportUpload
+                    showApi={false}
+                    onResult={(r) => {
+                      setAi((cur) => ({ ...cur, [p.id]: r }));
+                      setStatus((cur) => ({ ...cur, [p.id]: "linked" }));
+                    }}
+                  />
+                </div>
+              )}
+              {s === "open" && p.apiKey && (
+                <div className="mt-4">
+                  <AiApiLink
+                    provider={p.id as ApiProvider}
                     onResult={(r) => {
                       setAi((cur) => ({ ...cur, [p.id]: r }));
                       setStatus((cur) => ({ ...cur, [p.id]: "linked" }));
