@@ -26,6 +26,7 @@ import {
 } from "@/lib/pricing";
 import {
   aheadFor,
+  SMALL_MONTHLY_USD,
   aiBreakdown,
   type Cover,
   coverBadge,
@@ -419,7 +420,9 @@ export function Store() {
           text:
             other === "lifetime"
               ? `or ${once(otherPrice.once)} once, ${cover.past ? "for life" : "for all future use"}`
-              : `or ${usd((billing === "annual" ? 12 : 1) * otherPrice.monthly)} ${BILLING[billing].per}`,
+              : otherPrice.monthly < SMALL_MONTHLY_USD
+                ? `or under $1 ${BILLING.monthly.per}`
+                : `or ${usd((billing === "annual" ? 12 : 1) * otherPrice.monthly)} ${BILLING[billing].per}`,
         }
       : null;
     const isOpen = details === p.id;

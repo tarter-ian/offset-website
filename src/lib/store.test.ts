@@ -44,9 +44,10 @@ describe("why lines", () => {
 });
 
 describe("covers", () => {
-  it("offers every item monthly, defaulting to it, with lifetime as the alternative on one-time items", () => {
+  it("offers every item monthly, leading with lifetime only for AI and items under $1 a month", () => {
     expect(aheadFor(p("ai"), 10, C)).toEqual(["monthly", "lifetime"]);
-    expect(effectiveCover(p("video"), 2, C).ahead).toBe("monthly");
+    expect(effectiveCover(p("video"), 2, C).ahead).toBe("lifetime");
+    expect(effectiveCover(p("video"), 2, C, { ahead: "monthly" }).ahead).toBe("monthly");
     expect(effectiveCover(p("ai"), 10, C).ahead).toBe("lifetime");
     expect(aheadFor(p("car"), 200, C)).toEqual(["monthly"]);
   });

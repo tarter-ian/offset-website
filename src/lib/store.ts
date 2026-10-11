@@ -365,7 +365,10 @@ export function aheadFor(p: Product, amount: number | string, ctx: Context, show
   return life > LIFETIME_MAX_USD && !showLifetimeAnyway ? ["monthly"] : ["monthly", "lifetime"];
 }
 
-/** The cover an item actually uses: what was picked if still offered, else monthly (lifetime for the featured AI item). Past use starts checked. */
+/** Below this a month, an item leads with paying once for life: cents a month reads as trivial, but the $1 monthly fee isn't. */
+export const SMALL_MONTHLY_USD = 1;
+
+/** The cover an item actually uses: what was picked if still offered, else monthly (lifetime for the featured AI item and tiny items). Past use starts checked. */
 export function effectiveCover(
   p: Product,
   amount: number | string,
@@ -374,7 +377,8 @@ export function effectiveCover(
   showLifetimeAnyway = false,
 ): Cover {
   const options = aheadFor(p, amount, ctx, showLifetimeAnyway);
-  const fallback: Ahead = p.id === "ai" && options.includes("lifetime") ? "lifetime" : "monthly";
+  const small = p.id === "ai" || p.cost(amount, "monthly", ctx) < SMALL_MONTHLY_USD;
+  const fallback: Ahead = small && options.includes("lifetime") ? "lifetime" : "monthly";
   const ahead = picked.ahead && options.includes(picked.ahead) ? picked.ahead : fallback;
   return { past: p.oneTime && (picked.past ?? true), ahead };
 }
