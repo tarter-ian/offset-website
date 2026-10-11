@@ -65,6 +65,8 @@ export interface Answers {
     streamingHoursPerDay: number;
     /** Set when the prompt count came from a ChatGPT or Claude data export. */
     aiFromExport?: boolean;
+    /** Average energy per prompt measured from an export, in Wh. */
+    aiWhPerPrompt?: number;
   };
 }
 
@@ -354,7 +356,7 @@ export function computeFootprint(a: Answers): Footprint {
   const media = nonNeg(d.aiMediaPerWeek) * F.WEEKS_PER_MONTH;
   const ai = category(
     "ai",
-    aiImpacts((prompts * F.WH_PER_AI_PROMPT + media * F.WH_PER_AI_MEDIA) / 1000 / (1 - F.AI_TRAINING_SHARE)),
+    aiImpacts((prompts * (d.aiWhPerPrompt ?? F.WH_PER_AI_PROMPT) + media * F.WH_PER_AI_MEDIA) / 1000 / (1 - F.AI_TRAINING_SHARE)),
     d.aiFromExport ? "measured" : "estimated",
     `About ${Math.round(prompts)} prompts${media ? ` and ${Math.round(media)} images or videos` : ""} a month${
       d.aiFromExport ? ", prompts from your data export" : ""

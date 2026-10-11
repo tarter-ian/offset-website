@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { AiExportUpload } from "./AiExportUpload";
+import { digitalFromExport } from "@/lib/ai/exportParser";
 import { Field, NumberInput } from "./fields";
 import { Results } from "./Results";
 import { computeFootprint, DEFAULT_ANSWERS, type Answers } from "@/lib/footprint";
@@ -27,14 +28,14 @@ export function AiOffset() {
   return (
     <div className="mx-auto max-w-2xl space-y-8">
       <AiExportUpload
-        onResult={(s) => setDigital((d) => ({ ...d, aiPromptsPerDay: Math.round(s.promptsPerDay * 10) / 10, aiFromExport: true }))}
+        onResult={(s) => setDigital((d) => ({ ...d, ...digitalFromExport(s) }))}
       />
       <Field label="AI chatbot prompts a day" hint="Filled in from your export, or enter your own estimate.">
         <NumberInput
           label="AI prompts a day"
           suffix="prompts a day"
           value={digital.aiPromptsPerDay}
-          onChange={(n) => setDigital((d) => ({ ...d, aiPromptsPerDay: n ?? 0, aiFromExport: false }))}
+          onChange={(n) => setDigital((d) => ({ ...d, aiPromptsPerDay: n ?? 0, aiFromExport: false, aiWhPerPrompt: undefined }))}
         />
       </Field>
       <Field label="AI images or videos made a week">

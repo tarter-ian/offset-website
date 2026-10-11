@@ -108,7 +108,7 @@ const ROWS = [
   },
   {
     category: "AI",
-    method: `About ${F.WH_PER_AI_PROMPT} Wh a chatbot prompt, plus its share of training the model, on the US grid, plus data center cooling water. We count your prompts from your data export if you add it.`,
+    method: `About ${F.WH_PER_AI_PROMPT} Wh a chatbot prompt, plus its share of training the model, on the US grid, plus data center cooling water. If you add your ChatGPT or Claude data export, we measure each prompt instead: longer conversations, reasoning models and images all use more.`,
   },
   {
     category: "Video streaming",

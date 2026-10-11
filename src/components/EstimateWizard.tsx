@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AiExportUpload } from "./AiExportUpload";
+import { digitalFromExport } from "@/lib/ai/exportParser";
 import { Choice, Field, NumberInput, Select } from "./fields";
 import { Results } from "./Results";
 import { STATE_OPTIONS, type StateCode } from "@/lib/data/states";
@@ -269,11 +270,7 @@ export function EstimateWizard() {
           <>
             <AiExportUpload
               onResult={(s) =>
-                set("digital", {
-                  ...answers.digital,
-                  aiPromptsPerDay: Math.round(s.promptsPerDay * 10) / 10,
-                  aiFromExport: true,
-                })
+                set("digital", { ...answers.digital, ...digitalFromExport(s) })
               }
             />
             <Field label="AI chatbot prompts a day" hint="ChatGPT, Claude, Gemini and similar.">
@@ -281,7 +278,7 @@ export function EstimateWizard() {
                 label="AI prompts a day"
                 suffix="prompts a day"
                 value={answers.digital.aiPromptsPerDay}
-                onChange={(n) => set("digital", { ...answers.digital, aiPromptsPerDay: n ?? 0, aiFromExport: false })}
+                onChange={(n) => set("digital", { ...answers.digital, aiPromptsPerDay: n ?? 0, aiFromExport: false, aiWhPerPrompt: undefined })}
               />
             </Field>
             <Field label="AI images or videos made a week">

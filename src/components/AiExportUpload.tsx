@@ -2,10 +2,23 @@
 
 import { useState } from "react";
 import { readExportFile, summarize, type UsageSummary } from "@/lib/ai/exportParser";
+import { WH_PER_AI_PROMPT } from "@/lib/factors";
 
 const NAMES = { chatgpt: "ChatGPT", claude: "Claude" } as const;
 
-/** Reads ChatGPT or Claude data exports in the browser and reports prompts a day. */
+function describe(s: UsageSummary): string {
+  const perPrompt = s.promptsPerDay > 0 ? s.whPerDay / s.promptsPerDay : 0;
+  const times = perPrompt / WH_PER_AI_PROMPT;
+  const parts = [
+    `Found ${s.totalPrompts.toLocaleString("en-US")} prompts in your ${s.providers.map((p) => NAMES[p]).join(" and ")} export: about ${s.promptsPerDay.toFixed(1)} a day over the last ${s.windowDays} days.`,
+    perPrompt > 0 &&
+      `Each one used about ${perPrompt.toFixed(1)} Wh${times >= 1.5 ? `, ${Math.round(times)} times a short chat, because of long conversations${s.reasoningShare > 0.1 ? " and reasoning models" : ""}` : ""}.`,
+    s.imagesPerWeek >= 0.1 && `You made about ${s.imagesPerWeek.toFixed(1)} images a week.`,
+  ];
+  return parts.filter(Boolean).join(" ");
+}
+
+/** Reads ChatGPT or Claude data exports in the browser and measures AI use. */
 export function AiExportUpload({ onResult }: { onResult: (s: UsageSummary) => void }) {
   const [status, setStatus] = useState<{ kind: "idle" | "reading" | "done" | "error"; text?: string }>({
     kind: "idle",
@@ -24,9 +37,7 @@ export function AiExportUpload({ onResult }: { onResult: (s: UsageSummary) => vo
       onResult(s);
       setStatus({
         kind: "done",
-        text: `Found ${s.totalPrompts.toLocaleString("en-US")} prompts in your ${s.providers
-          .map((p) => NAMES[p])
-          .join(" and ")} export: about ${s.promptsPerDay.toFixed(1)} a day over the last ${s.windowDays} days.`,
+        text: describe(s),
       });
     } catch {
       setStatus({ kind: "error", text: "We couldn't read that file. Try the .zip exactly as you downloaded it." });
@@ -38,7 +49,7 @@ export function AiExportUpload({ onResult }: { onResult: (s: UsageSummary) => vo
       <p className="font-medium">Use your ChatGPT or Claude data export</p>
       <p className="mt-1 text-sm text-muted">
         In ChatGPT, go to Settings, Data controls, Export data. In Claude, go to Settings, Privacy, Export data. Add the
-        .zip you get by email. We only count your prompts, in your browser; the file never leaves your device.
+        .zip you get by email. We measure how much you use AI right in your browser; the file never leaves your device.
       </p>
       <input
         type="file"

@@ -1,69 +1,155 @@
 import { unzipSync, strFromU8 } from "fflate";
+import * as F from "../factors";
 
 // Reads the data export people can download from ChatGPT (Settings > Data
 // controls > Export data) or Claude (Settings > Privacy > Export data) and
-// counts the prompts they sent. Everything runs in the browser; the file is
+// measures their use: prompts, how much text each turn read and wrote, which
+// model answered, and images made. Everything runs in the browser; the file is
 // never uploaded.
 
 export type AiProvider = "chatgpt" | "claude";
 
-export interface PromptCount {
+export interface Turn {
+  /** When the user sent the prompt (ms). */
+  time: number;
+  /** Estimated energy to answer it, in Wh, before the training share. */
+  wh: number;
+  reasoning: boolean;
+}
+
+export interface ExportUsage {
   provider: AiProvider;
-  /** Timestamps (ms) of every prompt the user sent. */
-  times: number[];
+  turns: Turn[];
+  /** Times (ms) of images the AI made. */
+  images: number[];
 }
 
 export interface UsageSummary {
   providers: AiProvider[];
   totalPrompts: number;
-  /** Prompts per day over the last `windowDays`, or over the export's span if shorter. */
+  /** Over the last `windowDays`, or over the export's span if shorter. */
   promptsPerDay: number;
+  whPerDay: number;
+  imagesPerWeek: number;
+  /** Share of prompts answered by a reasoning model. */
+  reasoningShare: number;
   windowDays: number;
 }
 
-interface ChatGptNode {
-  message?: { author?: { role?: string }; create_time?: number | null } | null;
+type Part = string | { content_type?: string; text?: string } | null;
+interface ChatGptMessage {
+  author?: { role?: string; name?: string | null };
+  create_time?: number | null;
+  content?: { content_type?: string; parts?: Part[]; text?: string };
+  metadata?: { model_slug?: string | null };
 }
 interface ChatGptConversation {
-  mapping?: Record<string, ChatGptNode>;
+  mapping?: Record<string, { message?: ChatGptMessage | null }>;
+}
+interface ClaudeMessage {
+  sender?: string;
+  created_at?: string;
+  text?: string;
+  content?: { type?: string; text?: string; thinking?: string }[];
 }
 interface ClaudeConversation {
-  chat_messages?: { sender?: string; created_at?: string }[];
+  chat_messages?: ClaudeMessage[];
 }
 
-/** Counts user prompts in a parsed conversations.json from either service. */
-export function countPrompts(data: unknown): PromptCount | null {
+const REASONING_SLUG = /^(o\d|gpt-5.*(thinking|pro)|.*reason)/i;
+const tokens = (text: string) => text.length / F.CHARS_PER_TOKEN;
+
+/** Walks a conversation in order, charging each reply for re-reading everything before it. */
+function measure(
+  messages: { role: "user" | "ai"; time: number; text: string; reasoning?: boolean; hiddenText?: string }[],
+): Turn[] {
+  const turns: Turn[] = [];
+  let context = 0;
+  let open: Turn | null = null;
+  for (const m of messages) {
+    const t = tokens(m.text);
+    if (m.role === "user") {
+      context += t;
+      open = { time: m.time, wh: 0, reasoning: false };
+      turns.push(open);
+    } else if (open) {
+      const out = t + tokens(m.hiddenText ?? "");
+      open.wh += context * F.WH_PER_INPUT_TOKEN + out * F.WH_PER_OUTPUT_TOKEN * (m.reasoning ? F.REASONING_OUTPUT_MULTIPLIER : 1);
+      open.reasoning ||= !!m.reasoning;
+      context += t;
+    }
+  }
+  // A turn with no text to measure (no reply, or an export without message text) gets the typical figure.
+  for (const t of turns) if (t.wh === 0) t.wh = F.WH_PER_AI_PROMPT;
+  return turns;
+}
+
+function chatGptText(m: ChatGptMessage): string {
+  const c = m.content;
+  if (!c) return "";
+  if (typeof c.text === "string") return c.text;
+  return (c.parts ?? []).map((p) => (typeof p === "string" ? p : (p?.text ?? ""))).join("\n");
+}
+
+const isImage = (m: ChatGptMessage) =>
+  (m.author?.role === "tool" && /dalle|image/i.test(m.author?.name ?? "")) ||
+  (m.content?.parts ?? []).some((p) => typeof p === "object" && p?.content_type === "image_asset_pointer" && m.author?.role !== "user");
+
+/** Measures use in a parsed conversations.json from either service. */
+export function parseExport(data: unknown): ExportUsage | null {
   if (!Array.isArray(data)) return null;
   const first = data.find((c) => c && typeof c === "object") as Record<string, unknown> | undefined;
   if (!first) return null;
 
   if ("mapping" in first) {
-    const times: number[] = [];
+    const turns: Turn[] = [];
+    const images: number[] = [];
     for (const conv of data as ChatGptConversation[]) {
-      for (const node of Object.values(conv.mapping ?? {})) {
-        const m = node.message;
-        if (m?.author?.role === "user" && typeof m.create_time === "number") times.push(m.create_time * 1000);
-      }
+      const msgs = Object.values(conv.mapping ?? {})
+        .map((n) => n.message)
+        .filter((m): m is ChatGptMessage => !!m && typeof m.create_time === "number")
+        .sort((a, b) => a.create_time! - b.create_time!);
+      for (const m of msgs) if (isImage(m)) images.push(m.create_time! * 1000);
+      turns.push(
+        ...measure(
+          msgs
+            .filter((m) => m.author?.role === "user" || m.author?.role === "assistant")
+            .map((m) => ({
+              role: m.author?.role === "user" ? ("user" as const) : ("ai" as const),
+              time: m.create_time! * 1000,
+              text: chatGptText(m),
+              reasoning: REASONING_SLUG.test(m.metadata?.model_slug ?? ""),
+            })),
+        ),
+      );
     }
-    return { provider: "chatgpt", times };
+    return { provider: "chatgpt", turns, images: [...new Set(images)] };
   }
 
   if ("chat_messages" in first) {
-    const times: number[] = [];
+    const turns: Turn[] = [];
     for (const conv of data as ClaudeConversation[]) {
-      for (const msg of conv.chat_messages ?? []) {
-        const t = msg.created_at ? Date.parse(msg.created_at) : NaN;
-        if (msg.sender === "human" && Number.isFinite(t)) times.push(t);
-      }
+      const msgs = (conv.chat_messages ?? [])
+        .map((m) => {
+          const time = m.created_at ? Date.parse(m.created_at) : NaN;
+          const blocks = m.content ?? [];
+          const text = blocks.length
+            ? blocks.filter((b) => b.type !== "thinking").map((b) => b.text ?? "").join("\n")
+            : (m.text ?? "");
+          const thinking = blocks.filter((b) => b.type === "thinking").map((b) => b.thinking ?? b.text ?? "").join("\n");
+          return { role: m.sender === "human" ? ("user" as const) : ("ai" as const), time, text, hiddenText: thinking, reasoning: false };
+        })
+        .filter((m) => Number.isFinite(m.time));
+      turns.push(...measure(msgs));
     }
-    return { provider: "claude", times };
+    return { provider: "claude", turns, images: [] };
   }
 
   return null;
 }
 
 /** Accepts the export's .zip or its conversations.json. */
-export async function readExportFile(file: File): Promise<PromptCount | null> {
+export async function readExportFile(file: File): Promise<ExportUsage | null> {
   const bytes = new Uint8Array(await file.arrayBuffer());
   let text: string | undefined;
   if (file.name.toLowerCase().endsWith(".zip")) {
@@ -75,7 +161,7 @@ export async function readExportFile(file: File): Promise<PromptCount | null> {
     text = strFromU8(bytes);
   }
   try {
-    return countPrompts(JSON.parse(text));
+    return parseExport(JSON.parse(text));
   } catch {
     return null;
   }
@@ -83,16 +169,31 @@ export async function readExportFile(file: File): Promise<PromptCount | null> {
 
 const DAY = 86_400_000;
 
-export function summarize(counts: PromptCount[], now = Date.now(), windowDays = 90): UsageSummary {
-  const all = counts.flatMap((c) => c.times).filter((t) => t <= now);
-  const recent = all.filter((t) => t >= now - windowDays * DAY);
-  const earliest = recent.length ? Math.min(...recent) : now;
+export function summarize(usage: ExportUsage[], now = Date.now(), windowDays = 90): UsageSummary {
+  const turns = usage.flatMap((u) => u.turns).filter((t) => t.time <= now);
+  const recent = turns.filter((t) => t.time >= now - windowDays * DAY);
+  const images = usage.flatMap((u) => u.images).filter((t) => t <= now && t >= now - windowDays * DAY);
+  const earliest = Math.min(now, ...recent.map((t) => t.time), ...images);
   // If the export covers less than the window, average over what it covers.
   const days = Math.max(1, Math.min(windowDays, Math.ceil((now - earliest) / DAY)));
   return {
-    providers: [...new Set(counts.map((c) => c.provider))],
-    totalPrompts: all.length,
+    providers: [...new Set(usage.map((u) => u.provider))],
+    totalPrompts: turns.length,
     promptsPerDay: recent.length / days,
+    whPerDay: recent.reduce((s, t) => s + t.wh, 0) / days,
+    imagesPerWeek: (images.length / days) * 7,
+    reasoningShare: recent.length ? recent.filter((t) => t.reasoning).length / recent.length : 0,
     windowDays: days,
+  };
+}
+
+/** The digital answers an export fills in. */
+export function digitalFromExport(s: UsageSummary) {
+  const promptsPerDay = Math.round(s.promptsPerDay * 10) / 10;
+  return {
+    aiPromptsPerDay: promptsPerDay,
+    aiWhPerPrompt: s.promptsPerDay > 0 ? s.whPerDay / s.promptsPerDay : undefined,
+    aiMediaPerWeek: Math.round(s.imagesPerWeek * 10) / 10,
+    aiFromExport: true,
   };
 }

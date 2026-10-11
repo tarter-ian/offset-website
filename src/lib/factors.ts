@@ -54,6 +54,14 @@ export const SHOPPING_KG_PER_YEAR = {
 // Streaming: ~36 g CO2 per hour (IEA).
 export const WH_PER_AI_PROMPT = 0.3;
 export const WH_PER_AI_MEDIA = 10;
+// Measuring a data export: energy scales with tokens. Epoch AI puts a short
+// reply (~500 tokens out) at ~0.3 Wh and a 10k-token input at ~2.5 Wh. Each turn
+// of a chat re-reads the whole conversation so far, so long chats cost more.
+// Reasoning models write hidden thinking tokens the export doesn't show.
+export const CHARS_PER_TOKEN = 4;
+export const WH_PER_OUTPUT_TOKEN = 0.0006;
+export const WH_PER_INPUT_TOKEN = 0.00025;
+export const REASONING_OUTPUT_MULTIPLIER = 4;
 // Share of machine learning energy spent training models rather than answering
 // prompts (Patterson et al. 2022, Google: about 2/5 training, 3/5 inference).
 // Each prompt carries its share of training.

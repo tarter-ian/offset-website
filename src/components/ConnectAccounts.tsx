@@ -5,23 +5,31 @@ import { useState } from "react";
 import { AiExportUpload } from "./AiExportUpload";
 import { Field, Select } from "./fields";
 import { Results } from "./Results";
+import { digitalFromExport, type UsageSummary } from "@/lib/ai/exportParser";
 import { STATE_OPTIONS, type StateCode } from "@/lib/data/states";
 import { computeFootprint, DEFAULT_ANSWERS, type Answers } from "@/lib/footprint";
 import { PROVIDERS } from "@/lib/providers";
 
 type Status = "idle" | "open" | "linked" | "later";
 
+/** Adds up AI use across linked exports; nothing linked means averages. */
+function combined(summaries: UsageSummary[]) {
+  if (!summaries.length) return {};
+  const sum = (k: "promptsPerDay" | "whPerDay" | "imagesPerWeek") => summaries.reduce((s, x) => s + x[k], 0);
+  return digitalFromExport({ ...summaries[0], promptsPerDay: sum("promptsPerDay"), whPerDay: sum("whPerDay"), imagesPerWeek: sum("imagesPerWeek") });
+}
+
 /** Link-first sign-up: pick a state, link what you can, and averages fill the rest. */
 export function ConnectAccounts() {
   const [state, setState] = useState<StateCode>(DEFAULT_ANSWERS.state);
   const [status, setStatus] = useState<Record<string, Status>>({});
-  const [ai, setAi] = useState<number | null>(null);
+  const [ai, setAi] = useState<Record<string, UsageSummary>>({});
   const [done, setDone] = useState(false);
 
   const answers: Answers = {
     ...DEFAULT_ANSWERS,
     state,
-    digital: ai === null ? DEFAULT_ANSWERS.digital : { ...DEFAULT_ANSWERS.digital, aiPromptsPerDay: ai, aiFromExport: true },
+    digital: { ...DEFAULT_ANSWERS.digital, ...combined(Object.values(ai)) },
   };
 
   if (done) {
@@ -75,7 +83,7 @@ export function ConnectAccounts() {
                 <div className="mt-4">
                   <AiExportUpload
                     onResult={(r) => {
-                      setAi((cur) => Math.round(((cur ?? 0) + r.promptsPerDay) * 10) / 10);
+                      setAi((cur) => ({ ...cur, [p.id]: r }));
                       setStatus((cur) => ({ ...cur, [p.id]: "linked" }));
                     }}
                   />

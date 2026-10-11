@@ -5,6 +5,7 @@ import { AiExportUpload } from "./AiExportUpload";
 import { Badge } from "./Badge";
 import { Field, NumberInput } from "./fields";
 import { WaitlistForm } from "./WaitlistForm";
+import { digitalFromExport } from "@/lib/ai/exportParser";
 import { IMPACT_KEYS } from "@/lib/footprint";
 import { IMPACT_INFO } from "@/lib/impacts";
 import {
@@ -97,14 +98,14 @@ export function LifetimeOffset({ initialItems = ITEM_KEYS }: { initialItems?: Li
         {has("ai") && (
           <>
             <AiExportUpload
-              onResult={(s) => set({ aiPromptsPerDay: Math.round(s.promptsPerDay * 10) / 10, aiFromExport: true })}
+              onResult={(s) => set(digitalFromExport(s))}
             />
             <Field label="AI chatbot prompts a day">
               <NumberInput
                 label="AI prompts a day"
                 suffix="prompts a day"
                 value={input.aiPromptsPerDay}
-                onChange={(n) => set({ aiPromptsPerDay: n ?? 0, aiFromExport: false })}
+                onChange={(n) => set({ aiPromptsPerDay: n ?? 0, aiFromExport: false, aiWhPerPrompt: undefined })}
               />
             </Field>
             <Field label="AI images or videos made a week">

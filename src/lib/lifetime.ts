@@ -43,6 +43,8 @@ export interface LifetimeInput {
   aiPromptsPerDay: number;
   aiMediaPerWeek: number;
   aiFromExport?: boolean;
+  /** Average energy per prompt measured from an export, in Wh. */
+  aiWhPerPrompt?: number;
   /** How many of each device you use at a time. */
   devices: Record<Device, number>;
 }
@@ -112,7 +114,7 @@ export function lifetimeOffset(input: LifetimeInput, items: LifetimeItem[] = ITE
 
   // AI: prompts and media, each carrying a share of model training.
   const aiKwhPerYear =
-    ((nonNeg(input.aiPromptsPerDay) * 365 * F.WH_PER_AI_PROMPT + nonNeg(input.aiMediaPerWeek) * 52 * F.WH_PER_AI_MEDIA) /
+    ((nonNeg(input.aiPromptsPerDay) * 365 * (input.aiWhPerPrompt ?? F.WH_PER_AI_PROMPT) + nonNeg(input.aiMediaPerWeek) * 52 * F.WH_PER_AI_MEDIA) /
       1000 /
       (1 - F.AI_TRAINING_SHARE)) *
     (1 + (input.aiFromExport ? MARGINS.measured : MARGINS.estimated));
