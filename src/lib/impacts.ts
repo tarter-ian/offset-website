@@ -3,13 +3,13 @@ import { MINUTES_OF_LIFE_PER_DAMAGE_USD } from "./factors";
 
 // How each kind of impact is named and shown.
 
-/** Minutes of life, in the largest unit that keeps a readable number. */
+/** Minutes of life, in the largest short unit that keeps a readable number. */
 function lifeLost(min: number): string {
-  const n = (x: number, unit: string) => `${x < 10 ? x.toFixed(1).replace(/\.0$/, "") : Math.round(x)} ${unit}${x === 1 ? "" : "s"}`;
-  if (min < 1) return `${Math.round(min * 60)} seconds`;
-  if (min < 90) return n(min, "minute");
-  if (min < 48 * 60) return n(min / 60, "hour");
-  return n(min / 60 / 24, "day");
+  const n = (x: number) => (x < 10 ? x.toFixed(1).replace(/\.0$/, "") : String(Math.round(x)));
+  if (min < 1) return `${Math.round(min * 60)} sec`;
+  if (min < 90) return `${n(min)} min`;
+  if (min < 48 * 60) return `${n(min / 60)} hr`;
+  return `${n(min / 60 / 24)} days`;
 }
 
 export const IMPACT_INFO: Record<ImpactKey, { label: string; short: string; format: (n: number) => string }> = {
@@ -21,7 +21,7 @@ export const IMPACT_INFO: Record<ImpactKey, { label: string; short: string; form
   air: {
     label: "Air pollution",
     short: "life lost",
-    format: (usdDamage) => `${lifeLost(usdDamage * MINUTES_OF_LIFE_PER_DAMAGE_USD)} of healthy life lost`,
+    format: (usdDamage) => `${lifeLost(usdDamage * MINUTES_OF_LIFE_PER_DAMAGE_USD)} of life`,
   },
   water: {
     label: "Water",
