@@ -85,3 +85,15 @@ h2 {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
+
+/* Tailwind v4 leaves buttons with the default arrow; show a pointer on anything clickable. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  select,
+  summary,
+  label:has(> input[type="checkbox"], > input[type="radio"]),
+  input[type="file"]::file-selector-button {
+    cursor: pointer;
+  }
+}
