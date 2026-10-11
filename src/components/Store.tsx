@@ -33,6 +33,7 @@ import {
   planTotals,
   SECTIONS,
   sourcesFor,
+  yearlyLine,
   type Context,
   type Product,
 } from "@/lib/store";
@@ -68,12 +69,12 @@ function priceText(price: { once: number; monthly: number }, cover: Cover, billi
   if (cover.ahead === "monthly") parts.push(per(price.monthly, billing));
   return parts.join(" + ");
 }
-/** Fits a store tile: "$4.75 for life", "$7.00/mo" or "$80.74 + $0.34/mo". */
-function shortPrice(price: { once: number; monthly: number }, cover: Cover, billing: Billing) {
-  const unit = billing === "annual" ? "/yr" : "/mo";
-  const ongoing = usd(billing === "annual" ? price.monthly * 12 : price.monthly) + unit;
-  if (cover.ahead === "monthly") return price.once > 0 ? `${once(price.once)} + ${ongoing}` : ongoing;
-  return `${once(price.once)} ${cover.past ? "for life" : "once"}`;
+/** Fits a store tile: a big figure with a small note, e.g. "$4.75" / "for life" or "$80.74" / "+ $0.34 a month". */
+function tilePrice(price: { once: number; monthly: number }, cover: Cover, billing: Billing) {
+  const ongoing = usd(billing === "annual" ? price.monthly * 12 : price.monthly);
+  const per = BILLING[billing].per;
+  if (cover.ahead === "monthly") return price.once > 0 ? { big: once(price.once), note: `+ ${ongoing} ${per}` } : { big: ongoing, note: per };
+  return { big: once(price.once), note: cover.past ? "for life" : "once" };
 }
 const amountText = (p: Product, amount: number | string) =>
   p.amount.kind === "number"
@@ -82,7 +83,7 @@ const amountText = (p: Product, amount: number | string) =>
       }`
     : (p.amount.options.find((o) => o.value === amount)?.label ?? String(amount));
 const providerName = (id: ProviderId) => PROVIDERS.find((x) => x.id === id)?.name ?? id;
-const SHELF_SIZE = 4;
+const SHELF_SIZE = 3;
 const LIVE_LINKS = new Set<ProviderId>(["chatgpt", "claude", "gemini", "openai-api", "anthropic-api"]);
 const LINK_ROW: { id: ProviderId; label: string }[] = [
   { id: "chatgpt", label: "ChatGPT, Claude or Gemini" },
@@ -301,8 +302,14 @@ export function Store() {
         aria-pressed={inPlan}
         aria-label={small ? `${inPlan ? "Remove" : "Offset"} ${p.name}` : undefined}
         onClick={() => toggle(p.id)}
-        className={`min-h-11 shrink-0 rounded-md font-semibold ${small ? "w-full px-3" : "px-4"} ${
-          inPlan ? "border-2 border-accent text-accent" : "bg-accent text-on-accent hover:bg-accent-strong"
+        className={`min-h-11 shrink-0 rounded-md px-4 font-semibold ${
+          inPlan
+            ? small
+              ? "bg-accent-soft text-accent"
+              : "border-2 border-accent text-accent"
+            : small
+              ? "border-2 border-rule hover:bg-foreground hover:text-background"
+              : "bg-accent text-on-accent hover:bg-accent-strong"
         }`}
       >
         {inPlan ? (small ? "✓ Added" : "✓ In your plan") : small ? "Offset" : "Offset this"}
@@ -310,26 +317,38 @@ export function Store() {
     );
   };
 
-  /** A store tile: what it is, your amount, the price and a one-tap add. Details open below the shelf. */
-  const tile = (p: Product) => {
-    const price = coverPrice(p, amountOf(p), coverOf(p), ctx);
+  /** A store tile: what it is, why it matters, your amount, the price and a one-tap add. Details open below the shelf. */
+  const tile = (p: Product, index: number, collapsed: boolean) => {
+    const amount = amountOf(p);
+    const tp = tilePrice(coverPrice(p, amount, coverOf(p), ctx), coverOf(p), billing);
     const isOpen = details === p.id;
     return (
-      <li key={p.id} className={`flex flex-col rounded-md bg-card p-3 ${isOpen ? "outline-2 outline-rule" : ""}`}>
+      <li
+        key={p.id}
+        className={`flex w-[78%] shrink-0 snap-start flex-col rounded-md bg-card p-4 md:w-auto ${
+          collapsed && index >= SHELF_SIZE ? "md:hidden" : ""
+        } ${isOpen ? "outline-2 outline-rule" : ""}`}
+      >
+        <h3 className="text-lg font-bold leading-snug">{p.name}</h3>
+        <p className="text-sm text-muted">{p.blurb}</p>
+        <p className="mt-3 text-sm">{yearlyLine(p, amount, ctx)}</p>
         <button
           type="button"
           onClick={() => setDetails(isOpen ? null : p.id)}
           aria-expanded={isOpen}
-          className="text-left"
+          className="mt-2 inline-flex min-h-10 items-center self-start text-left text-sm"
         >
-          <h3 className="font-semibold leading-snug">{p.name}</h3>
-          <span className="mt-0.5 block text-sm text-muted">
-            {amountText(p, amountOf(p))} · {sourceNote(p)}
+          <span>
+            <span className="font-medium">{amountText(p, amount)}</span>
+            <span className="text-muted"> · {sourceNote(p)} · </span>
+            <span className="font-medium underline underline-offset-4">{isOpen ? "Close" : "Change"}</span>
           </span>
-          <span className="mt-1 block text-sm font-medium underline underline-offset-4">{isOpen ? "Close" : "Details"}</span>
         </button>
-        <div className="mt-auto flex flex-col gap-2 pt-3">
-          <span className="figures text-sm font-medium">{shortPrice(price, coverOf(p), billing)}</span>
+        <div className="mt-auto flex items-center justify-between gap-3 pt-3">
+          <span className="leading-tight">
+            <span className="figures block text-lg font-medium">{tp.big}</span>
+            <span className="block text-xs text-muted">{tp.note}</span>
+          </span>
           {addButton(p, true)}
         </div>
       </li>
@@ -337,7 +356,7 @@ export function Store() {
   };
 
   const detailPanel = (p: Product) => (
-    <li key={`${p.id}-details`} className="col-span-full border-y-2 border-rule py-4">
+    <div className="mt-3 border-y-2 border-rule py-4">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 className="text-lg font-bold">{p.name}</h3>
@@ -357,7 +376,7 @@ export function Store() {
           {addButton(p)}
         </div>
       </div>
-    </li>
+    </div>
   );
 
   const ai = PRODUCTS.find((p) => p.id === "ai")!;
@@ -484,8 +503,7 @@ export function Store() {
       {SECTIONS.map((s) => {
         const items = PRODUCTS.filter((p) => p.section === s.key && p.id !== "ai");
         if (!items.length) return null;
-        const shown = expanded[s.key] ? items : items.slice(0, SHELF_SIZE);
-        const hidden = items.length - shown.length;
+        const collapsed = !expanded[s.key];
         // Keep an open item's details visible even if the shelf is collapsed.
         const openItem = items.find((p) => p.id === details);
         return (
@@ -501,16 +519,16 @@ export function Store() {
                 <button
                   type="button"
                   onClick={() => setExpanded((x) => ({ ...x, [s.key]: !x[s.key] }))}
-                  className="inline-flex min-h-10 shrink-0 items-center text-sm font-semibold underline underline-offset-4"
+                  className="hidden min-h-10 shrink-0 items-center text-sm font-semibold underline underline-offset-4 md:inline-flex"
                 >
-                  {hidden > 0 ? `See all ${items.length}` : "See fewer"}
+                  {collapsed ? `See all ${items.length}` : "See fewer"}
                 </button>
               )}
             </div>
-            <ul className="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-3">
-              {shown.map(tile)}
-              {openItem && detailPanel(openItem)}
+            <ul className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:grid-cols-3 md:overflow-visible md:px-0 md:pb-0">
+              {items.map((p, i) => tile(p, i, collapsed))}
             </ul>
+            {openItem && detailPanel(openItem)}
             {(s.key === "online" || s.key === "devices") && (
               <p className="mt-2 text-xs text-muted">
                 No account can measure this yet, so it starts from typical use.

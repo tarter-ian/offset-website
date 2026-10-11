@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aheadFor, coverBadge, coverPrice, DEFAULT_CONTEXT as C, defaultAmount, effectiveCover, planTotals, PRODUCTS, productById } from "./store";
+import { aheadFor, yearlyLine, coverBadge, coverPrice, DEFAULT_CONTEXT as C, defaultAmount, effectiveCover, planTotals, PRODUCTS, productById } from "./store";
 import {
   ANNUAL_FEE_MONTHS,
   ANNUAL_MIN_DONATION_USD,
@@ -31,6 +31,15 @@ describe("products", () => {
     expect(p("ai").cost(10, "lifetime", { ...C, aiWhPerPrompt: 3, aiFromExport: true })).toBeGreaterThan(
       p("ai").cost(10, "lifetime", C) * 5,
     );
+  });
+});
+
+describe("why lines", () => {
+  it("gives every item a yearly carbon figure, compared to driving outside the travel aisle", () => {
+    for (const item of PRODUCTS) expect(item.kgPerYear(defaultAmount(item, C), C), item.id).toBeGreaterThan(0);
+    expect(yearlyLine(p("video"), 2, C)).toMatch(/^About \d+ kg of CO₂e a year, like driving \d+ miles\.$/);
+    expect(yearlyLine(p("car"), 200, C)).not.toMatch(/driving/);
+    expect(p("video").kgPerYear(4, C)).toBeCloseTo(2 * p("video").kgPerYear(2, C), 6);
   });
 });
 

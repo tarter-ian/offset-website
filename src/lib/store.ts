@@ -1,5 +1,6 @@
+import * as F from "./factors";
 import { STATES, type StateCode } from "./data/states";
-import { computeFootprint, DEFAULT_ANSWERS, type Answers, type CategoryKey, type Diet, type Shopping } from "./footprint";
+import { aiImpacts, computeFootprint, dataCenterImpacts, DEFAULT_ANSWERS, gridImpacts, type Answers, type CategoryKey, type Diet, type Shopping } from "./footprint";
 import {
   DEFAULT_LIFETIME_INPUT,
   LIFETIME_MAX_USD,
@@ -66,6 +67,8 @@ export interface Product {
   oneTime: boolean;
   /** Donation before minimums and fees, for this amount over the span. */
   cost: (amount: number | string, span: Span, ctx: Context) => number;
+  /** Best-estimate greenhouse gases for a year of this amount, in kg CO2e, without our safety margin. */
+  kgPerYear: (amount: number | string, ctx: Context) => number;
 }
 
 const NO_ONLINE: Record<InternetActivity, number> = { video: 0, social: 0, gaming: 0, calls: 0, music: 0, browsing: 0 };
@@ -91,6 +94,7 @@ function onlineItem(id: InternetActivity, name: string, blurb: string, hours: nu
     cost: (a, span, ctx) =>
       lifetimeOffset({ ...base(ctx), internetHoursPerDay: { ...NO_ONLINE, [id]: num(a) } }, ["internet"], undefined, span).parts.internet
         .cost,
+    kgPerYear: (a) => dataCenterImpacts(num(a) * 365 * F.INTERNET_KWH_PER_HOUR[id]).carbon,
   };
 }
 
@@ -105,6 +109,11 @@ function deviceItem(id: Device, name: string, blurb: string, count: number): Pro
     cost: (a, span, ctx) =>
       lifetimeOffset({ ...base(ctx), devices: { ...NO_DEVICES, [id]: Math.round(num(a)) } }, ["devices"], undefined, span).parts.devices
         .cost,
+    kgPerYear: (a) => {
+      const n = Math.round(num(a));
+      const d = F.DEVICES[id];
+      return (n * d.kgToMake) / d.yearsKept + gridImpacts(n * d.kwhPerYear).carbon;
+    },
   };
 }
 
@@ -136,6 +145,11 @@ function lifeItem(
     amount,
     oneTime: false,
     cost: (a, _span, ctx) => monthly(keys, { ...DEFAULT_ANSWERS, state: ctx.state, ...answers(a, ctx) }),
+    kgPerYear: (a, ctx) => {
+      const ks = Array.isArray(keys) ? keys : [keys];
+      const f = computeFootprint({ ...DEFAULT_ANSWERS, state: ctx.state, ...answers(a, ctx) });
+      return 12 * f.categories.filter((c) => ks.includes(c.key)).reduce((sum, c) => sum + c.impacts.carbon, 0);
+    },
   };
 }
 
@@ -167,6 +181,7 @@ export const PRODUCTS: Product[] = [
         undefined,
         span,
       ).parts.ai.cost,
+    kgPerYear: (a, ctx) => aiImpacts((num(a) * 365 * (ctx.aiWhPerPrompt ?? F.WH_PER_AI_PROMPT)) / 1000).carbon,
   },
   {
     id: "ai-media",
@@ -176,6 +191,7 @@ export const PRODUCTS: Product[] = [
     amount: { kind: "number", label: "AI images or videos a week", unit: "images or videos a week", default: 5, step: 1 },
     oneTime: true,
     cost: (a, span, ctx) => lifetimeOffset({ ...base(ctx), aiMediaPerWeek: num(a) }, ["ai"], undefined, span).parts.ai.cost,
+    kgPerYear: (a) => aiImpacts((num(a) * 52 * F.WH_PER_AI_MEDIA) / 1000).carbon,
   },
   onlineItem("video", "Video streaming", "YouTube, Netflix, Twitch.", 2),
   onlineItem("social", "Social media", "TikTok, Instagram, Facebook, X.", 1),
@@ -266,6 +282,19 @@ export const PRODUCTS: Product[] = [
   lifeItem("household", "shopping", "Home goods", "Furniture and things for the house.", level("How much you buy"), (a) => ({ shopping: a as Shopping }), "household"),
   lifeItem("services", "shopping", "Services", "Eating out, subscriptions and other services.", level("How much you buy"), (a) => ({ shopping: a as Shopping }), "services"),
 ];
+
+/** Tailpipe CO2 per mile for an average gas car, used to make yearly figures relatable. */
+export const KG_PER_CAR_MILE = F.KG_CO2_PER_GAL_GASOLINE / F.DEFAULT_MPG;
+
+/** A one-line "why it matters" for a tile, from the item's own yearly estimate. */
+export function yearlyLine(p: Product, amount: number | string, ctx: Context): string {
+  const kg = p.kgPerYear(amount, ctx);
+  const amountKg = kg >= 1000 ? `${(kg / 1000).toFixed(1)} t` : `${kg < 10 ? kg.toFixed(1) : Math.round(kg).toLocaleString("en-US")} kg`;
+  const head = `About ${amountKg} of CO₂e a year`;
+  if (p.section === "travel" || kg < 0.3) return `${head}.`;
+  const miles = kg / KG_PER_CAR_MILE;
+  return `${head}, like driving ${miles < 10 ? miles.toFixed(1) : Math.round(miles).toLocaleString("en-US")} miles.`;
+}
 
 export const productById = (id: string) => PRODUCTS.find((p) => p.id === id);
 
