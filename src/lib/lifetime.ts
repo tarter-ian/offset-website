@@ -15,7 +15,23 @@ export interface LifetimeInput {
   aiFromExport?: boolean;
 }
 
+export type LifetimeCover = "internet" | "ai" | "both";
+
+export const LIFETIME_COVERS: Record<LifetimeCover, { label: string; badge: string }> = {
+  ai: { label: "AI", badge: "AI" },
+  internet: { label: "Internet", badge: "Internet" },
+  both: { label: "Both", badge: "Internet + AI" },
+};
+
+export interface LifetimePart {
+  impacts: Impacts;
+  /** Unrounded donation for this part alone. */
+  cost: number;
+}
+
 export interface LifetimeOffset {
+  cover: LifetimeCover;
+  parts: { internet: LifetimePart; ai: LifetimePart };
   pastYears: { internet: number; ai: number };
   futureYears: number;
   /** Total impacts covered, estimate plus margin and buffer. */
@@ -29,7 +45,7 @@ const add = (a: Impacts, b: Impacts, k = 1): Impacts =>
   Object.fromEntries(IMPACT_KEYS.map((x) => [x, a[x] + b[x] * k])) as Impacts;
 const zero: Impacts = { carbon: 0, air: 0, water: 0, land: 0 };
 
-export function lifetimeOffset(input: LifetimeInput, now = new Date()): LifetimeOffset {
+export function lifetimeOffset(input: LifetimeInput, cover: LifetimeCover = "both", now = new Date()): LifetimeOffset {
   const year = now.getFullYear() + now.getMonth() / 12;
   const birth = Math.min(Math.max(input.birthYear || 1990, 1900), year);
   const onlineSince = Math.max(birth + F.ONLINE_FROM_AGE, F.INTERNET_START_YEAR);
@@ -52,14 +68,20 @@ export function lifetimeOffset(input: LifetimeInput, now = new Date()): Lifetime
   const internetYear = add(zero, internetMonth, 12 / F.VIDEO_SHARE_OF_INTERNET);
   const aiYear = add(zero, aiMonth, 12);
 
-  let impacts = add(zero, internetYear, pastInternet);
-  impacts = add(impacts, aiYear, pastAi);
-  impacts = add(impacts, internetYear, futureYears);
-  impacts = add(impacts, aiYear, futureYears * LIFETIME_GROWTH_BUFFER);
+  const internet = add(add(zero, internetYear, pastInternet), internetYear, futureYears);
+  const ai = add(add(zero, aiYear, pastAi), aiYear, futureYears * LIFETIME_GROWTH_BUFFER);
+  const part = (impacts: Impacts): LifetimePart => {
+    const c = impactCost(impacts, "expected");
+    return { impacts, cost: c.carbon + c.air + c.water + c.land };
+  };
+  const parts = { internet: part(internet), ai: part(ai) };
 
-  const c = impactCost(impacts, "expected");
-  const donation = Math.max(LIFETIME_MIN_DONATION_USD, Math.ceil(c.carbon + c.air + c.water + c.land));
+  const impacts = cover === "both" ? add(internet, ai) : parts[cover].impacts;
+  const raw = cover === "both" ? parts.internet.cost + parts.ai.cost : parts[cover].cost;
+  const donation = Math.max(LIFETIME_MIN_DONATION_USD, Math.ceil(raw));
   return {
+    cover,
+    parts,
     pastYears: { internet: pastInternet, ai: pastAi },
     futureYears,
     impacts,

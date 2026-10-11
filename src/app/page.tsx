@@ -38,13 +38,16 @@ export default function Home() {
   return (
     <div className="mx-auto max-w-5xl px-4">
       <section className="py-16 sm:py-24">
-        <p className="mb-3 text-sm font-medium uppercase tracking-wide text-accent">Personal carbon offsets</p>
+        <p className="mb-3 text-sm font-medium uppercase tracking-wide text-accent">
+          Personal carbon offsets
+        </p>
         <h1 className="max-w-3xl text-4xl font-semibold tracking-tight sm:text-5xl">
           Find your monthly footprint and cover it, one month at a time.
         </h1>
         <p className="mt-5 max-w-2xl text-lg text-muted">
-          We work out the carbon, air pollution, water and land behind your home, travel, food and spending,
-          then turn it into donations to charities that work on each.
+          We work out the carbon, air pollution, water and land behind your
+          home, travel, food and spending, then turn it into donations to
+          charities that work on each.
         </p>
         <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
           <Link
@@ -53,30 +56,61 @@ export default function Home() {
           >
             Link your accounts
           </Link>
-          <Link href="/estimate" className="text-center font-medium text-accent hover:text-accent-strong">
+          <Link
+            href="/estimate"
+            className="text-center font-medium text-accent hover:text-accent-strong"
+          >
             Or answer a few questions
           </Link>
         </div>
-        <Link
-          href="/lifetime"
-          className="mt-10 flex flex-col gap-1 rounded-2xl border-2 border-accent bg-accent-soft p-6 hover:bg-card sm:flex-row sm:items-center sm:justify-between"
-        >
-          <span>
-            <span className="block text-xl font-semibold">Offset your lifetime internet and AI use</span>
-            <span className="block text-muted">
-              Every video, search and chatbot prompt you&apos;ve ever made, and all the ones to come. One payment.
-            </span>
-          </span>
-          <span className="shrink-0 font-medium text-accent">See your price →</span>
-        </Link>
+        <div className="mt-10 grid gap-4 sm:grid-cols-2">
+          {[
+            {
+              cover: "ai",
+              title: "Offset your lifetime AI use",
+              body: "Every chatbot prompt and AI image you've made, and all the ones to come.",
+            },
+            {
+              cover: "internet",
+              title: "Offset your lifetime internet use",
+              body: "Every video, stream and search since you first went online, and the rest of your life.",
+            },
+          ].map((c) => (
+            <Link
+              key={c.cover}
+              href={`/lifetime?cover=${c.cover}`}
+              className="flex flex-col gap-2 rounded-2xl border-2 border-accent bg-accent-soft p-6 hover:bg-card"
+            >
+              <span className="text-xl font-semibold">{c.title}</span>
+              <span className="text-muted">{c.body} One payment.</span>
+              <span className="mt-auto font-medium text-accent">
+                See your price →
+              </span>
+            </Link>
+          ))}
+        </div>
         <p className="mt-3 text-sm text-muted">
-          Just want to cover AI month to month? <Link href="/ai" className="text-accent hover:underline">Offset your AI use</Link>.
+          Want both?{" "}
+          <Link href="/lifetime" className="text-accent hover:underline">
+            Cover your internet and AI together
+          </Link>
+          .
+        </p>
+        <p className="mt-1 text-sm text-muted">
+          Just want to cover AI month to month?{" "}
+          <Link href="/ai" className="text-accent hover:underline">
+            Offset your AI use
+          </Link>
+          .
         </p>
       </section>
 
       <section className="grid gap-4 pb-16 sm:grid-cols-2">
         {POINTS.map((p) => (
-          <div key={p.title} className="rounded-xl border border-border bg-card p-6">
+          <div
+            key={p.title}
+            className="rounded-xl border border-border bg-card p-6"
+          >
             <h2 className="font-semibold">{p.title}</h2>
             <p className="mt-2 text-muted">{p.body}</p>
           </div>
@@ -88,7 +122,9 @@ export default function Home() {
         <ol className="mt-6 grid gap-4 sm:grid-cols-3">
           {STEPS.map((s, i) => (
             <li key={s} className="rounded-xl bg-accent-soft p-5">
-              <span className="text-sm font-semibold text-accent">Step {i + 1}</span>
+              <span className="text-sm font-semibold text-accent">
+                Step {i + 1}
+              </span>
               <p className="mt-1">{s}</p>
             </li>
           ))}
@@ -96,9 +132,12 @@ export default function Home() {
       </section>
 
       <section className="mb-20 rounded-2xl border border-border bg-card p-8">
-        <h2 className="text-2xl font-semibold tracking-tight">Accounts open soon</h2>
+        <h2 className="text-2xl font-semibold tracking-tight">
+          Accounts open soon
+        </h2>
         <p className="mt-2 mb-5 text-muted">
-          Join the waitlist and we&apos;ll email you when you can link accounts and start offsetting.
+          Join the waitlist and we&apos;ll email you when you can link accounts
+          and start offsetting.
         </p>
         <WaitlistForm />
       </section>
