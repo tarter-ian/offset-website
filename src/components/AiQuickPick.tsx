@@ -19,7 +19,8 @@ const ERRORS: Record<ExtensionError, (name: string) => string> = {
   unavailable: () => "Couldn't count this one.",
 };
 
-type Row = { state: "counting" | "done" | "error"; text?: string; error?: ExtensionError };
+/** `raw` is exactly what the extension handed over, shown on request so people can check it holds only counts. */
+type Row = { state: "counting" | "done" | "error"; text?: string; error?: ExtensionError; raw?: unknown };
 
 /**
  * Sizing AI use. One click: pick light, medium or heavy. Exact: the Offset
@@ -69,18 +70,18 @@ export function AiQuickPick({
             setRows((r) => ({
               ...r,
               youtube: video
-                ? { state: "done", text: `${totals.videos.toLocaleString("en-US")} videos and ${totals.shorts.toLocaleString("en-US")} Shorts in 30 days, about ${video} hours a day` }
-                : { state: "error", error: "unavailable" },
+                ? { state: "done", raw: usage, text: `${totals.videos.toLocaleString("en-US")} videos and ${totals.shorts.toLocaleString("en-US")} Shorts in 30 days, about ${video} hours a day` }
+                : { state: "error", error: "unavailable", raw: usage },
             }));
             if (video) onVideo?.(video);
             return;
           }
           const u = signInUsage(usage);
           if (!u) {
-            setRows((r) => ({ ...r, [service]: { state: "error", error: "unavailable" } }));
+            setRows((r) => ({ ...r, [service]: { state: "error", error: "unavailable", raw: usage } }));
             return;
           }
-          setRows((r) => ({ ...r, [service]: { state: "done", text: resultText(u) } }));
+          setRows((r) => ({ ...r, [service]: { state: "done", text: resultText(u), raw: usage } }));
           setAiSummaries((prev) => {
             const next = { ...prev, [service]: summaryFromSignIn(service, u) };
             const all = combineSummaries(Object.values(next) as UsageSummary[]);
@@ -179,6 +180,21 @@ export function AiQuickPick({
                 );
               })}
             </dl>
+          )}
+          {EXTENSION_SERVICES.some((x) => rows[x]?.raw) && (
+            <details className="mt-2 text-sm">
+              <summary className="cursor-pointer underline hover:text-muted">See exactly what the extension sent</summary>
+              <p className="mt-2 text-muted">
+                This is everything that came back, unedited. Counts and dates only: no chat text, no titles, no video names.
+              </p>
+              <pre className="mt-2 max-h-80 overflow-auto rounded-md border border-border p-3 font-mono text-xs">
+                {JSON.stringify(
+                  Object.fromEntries(EXTENSION_SERVICES.filter((x) => rows[x]?.raw).map((x) => [x, rows[x]!.raw])),
+                  null,
+                  2,
+                )}
+              </pre>
+            </details>
           )}
           {Object.keys(aiSummaries).length > 0 && (
             <button
@@ -288,6 +304,14 @@ function ExtensionOffer({ name, service }: { name: string; service: QuickService
       <p className="mt-1 text-sm">
         Add the free Offset extension to Chrome or Edge. Then Connect {name} counts your last 30 days in a few seconds, in a tab where
         you&apos;re already logged in. It reads: {SIGN_IN_READS[service]}
+      </p>
+      <p className="mt-2 text-sm text-muted">
+        Chrome may warn that it can &ldquo;read and change your data&rdquo; on {name}. That&apos;s Chrome&apos;s standard wording for any
+        extension that opens a site for you. Offset only counts there, changes nothing, and runs only when you press the button. After each
+        run you can see exactly what it sent.{" "}
+        <a href="/data#extension" className="underline hover:text-foreground">
+          More on what it reads
+        </a>
       </p>
       {EXTENSION_URL ? (
         <a
