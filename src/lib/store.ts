@@ -1,6 +1,6 @@
 import * as F from "./factors";
 import { STATES, type StateCode } from "./data/states";
-import { aiImpacts, computeFootprint, dataCenterImpacts, DEFAULT_ANSWERS, gridImpacts, type Answers, type CategoryKey, type Diet, type Shopping } from "./footprint";
+import { aiImpacts, computeFootprint, dataCenterImpacts, DEFAULT_ANSWERS, gridImpacts, sumImpacts, type Impacts, type Answers, type CategoryKey, type Diet, type Shopping } from "./footprint";
 import {
   DEFAULT_LIFETIME_INPUT,
   LIFETIME_MAX_USD,
@@ -67,6 +67,8 @@ export interface Product {
   oneTime: boolean;
   /** Donation before minimums and fees, for this amount over the span. */
   cost: (amount: number | string, span: Span, ctx: Context) => number;
+  /** Everything covered for this amount over the span (estimate plus margin); a month for ongoing items. */
+  impacts: (amount: number | string, span: Span, ctx: Context) => Impacts;
   /** Best-estimate greenhouse gases for a year of this amount, in kg CO2e, without our safety margin. */
   kgPerYear: (amount: number | string, ctx: Context) => number;
 }
@@ -83,7 +85,15 @@ const base = (ctx: Context): LifetimeInput => ({
 });
 const num = (v: number | string) => (typeof v === "number" && Number.isFinite(v) && v > 0 ? v : 0);
 
+const costOf = (i: Impacts) => {
+  const c = impactCost(i);
+  return c.carbon + c.air + c.water + c.land;
+};
+
 function onlineItem(id: InternetActivity, name: string, blurb: string, hours: number): Product {
+  const online = (a: number | string, span: Span, ctx: Context) =>
+    lifetimeOffset({ ...base(ctx), internetHoursPerDay: { ...NO_ONLINE, [id]: num(a) } }, ["internet"], undefined, span).parts.internet
+      .impacts;
   return {
     id,
     section: "online",
@@ -91,14 +101,16 @@ function onlineItem(id: InternetActivity, name: string, blurb: string, hours: nu
     blurb,
     amount: { kind: "number", label: `${name} hours a day`, unit: "hours a day", default: hours, step: 0.25 },
     oneTime: true,
-    cost: (a, span, ctx) =>
-      lifetimeOffset({ ...base(ctx), internetHoursPerDay: { ...NO_ONLINE, [id]: num(a) } }, ["internet"], undefined, span).parts.internet
-        .cost,
+    cost: (a, span, ctx) => costOf(online(a, span, ctx)),
+    impacts: (a, span, ctx) => online(a, span, ctx),
     kgPerYear: (a) => dataCenterImpacts(num(a) * 365 * F.INTERNET_KWH_PER_HOUR[id]).carbon,
   };
 }
 
 function deviceItem(id: Device, name: string, blurb: string, count: number): Product {
+  const device = (a: number | string, span: Span, ctx: Context) =>
+    lifetimeOffset({ ...base(ctx), devices: { ...NO_DEVICES, [id]: Math.round(num(a)) } }, ["devices"], undefined, span).parts.devices
+      .impacts;
   return {
     id,
     section: "devices",
@@ -106,9 +118,8 @@ function deviceItem(id: Device, name: string, blurb: string, count: number): Pro
     blurb,
     amount: { kind: "number", label: `${name} you use`, unit: "in use", default: count, step: 1 },
     oneTime: true,
-    cost: (a, span, ctx) =>
-      lifetimeOffset({ ...base(ctx), devices: { ...NO_DEVICES, [id]: Math.round(num(a)) } }, ["devices"], undefined, span).parts.devices
-        .cost,
+    cost: (a, span, ctx) => costOf(device(a, span, ctx)),
+    impacts: (a, span, ctx) => device(a, span, ctx),
     kgPerYear: (a) => {
       const n = Math.round(num(a));
       const d = F.DEVICES[id];
@@ -117,15 +128,14 @@ function deviceItem(id: Device, name: string, blurb: string, count: number): Pro
   };
 }
 
-/** Monthly donation for one category of the monthly footprint. */
-function monthly(key: CategoryKey | CategoryKey[], answers: Answers): number {
+/** A month of one category of the footprint, estimate plus margin. */
+function monthly(key: CategoryKey | CategoryKey[], answers: Answers): Impacts {
   const keys = Array.isArray(key) ? key : [key];
-  return computeFootprint(answers)
-    .categories.filter((c) => keys.includes(c.key))
-    .reduce((s, c) => {
-      const x = impactCost(c.offset);
-      return s + x.carbon + x.air + x.water + x.land;
-    }, 0);
+  return sumImpacts(
+    computeFootprint(answers)
+      .categories.filter((c) => keys.includes(c.key))
+      .map((c) => c.offset),
+  );
 }
 
 function lifeItem(
@@ -144,7 +154,8 @@ function lifeItem(
     blurb,
     amount,
     oneTime: false,
-    cost: (a, _span, ctx) => monthly(keys, { ...DEFAULT_ANSWERS, state: ctx.state, ...answers(a, ctx) }),
+    cost: (a, _span, ctx) => costOf(monthly(keys, { ...DEFAULT_ANSWERS, state: ctx.state, ...answers(a, ctx) })),
+    impacts: (a, _span, ctx) => monthly(keys, { ...DEFAULT_ANSWERS, state: ctx.state, ...answers(a, ctx) }),
     kgPerYear: (a, ctx) => {
       const ks = Array.isArray(keys) ? keys : [keys];
       const f = computeFootprint({ ...DEFAULT_ANSWERS, state: ctx.state, ...answers(a, ctx) });
@@ -166,6 +177,14 @@ const LEVELS: { value: Shopping; label: string }[] = [
 ];
 const level = (label: string): Amount => ({ kind: "choice", label, default: "average", options: LEVELS });
 
+const aiChat = (a: number | string, span: Span, ctx: Context) =>
+  lifetimeOffset(
+    { ...base(ctx), aiPromptsPerDay: num(a), aiWhPerPrompt: ctx.aiWhPerPrompt, aiFromExport: ctx.aiFromExport, aiPastWh: ctx.aiPastWh },
+    ["ai"],
+    undefined,
+    span,
+  ).parts.ai.impacts;
+
 export const PRODUCTS: Product[] = [
   {
     id: "ai",
@@ -174,13 +193,8 @@ export const PRODUCTS: Product[] = [
     blurb: "ChatGPT, Claude, Gemini and the rest, including training the models and building the data centers.",
     amount: { kind: "number", label: "AI prompts a day", unit: "prompts a day", default: 10, step: 1 },
     oneTime: true,
-    cost: (a, span, ctx) =>
-      lifetimeOffset(
-        { ...base(ctx), aiPromptsPerDay: num(a), aiWhPerPrompt: ctx.aiWhPerPrompt, aiFromExport: ctx.aiFromExport, aiPastWh: ctx.aiPastWh },
-        ["ai"],
-        undefined,
-        span,
-      ).parts.ai.cost,
+    cost: (a, span, ctx) => costOf(aiChat(a, span, ctx)),
+    impacts: (a, span, ctx) => aiChat(a, span, ctx),
     kgPerYear: (a, ctx) => aiImpacts((num(a) * 365 * (ctx.aiWhPerPrompt ?? F.WH_PER_AI_PROMPT)) / 1000).carbon,
   },
   {
@@ -190,7 +204,8 @@ export const PRODUCTS: Product[] = [
     blurb: "Pictures and clips you make with AI.",
     amount: { kind: "number", label: "AI images or videos a week", unit: "images or videos a week", default: 5, step: 1 },
     oneTime: true,
-    cost: (a, span, ctx) => lifetimeOffset({ ...base(ctx), aiMediaPerWeek: num(a) }, ["ai"], undefined, span).parts.ai.cost,
+    cost: (a, span, ctx) => costOf(lifetimeOffset({ ...base(ctx), aiMediaPerWeek: num(a) }, ["ai"], undefined, span).parts.ai.impacts),
+    impacts: (a, span, ctx) => lifetimeOffset({ ...base(ctx), aiMediaPerWeek: num(a) }, ["ai"], undefined, span).parts.ai.impacts,
     kgPerYear: (a) => aiImpacts((num(a) * 52 * F.WH_PER_AI_MEDIA) / 1000).carbon,
   },
   onlineItem("video", "Video streaming", "YouTube, Netflix, Twitch.", 2),
@@ -371,6 +386,17 @@ export function coverBadge(c: Cover, billing: Billing): string {
 export function coverPrice(p: Product, amount: number | string, cover: Cover, ctx: Context) {
   const once = (cover.past ? p.cost(amount, "past", ctx) : 0) + (cover.ahead === "lifetime" ? p.cost(amount, "future", ctx) : 0);
   const monthly = cover.ahead === "monthly" ? p.cost(amount, "monthly", ctx) : 0;
+  return { once, monthly };
+}
+
+/** Everything an item covers under a cover: the one-time part and each month of the ongoing part. */
+export function coverImpacts(p: Product, amount: number | string, cover: Cover, ctx: Context) {
+  const zero: Impacts = { carbon: 0, air: 0, water: 0, land: 0 };
+  const once = sumImpacts([
+    cover.past ? p.impacts(amount, "past", ctx) : zero,
+    cover.ahead === "lifetime" ? p.impacts(amount, "future", ctx) : zero,
+  ]);
+  const monthly = cover.ahead === "monthly" ? p.impacts(amount, "monthly", ctx) : zero;
   return { once, monthly };
 }
 

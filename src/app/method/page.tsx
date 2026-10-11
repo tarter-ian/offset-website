@@ -58,6 +58,10 @@ const SOURCES = [
     name: "Scarborough et al. 2023, diet water and land use (Nature Food)",
     url: "https://ora.ox.ac.uk/objects/uuid:332d8ffb-75cf-4f59-bded-bc2042de955d",
   },
+  { name: "Domingo et al. 2021, air quality deaths from US food production (PNAS)", url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC8158015" },
+  { name: "Yim et al. 2015, global health effects of aviation emissions", url: "https://doaj.org/article/883efa3bca1c4bcd80afca0ad6189c7b" },
+  { name: "Friends of the Earth 2015, land and water used to make consumer products", url: "https://transform.iema.net/article/land-and-water-use-consumer-products-revealed" },
+  { name: "Wu et al. 2009, Argonne, water used to make transport fuels", url: "https://publications.anl.gov/anlpubs/2009/01/63155.pdf" },
   { name: "Founders Pledge, climate donations and offsetting", url: "https://www.founderspledge.com/research/climate-and-lifestyle-donations-and-offsetting" },
 ];
 
@@ -72,19 +76,19 @@ const IMPACTS = [
   {
     name: "Air pollution",
     measure:
-      `The harm to health from the NOx, SO₂ and fine particles released by power plants, cars and home furnaces, using EPA's per-ton estimates. Almost all of it is early deaths, so we show it as healthy life lost, shared across everyone who breathes the pollution: EPA values a statistical life at about $${(F.VSL_USD / 1e6).toFixed(0)} million, and each early death from fine particles costs about ${F.LIFE_YEARS_PER_AIR_DEATH} years of life, so $1 of damage is about ${F.MINUTES_OF_LIFE_PER_DAMAGE_USD.toFixed(2)} minutes.`,
+      `The harm to health from the NOx, SO₂ and fine particles released by power plants, cars, home furnaces, jet engines and farms (mostly ammonia from manure and fertilizer), using EPA's per-ton estimates and published death counts for flights and farms. Almost all of it is early deaths, so we show it as healthy life lost, shared across everyone who breathes the pollution: EPA values a statistical life at about $${(F.VSL_USD / 1e6).toFixed(0)} million, and each early death from fine particles costs about ${F.LIFE_YEARS_PER_AIR_DEATH} years of life, so $1 of damage is about ${F.MINUTES_OF_LIFE_PER_DAMAGE_USD.toFixed(2)} minutes.`,
     price: `We donate ${Math.round(AIR_DAMAGE_SHARE * 100)}% of that damage to clean-air work.`,
   },
   {
     name: "Water",
-    measure: `Fresh water consumed, in liters, to generate your electricity, cool data centers and grow your food, weighted by scarcity: a liter from a water-stressed area counts in full and a liter from a well-watered one counts ${F.UNSTRESSED_WATER_WEIGHT * 100}%. We assume ${Math.round(F.STRESSED_WATER_SHARE.food * 100)}% of food water, ${Math.round(F.STRESSED_WATER_SHARE.datacenter * 100)}% of data center water and ${Math.round(F.STRESSED_WATER_SHARE.grid * 100)}% of power plant water come from stressed areas.`,
+    measure: `Fresh water consumed, in liters, to generate your electricity, cool data centers, grow your food, refine your fuel and make your electronics, weighted by scarcity: a liter from a water-stressed area counts in full and a liter from a well-watered one counts ${F.UNSTRESSED_WATER_WEIGHT * 100}%. We assume ${Math.round(F.STRESSED_WATER_SHARE.food * 100)}% of food water, ${Math.round(F.STRESSED_WATER_SHARE.datacenter * 100)}% of data center water and ${Math.round(F.STRESSED_WATER_SHARE.grid * 100)}% of power plant water come from stressed areas.`,
     price: `You choose how: ${(Object.keys(WATER_MODES) as WaterMode[])
       .map((m) => `${WATER_MODES[m].label.toLowerCase()} at ${usd(WATER_MODES[m].per1000Gal)} per 1,000 gallons`)
       .join(", or ")}. Expected impact, the default, funds paid water-saving work in dry regions, like farm irrigation upgrades, which has cost roughly $70 to $500 an acre-foot. Restoration certificates return every gallon to a stressed river.`,
   },
   {
     name: "Nature",
-    measure: "Land used to grow your food, in square meters for the month.",
+    measure: "Land used to grow your food and to mine and make your electronics, in square meters.",
     price: "We fund permanently protecting the same area of threatened forest, at about $10 an acre.",
   },
 ];
@@ -101,25 +105,25 @@ const ROWS = [
   },
   {
     category: "Car travel",
-    method: `Miles divided by fuel economy, at ${F.KG_CO2_PER_GAL_GASOLINE} kg CO₂ a gallon, plus tailpipe NOx and particles. Electric cars use ${F.EV_KWH_PER_MILE} kWh a mile on your state's grid.`,
+    method: `Miles divided by fuel economy, at ${F.KG_CO2_PER_GAL_GASOLINE} kg CO₂ a gallon, plus tailpipe NOx and particles, plus about 1.5 gallons of water consumed to make each gallon of gasoline. Electric cars use ${F.EV_KWH_PER_MILE} kWh a mile on your state's grid.`,
   },
   {
     category: "Flights",
-    method: `Round trips a year, spread over 12 months, times ${F.FLIGHT_NON_CO2_MULTIPLIER} for contrails and other high-altitude warming.`,
+    method: `Round trips a year, spread over 12 months, times ${F.FLIGHT_NON_CO2_MULTIPLIER} for contrails and other high-altitude warming. Air pollution is each kilogram of jet fuel's share of the roughly ${F.FLIGHT_AIR_DEATHS_PER_YEAR.toLocaleString()} early deaths a year that aviation causes worldwide. Water is the water used to refine the fuel.`,
   },
   {
     category: "Bus and train",
-    method: `Miles a week at about ${F.TRANSIT_KG_PER_MILE} kg CO₂e a passenger-mile.`,
+    method: `Miles a week at about ${F.TRANSIT_KG_PER_MILE} kg CO₂e a passenger-mile. Air pollution and water use are assumed to match a car's per kilogram of CO₂, a rough figure.`,
   },
   {
     category: "Food",
     method:
-      "Yearly per-person figures for your type of diet, for carbon, water and land, split into meat and fish, dairy and eggs, and plant foods by typical shares.",
+      `Yearly per-person figures for your type of diet, for carbon, water and land, split into meat and fish, dairy and eggs, and plant foods by typical shares. Air pollution is your share of the about ${F.FOOD_AIR_DEATHS_PER_YEAR.toLocaleString()} US deaths a year from farm pollution, mostly from meat, scaled by how your diet compares to the average.`,
   },
   {
     category: "Shopping",
     method:
-      "A yearly per-person carbon figure for your level of spending, split into clothing, electronics, home goods and services by typical shares.",
+      "A yearly per-person carbon figure for your level of spending, split into clothing, electronics, home goods and services by typical shares. Electronics also counts the water and land to mine and make them; the rest is carbon only for now.",
   },
   {
     category: "AI",
@@ -200,7 +204,7 @@ export default function MethodPage() {
         </li>
         <li>
           <strong className="font-medium text-foreground">Devices</strong> counts the carbon to make each phone, laptop, tablet, computer, TV and
-          console you&apos;ll go through (for example {F.DEVICES.phone.kgToMake} kg for a phone kept {F.DEVICES.phone.yearsKept} years), plus the
+          console you&apos;ll go through (for example {F.DEVICES.phone.kgToMake} kg for a phone kept {F.DEVICES.phone.yearsKept} years), the water and land used to mine and make them, plus the
           power to run them. If you also cover home electricity month to month, the running power overlaps with it.
         </li>
       </ul>
@@ -215,8 +219,8 @@ export default function MethodPage() {
 
       <h2 className="mt-10 text-xl font-semibold">What we don&apos;t count yet</h2>
       <p className="mt-2 text-muted">
-        Air pollution from flights, oil and propane heating, and food; water used for fuel and flights; the water,
-        land and pollution behind the things you buy, including mining and making devices; e-waste; building data centers for anything but AI; AI built into other products; and AI video. Your summary marks each gap.
+        Air pollution from oil and propane heating; the water, land and air pollution behind clothing, home goods and services;
+        air pollution from making devices; e-waste; building data centers for anything but AI; AI built into other products; and AI video. Your summary marks each gap.
       </p>
 
       <h2 className="mt-10 text-xl font-semibold">Sources</h2>

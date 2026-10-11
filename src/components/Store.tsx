@@ -7,6 +7,7 @@ import { NumberInput, Select } from "./fields";
 import { WaitlistForm } from "./WaitlistForm";
 import { STATE_OPTIONS, STATES, type StateCode } from "@/lib/data/states";
 import { IMPACT_INFO } from "@/lib/impacts";
+import { IMPACT_KEYS, type Impacts } from "@/lib/footprint";
 import { PROVIDERS, type ProviderId } from "@/lib/providers";
 import { digitalFromExport } from "@/lib/ai/exportParser";
 import { ONLINE_FROM_AGE } from "@/lib/factors";
@@ -32,6 +33,7 @@ import {
   PRODUCTS,
   planTotals,
   SECTIONS,
+  coverImpacts,
   sourcesFor,
   yearlyLine,
   type Context,
@@ -76,6 +78,13 @@ function tilePrice(price: { once: number; monthly: number }, cover: Cover, billi
   if (cover.ahead === "monthly") return price.once > 0 ? { big: once(price.once), note: `+ ${ongoing} ${per}` } : { big: ongoing, note: per };
   return { big: once(price.once), note: cover.past ? "for life" : "once" };
 }
+/** Every kind of harm covered, skipping ones too small to show, e.g. "181 kg CO₂e · 7.7 min of life · 947 L water". */
+const MIN_SHOWN: Impacts = { carbon: 0.005, air: 0.0005, water: 0.05, land: 0.5 };
+const coversText = (i: Impacts) =>
+  IMPACT_KEYS.filter((k) => i[k] >= MIN_SHOWN[k])
+    .map((k) => IMPACT_INFO[k].format(i[k]))
+    .join(" · ");
+
 const amountText = (p: Product, amount: number | string) =>
   p.amount.kind === "number"
     ? `${p.amount.prefix ?? ""}${typeof amount === "number" ? amount.toLocaleString("en-US") : amount} ${
@@ -317,6 +326,23 @@ export function Store() {
     );
   };
 
+  /** What an item's price pays to cover, in every kind of harm. */
+  const coversLines = (p: Product): [string, string][] => {
+    const cover = coverOf(p);
+    const c = coverImpacts(p, amountOf(p), cover, ctx);
+    const lines: [string, string][] = [];
+    if (cover.ahead === "lifetime") lines.push([cover.past ? "Covers for life" : "Covers all future use", coversText(c.once)]);
+    else {
+      if (cover.past) lines.push(["Covers past use", coversText(c.once)]);
+      const k = billing === "annual" ? 12 : 1;
+      lines.push([
+        billing === "annual" ? "Covers each year" : "Covers each month",
+        coversText({ carbon: c.monthly.carbon * k, air: c.monthly.air * k, water: c.monthly.water * k, land: c.monthly.land * k }),
+      ]);
+    }
+    return lines;
+  };
+
   /** A store tile: what it is, why it matters, your amount, the price and a one-tap add. Details open below the shelf. */
   const tile = (p: Product, index: number, collapsed: boolean) => {
     const amount = amountOf(p);
@@ -331,7 +357,11 @@ export function Store() {
       >
         <h3 className="text-lg font-bold leading-snug">{p.name}</h3>
         <p className="text-sm text-muted">{p.blurb}</p>
-        <p className="mt-3 text-sm">{yearlyLine(p, amount, ctx)}</p>
+        {coversLines(p).map(([label, text]) => (
+          <p key={label} className="mt-3 text-sm">
+            <span className="font-semibold">{label}:</span> {text}
+          </p>
+        ))}
         <button
           type="button"
           onClick={() => setDetails(isOpen ? null : p.id)}
@@ -368,6 +398,7 @@ export function Store() {
       </div>
       <div className="mt-3 grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
         <div className="space-y-2">
+          <p className="text-sm">{yearlyLine(p, amountOf(p), ctx)}</p>
           {amountLine(p)}
           {coverControls(p, true)}
         </div>
@@ -532,7 +563,12 @@ export function Store() {
             {(s.key === "online" || s.key === "devices") && (
               <p className="mt-2 text-xs text-muted">
                 No account can measure this yet, so it starts from typical use.
-                {s.key === "devices" && " Not counted: water and land used to mine and make devices, and e-waste."}
+                {s.key === "devices" && " Not counted: air pollution from making devices, and e-waste."}
+              </p>
+            )}
+            {s.key === "shopping" && (
+              <p className="mt-2 text-xs text-muted">
+                Clothing, home goods and services count greenhouse gases only for now. Their water, land and air pollution aren&apos;t counted yet.
               </p>
             )}
           </section>

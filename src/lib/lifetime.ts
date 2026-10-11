@@ -1,5 +1,5 @@
 import * as F from "./factors";
-import { aiImpacts, dataCenterImpacts, gridImpacts, IMPACT_KEYS, MARGINS, type Impacts } from "./footprint";
+import { aiImpacts, dataCenterImpacts, electronicsMaking, gridImpacts, IMPACT_KEYS, MARGINS, type Impacts } from "./footprint";
 import {
   FEE_PER_AREA_USD,
   impactCost,
@@ -180,7 +180,8 @@ export function lifetimeOffset(
   for (const k of Object.keys(F.DEVICES) as Device[]) {
     const d = F.DEVICES[k];
     const count = nonNeg(input.devices[k]);
-    const made = { ...zero, carbon: (count * d.kgToMake * years.devices) / d.yearsKept };
+    const madeKg = (count * d.kgToMake * years.devices) / d.yearsKept;
+    const made = { ...zero, carbon: madeKg, ...electronicsMaking(madeKg) };
     devices = add(devices, add(made, gridImpacts(count * d.kwhPerYear * years.devices)), 1 + MARGINS.estimated);
   }
 

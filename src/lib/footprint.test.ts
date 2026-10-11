@@ -130,7 +130,8 @@ describe("monthlyCost", () => {
     const food = monthlyCost(f, ["meat", "dairy", "plants"]);
     const all = monthlyCost(f, CATEGORY_KEYS);
     expect(food.donation).toBeLessThan(all.donation);
-    expect(food.byImpact.land).toBeCloseTo(all.byImpact.land, 6);
+    // Land comes only from food and making electronics.
+    expect(monthlyCost(f, ["meat", "dairy", "plants", "electronics"]).byImpact.land).toBeCloseTo(all.byImpact.land, 6);
   });
 
   it("only prices the chosen impact types", () => {
@@ -181,5 +182,31 @@ describe("carbon modes", () => {
     expect(c("expected")).toBeLessThan(c("blend"));
     expect(c("blend")).toBeLessThan(c("verified"));
     expect(c("blend") / c("expected")).toBeCloseTo(49 / 15, 6);
+  });
+});
+
+describe("holistic harms", () => {
+  const base = computeFootprint(DEFAULT_ANSWERS);
+  const cat = (f: ReturnType<typeof computeFootprint>, k: string) => f.categories.find((c) => c.key === k)!;
+
+  it("counts farm air pollution, most of it from meat, and none of meat's on a vegan diet", () => {
+    expect(cat(base, "meat").impacts.air).toBeGreaterThan(cat(base, "plants").impacts.air);
+    const vegan = computeFootprint({ ...DEFAULT_ANSWERS, diet: "vegan" });
+    expect(cat(vegan, "meat").impacts.air).toBe(0);
+    expect(cat(base, "meat").notCounted).toEqual([]);
+  });
+
+  it("counts air and water for flights, transit and driving", () => {
+    const f = computeFootprint({ ...DEFAULT_ANSWERS, flights: { shortPerYear: 2, longPerYear: 0 }, transit: { milesPerWeek: 20 } });
+    for (const k of ["flights", "transit", "car"]) {
+      expect(cat(f, k).impacts.water, k).toBeGreaterThan(0);
+      expect(cat(f, k).notCounted, k).toEqual([]);
+    }
+    expect(cat(f, "flights").impacts.air).toBeGreaterThan(0);
+  });
+
+  it("counts water and land for making electronics", () => {
+    expect(cat(base, "electronics").impacts.water).toBeGreaterThan(0);
+    expect(cat(base, "electronics").impacts.land).toBeGreaterThan(0);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_LIFETIME_INPUT, lifetimeOffset, parseItems } from "./lifetime";
+import { DEFAULT_LIFETIME_INPUT, LIFETIME_MAX_USD, lifetimeOffset, parseItems } from "./lifetime";
 import { LIFETIME_FEE_USD, LIFETIME_MIN_DONATION_USD } from "./pricing";
 
 const now = new Date(Date.UTC(2026, 0, 1));
@@ -54,7 +54,7 @@ describe("lifetimeOffset", () => {
     for (const item of ["internet", "ai", "devices"] as const) {
       const o = lifetimeOffset(typical, [item], now);
       expect(o.total).toBeGreaterThan(5);
-      expect(o.total).toBeLessThan(600);
+      expect(o.total).toBeLessThan(LIFETIME_MAX_USD);
     }
   });
 });

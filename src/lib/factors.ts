@@ -176,6 +176,34 @@ export const FOOD_SHARES = {
   vegan: { meat: 0, dairy: 0, plants: 1 },
 } as const;
 
+// Air pollution from farms (mostly ammonia from manure and fertilizer, which
+// forms fine particles). Domingo et al. 2021 (PNAS) estimate 15,900 US deaths a
+// year from food production: cutting meat (a vegetarian diet) avoids 76% of them
+// and also cutting dairy and eggs (vegan) avoids 83%. So of the average diet's
+// damage, meat is 76%, dairy and eggs 7%, plant foods 17%. Other diets scale each
+// group by its share of the diet's carbon.
+export const FOOD_AIR_DEATHS_PER_YEAR = 15_900;
+export const US_POPULATION = 332_000_000;
+export const FOOD_AIR_SHARES = { meat: 0.76, dairy: 0.07, plants: 0.17 } as const;
+
+// Water used to drill and refine fuel: about 1.5 gallons per gallon of gasoline
+// or jet fuel (Wu et al. 2009, Argonne; range 0.5 to 2.5). Per kg of CO2 burned.
+export const FUEL_WATER_L_PER_KG_CO2 = (1.5 * 3.785) / KG_CO2_PER_GAL_GASOLINE;
+
+// Flights' air pollution: about 16,000 deaths a year worldwide (Yim et al. 2015)
+// from about 188 million tonnes of jet fuel, so about $850 of health damage per
+// tonne of fuel, or $0.27 per kg of CO2. Approximate: three quarters come from
+// cruise emissions that spread far from where the flight happened.
+export const FLIGHT_AIR_DEATHS_PER_YEAR = 16_000;
+export const JET_FUEL_TONNES_PER_YEAR = 188_000_000;
+export const KG_CO2_PER_KG_JET_FUEL = 3.16;
+
+// Making electronics: water and land per kg of manufacturing CO2e, from a
+// smartphone's ~13,000 L of water and 18 m² of land against ~70 kg CO2e
+// (Friends of the Earth 2015). Rough, and applied to every device type.
+export const ELECTRONICS_L_PER_KG_CO2 = 13_000 / 70;
+export const ELECTRONICS_M2_PER_KG_CO2 = 18 / 70;
+
 // How goods and services split.
 export const SHOPPING_SHARES = { clothing: 0.15, electronics: 0.15, household: 0.15, services: 0.55 } as const;
 
