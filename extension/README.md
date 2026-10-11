@@ -8,6 +8,10 @@ does the rest: it opens each service in a separate minimized window, counts the
 last 30 days there, hands the counts to the site and closes the window. Only counts and
 dates leave the service's page. No chat text, titles or video ids.
 
+It is installed with access to no site. The first time a service is measured, a
+small window lists what would be read and asks the person to allow it, one
+service at a time or all at once.
+
 Chrome and Edge on computers only. It has no effect on phones.
 
 ## Try it
@@ -35,9 +39,9 @@ messages on the page's origin.
 | Extension sends (`source: 'offset-extension'`) | Meaning |
 | --- | --- |
 | `{ type: 'ready', version }` | Installed. Sent on page load and in answer to `ping`. |
-| `{ type: 'started', requestId, services }` | The tabs are open. |
+| `{ type: 'started', requestId, services, needsPermission }` | Under way. `needsPermission` lists services the person is being asked to allow first. |
 | `{ type: 'usage', service, requestId, usage }` | One service's counts. |
-| `{ type: 'error', service, requestId, error }` | `signed-out`, `closed`, `timeout` or `unavailable`. |
+| `{ type: 'error', service, requestId, error }` | `signed-out`, `denied`, `closed`, `timeout` or `unavailable`. |
 
 `demo/index.html` is a working example.
 
@@ -73,6 +77,7 @@ Things to know when using these numbers:
 | --- | --- | --- |
 | `background.js` | Extension worker | Opens the tabs, injects the scripts, returns the counts, closes the tabs. |
 | `site-bridge.js` | The site's pages | Relays messages between the page and the worker. |
+| `permit.html`, `permit.js` | Its own small window | Asks the person which services to allow. Chrome only lets an extension page ask. |
 | `provider-shim.js` | The service's page | Gives the counting scripts the `window.Reclaim` they report through. |
 | `provider-relay.js` | The service's tab | Passes the counts from the page to the worker. |
 | `providers/*.js` | The service's page | One counting script per service. |

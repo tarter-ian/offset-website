@@ -96,24 +96,83 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
   if (job) await finish(tabId, job, { type: 'error', error: 'closed' }, false);
 });
 
+// The extension is installed with access to no site at all. It asks for each
+// service's site the first time that service is measured, on its own page
+// (permit.html), because Chrome only lets an extension page ask.
+const origin = (service) => `https://${SERVICES[service].host}/*`;
+const allowed = (service) => chrome.permissions.contains({ origins: [origin(service)] });
+
+const PERMIT_PAGE = chrome.runtime.getURL('permit.html');
+const askKey = (id) => `ask:${id}`;
+
+function begin(services, front, requestId, siteTab) {
+  if (!services.length) return Promise.resolve();
+  return front ? startInFront(services[0], requestId, siteTab) : startInBackground(services, requestId, siteTab);
+}
+
+function tellSite(siteTabId, message) {
+  chrome.tabs.sendMessage(siteTabId, message).catch(() => {});
+}
+
+// If the person closes the permission window without answering, nothing was allowed.
+chrome.windows.onRemoved.addListener(async (windowId) => {
+  const all = await chrome.storage.session.get(null);
+  for (const [k, ask] of Object.entries(all)) {
+    if (!k.startsWith('ask:') || ask.windowId !== windowId) continue;
+    await chrome.storage.session.remove(k);
+    for (const service of ask.missing) tellSite(ask.siteTabId, { type: 'error', error: 'denied', service, requestId: ask.requestId });
+  }
+});
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!sender.tab) return;
 
   // From the Offset site, through site-bridge.js.
   if (message.type === 'measure' || message.type === 'measure-all') {
-    const all = message.type === 'measure-all';
-    const wanted = all ? message.services || Object.keys(SERVICES) : [message.service];
+    const front = message.type === 'measure';
+    const wanted = front ? [message.service] : message.services || Object.keys(SERVICES);
     const services = wanted.filter((s) => Object.hasOwn(SERVICES, s));
     if (!services.length) {
       sendResponse({ ok: false, error: 'unknown-service' });
       return;
     }
     (async () => {
-      if (all) await startInBackground(services, message.requestId, sender.tab);
-      else await startInFront(services[0], message.requestId, sender.tab);
-      sendResponse({ ok: true, services });
+      const ok = await Promise.all(services.map(allowed));
+      const ready = services.filter((s, i) => ok[i]);
+      const missing = services.filter((s, i) => !ok[i]);
+      await begin(ready, front, message.requestId, sender.tab);
+      if (missing.length) {
+        const id = crypto.randomUUID();
+        // Saved before the window opens, so the page finds it however fast it loads.
+        const ask = { missing, front, requestId: message.requestId, siteTabId: sender.tab.id, siteWindowId: sender.tab.windowId, windowId: null };
+        await chrome.storage.session.set({ [askKey(id)]: ask });
+        const win = await chrome.windows.create({ url: `${PERMIT_PAGE}?id=${id}`, type: 'popup', width: 480, height: 620, focused: true });
+        await chrome.storage.session.set({ [askKey(id)]: { ...ask, windowId: win.id } });
+      }
+      sendResponse({ ok: true, services, needsPermission: missing });
     })();
     return true;
+  }
+
+  // From permit.html, after the person answered Chrome's own permission prompt.
+  if (message.type === 'permitted' && sender.url && sender.url.startsWith(PERMIT_PAGE)) {
+    (async () => {
+      const ask = (await chrome.storage.session.get(askKey(message.id)))[askKey(message.id)];
+      if (!ask) return;
+      await chrome.storage.session.remove(askKey(message.id));
+      // Measure what the person picked, and only where Chrome now reports access.
+      const picked = Array.isArray(message.services) ? message.services : [];
+      const ok = await Promise.all(ask.missing.map(allowed));
+      const granted = ask.missing.filter((s, i) => ok[i] && picked.includes(s));
+      const siteTab = { id: ask.siteTabId, windowId: ask.siteWindowId };
+      for (const service of ask.missing) {
+        if (!granted.includes(service)) tellSite(ask.siteTabId, { type: 'error', error: 'denied', service, requestId: ask.requestId });
+      }
+      await begin(granted, ask.front, ask.requestId, siteTab);
+      chrome.windows.remove(ask.windowId).catch(() => {});
+      if (!ask.front) chrome.windows.update(ask.siteWindowId, { focused: true }).catch(() => {});
+    })();
+    return;
   }
 
   // From a measuring tab, through provider-relay.js.

@@ -31,7 +31,7 @@
 
     <script>
       const NAMES = { chatgpt: 'ChatGPT', claude: 'Claude', gemini: 'Gemini', youtube: 'YouTube' };
-      const WHY = { closed: 'tab was closed', timeout: 'took too long', unavailable: 'extension did not answer' };
+      const WHY = { closed: 'tab was closed', timeout: 'took too long', unavailable: 'extension did not answer', denied: 'you did not allow it' };
       const status = document.getElementById('status');
       const all = document.getElementById('all');
       const rows = document.getElementById('rows');
@@ -107,6 +107,8 @@
           draw();
         } else if (m.type === 'started') {
           clearTimeout(noAnswer);
+          for (const s of m.needsPermission || []) state[s] = { kind: 'counting', text: 'Waiting for you to allow it...' };
+          draw();
         } else if (m.type === 'usage') {
           state[m.service] = { kind: 'done', text: summary(m.service, m.usage) };
           draw();

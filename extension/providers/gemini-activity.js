@@ -117,10 +117,12 @@
 
   async function run() {
     if (state.started || state.done) return;
-    // Signed-out visitors are sent to accounts.google.com, where this does nothing.
+    // Runs on Google's activity site only.
     if (location.hostname !== 'myactivity.google.com') return;
     if (location.pathname !== '/product/gemini') {
-      location.href = ACTIVITY_URL;
+      // Signed out, Google shows a landing page at "/?continue=..." on this same site.
+      // Going back to the activity page from there would only loop.
+      if (!/[?&]continue=/.test(location.search)) location.href = ACTIVITY_URL;
       return;
     }
     if (!document.querySelector('[role="main"]') || document.readyState !== 'complete') return; // Still loading.

@@ -21,7 +21,7 @@ const ERRORS: Record<ExtensionError, (name: string) => string> = {
 };
 
 /** `raw` is exactly what the extension handed over, shown on request so people can check it holds only counts. */
-type Row = { state: "counting" | "done" | "error"; text?: string; error?: ExtensionError; raw?: unknown };
+type Row = { state: "asking" | "counting" | "done" | "error"; text?: string; error?: ExtensionError; raw?: unknown };
 
 /**
  * Sizing AI use. One click: pick light, medium or heavy. Exact: the Offset
@@ -91,12 +91,13 @@ export function AiQuickPick({
           });
         },
         onError: (service, error) => setRows((r) => ({ ...r, [service]: { state: "error", error } })),
+        onAsking: (asked) => setRows((r) => ({ ...r, ...Object.fromEntries(asked.map((x) => [x, { state: "asking" }])) })),
       },
       inFront,
     );
   }
 
-  const busy = Object.values(rows).some((r) => r?.state === "counting");
+  const busy = Object.values(rows).some((r) => r?.state === "counting" || r?.state === "asking");
 
   function connect(service: QuickService) {
     setOpen(open === service ? null : service);
@@ -167,6 +168,7 @@ export function AiQuickPick({
                     <dt className="font-semibold">{EXT_NAMES[x]}</dt>
                     <dd>
                       {r.state === "counting" && <span className="text-muted">Counting…</span>}
+                      {r.state === "asking" && <span className="text-muted">Allow it in the Offset window, then it counts…</span>}
                       {r.state === "done" && r.text}
                       {r.state === "error" && (
                         <span>

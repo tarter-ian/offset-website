@@ -21,6 +21,8 @@ type ExtMessage = {
   requestId?: string;
   service?: ExtensionService;
   services?: ExtensionService[];
+  /** Services the person is being asked to allow before they're counted. */
+  needsPermission?: ExtensionService[];
   usage?: unknown;
   error?: string;
 };
@@ -51,6 +53,8 @@ export function detectExtension(timeoutMs = 1000): Promise<string | null> {
 export interface MeasureHandlers {
   onUsage: (service: ExtensionService, usage: unknown) => void;
   onError: (service: ExtensionService, error: ExtensionError) => void;
+  /** Services waiting on the person to allow access in the extension's own window. */
+  onAsking?: (services: ExtensionService[]) => void;
   /** Called once every service has answered. */
   onDone?: () => void;
 }
@@ -78,6 +82,10 @@ export function measure(services: ExtensionService[], handlers: MeasureHandlers,
         handlers.onError(s, "unavailable");
         settle(s);
       }
+      return;
+    }
+    if (m.type === "started" && Array.isArray(m.needsPermission) && m.needsPermission.length) {
+      handlers.onAsking?.(m.needsPermission.filter((s) => waiting.has(s)));
       return;
     }
     if (!m.service || !waiting.has(m.service)) return;

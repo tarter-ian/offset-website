@@ -7,9 +7,10 @@
 //                     window.postMessage({ source: 'offset-site', type: 'measure', service, requestId })
 //                       one service in a front tab, so the person can sign in
 // Extension -> page:  { source: 'offset-extension', type: 'ready', version }
-//                     { source: 'offset-extension', type: 'started', requestId, services }
+//                     { source: 'offset-extension', type: 'started', requestId, services, needsPermission }
+//                       needsPermission lists services the person is now being asked to allow
 //                     { source: 'offset-extension', type: 'usage' | 'error', service, requestId, usage?, error? }
-//                       error is 'signed-out', 'closed', 'timeout' or 'unavailable'
+//                       error is 'signed-out', 'denied', 'closed', 'timeout' or 'unavailable'
 (function () {
   var toPage = function (message) {
     window.postMessage(Object.assign({ source: 'offset-extension' }, message), location.origin);
@@ -33,6 +34,7 @@
           error: failed ? (res && res.error) || 'unavailable' : undefined,
           service: m.service,
           services: res && res.services,
+          needsPermission: res && res.needsPermission,
           requestId: m.requestId,
         });
       });
