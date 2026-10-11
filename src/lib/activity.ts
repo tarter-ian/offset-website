@@ -4,7 +4,7 @@ import { strFromU8, unzipSync } from "fflate";
 // Takeout), Netflix and Google Maps Timeline, in the browser, and turns them
 // into the amounts on the store's tiles. Nothing is uploaded.
 
-export type ActivitySource = "spotify" | "youtube" | "netflix" | "timeline";
+export type ActivitySource = "spotify" | "youtube" | "netflix" | "timeline" | "uber";
 type Target = "music" | "video" | "car" | "transit" | "flights";
 
 /** One thing that happened: hours of listening or watching, miles travelled, or a flight leg. */
@@ -25,6 +25,7 @@ export const SOURCE_NAMES: Record<ActivitySource, string> = {
   youtube: "YouTube",
   netflix: "Netflix",
   timeline: "Google Maps",
+  uber: "Uber",
 };
 
 /** YouTube's history lists videos without how long you watched; this is a rough average. */
