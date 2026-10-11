@@ -568,9 +568,15 @@ export function Store() {
                 setEntered((e) => ({ ...e, ai: false }));
               }}
               onExact={() => setMeasuring(true)}
-              onMeasured={(s) => {
+              onMeasured={(s, note) => {
                 const d = digitalFromExport(s);
-                setCtx((c) => ({ ...c, aiWhPerPrompt: d.aiWhPerPrompt, aiFromExport: true, aiPastWh: undefined, aiEstimate: undefined }));
+                setCtx((c) => ({
+                  ...c,
+                  aiWhPerPrompt: d.aiWhPerPrompt,
+                  aiFromExport: !note,
+                  aiPastWh: undefined,
+                  aiEstimate: note ? { from: note } : undefined,
+                }));
                 setAmounts((a) => ({ ...a, ai: d.aiPromptsPerDay, "ai-media": d.aiMediaPerWeek }));
                 setEntered((e) => ({ ...e, ai: false, "ai-media": false }));
               }}

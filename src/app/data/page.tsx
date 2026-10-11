@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DataControls } from "@/components/DataControls";
-import { RECLAIM_URL, SIGN_IN_READS, type SignInService } from "@/lib/signinReads";
+import { SIGN_IN_READS, type SignInService } from "@/lib/signinReads";
 
 export const metadata: Metadata = { title: "Your data | Offset" };
 
@@ -9,16 +9,12 @@ const NAMES: Record<SignInService, string> = {
   chatgpt: "ChatGPT",
   claude: "Claude",
   gemini: "Gemini",
-  youtube: "YouTube",
-  netflix: "Netflix",
-  spotify: "Spotify",
-  uber: "Uber",
 };
 
 const KEPT = [
   { where: "In your browser", what: "The plan you build and the amounts you enter, so they're still there when you come back. It never leaves your device." },
   { where: "On our server", what: "Your email, only if you join the waitlist. Nothing else." },
-  { where: "Nowhere", what: "Anything from a sign-in or a file you add. We turn it into amounts on the page and keep none of it. API keys are used once and never saved or logged." },
+  { where: "Nowhere", what: "Anything the extension counts or a file you add. We turn it into amounts on the page and keep none of it. API keys are used once and never saved or logged." },
 ];
 
 export default function DataPage() {
@@ -37,14 +33,11 @@ export default function DataPage() {
         ))}
       </dl>
 
-      <h2 className="mt-10 text-xl font-semibold">What each sign-in reads</h2>
+      <h2 className="mt-10 text-xl font-semibold">What the extension reads</h2>
       <p className="mt-2 text-muted">
-        When you press Connect, you log in on the real site inside a window run by{" "}
-        <a href={RECLAIM_URL} target="_blank" rel="noreferrer" className="underline hover:text-foreground">
-          Reclaim Protocol
-        </a>
-        . Your password goes to that site, never to us. Every sign-in has a no-login choice
-        beside it: pick a level, type an amount, or add a download.
+        On a computer, the free Offset extension for Chrome and Edge gets your real AI numbers. When you press Connect, it opens the service
+        in a tab where you&apos;re already logged in, counts in your browser, closes the tab and hands the site only the counts below. It
+        never sees your password and never reads or sends your chats. It only runs when you press Connect.
       </p>
       <dl className="mt-3 border-t-2 border-rule">
         {(Object.keys(SIGN_IN_READS) as SignInService[]).map((s) => (
@@ -55,10 +48,9 @@ export default function DataPage() {
         ))}
       </dl>
       <p className="mt-3 text-sm text-muted">
-        What&apos;s proven and what isn&apos;t: Reclaim proves that the login and the page read came from the real service. For ChatGPT,
-        Claude, Gemini and YouTube, the counts themselves are tallied in your browser during the sign-in and aren&apos;t part of that proof.
-        That&apos;s fine for sizing your own offset, but we don&apos;t claim more than that. After connecting, you see the numbers that came
-        back and can remove them.
+        You don&apos;t need it. You can pick a level, count the chats in your sidebar yourself, or add your data export. The counts come
+        from your own browser, so they size your offset honestly but aren&apos;t a proof to anyone else, and we don&apos;t claim they are.
+        After connecting, you see the numbers that came back and can remove them.
       </p>
 
       <h2 className="mt-10 text-xl font-semibold">Delete it</h2>

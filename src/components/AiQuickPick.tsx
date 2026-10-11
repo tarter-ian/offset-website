@@ -2,16 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { AI_LEVELS, type AiLevel } from "@/lib/ai/levels";
-import { claudeLimitWhPerDay, summaryFromSignIn, type SignInUsage } from "@/lib/ai/signin";
+import { claudeLimitWhPerDay, signInUsage, summaryFromSignIn, type SignInUsage } from "@/lib/ai/signin";
+import { CLAUDE_PLANS, usageFromQuickCount, type ClaudePlan, type QuickService } from "@/lib/ai/quickCount";
 import type { UsageSummary } from "@/lib/ai/exportParser";
-import { RECLAIM_URL, SIGN_IN_READS } from "@/lib/signinReads";
+import { canInstallExtension, countWithExtension, detectExtension, EXTENSION_URL } from "@/lib/extension";
+import { SIGN_IN_READS } from "@/lib/signinReads";
 
-const AI_NAMES: Record<string, string> = { chatgpt: "ChatGPT", claude: "Claude", gemini: "Gemini" };
+const AI_NAMES: Record<QuickService, string> = { chatgpt: "ChatGPT", claude: "Claude", gemini: "Gemini" };
+const SERVICES = Object.keys(AI_NAMES) as QuickService[];
 
 /**
- * The quick way to size AI use: sign in to ChatGPT or Claude and we count
- * your last 30 days, or pick light, medium or heavy. The data export stays
- * available for Gemini and for a full history.
+ * Sizing AI use. One click: pick light, medium or heavy. Exact: the Offset
+ * extension counts the last 30 days in a tab where you're already logged in.
+ * Without the extension (phones, Safari): count the chats in your sidebar.
+ * The data export stays available for a full history.
  */
 export function AiQuickPick({
   level,
@@ -22,60 +26,36 @@ export function AiQuickPick({
   level: AiLevel | null;
   onPick: (level: AiLevel, from: string) => void;
   onExact: () => void;
-  onMeasured: (s: UsageSummary) => void;
+  /** A summary of real use. `note` is set when it's the person's own count rather than a measurement. */
+  onMeasured: (s: UsageSummary, note?: string) => void;
 }) {
-  const [signIns, setSignIns] = useState<string[]>([]);
-  const [status, setStatus] = useState<{ kind: "idle" | "waiting" | "done" | "error"; text?: string; service?: string }>({ kind: "idle" });
+  const [ext, setExt] = useState<string[] | null>(null);
+  const [installable, setInstallable] = useState(false);
+  const [open, setOpen] = useState<QuickService | null>(null);
+  const [status, setStatus] = useState<{ kind: "idle" | "waiting" | "done" | "error"; text?: string; service?: QuickService }>({ kind: "idle" });
+
   useEffect(() => {
-    fetch("/api/reclaim")
-      .then((r) => (r.ok ? r.json() : { ai: [] }))
-      .then((d) => setSignIns(d.ai ?? []))
-      .catch(() => {});
+    setInstallable(canInstallExtension());
+    detectExtension().then(setExt);
   }, []);
 
-  async function signIn(service: string) {
-    const name = AI_NAMES[service] ?? service;
-    setStatus({ kind: "waiting", text: `Waiting for you to sign in to ${name}…` });
+  async function measure(service: QuickService) {
+    const name = AI_NAMES[service];
+    setOpen(null);
+    setStatus({ kind: "waiting", text: `Counting your ${name} use. This takes a few seconds…` });
     try {
-      const start = await fetch("/api/reclaim/request", { method: "POST", body: JSON.stringify({ service }) });
-      const session = await start.json();
-      if (!start.ok) throw new Error(session.error);
-      const { ReclaimProofRequest } = await import("@reclaimprotocol/js-sdk");
-      const request = await ReclaimProofRequest.fromJsonString(session.config);
-      await request.triggerReclaimFlow();
-      await request.startSession({
-        onSuccess: async (proofs) => {
-          const res = await fetch("/api/reclaim/verify", {
-            method: "POST",
-            body: JSON.stringify({ service, proofs, token: session.token, version: session.version }),
-          });
-          const out = await res.json();
-          if (res.ok && out.usage) {
-            const u = out.usage as SignInUsage;
-            setStatus({
-              kind: "done",
-              service,
-              text:
-                `From your ${name} account: ${u.prompts.toLocaleString("en-US")} prompts${u.images ? ` and ${u.images} images` : ""} in the last ${u.days} days.` +
-                (claudeLimitWhPerDay(u) > 0
-                  ? ` You've also used ${Math.round(u.weeklyLimitUsedPercent!)}% of your plan's weekly limit, which counts Claude Code, so we estimate from that: about ${(claudeLimitWhPerDay(u) / 1000).toFixed(1)} kWh a day.`
-                  : ""),
-            });
-            onMeasured(summaryFromSignIn(service === "claude" || service === "gemini" ? service : "chatgpt", u));
-            return;
-          }
-          if (!res.ok || !out.level) {
-            setStatus({ kind: "error", text: out.error ?? `We couldn't see your ${name} plan. Pick a level instead.` });
-            return;
-          }
-          setStatus({ kind: "idle" });
-          onPick(out.level, `estimated from your ${name} ${String(out.plan).toLowerCase()} plan`);
-        },
-        onError: () => setStatus({ kind: "error", text: `The ${name} sign-in didn't finish. Try again, or pick a level.` }),
-      });
+      const u = signInUsage(await countWithExtension(service, (text) => setStatus({ kind: "waiting", text })));
+      if (!u) throw new Error(`We couldn't read your ${name} use. Are you logged in to ${name} in this browser?`);
+      setStatus({ kind: "done", service, text: resultText(name, u) });
+      onMeasured(summaryFromSignIn(service, u));
     } catch (e) {
-      setStatus({ kind: "error", text: e instanceof Error && e.message ? e.message : "We couldn't start the sign-in." });
+      setStatus({ kind: "error", text: e instanceof Error ? e.message : `We couldn't count your ${name} use.` });
     }
+  }
+
+  function connect(service: QuickService) {
+    if (ext?.includes(service)) measure(service);
+    else setOpen(open === service ? null : service);
   }
 
   return (
@@ -102,48 +82,59 @@ export function AiQuickPick({
           );
         })}
       </div>
-      <p className="mt-5 font-semibold">Or connect your account</p>
+      <p className="mt-5 font-semibold">Or get your real numbers</p>
       <div className="mt-2 flex flex-wrap gap-2">
-        {(["chatgpt", "claude", "gemini"] as const).map((s) => (
+        {SERVICES.map((s) => (
           <button
             key={s}
             type="button"
-            onClick={() => (signIns.includes(s) ? signIn(s) : onExact())}
-            className="min-h-11 rounded-md border-2 border-rule px-4 font-semibold hover:bg-foreground hover:text-background"
+            onClick={() => connect(s)}
+            aria-expanded={ext?.includes(s) ? undefined : open === s}
+            className={`min-h-11 rounded-md border-2 border-rule px-4 font-semibold ${open === s ? "bg-foreground text-background" : "hover:bg-foreground hover:text-background"}`}
           >
             Connect {AI_NAMES[s]}
           </button>
         ))}
       </div>
-      {signIns.length ? (
-        <div className="mt-2 text-sm text-muted">
-          <p>
-            You log in on the real site, through{" "}
-            <a href={RECLAIM_URL} target="_blank" rel="noreferrer" className="underline hover:text-foreground">
-              Reclaim Protocol
-            </a>
-            . Your password goes to that site, never to us. The counting happens in your browser, and only the counts reach us:
+      {ext ? (
+        <p className="mt-2 text-sm text-muted">
+          The Offset extension opens {ext.length > 1 ? "the service" : AI_NAMES[ext[0] as QuickService]} in a tab where you&apos;re already
+          logged in and counts your last 30 days. Only the counts reach us, never your chats.{" "}
+          <a href="/data" className="underline hover:text-foreground">
+            What it reads
+          </a>
+        </p>
+      ) : (
+        !open && (
+          <p className="mt-2 text-sm text-muted">
+            {installable ? "Exact numbers with our free browser extension, or count your chats yourself in under a minute." : "Count your chats yourself in under a minute, no login needed."}
           </p>
-          <ul className="mt-1 list-disc space-y-0.5 pl-5">
-            {(["chatgpt", "claude", "gemini"] as const).map((s) => (
-              <li key={s}>
-                <span className="font-medium text-foreground">{AI_NAMES[s]}:</span> {SIGN_IN_READS[s]}
-              </li>
-            ))}
-          </ul>
-          <p className="mt-1">
-            Nothing is saved on our side.{" "}
-            <a href="/data" className="underline hover:text-foreground">
-              Your data
-            </a>{" "}
-            explains it all. Rather not log in? Picking a level above works just as well.
+        )
+      )}
+
+      {open && (
+        <div className="mt-3 border-2 border-rule p-4">
+          {installable && !ext && <ExtensionOffer name={AI_NAMES[open]} service={open} />}
+          <QuickCountForm
+            key={open}
+            service={open}
+            withHeading={installable && !ext}
+            onDone={(u, note) => {
+              setOpen(null);
+              setStatus({ kind: "done", service: open, text: `${note[0].toUpperCase()}${note.slice(1)}.` });
+              onMeasured(summaryFromSignIn(open, u), note);
+            }}
+          />
+          <p className="mt-3 text-sm text-muted">
+            Want your full history?{" "}
+            <button type="button" onClick={onExact} className="underline hover:text-foreground">
+              Add your {AI_NAMES[open]} data export
+            </button>
+            .
           </p>
         </div>
-      ) : (
-        <p className="mt-2 text-sm text-muted">
-          You download your data from ChatGPT, Claude or Gemini and add it here. We count every prompt in your browser.
-        </p>
       )}
+
       {status.kind === "waiting" && <p className="mt-2 text-sm text-muted">{status.text}</p>}
       {status.kind === "done" && (
         <div className="mt-2 border-l-2 border-rule pl-3 text-sm">
@@ -151,7 +142,7 @@ export function AiQuickPick({
           <button
             type="button"
             onClick={() => {
-              const name = AI_NAMES[status.service ?? ""] ?? "account";
+              const name = AI_NAMES[status.service ?? "chatgpt"];
               setStatus({ kind: "idle" });
               onPick("medium", `you removed your ${name} numbers, so we use medium`);
             }}
@@ -163,5 +154,130 @@ export function AiQuickPick({
       )}
       {status.kind === "error" && <p className="mt-2 text-sm text-red-700">{status.text}</p>}
     </div>
+  );
+}
+
+function resultText(name: string, u: SignInUsage): string {
+  return (
+    `From your ${name} account: ${u.prompts.toLocaleString("en-US")} prompts${u.images ? ` and ${u.images} images` : ""} in the last ${u.days} days.` +
+    (claudeLimitWhPerDay(u) > 0
+      ? ` You've also used ${Math.round(u.weeklyLimitUsedPercent!)}% of your plan's weekly limit, which counts Claude Code, so we estimate from that: about ${(claudeLimitWhPerDay(u) / 1000).toFixed(1)} kWh a day.`
+      : "")
+  );
+}
+
+function ExtensionOffer({ name, service }: { name: string; service: QuickService }) {
+  return (
+    <div className="mb-4 border-b border-border pb-4">
+      <p className="font-display text-lg font-bold">Exact numbers in one click</p>
+      <p className="mt-1 text-sm">
+        Add the free Offset extension to Chrome or Edge. Then Connect {name} counts your last 30 days in a few seconds, in a tab where
+        you&apos;re already logged in. It reads: {SIGN_IN_READS[service]}
+      </p>
+      {EXTENSION_URL ? (
+        <a
+          href={EXTENSION_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-3 inline-flex min-h-11 items-center rounded-md bg-foreground px-4 font-semibold text-background hover:opacity-90"
+        >
+          Add to Chrome, free
+        </a>
+      ) : (
+        <p className="mt-2 text-sm text-muted">The extension is on its way to the Chrome Web Store.</p>
+      )}
+    </div>
+  );
+}
+
+function QuickCountForm({
+  service,
+  withHeading,
+  onDone,
+}: {
+  service: QuickService;
+  withHeading: boolean;
+  onDone: (u: SignInUsage, note: string) => void;
+}) {
+  const name = AI_NAMES[service];
+  const [chats, setChats] = useState("");
+  const [plan, setPlan] = useState<ClaudePlan>("pro");
+  const [pct, setPct] = useState("");
+  const n = Number(chats);
+  const ok = chats !== "" && Number.isFinite(n) && n >= 0;
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!ok) return;
+    const u = usageFromQuickCount({
+      chatsPerWeek: n,
+      ...(service === "claude" ? { plan, weeklyLimitUsedPercent: Number(pct) || 0 } : {}),
+    });
+    const limit = claudeLimitWhPerDay(u);
+    onDone(
+      u,
+      `from your count: ${n} ${name} chats a week, about ${u.prompts} prompts` +
+        (limit > 0 ? `, and ${Math.round(u.weeklyLimitUsedPercent!)}% of your weekly limit (about ${(limit / 1000).toFixed(1)} kWh a day)` : ""),
+    );
+  }
+
+  return (
+    <form onSubmit={submit}>
+      {withHeading && <p className="font-display text-lg font-bold">Or count it yourself</p>}
+      <label className="mt-1 block text-sm">
+        <span className="block">
+          Open {name} and count the chats in your sidebar from the last 7 days (under Today, Yesterday and Previous 7 days).
+        </span>
+        <input
+          type="number"
+          inputMode="numeric"
+          min={0}
+          value={chats}
+          onChange={(e) => setChats(e.target.value)}
+          placeholder="Chats"
+          className="mt-2 min-h-11 w-32 rounded-md border-2 border-border bg-background px-3 focus:border-rule"
+        />
+      </label>
+      {service === "claude" && (
+        <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+          <label className="block">
+            <span className="block">Your Claude plan</span>
+            <select
+              value={plan}
+              onChange={(e) => setPlan(e.target.value as ClaudePlan)}
+              className="mt-2 min-h-11 w-full rounded-md border-2 border-border bg-background px-3 focus:border-rule"
+            >
+              {(Object.keys(CLAUDE_PLANS) as ClaudePlan[]).map((p) => (
+                <option key={p} value={p}>
+                  {CLAUDE_PLANS[p]}
+                </option>
+              ))}
+            </select>
+          </label>
+          {plan !== "free" && (
+            <label className="block">
+              <span className="block">Weekly limit used, in Settings &gt; Usage (counts Claude Code)</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={100}
+                value={pct}
+                onChange={(e) => setPct(e.target.value)}
+                placeholder="%"
+                className="mt-2 min-h-11 w-24 rounded-md border-2 border-border bg-background px-3 focus:border-rule"
+              />
+            </label>
+          )}
+        </div>
+      )}
+      <button
+        type="submit"
+        disabled={!ok}
+        className="mt-3 min-h-11 rounded-md border-2 border-rule px-4 font-semibold hover:bg-foreground hover:text-background disabled:opacity-50"
+      >
+        Use my count
+      </button>
+    </form>
   );
 }

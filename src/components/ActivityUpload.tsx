@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { RECLAIM_URL, SIGN_IN_READS } from "@/lib/signinReads";
+import { useState } from "react";
 import { activityAmounts, readActivityFile, SOURCE_NAMES, type ActivityAmounts, type ActivityEvent, type ActivitySource } from "@/lib/activity";
 
 const UNITS: Record<keyof ActivityAmounts["amounts"], (n: number) => string> = {
@@ -20,15 +19,6 @@ export function ActivityUpload({
 }) {
   const [sources, setSources] = useState<Partial<Record<ActivitySource, ActivityEvent[]>>>({});
   const [status, setStatus] = useState<{ kind: "idle" | "reading" | "done" | "error"; text?: string }>({ kind: "idle" });
-  // Services people can sign in to directly, through Reclaim, once its keys are set.
-  const [signIns, setSignIns] = useState<ActivitySource[]>([]);
-  useEffect(() => {
-    fetch("/api/reclaim")
-      .then((r) => (r.ok ? r.json() : { services: [] }))
-      .then((d) => setSignIns(d.services ?? []))
-      .catch(() => {});
-  }, []);
-
   function apply(next: Partial<Record<ActivitySource, ActivityEvent[]>>) {
     setSources(next);
     const result = activityAmounts(Object.values(next).flat());
@@ -46,35 +36,6 @@ export function ActivityUpload({
       kind: "done",
       text: `From your ${Object.keys(next).map((s) => SOURCE_NAMES[s as ActivitySource]).join(", ")} history: ${lines.join(", ")}.`,
     });
-  }
-
-  async function signIn(service: ActivitySource) {
-    setStatus({ kind: "reading", text: `Waiting for you to sign in to ${SOURCE_NAMES[service]}…` });
-    try {
-      const start = await fetch("/api/reclaim/request", { method: "POST", body: JSON.stringify({ service }) });
-      const session = await start.json();
-      if (!start.ok) throw new Error(session.error);
-      const { ReclaimProofRequest } = await import("@reclaimprotocol/js-sdk");
-      const request = await ReclaimProofRequest.fromJsonString(session.config);
-      await request.triggerReclaimFlow();
-      await request.startSession({
-        onSuccess: async (proofs) => {
-          const res = await fetch("/api/reclaim/verify", {
-            method: "POST",
-            body: JSON.stringify({ service, proofs, token: session.token, version: session.version }),
-          });
-          const out = await res.json();
-          if (!res.ok || !out.events?.length) {
-            setStatus({ kind: "error", text: out.error ?? `We didn't find any history in your ${SOURCE_NAMES[service]} account.` });
-            return;
-          }
-          apply({ ...sources, [service]: out.events });
-        },
-        onError: () => setStatus({ kind: "error", text: `The ${SOURCE_NAMES[service]} sign-in didn't finish. Try again, or add the download below.` }),
-      });
-    } catch (e) {
-      setStatus({ kind: "error", text: e instanceof Error && e.message ? e.message : "We couldn't start the sign-in." });
-    }
   }
 
   async function handle(files: FileList | null) {
@@ -96,40 +57,7 @@ export function ActivityUpload({
 
   return (
     <div className="border-2 border-rule bg-card p-4">
-      {signIns.length > 0 && (
-        <div className="mb-4">
-          <p className="font-medium">Sign in to fill this in for you</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {signIns.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => signIn(s)}
-                className="min-h-11 rounded-md border-2 border-rule px-4 font-semibold hover:bg-foreground hover:text-background"
-              >
-                {sources[s] ? `✓ ${SOURCE_NAMES[s]}` : SOURCE_NAMES[s]}
-              </button>
-            ))}
-          </div>
-          <div className="mt-1 text-sm text-muted">
-            <p>
-              You log in on the real site, through{" "}
-              <a href={RECLAIM_URL} target="_blank" rel="noreferrer" className="underline hover:text-foreground">
-                Reclaim Protocol
-              </a>
-              . Your password goes to that site, never to us. What each one reads:
-            </p>
-            <ul className="mt-1 list-disc space-y-0.5 pl-5">
-              {signIns.map((s) => (
-                <li key={s}>
-                  <span className="font-medium text-foreground">{SOURCE_NAMES[s]}:</span> {SIGN_IN_READS[s as keyof typeof SIGN_IN_READS]}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      )}
-      <p className="font-medium">{signIns.length ? "Or add" : "Add"} your Spotify, YouTube, Netflix or Google Maps history</p>
+      <p className="font-medium">Add your Spotify, YouTube, Netflix or Google Maps history</p>
       <ul className="mt-1 list-disc space-y-0.5 pl-5 text-sm text-muted">
         <li>
           Spotify: Account, Privacy settings, Download your data. Pick &ldquo;Extended streaming history&rdquo; for exact
