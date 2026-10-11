@@ -17,7 +17,7 @@ const DEVICE_NOTE = (id: keyof typeof F.DEVICES) => {
   return [
     `Making one takes about ${d.kgToMake} kg of CO₂e, and we assume you replace it every ${d.yearsKept} years.`,
     `Running it uses about ${d.kwhPerYear} kWh a year on the US grid.`,
-    "Mining and manufacturing also use water and land, which we count from a study of smartphones scaled by the carbon to make each device.",
+    "Water consumed and land used to mine and make it are scaled from studies of smartphones by the carbon to make each device.",
     `Lifetime covers every one you'll go through until age ${F.LIFETIME_TO_AGE}.`,
   ];
 };
@@ -78,7 +78,7 @@ export const HOW_ESTIMATED: Record<string, string[]> = {
   clothing: [...SHOPPING_NOTE("clothing", F.SHOPPING_SHARES.clothing), "Water, land and air pollution aren't counted yet."],
   electronics: [
     ...SHOPPING_NOTE("electronics", F.SHOPPING_SHARES.electronics),
-    "Water and land to mine and make them are scaled from a study of smartphones.",
+    "Water consumed and land used to mine and make them are scaled from studies of smartphones.",
   ],
   household: [...SHOPPING_NOTE("home goods", F.SHOPPING_SHARES.household), "Water, land and air pollution aren't counted yet."],
   services: [...SHOPPING_NOTE("services", F.SHOPPING_SHARES.services), "Water, land and air pollution aren't counted yet."],

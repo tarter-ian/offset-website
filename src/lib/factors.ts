@@ -198,10 +198,12 @@ export const FLIGHT_AIR_DEATHS_PER_YEAR = 16_000;
 export const JET_FUEL_TONNES_PER_YEAR = 188_000_000;
 export const KG_CO2_PER_KG_JET_FUEL = 3.16;
 
-// Making electronics: water and land per kg of manufacturing CO2e, from a
-// smartphone's ~13,000 L of water and 18 m² of land against ~70 kg CO2e
-// (Friends of the Earth 2015). Rough, and applied to every device type.
-export const ELECTRONICS_L_PER_KG_CO2 = 13_000 / 70;
+// Making electronics, per kg of manufacturing CO2e, applied to every device type.
+// Water is fresh water consumed (not returned), from the Fairphone 5 LCA: 223 L
+// against 32.7 kg CO2e to produce it (Fraunhofer for Fairphone, 2024). We count
+// water consumed everywhere else too, so polluted (grey) water is left out.
+// Land is a smartphone's ~18 m² against ~70 kg CO2e (Friends of the Earth 2015).
+export const ELECTRONICS_L_PER_KG_CO2 = 223 / 32.7;
 export const ELECTRONICS_M2_PER_KG_CO2 = 18 / 70;
 
 // How goods and services split.

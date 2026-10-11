@@ -60,7 +60,8 @@ const SOURCES = [
   },
   { name: "Domingo et al. 2021, air quality deaths from US food production (PNAS)", url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC8158015" },
   { name: "Yim et al. 2015, global health effects of aviation emissions", url: "https://doaj.org/article/883efa3bca1c4bcd80afca0ad6189c7b" },
-  { name: "Friends of the Earth 2015, land and water used to make consumer products", url: "https://transform.iema.net/article/land-and-water-use-consumer-products-revealed" },
+  { name: "Fairphone 5 life cycle assessment (Fraunhofer, 2024), water consumed to make a phone", url: "https://www.fairphone.com/wp-content/uploads/2024/06/Fairphone5_LCA_Report_2024.pdf" },
+  { name: "Friends of the Earth 2015, land used to make consumer products", url: "https://transform.iema.net/article/land-and-water-use-consumer-products-revealed" },
   { name: "Wu et al. 2009, Argonne, water used to make transport fuels", url: "https://publications.anl.gov/anlpubs/2009/01/63155.pdf" },
   { name: "Founders Pledge, climate donations and offsetting", url: "https://www.founderspledge.com/research/climate-and-lifestyle-donations-and-offsetting" },
 ];

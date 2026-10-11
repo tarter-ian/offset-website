@@ -376,6 +376,7 @@ export function Store() {
         aria-label={`About ${p.name}`}
         className="mt-3 border-t-2 border-rule pt-3 text-sm"
       >
+        <p className="mb-2">{p.blurb}</p>
         <h4 className="font-bold">How we estimate it</h4>
         <ul className="mt-1 list-disc space-y-1 pl-4 text-muted">
           {howEstimated(p).map((line) => (
@@ -435,24 +436,25 @@ export function Store() {
             </span>
           </button>
         </div>
-        <p className="text-sm text-muted">{p.blurb}</p>
-        {coversLines(p).map(([label, text]) => (
-          <p key={label} className="mt-3 text-sm">
-            <span className="font-semibold">{label}:</span> {text}
-          </p>
-        ))}
         <button
           type="button"
           onClick={() => setDetails(isOpen ? null : p.id)}
           aria-expanded={isOpen}
-          className="mt-2 inline-flex min-h-10 items-center self-start text-left text-sm"
+          className="inline-flex min-h-9 items-center self-start text-left text-sm"
         >
           <span>
             <span className="font-medium">{amountText(p, amount)}</span>
-            <span className="text-muted"> · {sourceNote(p)} · </span>
-            <span className="font-medium underline underline-offset-4">{isOpen ? "Close" : "Change"}</span>
+            {(linkedFrom[p.id] || (p.section === "ai" && ctx.aiFromExport)) && !entered[p.id] && <span className="text-muted"> · measured</span>}
+            <span className="text-muted"> · </span>
+            <span className="underline underline-offset-4">{isOpen ? "Close" : "Change"}</span>
           </span>
         </button>
+        {coversLines(p).map(([label, text], _i, all) => (
+          <p key={label} className="mt-1 text-xs leading-relaxed text-muted">
+            {all.length > 1 ? `${label.replace("Covers ", "")[0].toUpperCase()}${label.replace("Covers ", "").slice(1)}: ` : "Covers "}
+            {text}
+          </p>
+        ))}
         {info === p.id && infoPanel(p)}
         <div className="mt-auto flex items-center justify-between gap-3 pt-3">
           <span className="leading-tight">
