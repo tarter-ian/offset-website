@@ -54,7 +54,7 @@ export function AiExportUpload({ onResult, showApi = true }: { onResult: (s: Usa
   }
 
   return (
-    <div className="rounded-xl border border-dashed border-border bg-card p-4">
+    <div className="border-2 border-rule bg-card p-4">
       <p className="font-medium">Use your ChatGPT, Claude or Gemini data export</p>
       <ul className="mt-1 list-disc space-y-0.5 pl-5 text-sm text-muted">
         <li>ChatGPT: Settings, Data controls, Export data.</li>
@@ -77,18 +77,18 @@ export function AiExportUpload({ onResult, showApi = true }: { onResult: (s: Usa
         multiple
         onChange={(e) => handle(e.target.files)}
         aria-label="ChatGPT, Claude or Gemini data export"
-        className="mt-3 block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-accent-soft file:px-3 file:py-2 file:font-medium file:text-accent"
+        className="mt-3 block w-full text-sm file:mr-3 file:rounded-md file:border-2 file:border-rule file:bg-background file:px-3 file:py-2 file:font-medium"
       />
       {status.kind === "reading" && <p className="mt-2 text-sm text-muted">Reading…</p>}
-      {status.kind === "done" && <p className="mt-2 text-sm text-accent">{status.text}</p>}
-      {status.kind === "error" && <p className="mt-2 text-sm text-red-600">{status.text}</p>}
+      {status.kind === "done" && <p className="mt-2 text-sm">{status.text}</p>}
+      {status.kind === "error" && <p className="mt-2 text-sm text-red-700">{status.text}</p>}
       {showApi && (
       <p className="mt-4 text-sm text-muted">
         Use AI through the API?{" "}
         {(["openai-api", "anthropic-api"] as const).map((p, i) => (
           <span key={p}>
             {i > 0 && " or "}
-            <button type="button" onClick={() => setApi(p)} className="text-accent hover:underline">
+            <button type="button" onClick={() => setApi(p)} className="underline underline-offset-4">
               {sources[p] ? `✓ ${NAMES[p]}` : `Connect ${NAMES[p]}`}
             </button>
           </span>
