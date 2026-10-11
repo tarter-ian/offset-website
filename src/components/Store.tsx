@@ -564,6 +564,12 @@ export function Store() {
                 setEntered((e) => ({ ...e, ai: false }));
               }}
               onExact={() => setMeasuring(true)}
+              onMeasured={(s) => {
+                const d = digitalFromExport(s);
+                setCtx((c) => ({ ...c, aiWhPerPrompt: d.aiWhPerPrompt, aiFromExport: true, aiPastWh: undefined, aiEstimate: undefined }));
+                setAmounts((a) => ({ ...a, ai: d.aiPromptsPerDay, "ai-media": d.aiMediaPerWeek }));
+                setEntered((e) => ({ ...e, ai: false, "ai-media": false }));
+              }}
             />
           </div>
           {measuring && (

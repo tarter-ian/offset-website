@@ -2,24 +2,29 @@
 
 import { useEffect, useState } from "react";
 import { AI_LEVELS, type AiLevel } from "@/lib/ai/levels";
+import { summaryFromSignIn, type SignInUsage } from "@/lib/ai/signin";
+import type { UsageSummary } from "@/lib/ai/exportParser";
 
 const AI_NAMES: Record<string, string> = { chatgpt: "ChatGPT", claude: "Claude", gemini: "Gemini" };
 
 /**
- * The quick way to size AI use: pick light, medium or heavy, or sign in and
- * we read your plan. The data export stays available for an exact count.
+ * The quick way to size AI use: sign in to ChatGPT or Claude and we count
+ * your last 30 days, or pick light, medium or heavy. The data export stays
+ * available for Gemini and for a full history.
  */
 export function AiQuickPick({
   level,
   onPick,
   onExact,
+  onMeasured,
 }: {
   level: AiLevel | null;
   onPick: (level: AiLevel, from: string) => void;
   onExact: () => void;
+  onMeasured: (s: UsageSummary) => void;
 }) {
   const [signIns, setSignIns] = useState<string[]>([]);
-  const [status, setStatus] = useState<{ kind: "idle" | "waiting" | "error"; text?: string }>({ kind: "idle" });
+  const [status, setStatus] = useState<{ kind: "idle" | "waiting" | "done" | "error"; text?: string }>({ kind: "idle" });
   useEffect(() => {
     fetch("/api/reclaim")
       .then((r) => (r.ok ? r.json() : { ai: [] }))
@@ -44,6 +49,15 @@ export function AiQuickPick({
             body: JSON.stringify({ service, proofs, token: session.token, version: session.version }),
           });
           const out = await res.json();
+          if (res.ok && out.usage) {
+            const u = out.usage as SignInUsage;
+            setStatus({
+              kind: "done",
+              text: `From your ${name} account: ${u.prompts.toLocaleString("en-US")} prompts${u.images ? ` and ${u.images} images` : ""} in the last ${u.days} days.`,
+            });
+            onMeasured(summaryFromSignIn(service === "claude" ? "claude" : "chatgpt", u));
+            return;
+          }
           if (!res.ok || !out.level) {
             setStatus({ kind: "error", text: out.error ?? `We couldn't see your ${name} plan. Pick a level instead.` });
             return;
@@ -96,11 +110,12 @@ export function AiQuickPick({
         ))}
       </div>
       <p className="mt-2 text-sm text-muted">
-        {signIns.includes("chatgpt")
-          ? "ChatGPT is one sign-in and goes by your plan. Claude and Gemini use your data export, which counts every prompt."
+        {signIns.length
+          ? "Log in and we count your last 30 days of prompts and images, in your browser. Only the counts reach us, never your chats."
           : "You download your data from ChatGPT, Claude or Gemini and add it here. We count every prompt in your browser."}
       </p>
       {status.kind === "waiting" && <p className="mt-2 text-sm text-muted">{status.text}</p>}
+      {status.kind === "done" && <p className="mt-2 text-sm">{status.text}</p>}
       {status.kind === "error" && <p className="mt-2 text-sm text-red-700">{status.text}</p>}
     </div>
   );

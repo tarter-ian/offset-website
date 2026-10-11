@@ -14,10 +14,11 @@ export const RECLAIM_SERVICES = {
   youtube: { name: "YouTube", env: "RECLAIM_PROVIDER_YOUTUBE", kind: "activity" },
   spotify: { name: "Spotify", env: "RECLAIM_PROVIDER_SPOTIFY", kind: "activity" },
   uber: { name: "Uber", env: "RECLAIM_PROVIDER_UBER", kind: "activity" },
-  // Proves the account and its planType, not how much it's used. Reclaim's
-  // Claude and Perplexity providers prove only the account id, with no plan,
-  // so those two stay on the light / medium / heavy pick.
+  // Our own providers (built 2026-10-11): after login they count the last 30
+  // days of prompts, reasoning answers and images in the person's browser and
+  // return only the counts. An older plan-only provider still works as a fallback.
   chatgpt: { name: "ChatGPT", env: "RECLAIM_PROVIDER_CHATGPT", kind: "ai" },
+  claude: { name: "Claude", env: "RECLAIM_PROVIDER_CLAUDE", kind: "ai" },
 } as const;
 export type ReclaimService = keyof typeof RECLAIM_SERVICES;
 export type ReclaimKind = (typeof RECLAIM_SERVICES)[ReclaimService]["kind"];
