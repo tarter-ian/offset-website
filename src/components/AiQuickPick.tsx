@@ -16,6 +16,7 @@ const ERRORS: Record<ExtensionError, (name: string) => string> = {
   "signed-out": (n) => `You're not logged in to ${n} in this browser.`,
   closed: () => "The tab was closed before it finished.",
   timeout: () => "It took too long.",
+  "reload-page": () => "The extension was updated since this page opened.",
   denied: (n) => `You didn't allow it on ${n}, so nothing was counted.`,
   unavailable: () => "Couldn't count this one.",
 };
@@ -189,9 +190,15 @@ export function AiQuickPick({
                       {r.state === "error" && (
                         <span>
                           <span className="text-muted">{ERRORS[r.error ?? "unavailable"](EXT_NAMES[x])}</span>{" "}
-                          <button type="button" onClick={() => run([x], r.error === "signed-out")} className="underline hover:text-muted">
-                            {r.error === "signed-out" ? `Log in to ${EXT_NAMES[x]}` : r.error === "denied" ? "Allow and count" : "Try again"}
-                          </button>
+                          {r.error === "reload-page" ? (
+                            <button type="button" onClick={() => window.location.reload()} className="underline hover:text-muted">
+                              Refresh page
+                            </button>
+                          ) : (
+                            <button type="button" onClick={() => run([x], r.error === "signed-out")} className="underline hover:text-muted">
+                              {r.error === "signed-out" ? `Log in to ${EXT_NAMES[x]}` : r.error === "denied" ? "Allow and count" : "Try again"}
+                            </button>
+                          )}
                         </span>
                       )}
                     </dd>

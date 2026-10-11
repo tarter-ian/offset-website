@@ -9,7 +9,7 @@ export const EXTENSION_SERVICES: ExtensionService[] = ["chatgpt", "claude", "gem
 /** Why a service couldn't be counted: logged out, tab closed by the person, too slow, or not supported. */
 const DENIED: unknown[] = ["denied", "not-allowed", "not_allowed", "permission-denied"];
 
-export type ExtensionError = "signed-out" | "closed" | "timeout" | "denied" | "unavailable";
+export type ExtensionError = "signed-out" | "closed" | "timeout" | "denied" | "reload-page" | "unavailable";
 
 const SITE = "offset-site";
 const EXT = "offset-extension";
@@ -102,7 +102,7 @@ export function measure(services: ExtensionService[], handlers: MeasureHandlers,
     // The extension couldn't start at all: every service fails the same way.
     if (m.type === "error" && !m.service) {
       for (const s of [...waiting]) {
-        handlers.onError(s, "unavailable");
+        handlers.onError(s, m.error === "reload-page" ? "reload-page" : "unavailable");
         settle(s);
       }
       return;
@@ -124,7 +124,7 @@ export function measure(services: ExtensionService[], handlers: MeasureHandlers,
     if (m.type === "error") {
       // A person saying no to site access may be reported under any of these names.
       const raw = DENIED.includes(m.error) ? "denied" : m.error;
-      const err = (["signed-out", "closed", "timeout", "denied", "unavailable"] as const).find((x) => x === raw) ?? "unavailable";
+      const err = (["signed-out", "closed", "timeout", "denied", "reload-page", "unavailable"] as const).find((x) => x === raw) ?? "unavailable";
       handlers.onError(m.service, err);
       settle(m.service);
     }
