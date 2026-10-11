@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Store } from "@/components/Store";
 import { WaitlistForm } from "@/components/WaitlistForm";
 
 const POINTS = [
@@ -29,73 +29,17 @@ const POINTS = [
 ];
 
 const STEPS = [
-  "Link your utility, bank, car and AI accounts, or skip and start from averages.",
-  "Choose what to cover: everything, one area, or just the parts you care about.",
-  "Review your month and approve the donation.",
-];
-
-const LIFETIME_CARDS = [
-  { cover: "ai", title: "Offset your lifetime AI use", body: "Every chatbot prompt and AI image you've made, and all the ones to come." },
-  {
-    cover: "internet",
-    title: "Offset your lifetime internet use",
-    body: "Video, social media, gaming, calls and browsing, since you first went online.",
-  },
-  {
-    cover: "devices",
-    title: "Offset your lifetime of devices",
-    body: "Making and running every phone, laptop and TV you'll own.",
-  },
+  "Pick the parts of your life you want to offset, starting with AI.",
+  "Link your accounts for exact numbers, or go with typical amounts.",
+  "Pay once for life, or approve each month. Nothing is charged automatically.",
 ];
 
 export default function Home() {
   return (
     <div className="mx-auto max-w-5xl px-4">
-      <section className="py-16 sm:py-24">
-        <p className="mb-3 text-sm font-medium uppercase tracking-wide text-accent">Personal carbon offsets</p>
-        <h1 className="max-w-3xl text-4xl font-semibold tracking-tight sm:text-5xl">
-          Find your monthly footprint and cover it, one month at a time.
-        </h1>
-        <p className="mt-5 max-w-2xl text-lg text-muted">
-          We work out the carbon, air pollution, water and land behind your home, travel, food and spending,
-          then turn it into donations to charities that work on each.
-        </p>
-        <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
-          <Link
-            href="/start"
-            className="rounded-lg bg-accent px-5 py-3 text-center font-medium text-white hover:bg-accent-strong"
-          >
-            Link your accounts
-          </Link>
-          <Link href="/estimate" className="text-center font-medium text-accent hover:text-accent-strong">
-            Or answer a few questions
-          </Link>
-        </div>
-        <div className="mt-10 grid gap-4 sm:grid-cols-3">
-          {LIFETIME_CARDS.map((c) => (
-            <Link
-              key={c.cover}
-              href={`/lifetime?cover=${c.cover}`}
-              className="flex flex-col gap-2 rounded-2xl border-2 border-accent bg-accent-soft p-5 hover:bg-card"
-            >
-              <span className="text-lg font-semibold">{c.title}</span>
-              <span className="text-muted">{c.body}</span>
-              <span className="mt-auto font-medium text-accent">See your price →</span>
-            </Link>
-          ))}
-        </div>
-        <p className="mt-3 text-sm text-muted">
-          One payment each, for life.{" "}
-          <Link href="/lifetime" className="text-accent hover:underline">
-            Cover all three
-          </Link>
-          .
-        </p>
-        <p className="mt-1 text-sm text-muted">
-          Just want to cover AI month to month? <Link href="/ai" className="text-accent hover:underline">Offset your AI use</Link>.
-        </p>
-      </section>
+      <Store />
 
+      <h2 className="mb-5 text-2xl font-semibold tracking-tight">Why Offset</h2>
       <section className="grid gap-4 pb-16 sm:grid-cols-2">
         {POINTS.map((p) => (
           <div key={p.title} className="rounded-xl border border-border bg-card p-6">

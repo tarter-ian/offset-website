@@ -3,9 +3,9 @@ import Link from "next/link";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Offset: your monthly carbon footprint, covered",
+  title: "Offset: use AI guilt-free, and offset the rest of your life",
   description:
-    "See your real monthly carbon footprint and offset it with donations to vetted climate charities.",
+    "Offset your AI use for life, then pick any other part of your life to offset, with donations to vetted charities.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

@@ -35,10 +35,11 @@ export function LifetimeOffset({ initialItems = ITEM_KEYS }: { initialItems?: Li
   const [input, setInput] = useState<LifetimeInput>(DEFAULT_LIFETIME_INPUT);
   const [items, setItems] = useState<LifetimeItem[]>(initialItems);
   const [spanChoice, setSpanChoice] = useState<Span>("lifetime");
+  const [lifetimeAnyway, setLifetimeAnyway] = useState(false);
   // Only heavier users get past-only and monthly options; light users just see lifetime.
   const lifetimeTotal = lifetimeOffset(input, items).total;
   const showSpans = lifetimeTotal > SPAN_CHOICE_ABOVE_USD;
-  const lifetimeOffered = lifetimeTotal <= LIFETIME_MAX_USD;
+  const lifetimeOffered = lifetimeTotal <= LIFETIME_MAX_USD || lifetimeAnyway;
   const spans = SPAN_KEYS.filter((k) => k !== "lifetime" || lifetimeOffered);
   const span: Span = !showSpans ? "lifetime" : spans.includes(spanChoice) ? spanChoice : "monthly";
   const o = lifetimeOffset(input, items, undefined, span);
@@ -105,6 +106,15 @@ export function LifetimeOffset({ initialItems = ITEM_KEYS }: { initialItems?: Li
                 </button>
               ))}
             </div>
+            {!lifetimeOffered && (
+              <button
+                type="button"
+                onClick={() => setLifetimeAnyway(true)}
+                className="mt-2 text-xs text-muted underline hover:text-foreground"
+              >
+                Show the lifetime price anyway
+              </button>
+            )}
           </Field>
         )}
 
