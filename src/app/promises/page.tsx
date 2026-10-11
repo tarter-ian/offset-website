@@ -79,7 +79,7 @@ export default function PromisesPage() {
         <div>
           <h2 className="font-display text-lg font-bold">Who&apos;s behind this</h2>
           <p className="mt-1">
-            Offset is made by Ian Tarter, a Cognitive Science student at Carleton College. It&apos;s one person, not a company with a
+            Offset is made by Ian Tarter, a Master of Human-Computer Interaction student at Carnegie Mellon University. It&apos;s one person, not a company with a
             marketing team, and every number on this site traces back to a source you can check.{" "}
             <a href="https://iantarter.com" target="_blank" rel="noreferrer" className="text-accent hover:underline">
               iantarter.com
