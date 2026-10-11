@@ -5,7 +5,6 @@ import {
   DEFAULT_LIFETIME_INPUT,
   LIFETIME_MAX_USD,
   lifetimeOffset,
-  SPAN_CHOICE_ABOVE_USD,
   type Device,
   type InternetActivity,
   type LifetimeInput,
@@ -361,12 +360,12 @@ export interface Cover {
 /** Ways to cover an item going forward. Light items are lifetime only; lifetime hides above the cap unless asked for. */
 export function aheadFor(p: Product, amount: number | string, ctx: Context, showLifetimeAnyway = false): Ahead[] {
   if (!p.oneTime) return ["monthly"];
+  // Every item can be paid monthly; one-time items can also be paid once for life, unless that's over the cap.
   const life = p.cost(amount, "lifetime", ctx) + LIFETIME_FEE_USD;
-  if (life <= SPAN_CHOICE_ABOVE_USD) return ["lifetime"];
   return life > LIFETIME_MAX_USD && !showLifetimeAnyway ? ["monthly"] : ["monthly", "lifetime"];
 }
 
-/** The cover an item actually uses: what was picked if still offered, else lifetime when offered, else ongoing. Past use starts checked. */
+/** The cover an item actually uses: what was picked if still offered, else monthly (lifetime for the featured AI item). Past use starts checked. */
 export function effectiveCover(
   p: Product,
   amount: number | string,
@@ -375,7 +374,8 @@ export function effectiveCover(
   showLifetimeAnyway = false,
 ): Cover {
   const options = aheadFor(p, amount, ctx, showLifetimeAnyway);
-  const ahead = picked.ahead && options.includes(picked.ahead) ? picked.ahead : options.includes("lifetime") ? "lifetime" : "monthly";
+  const fallback: Ahead = p.id === "ai" && options.includes("lifetime") ? "lifetime" : "monthly";
+  const ahead = picked.ahead && options.includes(picked.ahead) ? picked.ahead : fallback;
   return { past: p.oneTime && (picked.past ?? true), ahead };
 }
 

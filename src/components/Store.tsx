@@ -76,11 +76,12 @@ function priceText(price: { once: number; monthly: number }, cover: Cover, billi
   return parts.join(" + ");
 }
 /** Fits a store tile: a big figure with a small note, e.g. "$4.75" / "for life" or "$80.74" / "+ $0.34 a month". */
+/** A tile's price: the monthly price first, unless the item is set to be paid once for life. */
 function tilePrice(price: { once: number; monthly: number }, cover: Cover, billing: Billing) {
   const ongoing = usd(billing === "annual" ? price.monthly * 12 : price.monthly);
   const per = BILLING[billing].per;
-  if (cover.ahead === "monthly") return price.once > 0 ? { big: once(price.once), note: `+ ${ongoing} ${per}` } : { big: ongoing, note: per };
-  return { big: once(price.once), note: cover.past ? "for life" : "once" };
+  if (cover.ahead === "monthly") return { big: ongoing, note: price.once > 0 ? `${per} + ${once(price.once)} once for past use` : per };
+  return { big: once(price.once), note: cover.past ? "once, for life" : "once, for all future use" };
 }
 /** Every kind of harm covered, skipping ones too small to show, e.g. "181 kg CO₂e · 7.7 min of life · 947 L water". */
 const MIN_SHOWN: Impacts = { carbon: 0.005, air: 0.0005, water: 0.05, land: 0.5 };
@@ -406,7 +407,21 @@ export function Store() {
   /** A store tile: what it is, why it matters, your amount, the price and a one-tap add. Details open below the shelf. */
   const tile = (p: Product, index: number, collapsed: boolean) => {
     const amount = amountOf(p);
-    const tp = tilePrice(coverPrice(p, amount, coverOf(p), ctx), coverOf(p), billing);
+    const cover = coverOf(p);
+    const tp = tilePrice(coverPrice(p, amount, cover, ctx), cover, billing);
+    // The other way to pay, one tap away: once for life, or back to monthly.
+    const options = aheadFor(p, amount, ctx, anyway[p.id]);
+    const other: Cover["ahead"] = cover.ahead === "monthly" ? "lifetime" : "monthly";
+    const otherPrice = coverPrice(p, amount, { ...cover, ahead: other }, ctx);
+    const alt = options.includes(other)
+      ? {
+          ahead: other,
+          text:
+            other === "lifetime"
+              ? `or ${once(otherPrice.once)} once, ${cover.past ? "for life" : "for all future use"}`
+              : `or ${usd((billing === "annual" ? 12 : 1) * otherPrice.monthly)} ${BILLING[billing].per}`,
+        }
+      : null;
     const isOpen = details === p.id;
     return (
       <li
@@ -448,12 +463,8 @@ export function Store() {
             <span className="underline underline-offset-4">{isOpen ? "Close" : "Change"}</span>
           </span>
         </button>
-        {coversLines(p).map(([label, text], _i, all) => (
-          <p key={label} className="mt-1 text-xs leading-relaxed text-muted">
-            {all.length > 1 ? `${label.replace("Covers ", "")[0].toUpperCase()}${label.replace("Covers ", "").slice(1)}: ` : "Covers "}
-            {text}
-          </p>
-        ))}
+        {/* One line: what the big price covers. Past use is in the price note and the details. */}
+        <p className="mt-1 text-xs leading-relaxed text-muted">Covers {coversLines(p).at(-1)![1]}</p>
         {info === p.id && infoPanel(p)}
         <div className="mt-auto flex items-center justify-between gap-3 pt-3">
           <span className="leading-tight">
@@ -462,6 +473,15 @@ export function Store() {
           </span>
           {addButton(p, true)}
         </div>
+        {alt && (
+          <button
+            type="button"
+            onClick={() => setPicked((x) => ({ ...x, [p.id]: { ...x[p.id], ahead: alt.ahead } }))}
+            className="mt-1 inline-flex min-h-9 items-center self-start text-left text-xs underline underline-offset-4"
+          >
+            {alt.text}
+          </button>
+        )}
       </li>
     );
   };
@@ -509,7 +529,7 @@ export function Store() {
       <section className="grid gap-10 pt-10 pb-12 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-14 lg:pt-14">
         <div>
           <h1 className="font-display text-4xl leading-[1.05] font-extrabold [font-stretch:85%] sm:text-6xl">
-            Your AI habit, paid off for life: about {once(aiPrice.once || aiPrice.monthly)}.
+            Your AI habit, paid off for life: about {once(coverPrice(ai, aiAmount, { past: true, ahead: "lifetime" }, ctx).once)}.
           </h1>
           <p className="mt-6 max-w-xl text-lg">
             Every prompt runs on data centers that burn power, pollute the air and use water, much of it in dry places.
