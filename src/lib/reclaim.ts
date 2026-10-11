@@ -35,7 +35,7 @@ export function reclaimConfig(service: ReclaimService) {
 export const enabledReclaimServices = (kind?: ReclaimKind) =>
   (Object.keys(RECLAIM_SERVICES) as ReclaimService[]).filter((s) => (!kind || RECLAIM_SERVICES[s].kind === kind) && reclaimConfig(s));
 
-const PLAN_KEYS = ["membershipTier", "membership_tier", "tier", "plan", "planType", "plan_type", "subscription", "subscriptionStatus", "subscription_status", "currentPlan", "accountType"];
+const PLAN_KEYS = ["rateLimitTier", "membershipTier", "membership_tier", "tier", "plan", "planType", "plan_type", "subscription", "subscriptionStatus", "subscription_status", "currentPlan", "accountType"];
 
 /** The plan an AI sign-in proved, like "plus" or "free", and the usage level it suggests. */
 export function reclaimAiPlan(params: Record<string, string>, publicData?: unknown): { plan: string; level: AiLevel } | null {

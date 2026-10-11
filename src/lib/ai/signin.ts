@@ -30,8 +30,9 @@ export function signInUsage(data: unknown): SignInUsage | null {
   }
   if (typeof d !== "object" || d === null || !("prompts" in d)) return null;
   const r = d as Record<string, unknown>;
-  const plan = typeof r.planType === "string" ? r.planType : undefined;
-  return { prompts: count(r.prompts), reasoningResponses: count(r.reasoningResponses), images: count(r.images), days: 30, planType: plan };
+  const plan = [r.planType, r.rateLimitTier].find((v) => typeof v === "string") as string | undefined;
+  const days = count(r.windowDays) || 30;
+  return { prompts: count(r.prompts), reasoningResponses: count(r.reasoningResponses), images: count(r.images), days, planType: plan };
 }
 
 /**
