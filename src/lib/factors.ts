@@ -64,6 +64,14 @@ export const WH_PER_INPUT_TOKEN = 0.00025;
 export const REASONING_OUTPUT_MULTIPLIER = 4;
 // Input served from a prompt cache skips most of the work.
 export const CACHED_INPUT_SHARE = 0.1;
+// Claude Code and other apps on a Claude plan don't show up in the chat list,
+// only in the share of the weekly limit used. Anthropic gives each plan's weekly
+// limit in hours of Sonnet use (support.claude.com, 2025); we take the low end.
+// An hour of Claude Code is ~120 Wh (range 40 to 350): Anthropic's ~$13 a
+// developer-day as Sonnet tokens (mostly cache reads), at per-token energy
+// worked back from Epoch AI (Couch 2026) and Google's 2025 measurements.
+export const CLAUDE_WEEKLY_HOURS = { pro: 40, max_5x: 140, max_20x: 240 } as const;
+export const WH_PER_CLAUDE_CODE_HOUR = 120;
 // Share of machine learning energy spent training models rather than answering
 // prompts (Patterson et al. 2022, Google: about 2/5 training, 3/5 inference).
 // Each prompt carries its share of training.

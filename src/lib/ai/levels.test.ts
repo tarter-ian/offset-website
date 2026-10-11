@@ -31,3 +31,15 @@ describe("AI sign-in counts", async () => {
     expect(signInUsage({ planType: "plus" })).toBeNull();
   });
 });
+
+describe("Claude usage limit", async () => {
+  const { claudeLimitWhPerDay, claudeWeeklyHours, signInUsage, summaryFromSignIn } = await import("./signin");
+  it("estimates Claude Code energy from the share of the weekly limit used", () => {
+    expect(claudeWeeklyHours("default_claude_max_5x")).toBe(140);
+    expect(claudeWeeklyHours("default_claude_max_20x")).toBe(240);
+    expect(claudeWeeklyHours("free")).toBe(0);
+    const u = signInUsage({ prompts: 73, reasoningResponses: 0, images: 0, windowDays: 30, rateLimitTier: "default_claude_max_5x", weeklyLimitUsedPercent: 63 })!;
+    expect(claudeLimitWhPerDay(u)).toBeCloseTo((0.63 * 140 * 120) / 7, 6);
+    expect(summaryFromSignIn("claude", u).whPerDay).toBeCloseTo(claudeLimitWhPerDay(u), 6);
+  });
+});

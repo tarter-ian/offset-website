@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AI_LEVELS, type AiLevel } from "@/lib/ai/levels";
-import { summaryFromSignIn, type SignInUsage } from "@/lib/ai/signin";
+import { claudeLimitWhPerDay, summaryFromSignIn, type SignInUsage } from "@/lib/ai/signin";
 import type { UsageSummary } from "@/lib/ai/exportParser";
 
 const AI_NAMES: Record<string, string> = { chatgpt: "ChatGPT", claude: "Claude", gemini: "Gemini" };
@@ -53,7 +53,11 @@ export function AiQuickPick({
             const u = out.usage as SignInUsage;
             setStatus({
               kind: "done",
-              text: `From your ${name} account: ${u.prompts.toLocaleString("en-US")} prompts${u.images ? ` and ${u.images} images` : ""} in the last ${u.days} days.`,
+              text:
+                `From your ${name} account: ${u.prompts.toLocaleString("en-US")} prompts${u.images ? ` and ${u.images} images` : ""} in the last ${u.days} days.` +
+                (claudeLimitWhPerDay(u) > 0
+                  ? ` You've also used ${Math.round(u.weeklyLimitUsedPercent!)}% of your plan's weekly limit, which counts Claude Code, so we estimate from that: about ${(claudeLimitWhPerDay(u) / 1000).toFixed(1)} kWh a day.`
+                  : ""),
             });
             onMeasured(summaryFromSignIn(service === "claude" ? "claude" : "chatgpt", u));
             return;

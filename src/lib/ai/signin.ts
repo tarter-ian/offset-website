@@ -11,6 +11,8 @@ export interface SignInUsage {
   images: number;
   days: number;
   planType?: string;
+  /** Claude only: share of the plan's weekly limit used, which includes Claude Code. */
+  weeklyLimitUsedPercent?: number;
 }
 
 const count = (v: unknown) => {
@@ -32,7 +34,15 @@ export function signInUsage(data: unknown): SignInUsage | null {
   const r = d as Record<string, unknown>;
   const plan = [r.planType, r.rateLimitTier].find((v) => typeof v === "string") as string | undefined;
   const days = count(r.windowDays) || 30;
-  return { prompts: count(r.prompts), reasoningResponses: count(r.reasoningResponses), images: count(r.images), days, planType: plan };
+  const weekly = Number(r.weeklyLimitUsedPercent);
+  return {
+    prompts: count(r.prompts),
+    reasoningResponses: count(r.reasoningResponses),
+    images: count(r.images),
+    days,
+    planType: plan,
+    ...(Number.isFinite(weekly) && weekly > 0 ? { weeklyLimitUsedPercent: Math.min(weekly, 100) } : {}),
+  };
 }
 
 /**
@@ -43,13 +53,31 @@ export function signInUsage(data: unknown): SignInUsage | null {
 export function summaryFromSignIn(provider: AiProvider, u: SignInUsage): UsageSummary {
   const reasoning = Math.min(u.reasoningResponses, u.prompts);
   const wh = (u.prompts - reasoning) * F.WH_PER_AI_PROMPT + reasoning * F.WH_PER_AI_PROMPT * F.REASONING_OUTPUT_MULTIPLIER;
+  // Claude Code use only shows in the weekly limit, so use whichever is larger.
+  const fromLimit = claudeLimitWhPerDay(u);
   return {
     providers: [provider],
     totalPrompts: u.prompts,
     promptsPerDay: u.prompts / u.days,
-    whPerDay: wh / u.days,
+    whPerDay: Math.max(wh / u.days, fromLimit),
     imagesPerWeek: (u.images / u.days) * 7,
     reasoningShare: u.prompts ? reasoning / u.prompts : 0,
     windowDays: u.days,
   };
+}
+
+/** Weekly hours of use a Claude plan allows, from its rate-limit tier like "default_claude_max_5x". */
+export function claudeWeeklyHours(tier: string | undefined): number {
+  const t = (tier ?? "").toLowerCase();
+  if (/20x/.test(t)) return F.CLAUDE_WEEKLY_HOURS.max_20x;
+  if (/5x|max/.test(t)) return F.CLAUDE_WEEKLY_HOURS.max_5x;
+  if (/pro|claude_ai|team/.test(t)) return F.CLAUDE_WEEKLY_HOURS.pro;
+  return 0;
+}
+
+/** Daily energy implied by the share of a Claude plan's weekly limit used. */
+export function claudeLimitWhPerDay(u: SignInUsage): number {
+  if (!u.weeklyLimitUsedPercent) return 0;
+  const hours = (u.weeklyLimitUsedPercent / 100) * claudeWeeklyHours(u.planType);
+  return (hours * F.WH_PER_CLAUDE_CODE_HOUR) / 7;
 }
