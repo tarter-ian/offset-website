@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { AI_LEVELS, type AiLevel } from "@/lib/ai/levels";
 import { claudeLimitWhPerDay, summaryFromSignIn, type SignInUsage } from "@/lib/ai/signin";
 import type { UsageSummary } from "@/lib/ai/exportParser";
+import { RECLAIM_URL, SIGN_IN_READS } from "@/lib/signinReads";
 
 const AI_NAMES: Record<string, string> = { chatgpt: "ChatGPT", claude: "Claude", gemini: "Gemini" };
 
@@ -24,7 +25,7 @@ export function AiQuickPick({
   onMeasured: (s: UsageSummary) => void;
 }) {
   const [signIns, setSignIns] = useState<string[]>([]);
-  const [status, setStatus] = useState<{ kind: "idle" | "waiting" | "done" | "error"; text?: string }>({ kind: "idle" });
+  const [status, setStatus] = useState<{ kind: "idle" | "waiting" | "done" | "error"; text?: string; service?: string }>({ kind: "idle" });
   useEffect(() => {
     fetch("/api/reclaim")
       .then((r) => (r.ok ? r.json() : { ai: [] }))
@@ -53,6 +54,7 @@ export function AiQuickPick({
             const u = out.usage as SignInUsage;
             setStatus({
               kind: "done",
+              service,
               text:
                 `From your ${name} account: ${u.prompts.toLocaleString("en-US")} prompts${u.images ? ` and ${u.images} images` : ""} in the last ${u.days} days.` +
                 (claudeLimitWhPerDay(u) > 0
@@ -113,13 +115,52 @@ export function AiQuickPick({
           </button>
         ))}
       </div>
-      <p className="mt-2 text-sm text-muted">
-        {signIns.length
-          ? "Log in and we count your last 30 days of prompts and images, in your browser. Only the counts reach us, never your chats."
-          : "You download your data from ChatGPT, Claude or Gemini and add it here. We count every prompt in your browser."}
-      </p>
+      {signIns.length ? (
+        <div className="mt-2 text-sm text-muted">
+          <p>
+            You log in on the real site, through{" "}
+            <a href={RECLAIM_URL} target="_blank" rel="noreferrer" className="underline hover:text-foreground">
+              Reclaim Protocol
+            </a>
+            . Your password goes to that site, never to us. The counting happens in your browser, and only the counts reach us:
+          </p>
+          <ul className="mt-1 list-disc space-y-0.5 pl-5">
+            {(["chatgpt", "claude", "gemini"] as const).map((s) => (
+              <li key={s}>
+                <span className="font-medium text-foreground">{AI_NAMES[s]}:</span> {SIGN_IN_READS[s]}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1">
+            Nothing is saved on our side.{" "}
+            <a href="/data" className="underline hover:text-foreground">
+              Your data
+            </a>{" "}
+            explains it all. Rather not log in? Picking a level above works just as well.
+          </p>
+        </div>
+      ) : (
+        <p className="mt-2 text-sm text-muted">
+          You download your data from ChatGPT, Claude or Gemini and add it here. We count every prompt in your browser.
+        </p>
+      )}
       {status.kind === "waiting" && <p className="mt-2 text-sm text-muted">{status.text}</p>}
-      {status.kind === "done" && <p className="mt-2 text-sm">{status.text}</p>}
+      {status.kind === "done" && (
+        <div className="mt-2 border-l-2 border-rule pl-3 text-sm">
+          <p>{status.text}</p>
+          <button
+            type="button"
+            onClick={() => {
+              const name = AI_NAMES[status.service ?? ""] ?? "account";
+              setStatus({ kind: "idle" });
+              onPick("medium", `you removed your ${name} numbers, so we use medium`);
+            }}
+            className="mt-1 underline hover:text-muted"
+          >
+            Remove these numbers
+          </button>
+        </div>
+      )}
       {status.kind === "error" && <p className="mt-2 text-sm text-red-700">{status.text}</p>}
     </div>
   );

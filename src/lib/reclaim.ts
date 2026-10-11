@@ -5,8 +5,9 @@ import { levelForPlan, type AiLevel } from "./ai/levels";
 
 // Signing in to Spotify, YouTube, Netflix, Uber or an AI service through Reclaim Protocol
 // (https://docs.reclaimprotocol.org). The person signs in on their own device;
-// Reclaim returns a signed proof of the data, which the server checks before
-// using it. Needs RECLAIM_APP_ID, RECLAIM_APP_SECRET and one provider id per
+// Reclaim proves the login and the page it read came from the real service, and
+// the server checks that proof. Counts our own providers add (publicData) are
+// tallied in the person's browser and aren't part of the proof. Needs RECLAIM_APP_ID, RECLAIM_APP_SECRET and one provider id per
 // service, all as environment variables; a service without its id stays off.
 
 export const RECLAIM_SERVICES = {

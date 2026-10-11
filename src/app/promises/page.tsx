@@ -11,7 +11,8 @@ const PROMISES = [
   },
   {
     title: "Your donation goes straight to charities",
-    body: "Donations pass through our donation partner directly to the charities on your summary, and you get the partner's receipt. We never hold the money.",
+    body: "Donations pass through our donation partner directly to the charities on your summary, and you get the partner's receipt. We never hold the money. Every month's totals and receipts are public.",
+    link: { href: "/ledger", text: "Where the money goes" },
   },
   {
     title: "One simple fee, shown up front",
@@ -28,6 +29,7 @@ const PROMISES = [
   {
     title: "Your data stays yours",
     body: "Linked accounts are read-only and we take only what the estimate needs. Unlink or delete everything with one click. We will never sell your data.",
+    link: { href: "/data", text: "What we read and keep" },
   },
   {
     title: "Giving is not a substitute for cutting back",
@@ -50,7 +52,17 @@ export default function PromisesPage() {
         {PROMISES.map((p) => (
           <div key={p.title} className="grid gap-1 border-b border-border py-5 sm:grid-cols-[15rem_minmax(0,1fr)] sm:gap-8">
             <dt className="font-display text-lg font-bold">{p.title}</dt>
-            <dd>{p.body}</dd>
+            <dd>
+              {p.body}
+              {"link" in p && p.link && (
+                <>
+                  {" "}
+                  <Link href={p.link.href} className="text-accent hover:underline">
+                    {p.link.text}
+                  </Link>
+                </>
+              )}
+            </dd>
           </div>
         ))}
       </dl>

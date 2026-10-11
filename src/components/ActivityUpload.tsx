@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { RECLAIM_URL, SIGN_IN_READS } from "@/lib/signinReads";
 import { activityAmounts, readActivityFile, SOURCE_NAMES, type ActivityAmounts, type ActivityEvent, type ActivitySource } from "@/lib/activity";
 
 const UNITS: Record<keyof ActivityAmounts["amounts"], (n: number) => string> = {
@@ -110,9 +111,22 @@ export function ActivityUpload({
               </button>
             ))}
           </div>
-          <p className="mt-1 text-sm text-muted">
-            Signing in goes through Reclaim Protocol. Your password isn&apos;t shared with us, only your history.
-          </p>
+          <div className="mt-1 text-sm text-muted">
+            <p>
+              You log in on the real site, through{" "}
+              <a href={RECLAIM_URL} target="_blank" rel="noreferrer" className="underline hover:text-foreground">
+                Reclaim Protocol
+              </a>
+              . Your password goes to that site, never to us. What each one reads:
+            </p>
+            <ul className="mt-1 list-disc space-y-0.5 pl-5">
+              {signIns.map((s) => (
+                <li key={s}>
+                  <span className="font-medium text-foreground">{SOURCE_NAMES[s]}:</span> {SIGN_IN_READS[s as keyof typeof SIGN_IN_READS]}
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       )}
       <p className="font-medium">{signIns.length ? "Or add" : "Add"} your Spotify, YouTube, Netflix or Google Maps history</p>

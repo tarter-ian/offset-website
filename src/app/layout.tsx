@@ -47,7 +47,15 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               </Link>
               .
             </span>
-            <span>US only.</span>
+            <span className="flex gap-4">
+              <Link href="/ledger" className="underline hover:text-foreground">
+                Where the money goes
+              </Link>
+              <Link href="/data" className="underline hover:text-foreground">
+                Your data
+              </Link>
+              <span>US only.</span>
+            </span>
           </div>
         </footer>
       </body>
