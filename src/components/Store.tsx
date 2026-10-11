@@ -169,9 +169,12 @@ export function Store() {
   const billing = billingPick ?? DEFAULT_BILLING;
   const totals = planTotals(lines, ctx, billing);
   const toggle = (id: string) => setPlan((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
+  // Meat, dairy and plant foods are three parts of one diet, so they share one answer.
+  const FOOD_IDS = PRODUCTS.filter((x) => x.section === "food").map((x) => x.id);
   const setAmount = (p: Product, v: number | string) => {
-    setAmounts((a) => ({ ...a, [p.id]: v }));
-    setEntered((e) => ({ ...e, [p.id]: true }));
+    const ids = p.section === "food" ? FOOD_IDS : [p.id];
+    setAmounts((a) => ({ ...a, ...Object.fromEntries(ids.map((id) => [id, v])) }));
+    setEntered((e) => ({ ...e, ...Object.fromEntries(ids.map((id) => [id, true])) }));
   };
   const link = (id: ProviderId) => {
     if (id === "activity") {
@@ -409,7 +412,10 @@ export function Store() {
   const tile = (p: Product, index: number, collapsed: boolean) => {
     const amount = amountOf(p);
     const cover = coverOf(p);
-    const tp = tilePrice(coverPrice(p, amount, cover, ctx), cover, billing);
+    const price = coverPrice(p, amount, cover, ctx);
+    const tp = tilePrice(price, cover, billing);
+    // Nothing to offset, like meat on a vegan diet: say so instead of a $0 price.
+    const nothing = price.once + price.monthly < 0.005;
     // The other way to pay, one tap away: once for life, or back to monthly.
     const options = aheadFor(p, amount, ctx, anyway[p.id]);
     const other: Cover["ahead"] = cover.ahead === "monthly" ? "lifetime" : "monthly";
@@ -467,8 +473,15 @@ export function Store() {
           </span>
         </button>
         {/* One line: what the big price covers. Past use is in the price note and the details. */}
-        <p className="mt-1 text-xs leading-relaxed text-muted">Covers {coversLines(p).at(-1)![1]}</p>
+        <p className="mt-1 text-xs leading-relaxed text-muted">
+          {nothing
+            ? p.section === "food"
+              ? `Nothing to offset on a ${amountText(p, amount).toLowerCase()} diet.`
+              : "Nothing to offset at this amount."
+            : `Covers ${coversLines(p).at(-1)![1]}`}
+        </p>
         {info === p.id && infoPanel(p)}
+        {!nothing && (
         <div className="mt-auto flex items-center justify-between gap-3 pt-3">
           <span className="leading-tight">
             <span className="figures block text-lg font-medium">{tp.big}</span>
@@ -476,7 +489,8 @@ export function Store() {
           </span>
           {addButton(p, true)}
         </div>
-        {alt && (
+        )}
+        {alt && !nothing && (
           <button
             type="button"
             onClick={() => setPicked((x) => ({ ...x, [p.id]: { ...x[p.id], ahead: alt.ahead } }))}
@@ -647,7 +661,7 @@ export function Store() {
       </nav>
 
       {SECTIONS.map((s) => {
-        const items = PRODUCTS.filter((p) => p.section === s.key && p.id !== "ai");
+        const items = PRODUCTS.filter((p) => p.section === s.key);
         if (!items.length) return null;
         const collapsed = !expanded[s.key];
         // Keep an open item's details visible even if the shelf is collapsed.
