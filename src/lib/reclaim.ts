@@ -39,7 +39,6 @@ export function checkSessionToken(token: string, sessionId: string, service: Rec
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null;
 const pick = (r: Record<string, unknown>, keys: string[]) => keys.map((k) => r[k]).find((v) => v !== undefined && v !== "");
-const toTime = (v: unknown) => (typeof v === "number" ? (v < 1e12 ? v * 1000 : v) : Date.parse(String(v)));
 
 /** Lists of rows inside the extracted parameters; providers often return them as JSON strings. */
 function rows(params: Record<string, string>): Record<string, unknown>[] {
@@ -56,26 +55,76 @@ function rows(params: Record<string, string>): Record<string, unknown>[] {
   return out;
 }
 
+/** Reads a date like "2026-09-30T20:00:00Z", "9/30/26" or a Unix time in seconds or milliseconds. */
+function parseTime(v: unknown): number {
+  if (typeof v === "number") return v < 1e12 ? v * 1000 : v;
+  const text = String(v ?? "");
+  const us = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if (us) return Date.UTC(Number(us[3]) < 100 ? 2000 + Number(us[3]) : Number(us[3]), Number(us[1]) - 1, Number(us[2]));
+  return /^\d{10,13}$/.test(text) ? parseTime(Number(text)) : Date.parse(text);
+}
+
+/** Miles from a number (assumed miles) or text like "5.2 mi" or "8.4 km". */
+function parseMiles(v: unknown): number {
+  if (typeof v === "number") return v;
+  const m = String(v ?? "").match(/([\d.]+)\s*(km|kilomet|mi)?/i);
+  if (!m) return NaN;
+  return /^k/i.test(m[2] ?? "") ? Number(m[1]) / 1.609344 : Number(m[1]);
+}
+
+const listIn = (raw: unknown, keys: string[]): Record<string, unknown>[] => {
+  let data = raw;
+  if (typeof raw === "string") {
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      return [];
+    }
+  }
+  if (!isObj(data)) return [];
+  const list = keys.map((k) => data[k]).find(Array.isArray);
+  return Array.isArray(list) ? list.filter(isObj) : [];
+};
+
 /**
- * Turns a verified proof's extracted data into activity. Each provider names its
- * fields differently, so this accepts the common names; check them against the
- * providers chosen in the Reclaim dashboard.
+ * Turns what a sign-in returned into activity. The providers chosen in the
+ * Reclaim dashboard (2026-10-11) return their history as public data next to
+ * the proof: Netflix `watchHistory[]` of {title, date}, Spotify `tracks[]` of
+ * {played_at, track: {duration_ms}} (the last ~50 plays), and Uber `rides[]`
+ * as Uber's own data page lists them. Only account ownership is proven; the
+ * history is what the person's own browser collected, which is fine for
+ * estimating their own footprint. Extracted parameters are checked too, in case
+ * a provider is swapped for one that proves the list itself.
  */
-export function reclaimEvents(service: ReclaimService, params: Record<string, string>): ActivityEvent[] {
+export function reclaimEvents(service: ReclaimService, params: Record<string, string>, publicData?: unknown): ActivityEvent[] {
   if (service === "netflix") {
     const csv = Object.values(params).find((v) => /Start Time|Title,Date/.test(v));
     if (csv) return parseNetflix(csv) ?? [];
   }
-  return rows(params).flatMap((r): ActivityEvent[] => {
-    const time = toTime(pick(r, ["time", "date", "ts", "startTime", "start_time", "requestTime", "request_time", "played_at", "endTime"]));
+  const fromPublic =
+    service === "netflix"
+      ? listIn(publicData, ["watchHistory", "viewingActivity", "history"])
+      : service === "spotify"
+        ? listIn(publicData, ["tracks", "items", "recentlyPlayed"])
+        : service === "uber"
+          ? listIn(publicData, ["rides", "trips"])
+          : listIn(publicData, ["watchHistory", "history", "videos"]);
+  const list = fromPublic.length ? fromPublic : rows(params);
+  return list.flatMap((r): ActivityEvent[] => {
+    const time = parseTime(
+      pick(r, ["played_at", "date", "time", "ts", "startTime", "start_time", "requestTime", "request_time", "requestedAt", "begintrip_timestamp", "beginTripTime", "tripTime", "endTime", "createdAt"]),
+    );
     if (!Number.isFinite(time)) return [];
     if (service === "uber") {
-      const miles = Number(pick(r, ["distance", "distanceMiles", "distance_miles", "miles"]));
+      const status = String(pick(r, ["status", "tripStatus", "state"]) ?? "").toLowerCase();
+      if (/cancel/.test(status)) return [];
+      const miles = parseMiles(pick(r, ["distance", "distanceMiles", "distance_miles", "distanceInMiles", "tripDistance", "trip_distance", "miles"]));
       return miles > 0 ? [{ target: "car", time, amount: miles }] : [];
     }
     if (service === "spotify") {
-      const ms = Number(pick(r, ["ms_played", "msPlayed", "duration_ms", "durationMs"]));
-      return ms > 0 ? [{ target: "music", time, amount: ms / 3_600_000 }] : [];
+      const track = isObj(r.track) ? r.track : {};
+      const ms = Number(pick(r, ["ms_played", "msPlayed", "duration_ms", "durationMs"]) ?? pick(track, ["duration_ms", "durationMs"]));
+      return ms > 0 ? [{ target: "music", time, amount: ms / 3_600_000, sample: true }] : [];
     }
     const seconds = Number(pick(r, ["durationSeconds", "duration_seconds", "watchSeconds"]));
     const hours = seconds > 0 ? seconds / 3600 : service === "youtube" ? 12 / 60 : 40 / 60;

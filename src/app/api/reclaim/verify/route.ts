@@ -21,11 +21,11 @@ export async function POST(req: Request) {
   if (providerVersion?.providerId !== cfg.providerId) return NextResponse.json({ error: "That sign-in didn't start here." }, { status: 400 });
   if (!proofs.length) return NextResponse.json({ error: "No data came back from the sign-in." }, { status: 400 });
   try {
-    const { isVerified, data } = await verifyProof(proofs, providerVersion);
+    const { isVerified, data, publicData } = await verifyProof(proofs, providerVersion);
     if (!isVerified) return NextResponse.json({ error: "We couldn't verify that sign-in." }, { status: 400 });
     const ok = data.every((d) => checkSessionToken(token, String(d.context.reclaimSessionId ?? ""), service, version, cfg.secret));
     if (!ok) return NextResponse.json({ error: "That sign-in didn't start here." }, { status: 400 });
-    return NextResponse.json({ events: data.flatMap((d) => reclaimEvents(service, d.extractedParameters ?? {})) });
+    return NextResponse.json({ events: data.flatMap((d, i) => reclaimEvents(service, d.extractedParameters ?? {}, publicData[i])) });
   } catch {
     return NextResponse.json({ error: "We couldn't verify that sign-in." }, { status: 502 });
   }

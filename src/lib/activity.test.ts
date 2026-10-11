@@ -75,6 +75,12 @@ describe("activity exports", () => {
     expect(a.amounts.flights).toBe(1);
   });
 
+  it("averages a short recent sample over its own span", () => {
+    const sample = Array.from({ length: 50 }, (_, i) => ({ target: "music" as const, time: END - i * 3_600_000, amount: 0.05, sample: true }));
+    // 2.5 hours across about two days, not spread over a month.
+    expect(activityAmounts(sample, END)!.amounts.music).toBeCloseTo(1.2, 1);
+  });
+
   it("ignores files it doesn't recognize", () => {
     expect(parseActivityJson({ hello: 1 })).toBeNull();
     expect(parseActivityJson([{ a: 1 }])).toBeNull();

@@ -23,4 +23,19 @@ describe("reclaim sign-in", () => {
     expect(shows).toHaveLength(1);
     expect(reclaimEvents("youtube", { name: "Ian" })).toEqual([]);
   });
+
+  it("reads the history the chosen providers return as public data", () => {
+    const netflix = reclaimEvents("netflix", { displayName: "Ian" }, { watchHistory: [{ title: "Show", titleId: "1", date: "9/30/26" }], totalTitlesWatched: 1 });
+    expect(netflix).toEqual([{ target: "video", time: Date.UTC(2026, 8, 30), amount: 40 / 60 }]);
+    const spotify = reclaimEvents("spotify", { currentPlan: "premium" }, JSON.stringify({ tracks: [{ played_at: "2026-09-30T20:00:00Z", track: { duration_ms: 240000 } }] }));
+    expect(spotify).toEqual([{ target: "music", time: Date.parse("2026-09-30T20:00:00Z"), amount: 240000 / 3_600_000, sample: true }]);
+    const uber = reclaimEvents("uber", { userId: "u" }, {
+      rides: [
+        { requestTime: "2026-09-29T08:00:00Z", distance: "8.05 km", status: "COMPLETED" },
+        { requestTime: "2026-09-30T08:00:00Z", distance: "3 mi", status: "RIDER_CANCELED" },
+      ],
+    });
+    expect(uber).toHaveLength(1);
+    expect(uber[0].amount).toBeCloseTo(5, 1);
+  });
 });

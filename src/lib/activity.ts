@@ -13,6 +13,8 @@ export interface ActivityEvent {
   time: number;
   /** Hours for music and video, miles for car and transit, legs for flights. */
   amount: number;
+  /** A short recent sample (like Spotify's last 50 songs), averaged over its own span rather than at least a month. */
+  sample?: boolean;
 }
 
 export interface ActivityFile {
@@ -229,7 +231,9 @@ export function activityAmounts(events: ActivityEvent[], now = Date.now()): Acti
     const span = past.filter((e) => group(t).includes(e.target));
     const end = Math.max(...span.map((e) => e.time));
     const from = end - 365 * DAY_MS;
-    const days = Math.max(30, (end - Math.min(...span.filter((e) => e.time > from).map((e) => e.time))) / DAY_MS);
+    const inYear = span.filter((e) => e.time > from);
+    const minDays = inYear.every((e) => e.sample) ? 1 : 30;
+    const days = Math.max(minDays, (end - Math.min(...inYear.map((e) => e.time))) / DAY_MS);
     longest = Math.max(longest, days);
     const sum = past.filter((e) => e.target === t && e.time > from).reduce((s, e) => s + e.amount, 0);
     if (t === "music" || t === "video") amounts[t] = round(sum / days, 0.05);
