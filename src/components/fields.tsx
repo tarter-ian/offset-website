@@ -13,7 +13,7 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
 }
 
 const inputClass =
-  "w-full rounded-lg border border-border bg-card px-3 py-2 outline-none focus:border-accent";
+  "w-full rounded-lg border border-border bg-background px-3 py-2 focus:border-accent";
 
 export function NumberInput({
   value,

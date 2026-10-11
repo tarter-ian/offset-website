@@ -129,7 +129,7 @@ const ROWS = [
 export default function MethodPage() {
   return (
     <article className="mx-auto max-w-3xl px-4 py-12">
-      <h1 className="text-3xl font-semibold tracking-tight">How we calculate your footprint</h1>
+      <h1 className="text-4xl font-extrabold [font-stretch:85%]">How we calculate your footprint</h1>
       <p className="mt-4 text-lg text-muted">
         We estimate four kinds of harm for each part of your life, add a margin that depends on how good the data is,
         and turn the result into donations to charities that work on each kind.
@@ -170,7 +170,7 @@ export default function MethodPage() {
 
       <h2 className="mt-10 text-xl font-semibold">Fees</h2>
       <p className="mt-2 text-muted">
-        Our fee is {usd(FEE_PER_AREA_USD)} for each area you cover (home, travel, food, shopping or digital), up to {usd(MAX_FEE_USD)} a month. Ongoing offsets are billed monthly unless you choose yearly; paying yearly gets {12 - ANNUAL_FEE_MONTHS} months of our fee free. Donations
+        Our fee is {usd(FEE_PER_AREA_USD)} a month for each thing you cover, whether one item like driving or a whole area like home, up to {usd(MAX_FEE_USD)} a month. Ongoing offsets are billed monthly unless you choose yearly; paying yearly gets {12 - ANNUAL_FEE_MONTHS} months of our fee free. Donations
         under {usd(MIN_DONATION_USD)} a month, or {usd(ANNUAL_MIN_DONATION_USD)} a year, are rounded up, and all of it goes to the charities.
       </p>
 

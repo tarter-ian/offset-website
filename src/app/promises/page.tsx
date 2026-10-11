@@ -15,7 +15,7 @@ const PROMISES = [
   },
   {
     title: "One simple fee, shown up front",
-    body: "Our fee is $1 for each area of your life you cover, like home or travel, up to $4 a month, with two months free when you pay yearly. It's listed separately from your donation on every summary.",
+    body: "Our fee is $1 a month for each thing you cover, like driving or electricity, up to $4 a month, with two months free when you pay yearly. One-time payments carry a single $3 fee. It's listed separately from your donation on every summary.",
   },
   {
     title: "No cheap, unverified carbon credits",
@@ -41,19 +41,19 @@ const PROMISES = [
 
 export default function PromisesPage() {
   return (
-    <article className="mx-auto max-w-3xl px-4 py-12">
-      <h1 className="text-3xl font-semibold tracking-tight">Our promises</h1>
+    <article className="mx-auto max-w-4xl px-4 py-12">
+      <h1 className="text-4xl font-extrabold [font-stretch:85%]">Our promises</h1>
       <p className="mt-4 text-lg text-muted">
         People have good reasons to distrust offset apps. Here is how we handle each one.
       </p>
-      <ul className="mt-8 space-y-4">
+      <dl className="mt-8 border-t-2 border-rule">
         {PROMISES.map((p) => (
-          <li key={p.title} className="rounded-xl border border-border bg-card p-5">
-            <h2 className="font-semibold">{p.title}</h2>
-            <p className="mt-1 text-muted">{p.body}</p>
-          </li>
+          <div key={p.title} className="grid gap-1 border-b border-border py-5 sm:grid-cols-[15rem_minmax(0,1fr)] sm:gap-8">
+            <dt className="font-display text-lg font-bold">{p.title}</dt>
+            <dd>{p.body}</dd>
+          </div>
         ))}
-      </ul>
+      </dl>
       <p className="mt-8 text-muted">
         See <Link href="/method" className="text-accent hover:underline">how we calculate</Link> for every factor and
         source.

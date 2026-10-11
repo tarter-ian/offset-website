@@ -1,39 +1,53 @@
 import type { Metadata } from "next";
+import { Archivo, IBM_Plex_Mono, Public_Sans } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
 
+// Archivo's narrow, heavy cuts for headings, Public Sans (made for US government
+// forms) for reading, and Plex Mono for every dollar and kilowatt-hour.
+const head = Archivo({ subsets: ["latin"], axes: ["wdth"], variable: "--font-head" });
+const body = Public_Sans({ subsets: ["latin"], variable: "--font-body" });
+const figures = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-figures" });
+
 export const metadata: Metadata = {
-  title: "Offset: use AI guilt-free, and offset the rest of your life",
+  title: "Offset: pay for the harm your AI use does, and the rest of your life",
   description:
-    "Offset your AI use for life, then pick any other part of your life to offset, with donations to vetted charities.",
+    "Link your ChatGPT or Claude account, see the carbon, air pollution and water behind it, and fund charities that cancel it out. Then add anything else in your life.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${head.variable} ${body.variable} ${figures.variable}`}>
       <body className="antialiased min-h-screen flex flex-col">
-        <header className="border-b border-border">
-          <nav className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
-            <Link href="/" className="text-lg font-semibold tracking-tight">
+        <header className="border-b-2 border-rule">
+          <nav className="mx-auto flex max-w-5xl items-baseline justify-between px-4 py-3">
+            <Link href="/" className="font-display text-xl font-extrabold tracking-tight [font-stretch:80%]">
               Offset
             </Link>
-            <div className="flex gap-5 text-sm text-muted">
-              <Link href="/method" className="hidden hover:text-foreground sm:inline">
+            <div className="flex gap-5 text-sm">
+              <Link href="/method" className="hidden text-muted hover:text-foreground sm:inline">
                 How we calculate
               </Link>
-              <Link href="/promises" className="hover:text-foreground">
+              <Link href="/promises" className="text-muted hover:text-foreground">
                 Our promises
               </Link>
-              <Link href="/start" className="font-medium text-accent hover:text-accent-strong">
-                Get started
+              <Link href="/start" className="font-semibold text-accent underline underline-offset-4 hover:text-accent-strong">
+                Link accounts
               </Link>
             </div>
           </nav>
         </header>
         <main className="flex-1">{children}</main>
         <footer className="border-t border-border">
-          <div className="mx-auto max-w-5xl px-4 py-6 text-sm text-muted">
-            Estimates use public data from the EPA and EIA. Figures are approximate.
+          <div className="mx-auto flex max-w-5xl flex-col gap-2 px-4 py-6 text-sm text-muted sm:flex-row sm:justify-between">
+            <span>
+              Figures come from the EPA, EIA, IEA and published AI energy studies, listed on{" "}
+              <Link href="/method" className="underline hover:text-foreground">
+                How we calculate
+              </Link>
+              .
+            </span>
+            <span>US only.</span>
           </div>
         </footer>
       </body>

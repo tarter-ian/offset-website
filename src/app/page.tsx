@@ -1,72 +1,53 @@
+import Link from "next/link";
 import { Store } from "@/components/Store";
 import { WaitlistForm } from "@/components/WaitlistForm";
-
-const POINTS = [
-  {
-    title: "Your real month, not a guess",
-    body: "Link your utility and we use your actual usage, so a cold January and a mild May each get the offset they need.",
-  },
-  {
-    title: "Donations to vetted charities",
-    body: "Your offset goes straight to climate charities we vet, through a donation partner. We never hold the money.",
-  },
-  {
-    title: "You approve every payment",
-    body: "You approve every payment yourself, once a year or each month. Nothing is charged automatically.",
-  },
-  {
-    title: "More than carbon",
-    body: "We also count the air pollution, water and land behind your footprint, and fund charities that work on each.",
-  },
-  {
-    title: "Cover what you care about",
-    body: "Offset everything, or just one part, like your AI use or your flights. Each part you cover earns its own badge.",
-  },
-  {
-    title: "Show it off",
-    body: "Every approved month earns badges and adds to your streak, with an optional spot on our public list.",
-  },
-];
-
-const STEPS = [
-  "Pick the parts of your life you want to offset, starting with AI.",
-  "Link your accounts for exact numbers, or go with typical amounts.",
-  "Pay once for life, or approve each year or month. Nothing is charged automatically.",
-];
+import { ANNUAL_FEE_MONTHS, FEE_PER_AREA_USD, LIFETIME_FEE_USD, MAX_FEE_USD, usd } from "@/lib/pricing";
 
 export default function Home() {
   return (
     <div className="mx-auto max-w-5xl px-4">
       <Store />
 
-      <h2 className="mb-5 text-2xl font-semibold tracking-tight">Why Offset</h2>
-      <section className="grid gap-4 pb-16 sm:grid-cols-2">
-        {POINTS.map((p) => (
-          <div key={p.title} className="rounded-xl border border-border bg-card p-6">
-            <h2 className="font-semibold">{p.title}</h2>
-            <p className="mt-2 text-muted">{p.body}</p>
-          </div>
-        ))}
+      <section aria-labelledby="money" className="grid gap-8 border-t-2 border-rule py-10 md:grid-cols-[14rem_minmax(0,1fr)]">
+        <h2 id="money" className="text-2xl font-bold">
+          Where your money goes
+        </h2>
+        <div className="max-w-2xl space-y-4">
+          <p>
+            Your donation goes through our donation partner straight to the charities listed on your plan, and the
+            receipt comes from them. We never hold it. Most of it funds groups that push for cleaner power and protect
+            water in dry regions, because that does the most per dollar. Paying only for carbon removal that someone
+            measured is an option on your footprint summary, at about twelve times the price per tonne.
+          </p>
+          <p>
+            Our cut is a separate fee: {usd(FEE_PER_AREA_USD)} a month for each thing you cover, never more than{" "}
+            {usd(MAX_FEE_USD)}, or {usd(LIFETIME_FEE_USD)} on a one-time payment. Paying yearly takes {12 - ANNUAL_FEE_MONTHS}{" "}
+            months off the fee. Nothing is charged until you approve it.
+          </p>
+          <p>
+            <Link href="/promises" className="font-semibold text-accent underline underline-offset-4">
+              Read our promises
+            </Link>{" "}
+            or{" "}
+            <Link href="/method" className="font-semibold text-accent underline underline-offset-4">
+              check every number we use
+            </Link>
+            .
+          </p>
+        </div>
       </section>
 
-      <section className="pb-16">
-        <h2 className="text-2xl font-semibold tracking-tight">How it works</h2>
-        <ol className="mt-6 grid gap-4 sm:grid-cols-3">
-          {STEPS.map((s, i) => (
-            <li key={s} className="rounded-xl bg-accent-soft p-5">
-              <span className="text-sm font-semibold text-accent">Step {i + 1}</span>
-              <p className="mt-1">{s}</p>
-            </li>
-          ))}
-        </ol>
-      </section>
-
-      <section className="mb-20 rounded-2xl border border-border bg-card p-8">
-        <h2 className="text-2xl font-semibold tracking-tight">Accounts open soon</h2>
-        <p className="mt-2 mb-5 text-muted">
-          Join the waitlist and we&apos;ll email you when you can link accounts and start offsetting.
-        </p>
-        <WaitlistForm />
+      <section aria-labelledby="launch" className="grid gap-8 border-t border-border py-10 pb-20 md:grid-cols-[14rem_minmax(0,1fr)]">
+        <h2 id="launch" className="text-2xl font-bold">
+          Not open yet
+        </h2>
+        <div className="max-w-xl">
+          <p className="mb-4">
+            AI accounts link today. Utilities, banks, cars and payments open at launch. Leave your email and we&apos;ll
+            write once, when they do.
+          </p>
+          <WaitlistForm />
+        </div>
       </section>
     </div>
   );

@@ -10,6 +10,7 @@ import {
   type LifetimeInput,
   type Span,
 } from "./lifetime";
+import type { ProviderId } from "./providers";
 import {
   type Billing,
   DEFAULT_BILLING,
@@ -97,7 +98,7 @@ function deviceItem(id: Device, name: string, blurb: string, count: number): Pro
     section: "devices",
     name,
     blurb,
-    amount: { kind: "number", label: `${name} you use`, unit: "at a time", default: count, step: 1 },
+    amount: { kind: "number", label: `${name} you use`, unit: "in use", default: count, step: 1 },
     oneTime: true,
     cost: (a, span, ctx) =>
       lifetimeOffset({ ...base(ctx), devices: { ...NO_DEVICES, [id]: Math.round(num(a)) } }, ["devices"], undefined, span).parts.devices
@@ -170,7 +171,7 @@ export const PRODUCTS: Product[] = [
     section: "ai",
     name: "AI images and video",
     blurb: "Pictures and clips you make with AI.",
-    amount: { kind: "number", label: "AI images or videos a week", unit: "a week", default: 5, step: 1 },
+    amount: { kind: "number", label: "AI images or videos a week", unit: "images or videos a week", default: 5, step: 1 },
     oneTime: true,
     cost: (a, span, ctx) => lifetimeOffset({ ...base(ctx), aiMediaPerWeek: num(a) }, ["ai"], undefined, span).parts.ai.cost,
   },
@@ -266,55 +267,118 @@ export const PRODUCTS: Product[] = [
 
 export const productById = (id: string) => PRODUCTS.find((p) => p.id === id);
 
+/** Accounts that fill in each item's amount. Online time and devices have no account to read yet, so they stay typed in. */
+const AI_SOURCES: ProviderId[] = ["chatgpt", "claude", "openai-api", "anthropic-api"];
+const SOURCES: Record<SectionKey, ProviderId[]> = {
+  ai: AI_SOURCES,
+  online: [],
+  devices: [],
+  home: ["utility"],
+  travel: ["bank"],
+  food: ["bank"],
+  shopping: ["bank"],
+};
+export function sourcesFor(p: Product): ProviderId[] {
+  if (p.id === "car") return ["car"];
+  return SOURCES[p.section];
+}
+
+/** What a lifetime of AI chat adds up to, for the itemized receipt on the home page. */
+export function aiBreakdown(promptsPerDay: number, ctx: Context) {
+  const o = lifetimeOffset(
+    { ...base(ctx), aiPromptsPerDay: num(promptsPerDay), aiWhPerPrompt: ctx.aiWhPerPrompt, aiFromExport: ctx.aiFromExport },
+    ["ai"],
+  );
+  return { impacts: o.parts.ai.impacts, cost: o.parts.ai.cost, pastYears: o.pastYears.ai, futureYears: o.futureYears };
+}
+
 export function defaultAmount(p: Product, ctx: Context): number | string {
   if (p.id === "electricity") return STATES[ctx.state].avgKwhPerMonth;
   return p.amount.default;
 }
 
-/** Spans an item offers. Light online items are lifetime only; lifetime hides above the cap unless asked for. */
-export function spansFor(p: Product, amount: number | string, ctx: Context, showLifetimeAnyway = false): Span[] {
-  if (!p.oneTime) return ["monthly"];
-  const life = p.cost(amount, "lifetime", ctx);
-  if (life + LIFETIME_FEE_USD <= SPAN_CHOICE_ABOVE_USD) return ["lifetime"];
-  return life + LIFETIME_FEE_USD > LIFETIME_MAX_USD && !showLifetimeAnyway ? ["past", "monthly"] : ["past", "monthly", "lifetime"];
+/**
+ * How an item is covered. Past use is a checkbox that adds to either choice;
+ * going forward is ongoing (billed yearly or monthly) or lifetime (one payment),
+ * never both. Everyday items are ongoing only, with no past option.
+ */
+export type Ahead = "monthly" | "lifetime";
+export interface Cover {
+  past: boolean;
+  ahead: Ahead;
 }
-/** The span an item actually uses: the one picked if it's still offered, else monthly or lifetime. */
-export function effectiveSpan(p: Product, amount: number | string, ctx: Context, picked?: Span, showLifetimeAnyway = false): Span {
-  const spans = spansFor(p, amount, ctx, showLifetimeAnyway);
-  if (picked && spans.includes(picked)) return picked;
-  return spans.includes("lifetime") ? "lifetime" : "monthly";
+
+/** Ways to cover an item going forward. Light items are lifetime only; lifetime hides above the cap unless asked for. */
+export function aheadFor(p: Product, amount: number | string, ctx: Context, showLifetimeAnyway = false): Ahead[] {
+  if (!p.oneTime) return ["monthly"];
+  const life = p.cost(amount, "lifetime", ctx) + LIFETIME_FEE_USD;
+  if (life <= SPAN_CHOICE_ABOVE_USD) return ["lifetime"];
+  return life > LIFETIME_MAX_USD && !showLifetimeAnyway ? ["monthly"] : ["monthly", "lifetime"];
+}
+
+/** The cover an item actually uses: what was picked if still offered, else lifetime when offered, else ongoing. Past use starts checked. */
+export function effectiveCover(
+  p: Product,
+  amount: number | string,
+  ctx: Context,
+  picked: Partial<Cover> = {},
+  showLifetimeAnyway = false,
+): Cover {
+  const options = aheadFor(p, amount, ctx, showLifetimeAnyway);
+  const ahead = picked.ahead && options.includes(picked.ahead) ? picked.ahead : options.includes("lifetime") ? "lifetime" : "monthly";
+  return { past: p.oneTime && (picked.past ?? true), ahead };
+}
+
+/** Badge wording for a cover, e.g. "for life" or "to date + this month". */
+export function coverBadge(c: Cover, billing: Billing): string {
+  const ahead = c.ahead === "lifetime" ? (c.past ? "for life" : "from today") : `this ${billing === "annual" ? "year" : "month"}`;
+  return c.past && c.ahead === "monthly" ? `to date + ${ahead}` : ahead;
+}
+
+/** An item's price under a cover: what goes in the one-time payment and what's billed each month. */
+export function coverPrice(p: Product, amount: number | string, cover: Cover, ctx: Context) {
+  const once = (cover.past ? p.cost(amount, "past", ctx) : 0) + (cover.ahead === "lifetime" ? p.cost(amount, "future", ctx) : 0);
+  const monthly = cover.ahead === "monthly" ? p.cost(amount, "monthly", ctx) : 0;
+  return { once, monthly };
 }
 
 export interface PlanLine {
   productId: string;
   amount: number | string;
-  span: Span;
+  cover: Cover;
 }
 
 export interface PlanTotals {
-  lines: (PlanLine & { product: Product; cost: number })[];
+  lines: (PlanLine & { product: Product; pastCost: number; aheadCost: number })[];
   oneTime: { donation: number; fee: number; total: number } | null;
   /** Ongoing items, charged each billing period. */
   recurring: Recurring | null;
 }
 
-/** Adds up a plan: one-time items share one minimum and fee; ongoing items pay $1 a month each, up to the cap, billed yearly or monthly. */
+/** Adds up a plan: past use and lifetime items share one payment, minimum and fee; ongoing items pay $1 a month each, up to the cap, billed yearly or monthly. */
 export function planTotals(plan: PlanLine[], ctx: Context, billing: Billing = DEFAULT_BILLING): PlanTotals {
   const lines = plan.flatMap((l) => {
     const product = productById(l.productId);
-    return product ? [{ ...l, product, cost: product.cost(l.amount, l.span, ctx) }] : [];
+    if (!product) return [];
+    const pastCost = l.cover.past ? product.cost(l.amount, "past", ctx) : 0;
+    const aheadCost = product.cost(l.amount, l.cover.ahead === "lifetime" ? "future" : "monthly", ctx);
+    return [{ ...l, product, pastCost, aheadCost }];
   });
-  const once = lines.filter((l) => l.span !== "monthly");
-  const ongoing = lines.filter((l) => l.span === "monthly");
-  const sum = (ls: typeof lines) => ls.reduce((s, l) => s + l.cost, 0);
-  const oneTime = once.length
+  const onceSum = lines.reduce((s, l) => s + l.pastCost + (l.cover.ahead === "lifetime" ? l.aheadCost : 0), 0);
+  const ongoing = lines.filter((l) => l.cover.ahead === "monthly");
+  const hasOnce = lines.some((l) => l.cover.past || l.cover.ahead === "lifetime");
+  const oneTime = hasOnce
     ? (() => {
-        const donation = Math.max(LIFETIME_MIN_DONATION_USD, Math.ceil(sum(once)));
+        const donation = Math.max(LIFETIME_MIN_DONATION_USD, Math.ceil(onceSum));
         return { donation, fee: LIFETIME_FEE_USD, total: donation + LIFETIME_FEE_USD };
       })()
     : null;
   const recurring = ongoing.length
-    ? recurringPrice(sum(ongoing), Math.min(MAX_FEE_USD, FEE_PER_AREA_USD * ongoing.length), billing)
+    ? recurringPrice(
+        ongoing.reduce((s, l) => s + l.aheadCost, 0),
+        Math.min(MAX_FEE_USD, FEE_PER_AREA_USD * ongoing.length),
+        billing,
+      )
     : null;
   return { lines, oneTime, recurring };
 }

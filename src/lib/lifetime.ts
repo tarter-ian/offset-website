@@ -101,13 +101,14 @@ export function parseItems(value?: string): LifetimeItem[] {
   return items.length ? ITEM_KEYS.filter((k) => items.includes(k)) : ITEM_KEYS;
 }
 
-/** How much of someone's use an offset covers. */
-export type Span = "past" | "monthly" | "lifetime";
+/** How much of someone's use an offset covers. "future" is lifetime without the years already past. */
+export type Span = "past" | "monthly" | "lifetime" | "future";
 
 export const SPANS: Record<Span, { label: string; badge: string; per: string; hint: string }> = {
   past: { label: "Past use", badge: "to date", per: "once", hint: "Everything up to today, in one payment." },
   monthly: { label: "Ongoing", badge: "this year", per: "a year", hint: "Your use as it happens, billed yearly or monthly. Cancel anytime." },
   lifetime: { label: "Lifetime", badge: "for life", per: "once", hint: "Everything so far and everything to come, in one payment." },
+  future: { label: "Lifetime", badge: "from today", per: "once", hint: "Everything from today on, in one payment." },
 };
 export const SPAN_KEYS = Object.keys(SPANS) as Span[];
 // Lifetime prices above this get the choice of past use or monthly; lighter users just see lifetime.
@@ -133,7 +134,9 @@ export function lifetimeOffset(
       ? { internet: 1 / 12, ai: 1 / 12, devices: 1 / 12 }
       : span === "past"
         ? { internet: pastInternet, ai: pastAi, devices: pastInternet }
-        : {
+        : span === "future"
+          ? { internet: futureYears, ai: futureYears * LIFETIME_GROWTH_BUFFER, devices: futureYears }
+          : {
             internet: pastInternet + futureYears,
             ai: pastAi + futureYears * LIFETIME_GROWTH_BUFFER,
             devices: pastInternet + futureYears,

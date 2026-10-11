@@ -55,7 +55,7 @@ export function EstimateWizard() {
               onClick={() => setStep(i)}
               aria-current={i === step ? "step" : undefined}
               className={`rounded-full px-3 py-1 ${
-                i === step ? "bg-accent text-white" : i < step ? "bg-accent-soft text-accent" : "bg-card text-muted"
+                i === step ? "bg-accent text-on-accent" : i < step ? "bg-accent-soft text-accent" : "bg-card text-muted"
               }`}
             >
               {i + 1}. {s}
@@ -64,7 +64,7 @@ export function EstimateWizard() {
         ))}
       </ol>
 
-      <h2 className="mb-6 text-2xl font-semibold tracking-tight">{STEPS[step]}</h2>
+      <h2 className="mb-6 text-2xl font-bold">{STEPS[step]}</h2>
 
       <div className="space-y-8">
         {step === 0 && (
@@ -314,7 +314,7 @@ export function EstimateWizard() {
         <button
           type="button"
           onClick={() => setStep((s) => s + 1)}
-          className="rounded-lg bg-accent px-5 py-2 font-medium text-white hover:bg-accent-strong"
+          className="rounded-lg bg-accent px-5 py-2 font-medium text-on-accent hover:bg-accent-strong"
         >
           {step === STEPS.length - 1 ? "See my footprint" : "Next"}
         </button>

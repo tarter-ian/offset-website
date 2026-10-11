@@ -162,7 +162,7 @@ export function Results({
   return (
     <div className="space-y-10">
       <section>
-        <p className="text-sm font-medium uppercase tracking-wide text-accent">{who} estimated footprint each month</p>
+        <p className="font-display text-lg font-bold">{who} estimated footprint each month</p>
         <div className={`mt-4 grid grid-cols-2 gap-3 ${single ? "sm:grid-cols-3" : "sm:grid-cols-4"}`}>
           {IMPACT_KEYS.filter((k) => !single || totals[k] > 0).map((k) => (
             <div key={k} className="rounded-xl border border-border bg-card p-4">
@@ -445,7 +445,7 @@ export function Results({
                 .map(({ key, impact, ch, amount }) => (
                   <li key={key} className="flex justify-between gap-4">
                     <div>
-                      <div className="text-xs uppercase tracking-wide text-muted">{IMPACT_INFO[impact].label}</div>
+                      <div className="text-xs font-semibold text-muted">{IMPACT_INFO[impact].label}</div>
                       <a href={ch.url} target="_blank" rel="noreferrer" className="font-medium text-accent hover:underline">
                         {ch.name}
                       </a>

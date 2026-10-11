@@ -41,7 +41,7 @@ export function ConnectAccounts() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="text-3xl font-semibold tracking-tight">Link your accounts</h1>
+      <h1 className="text-4xl font-extrabold [font-stretch:85%]">Link your accounts</h1>
       <p className="mt-3 text-lg text-muted">
         Link what you can and we&apos;ll work out your footprint from it. Anything you skip uses averages for your state, and
         you can link it later.
@@ -74,7 +74,7 @@ export function ConnectAccounts() {
                   <button
                     type="button"
                     onClick={() => setStatus((cur) => ({ ...cur, [p.id]: p.export || p.apiKey ? "open" : "later" }))}
-                    className="shrink-0 rounded-lg bg-accent px-4 py-2 font-medium text-white hover:bg-accent-strong"
+                    className="shrink-0 rounded-lg bg-accent px-4 py-2 font-medium text-on-accent hover:bg-accent-strong"
                   >
                     Link
                   </button>
@@ -117,7 +117,7 @@ export function ConnectAccounts() {
         <button
           type="button"
           onClick={() => setDone(true)}
-          className="rounded-lg bg-accent px-5 py-3 font-medium text-white hover:bg-accent-strong"
+          className="rounded-lg bg-accent px-5 py-3 font-medium text-on-accent hover:bg-accent-strong"
         >
           {linkedCount ? "See my footprint" : "Skip for now and see my estimate"}
         </button>

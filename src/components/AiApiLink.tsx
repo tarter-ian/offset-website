@@ -62,12 +62,12 @@ export function AiApiLink({ provider, onResult }: { provider: ApiProvider; onRes
           value={key}
           onChange={(e) => setKey(e.target.value)}
           placeholder={`${info.keyPrefix}…`}
-          className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 font-mono text-sm outline-none focus:border-accent"
+          className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 font-mono text-sm focus:border-accent"
         />
         <button
           type="submit"
           disabled={!key || status.kind === "reading"}
-          className="whitespace-nowrap rounded-lg bg-accent px-4 py-2 font-medium text-white hover:bg-accent-strong disabled:opacity-60"
+          className="whitespace-nowrap rounded-lg bg-accent px-4 py-2 font-medium text-on-accent hover:bg-accent-strong disabled:opacity-60"
         >
           {status.kind === "reading" ? "Reading…" : "Connect"}
         </button>

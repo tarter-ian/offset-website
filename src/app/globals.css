@@ -1,26 +1,37 @@
 @import "tailwindcss";
 
+/*
+  Look: a utility bill or receipt, since the site itemizes what your life costs.
+  White paper, near-black ink, thin rules instead of boxed cards, and one green
+  used only for actions and for what you've covered.
+*/
 :root {
-  --background: #fbfaf6;
-  --foreground: #1c2a22;
-  --muted: #5d6b62;
-  --card: #ffffff;
-  --border: #e3e6df;
-  --accent: #2f7d4f;
-  --accent-strong: #1f5c38;
-  --accent-soft: #e6f2ea;
+  --background: #ffffff;
+  --foreground: #121613;
+  --muted: #555e57;
+  --card: #f5f6f3;
+  --border: #d6dbd4;
+  --rule: #121613;
+  --accent: #1d6b3d;
+  --accent-strong: #134a2a;
+  --accent-soft: #e4efe7;
+  --danger: #b42318;
+  --on-accent: #ffffff;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #101612;
-    --foreground: #e7ede8;
-    --muted: #9aa89f;
-    --card: #18201b;
-    --border: #2a352e;
-    --accent: #5dbb84;
-    --accent-strong: #7fd3a1;
-    --accent-soft: #1d3326;
+    --background: #0f1210;
+    --foreground: #e9ece9;
+    --muted: #a3ada6;
+    --card: #171c18;
+    --border: #2f3731;
+    --rule: #e9ece9;
+    --accent: #6cc28f;
+    --accent-strong: #93d8ae;
+    --accent-soft: #1b2e22;
+    --danger: #f97066;
+    --on-accent: #0f1210;
   }
 }
 
@@ -30,14 +41,47 @@
   --color-muted: var(--muted);
   --color-card: var(--card);
   --color-border: var(--border);
+  --color-rule: var(--rule);
   --color-accent: var(--accent);
   --color-accent-strong: var(--accent-strong);
   --color-accent-soft: var(--accent-soft);
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --color-danger: var(--danger);
+  --color-on-accent: var(--on-accent);
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-head), var(--font-body), ui-sans-serif, sans-serif;
+  --font-mono: var(--font-figures), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+  --radius-xl: 4px;
+  --radius-2xl: 4px;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+}
+
+h1,
+h2 {
+  letter-spacing: -0.015em;
+}
+
+/* Visible keyboard focus everywhere, never removed. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Money and quantities line up in columns. */
+.figures {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_CONTEXT as C, defaultAmount, effectiveSpan, planTotals, PRODUCTS, productById, spansFor } from "./store";
+import { aheadFor, coverBadge, coverPrice, DEFAULT_CONTEXT as C, defaultAmount, effectiveCover, planTotals, PRODUCTS, productById } from "./store";
 import {
   ANNUAL_FEE_MONTHS,
   ANNUAL_MIN_DONATION_USD,
@@ -16,7 +16,8 @@ describe("products", () => {
   it("prices every item above zero at its default amount", () => {
     for (const item of PRODUCTS) {
       const a = defaultAmount(item, C);
-      expect(item.cost(a, effectiveSpan(item, a, C), C), item.id).toBeGreaterThan(0);
+      const price = coverPrice(item, a, effectiveCover(item, a, C), C);
+      expect(price.once + price.monthly, item.id).toBeGreaterThan(0);
     }
   });
 
@@ -33,17 +34,39 @@ describe("products", () => {
   });
 });
 
-describe("spans", () => {
-  it("offers light online items for life only, and everyday items monthly only", () => {
-    expect(spansFor(p("ai"), 10, C)).toEqual(["lifetime"]);
-    expect(spansFor(p("car"), 200, C)).toEqual(["monthly"]);
+describe("covers", () => {
+  it("offers light online items for life only, and everyday items ongoing only", () => {
+    expect(aheadFor(p("ai"), 10, C)).toEqual(["lifetime"]);
+    expect(aheadFor(p("car"), 200, C)).toEqual(["monthly"]);
   });
 
-  it("offers past, monthly and lifetime above $100, and hides lifetime above $1,000 unless asked", () => {
-    expect(spansFor(p("desktop"), 1, C)).toEqual(["past", "monthly", "lifetime"]);
-    expect(spansFor(p("ai"), 5000, C)).toEqual(["past", "monthly"]);
-    expect(spansFor(p("ai"), 2000, C, true)).toEqual(["past", "monthly", "lifetime"]);
-    expect(effectiveSpan(p("ai"), 5000, C, "lifetime")).toBe("monthly");
+  it("offers ongoing or lifetime above $100, and hides lifetime above $1,000 unless asked", () => {
+    expect(aheadFor(p("desktop"), 1, C)).toEqual(["monthly", "lifetime"]);
+    expect(aheadFor(p("ai"), 5000, C)).toEqual(["monthly"]);
+    expect(aheadFor(p("ai"), 2000, C, true)).toEqual(["monthly", "lifetime"]);
+    expect(effectiveCover(p("ai"), 5000, C, { ahead: "lifetime" }).ahead).toBe("monthly");
+  });
+
+  it("checks past use by default on one-time items only, and lets it be unchecked", () => {
+    expect(effectiveCover(p("ai"), 10, C).past).toBe(true);
+    expect(effectiveCover(p("ai"), 10, C, { past: false }).past).toBe(false);
+    expect(effectiveCover(p("car"), 200, C, { past: true }).past).toBe(false);
+  });
+
+  it("splits lifetime into past use plus the years to come", () => {
+    const life = p("ai").cost(10, "lifetime", C);
+    const both = coverPrice(p("ai"), 10, { past: true, ahead: "lifetime" }, C);
+    const ahead = coverPrice(p("ai"), 10, { past: false, ahead: "lifetime" }, C);
+    expect(both.once).toBeCloseTo(life, 6);
+    expect(ahead.once).toBeLessThan(both.once);
+  });
+
+  it("can pay past use once and the rest as it happens", () => {
+    const t = planTotals([{ productId: "desktop", amount: 1, cover: { past: true, ahead: "monthly" } }], C, "monthly");
+    expect(t.oneTime!.donation).toBe(Math.max(LIFETIME_MIN_DONATION_USD, Math.ceil(p("desktop").cost(1, "past", C))));
+    expect(t.recurring).not.toBeNull();
+    expect(coverBadge({ past: true, ahead: "monthly" }, "monthly")).toBe("to date + this month");
+    expect(coverBadge({ past: true, ahead: "lifetime" }, "monthly")).toBe("for life");
   });
 });
 
@@ -57,9 +80,9 @@ describe("planTotals", () => {
   it("applies one minimum and one fee to one-time items, and $1 a month per ongoing item up to the cap", () => {
     const t = planTotals(
       [
-        { productId: "ai", amount: 10, span: "lifetime" },
-        { productId: "music", amount: 1, span: "lifetime" },
-        ...["car", "flights", "transit", "meat", "dairy"].map((id) => ({ productId: id, amount: defaultAmount(p(id), C), span: "monthly" as const })),
+        { productId: "ai", amount: 10, cover: { past: true, ahead: "lifetime" } },
+        { productId: "music", amount: 1, cover: { past: true, ahead: "lifetime" } },
+        ...["car", "flights", "transit", "meat", "dairy"].map((id) => ({ productId: id, amount: defaultAmount(p(id), C), cover: { past: false, ahead: "monthly" as const } })),
       ],
       C,
       "monthly",
@@ -70,8 +93,8 @@ describe("planTotals", () => {
     expect(t.recurring!.donation).toBeGreaterThan(MIN_DONATION_USD);
   });
 
-  it("bills ongoing items yearly by default, with two months of fees free", () => {
-    const line = [{ productId: "car", amount: 200, span: "monthly" as const }];
+  it("bills ongoing items yearly with two months of fees free", () => {
+    const line = [{ productId: "car", amount: 200, cover: { past: false, ahead: "monthly" as const } }];
     const month = planTotals(line, C, "monthly").recurring!;
     const year = planTotals(line, C, "annual").recurring!;
     expect(year.fee).toBe(month.fee * ANNUAL_FEE_MONTHS);
@@ -79,9 +102,9 @@ describe("planTotals", () => {
   });
 
   it("leaves out a side with no items, and applies the minimum", () => {
-    const t = planTotals([{ productId: "transit", amount: 1, span: "monthly" }], C, "monthly");
+    const t = planTotals([{ productId: "transit", amount: 1, cover: { past: false, ahead: "monthly" } }], C, "monthly");
     expect(t.oneTime).toBeNull();
     expect(t.recurring!.donation).toBe(MIN_DONATION_USD);
-    expect(planTotals([{ productId: "transit", amount: 1, span: "monthly" }], C, "annual").recurring!.donation).toBe(ANNUAL_MIN_DONATION_USD);
+    expect(planTotals([{ productId: "transit", amount: 1, cover: { past: false, ahead: "monthly" } }], C, "annual").recurring!.donation).toBe(ANNUAL_MIN_DONATION_USD);
   });
 });
