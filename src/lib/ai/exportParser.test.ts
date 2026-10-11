@@ -94,6 +94,24 @@ describe("parseExport", () => {
     expect(u.turns[0].wh).toBeGreaterThan(1);
   });
 
+  it("reads Gemini prompts from a Google Takeout activity file, skipping other products", () => {
+    const u = parseExport([
+      {
+        header: "Gemini Apps",
+        title: "Prompted Plan a week of dinners",
+        time: "2026-10-01T12:00:00.000Z",
+        products: ["Gemini Apps"],
+        safeHtmlItem: [{ html: "<p>" + "Monday: tacos. ".repeat(200) + "</p>" }],
+      },
+      { header: "Gemini Apps", title: "Prompted hi", time: "2026-10-02T12:00:00.000Z", products: ["Gemini Apps"] },
+      { header: "Gemini Apps", title: "Used Gemini Apps", time: "2026-10-02T12:00:00.000Z", products: ["Gemini Apps"] },
+      { header: "YouTube", title: "Watched a video", time: "2026-10-02T12:00:00.000Z", products: ["YouTube"] },
+    ])!;
+    expect(u.provider).toBe("gemini");
+    expect(u.turns).toHaveLength(2);
+    expect(u.turns[0].wh).toBeGreaterThan(u.turns[1].wh);
+  });
+
   it("rejects files it doesn't recognize", () => {
     expect(parseExport({ foo: 1 })).toBeNull();
     expect(parseExport([{ foo: 1 }])).toBeNull();

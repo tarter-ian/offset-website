@@ -7,7 +7,7 @@ import type { CategoryKey } from "./footprint";
 
 import type { ApiProvider } from "./ai/usageApi";
 
-export type ProviderId = "utility" | "bank" | "car" | "chatgpt" | "claude" | ApiProvider;
+export type ProviderId = "utility" | "bank" | "car" | "chatgpt" | "claude" | "gemini" | ApiProvider;
 
 export interface Provider {
   id: ProviderId;
@@ -47,6 +47,7 @@ export const PROVIDERS: Provider[] = [
   },
   { id: "chatgpt", name: "ChatGPT", covers: ["ai"], blurb: "Measure your use from your data export.", export: true },
   { id: "claude", name: "Claude", covers: ["ai"], blurb: "Measure your use from your data export.", export: true },
+  { id: "gemini", name: "Gemini", covers: ["ai"], blurb: "Measure your use from your Google Takeout activity.", export: true },
   {
     id: "openai-api",
     name: "OpenAI API",

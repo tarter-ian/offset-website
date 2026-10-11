@@ -12,7 +12,7 @@ const figures = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], vari
 export const metadata: Metadata = {
   title: "Offset: pay for the harm your AI use does, and the rest of your life",
   description:
-    "Link your ChatGPT or Claude account, see the carbon, air pollution and water behind it, and fund charities that cancel it out. Then add anything else in your life.",
+    "Link your ChatGPT, Claude or Gemini account, see the carbon, air pollution and water behind it, and fund charities that cancel it out. Then add anything else in your life.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

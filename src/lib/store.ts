@@ -46,6 +46,8 @@ export interface Context {
   /** Measured from a linked AI account. */
   aiWhPerPrompt?: number;
   aiFromExport?: boolean;
+  /** All-time AI chat energy from linked exports, in Wh. */
+  aiPastWh?: number;
 }
 
 export const DEFAULT_CONTEXT: Context = { birthYear: DEFAULT_LIFETIME_INPUT.birthYear, state: DEFAULT_ANSWERS.state };
@@ -160,7 +162,7 @@ export const PRODUCTS: Product[] = [
     oneTime: true,
     cost: (a, span, ctx) =>
       lifetimeOffset(
-        { ...base(ctx), aiPromptsPerDay: num(a), aiWhPerPrompt: ctx.aiWhPerPrompt, aiFromExport: ctx.aiFromExport },
+        { ...base(ctx), aiPromptsPerDay: num(a), aiWhPerPrompt: ctx.aiWhPerPrompt, aiFromExport: ctx.aiFromExport, aiPastWh: ctx.aiPastWh },
         ["ai"],
         undefined,
         span,
@@ -268,7 +270,7 @@ export const PRODUCTS: Product[] = [
 export const productById = (id: string) => PRODUCTS.find((p) => p.id === id);
 
 /** Accounts that fill in each item's amount. Online time and devices have no account to read yet, so they stay typed in. */
-const AI_SOURCES: ProviderId[] = ["chatgpt", "claude", "openai-api", "anthropic-api"];
+const AI_SOURCES: ProviderId[] = ["chatgpt", "claude", "gemini", "openai-api", "anthropic-api"];
 const SOURCES: Record<SectionKey, ProviderId[]> = {
   ai: AI_SOURCES,
   online: [],
@@ -283,13 +285,14 @@ export function sourcesFor(p: Product): ProviderId[] {
   return SOURCES[p.section];
 }
 
-/** What a lifetime of AI chat adds up to, for the itemized receipt on the home page. */
-export function aiBreakdown(promptsPerDay: number, ctx: Context) {
-  const o = lifetimeOffset(
-    { ...base(ctx), aiPromptsPerDay: num(promptsPerDay), aiWhPerPrompt: ctx.aiWhPerPrompt, aiFromExport: ctx.aiFromExport },
-    ["ai"],
-  );
-  return { impacts: o.parts.ai.impacts, cost: o.parts.ai.cost, pastYears: o.pastYears.ai, futureYears: o.futureYears };
+/** What AI chat adds up to under a cover, for the itemized receipt on the home page. */
+export function aiBreakdown(promptsPerDay: number, ctx: Context, cover: { past: boolean; ahead: "monthly" | "lifetime" }) {
+  const spans: Span[] = [...(cover.past ? (["past"] as const) : []), cover.ahead === "lifetime" ? "future" : "monthly"];
+  const input = { ...base(ctx), aiPromptsPerDay: num(promptsPerDay), aiWhPerPrompt: ctx.aiWhPerPrompt, aiFromExport: ctx.aiFromExport, aiPastWh: ctx.aiPastWh };
+  const parts = spans.map((s) => lifetimeOffset(input, ["ai"], undefined, s).parts.ai.impacts);
+  const impacts = { carbon: 0, air: 0, water: 0, land: 0 };
+  for (const i of parts) for (const k of Object.keys(impacts) as (keyof typeof impacts)[]) impacts[k] += i[k];
+  return { impacts };
 }
 
 export function defaultAmount(p: Product, ctx: Context): number | string {
@@ -329,9 +332,9 @@ export function effectiveCover(
   return { past: p.oneTime && (picked.past ?? true), ahead };
 }
 
-/** Badge wording for a cover, e.g. "for life" or "to date + this month". */
+/** Badge wording for a cover, e.g. "for life" or "to date + each month". */
 export function coverBadge(c: Cover, billing: Billing): string {
-  const ahead = c.ahead === "lifetime" ? (c.past ? "for life" : "from today") : `this ${billing === "annual" ? "year" : "month"}`;
+  const ahead = c.ahead === "lifetime" ? (c.past ? "for life" : "all future use") : `each ${billing === "annual" ? "year" : "month"}`;
   return c.past && c.ahead === "monthly" ? `to date + ${ahead}` : ahead;
 }
 

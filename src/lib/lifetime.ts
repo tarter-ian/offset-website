@@ -53,6 +53,8 @@ export interface LifetimeInput {
   aiFromExport?: boolean;
   /** Average energy per prompt measured from an export, in Wh. */
   aiWhPerPrompt?: number;
+  /** Your actual AI use to date, measured from exports, in Wh. Replaces the estimate of past use. */
+  aiPastWh?: number;
   /** How many of each device you use at a time. */
   devices: Record<Device, number>;
 }
@@ -106,9 +108,9 @@ export type Span = "past" | "monthly" | "lifetime" | "future";
 
 export const SPANS: Record<Span, { label: string; badge: string; per: string; hint: string }> = {
   past: { label: "Past use", badge: "to date", per: "once", hint: "Everything up to today, in one payment." },
-  monthly: { label: "Ongoing", badge: "this year", per: "a year", hint: "Your use as it happens, billed yearly or monthly. Cancel anytime." },
+  monthly: { label: "Ongoing", badge: "each year", per: "a year", hint: "Your use as it happens, billed yearly or monthly. Cancel anytime." },
   lifetime: { label: "Lifetime", badge: "for life", per: "once", hint: "Everything so far and everything to come, in one payment." },
-  future: { label: "Lifetime", badge: "from today", per: "once", hint: "Everything from today on, in one payment." },
+  future: { label: "Lifetime", badge: "all future use", per: "once", hint: "Everything from today on, in one payment." },
 };
 export const SPAN_KEYS = Object.keys(SPANS) as Span[];
 // Lifetime prices above this get the choice of past use or monthly; lighter users just see lifetime.
@@ -158,7 +160,20 @@ export function lifetimeOffset(
     ((nonNeg(input.aiPromptsPerDay) * 365 * (input.aiWhPerPrompt ?? F.WH_PER_AI_PROMPT) + nonNeg(input.aiMediaPerWeek) * 52 * F.WH_PER_AI_MEDIA) /
       1000) *
     (1 + (input.aiFromExport ? MARGINS.measured : MARGINS.estimated));
-  const ai = add(zero, aiImpacts(aiKwhPerYear), years.ai);
+  // Past AI use is measured when an export covers it; otherwise it's today's rate since ChatGPT launched.
+  // Only chat is measured, so images stay estimated at today's rate.
+  const measuredPast = input.aiPastWh !== undefined;
+  const aiPastKwh = measuredPast
+    ? (input.aiPastWh! / 1000) * (1 + MARGINS.measured) +
+      ((nonNeg(input.aiMediaPerWeek) * 52 * F.WH_PER_AI_MEDIA) / 1000) * (1 + MARGINS.estimated) * pastAi
+    : aiKwhPerYear * pastAi;
+  const aiKwh =
+    span === "past"
+      ? aiPastKwh
+      : span === "lifetime" && measuredPast
+        ? aiPastKwh + aiKwhPerYear * futureYears * LIFETIME_GROWTH_BUFFER
+        : aiKwhPerYear * years.ai;
+  const ai = aiImpacts(aiKwh);
 
   // Devices: making each one you'd go through, plus the power to run it.
   let devices = zero;

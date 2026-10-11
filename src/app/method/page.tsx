@@ -30,6 +30,11 @@ const SOURCES = [
     name: "EPA benefit-per-ton estimates for vehicles (Wolfe et al. 2019)",
     url: "https://www.epa.gov/benmap/mobile-sector-source-apportionment-air-quality-and-benefits-ton",
   },
+  { name: "EPA, mortality risk valuation (value of a statistical life)", url: "https://19january2025snapshot.epa.gov/environmental-economics/mortality-risk-valuation" },
+  {
+    name: "Fann et al. 2012, national health burden of PM2.5 and ozone (life years lost)",
+    url: "https://ideas.repec.org/a/wly/riskan/v32y2012i1p81-95.html",
+  },
   { name: "EPA AP-42 natural gas combustion factors", url: "https://gaftp.epa.gov/ap42/ch01/s04/final/c1s4_2026.pdf" },
   {
     name: "Patterson et al. 2022, The Carbon Footprint of Machine Learning Training Will Plateau, Then Shrink",
@@ -67,7 +72,7 @@ const IMPACTS = [
   {
     name: "Air pollution",
     measure:
-      "The health damage, in dollars, from the NOx, SO₂ and fine particles released by power plants, cars and home furnaces, using EPA's per-ton estimates.",
+      `The harm to health from the NOx, SO₂ and fine particles released by power plants, cars and home furnaces, using EPA's per-ton estimates. Almost all of it is early deaths, so we show it as healthy life lost, shared across everyone who breathes the pollution: EPA values a statistical life at about $${(F.VSL_USD / 1e6).toFixed(0)} million, and each early death from fine particles costs about ${F.LIFE_YEARS_PER_AIR_DEATH} years of life, so $1 of damage is about ${F.MINUTES_OF_LIFE_PER_DAMAGE_USD.toFixed(2)} minutes.`,
     price: `We donate ${Math.round(AIR_DAMAGE_SHARE * 100)}% of that damage to clean-air work.`,
   },
   {
@@ -118,7 +123,7 @@ const ROWS = [
   },
   {
     category: "AI",
-    method: `About ${F.WH_PER_AI_PROMPT} Wh a chatbot prompt, plus its share of training the model, on the US grid, plus data center cooling water. If you add your ChatGPT or Claude data export, we measure each prompt instead: longer conversations, reasoning models and images all use more.`,
+    method: `About ${F.WH_PER_AI_PROMPT} Wh a chatbot prompt, plus its share of training the model, on the US grid, plus data center cooling water. If you add your ChatGPT, Claude or Gemini data export, we measure each prompt instead (longer conversations, reasoning models and images all use more), and your past use is your real history rather than today's rate since late 2022. Gemini's export lists prompts without their conversations, so long Gemini chats count as if each prompt started fresh.`,
   },
   {
     category: "Video streaming",

@@ -2,12 +2,13 @@ import { unzipSync, strFromU8 } from "fflate";
 import * as F from "../factors";
 
 // Reads the data export people can download from ChatGPT (Settings > Data
-// controls > Export data) or Claude (Settings > Privacy > Export data) and
+// controls > Export data), Claude (Settings > Privacy > Export data) or Gemini
+// (Google Takeout > My Activity > Gemini Apps, in JSON format) and
 // measures their use: prompts, how much text each turn read and wrote, which
 // model answered, and images made. Everything runs in the browser; the file is
 // never uploaded.
 
-export type AiProvider = "chatgpt" | "claude" | "openai-api" | "anthropic-api";
+export type AiProvider = "chatgpt" | "claude" | "gemini" | "openai-api" | "anthropic-api";
 
 export interface Turn {
   /** When the user sent the prompt (ms). */
@@ -34,6 +35,8 @@ export interface UsageSummary {
   /** Share of prompts answered by a reasoning model. */
   reasoningShare: number;
   windowDays: number;
+  /** All-time energy of every prompt in the export, in Wh. Missing for API usage, which only covers recent months. */
+  totalWh?: number;
 }
 
 type Part = string | { content_type?: string; text?: string } | null;
@@ -55,6 +58,18 @@ interface ClaudeMessage {
 interface ClaudeConversation {
   chat_messages?: ClaudeMessage[];
 }
+/** One entry of Google Takeout's My Activity, filtered to Gemini Apps. */
+interface GeminiActivity {
+  header?: string;
+  title?: string;
+  time?: string;
+  products?: string[];
+  safeHtmlItem?: { html?: string }[];
+}
+
+const isGemini = (a: GeminiActivity) =>
+  [a.header ?? "", ...(a.products ?? [])].some((x) => /gemini|bard/i.test(x));
+const stripHtml = (html: string) => html.replace(/<[^>]*>/g, " ").replace(/&[a-z#0-9]+;/gi, " ");
 
 const REASONING_SLUG = /^(o\d|gpt-5.*(thinking|pro)|.*reason)/i;
 const tokens = (text: string) => text.length / F.CHARS_PER_TOKEN;
@@ -145,15 +160,36 @@ export function parseExport(data: unknown): ExportUsage | null {
     return { provider: "claude", turns, images: [] };
   }
 
+  // Gemini's activity log lists each prompt on its own, without the conversation
+  // around it, so long chats are measured as if every prompt started fresh.
+  if ("header" in first || "products" in first) {
+    const turns: Turn[] = [];
+    for (const a of data as GeminiActivity[]) {
+      const time = a.time ? Date.parse(a.time) : NaN;
+      if (!isGemini(a) || !Number.isFinite(time) || !/^prompted/i.test(a.title ?? "")) continue;
+      const prompt = (a.title ?? "").replace(/^prompted\s*/i, "");
+      const reply = (a.safeHtmlItem ?? []).map((h) => stripHtml(h.html ?? "")).join("\n");
+      turns.push(
+        ...measure([
+          { role: "user", time, text: prompt },
+          { role: "ai", time, text: reply },
+        ]),
+      );
+    }
+    return turns.length ? { provider: "gemini", turns, images: [] } : null;
+  }
+
   return null;
 }
 
-/** Accepts the export's .zip or its conversations.json. */
+/** Accepts the export's .zip, its conversations.json, or Google Takeout's Gemini MyActivity.json. */
 export async function readExportFile(file: File): Promise<ExportUsage | null> {
   const bytes = new Uint8Array(await file.arrayBuffer());
   let text: string | undefined;
   if (file.name.toLowerCase().endsWith(".zip")) {
-    const entries = unzipSync(bytes, { filter: (f) => f.name.endsWith("conversations.json") });
+    const entries = unzipSync(bytes, {
+      filter: (f) => f.name.endsWith("conversations.json") || (/gemini/i.test(f.name) && f.name.endsWith(".json")),
+    });
     const entry = Object.values(entries)[0];
     if (!entry) return null;
     text = strFromU8(entry);
@@ -184,6 +220,7 @@ export function summarize(usage: ExportUsage[], now = Date.now(), windowDays = 9
     imagesPerWeek: (images.length / days) * 7,
     reasoningShare: recent.length ? recent.filter((t) => t.reasoning).length / recent.length : 0,
     windowDays: days,
+    totalWh: turns.reduce((s, t) => s + t.wh, 0),
   };
 }
 
@@ -200,6 +237,8 @@ export function combineSummaries(summaries: UsageSummary[]): UsageSummary | null
     imagesPerWeek: sum("imagesPerWeek"),
     reasoningShare: prompts ? summaries.reduce((s, x) => s + x.reasoningShare * x.promptsPerDay, 0) / prompts : 0,
     windowDays: Math.max(...summaries.map((s) => s.windowDays)),
+    // Only known when every linked source has its full history.
+    totalWh: summaries.every((s) => s.totalWh !== undefined) ? summaries.reduce((s, x) => s + x.totalWh!, 0) : undefined,
   };
 }
 
@@ -211,5 +250,6 @@ export function digitalFromExport(s: UsageSummary) {
     aiWhPerPrompt: s.promptsPerDay > 0 ? s.whPerDay / s.promptsPerDay : undefined,
     aiMediaPerWeek: Math.round(s.imagesPerWeek * 10) / 10,
     aiFromExport: true,
+    aiPastWh: s.totalWh,
   };
 }

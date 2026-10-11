@@ -9,6 +9,7 @@ import { STATE_OPTIONS, STATES, type StateCode } from "@/lib/data/states";
 import { IMPACT_INFO } from "@/lib/impacts";
 import { PROVIDERS, type ProviderId } from "@/lib/providers";
 import { digitalFromExport } from "@/lib/ai/exportParser";
+import { ONLINE_FROM_AGE } from "@/lib/factors";
 import {
   ANNUAL_FEE_MONTHS,
   ANNUAL_MIN_DONATION_USD,
@@ -73,9 +74,9 @@ const amountText = (p: Product, amount: number | string) =>
       }`
     : (p.amount.options.find((o) => o.value === amount)?.label ?? String(amount));
 const providerName = (id: ProviderId) => PROVIDERS.find((x) => x.id === id)?.name ?? id;
-const LIVE_LINKS = new Set<ProviderId>(["chatgpt", "claude", "openai-api", "anthropic-api"]);
+const LIVE_LINKS = new Set<ProviderId>(["chatgpt", "claude", "gemini", "openai-api", "anthropic-api"]);
 const LINK_ROW: { id: ProviderId; label: string }[] = [
-  { id: "chatgpt", label: "ChatGPT or Claude" },
+  { id: "chatgpt", label: "ChatGPT, Claude or Gemini" },
   { id: "utility", label: "Electric and gas utility" },
   { id: "bank", label: "Bank or card" },
   { id: "car", label: "Car" },
@@ -186,7 +187,7 @@ export function Store() {
               onClick={() => link(sources[0])}
               className="inline-flex min-h-10 items-center font-semibold text-accent underline underline-offset-4 hover:text-accent-strong"
             >
-              Link your {p.section === "ai" ? "ChatGPT or Claude" : providerName(sources[0]).toLowerCase()}
+              Link your {p.section === "ai" ? "AI account" : providerName(sources[0]).toLowerCase()}
             </button>
           )}
           <button
@@ -204,6 +205,13 @@ export function Store() {
         )}
       </div>
     );
+  };
+
+  /** Where the past-use figure comes from. */
+  const pastNote = (p: Product) => {
+    if (p.id === "ai" && ctx.aiPastWh !== undefined) return "your real history";
+    if (p.section === "ai") return "today's rate since ChatGPT launched in late 2022";
+    return `today's rate since you were ${ONLINE_FROM_AGE}, or 1995`;
   };
 
   /** Past use is a checkbox; going forward is ongoing or lifetime, one or the other. */
@@ -225,6 +233,7 @@ export function Store() {
           />
           <span>
             Include past use <span className="figures text-muted">({once(pastPrice)})</span>
+            <span className="text-muted"> · {pastNote(p)}</span>
           </span>
         </label>
         {options.length > 1 && (
@@ -301,7 +310,13 @@ export function Store() {
   const aiAmount = amountOf(ai);
   const aiCover = coverOf(ai);
   const aiPrice = coverPrice(ai, aiAmount, aiCover, ctx);
-  const ab = aiBreakdown(typeof aiAmount === "number" ? aiAmount : 0, ctx);
+  const ab = aiBreakdown(typeof aiAmount === "number" ? aiAmount : 0, ctx, aiCover);
+  const covers =
+    aiCover.ahead === "lifetime"
+      ? aiCover.past
+        ? "Lifetime"
+        : "All future use"
+      : `${aiCover.past ? "Past use + " : ""}${billing === "annual" ? "each year" : "each month"}`;
   const linkedSomething = ctx.aiFromExport;
 
   return (
@@ -313,7 +328,7 @@ export function Store() {
           </h1>
           <p className="mt-6 max-w-xl text-lg">
             Every prompt runs on data centers that burn power, pollute the air and use water, much of it in dry places.
-            Link your ChatGPT or Claude account and we measure your real use, down to how long your chats run and which
+            Link your ChatGPT, Claude or Gemini account and we measure your real use, down to how long your chats run and which
             models you pick. Then your money goes to charities that cut carbon, clean up air and save water.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3">
@@ -322,7 +337,7 @@ export function Store() {
               onClick={() => setMeasuring(true)}
               className="min-h-12 rounded-md bg-accent px-6 text-lg font-semibold text-on-accent hover:bg-accent-strong"
             >
-              {ctx.aiFromExport ? "Link another account" : "Link ChatGPT or Claude"}
+              {ctx.aiFromExport ? "Link another account" : "Link ChatGPT, Claude or Gemini"}
             </button>
             <button
               type="button"
@@ -337,7 +352,7 @@ export function Store() {
               <AiExportUpload
                 onResult={(s) => {
                   const d = digitalFromExport(s);
-                  setCtx((c) => ({ ...c, aiWhPerPrompt: d.aiWhPerPrompt, aiFromExport: true }));
+                  setCtx((c) => ({ ...c, aiWhPerPrompt: d.aiWhPerPrompt, aiFromExport: true, aiPastWh: d.aiPastWh }));
                   setAmounts((a) => ({ ...a, ai: d.aiPromptsPerDay, "ai-media": d.aiMediaPerWeek }));
                   setEntered((e) => ({ ...e, ai: false, "ai-media": false }));
                 }}
@@ -354,7 +369,7 @@ export function Store() {
           <div className="mt-3 border-b border-border pb-3">{amountLine(ai)}</div>
           <dl className="figures divide-y divide-border text-sm">
             {[
-              ["Years covered", `${ab.pastYears.toFixed(1)} so far + ${Math.round(ab.futureYears)} to come`],
+              ["Covers", covers],
               ...(["carbon", "air", "water"] as const).map((k) => [IMPACT_INFO[k].label, IMPACT_INFO[k].format(ab.impacts[k])]),
             ].map(([k, v]) => (
               <div key={k} className="flex justify-between gap-4 py-2">

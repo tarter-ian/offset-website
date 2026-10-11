@@ -67,6 +67,8 @@ export interface Answers {
     aiFromExport?: boolean;
     /** Average energy per prompt measured from an export, in Wh. */
     aiWhPerPrompt?: number;
+    /** All-time energy measured from exports, in Wh. */
+    aiPastWh?: number;
   };
 }
 

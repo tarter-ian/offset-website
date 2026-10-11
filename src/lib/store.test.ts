@@ -61,11 +61,18 @@ describe("covers", () => {
     expect(ahead.once).toBeLessThan(both.once);
   });
 
+  it("uses real AI history for past use when an export is linked", () => {
+    const linked = { ...C, aiFromExport: true, aiWhPerPrompt: 0.3, aiPastWh: 50 };
+    expect(p("ai").cost(10, "past", linked)).toBeLessThan(p("ai").cost(10, "past", C));
+    expect(p("ai").cost(10, "past", { ...linked, aiPastWh: 500_000 })).toBeGreaterThan(p("ai").cost(10, "past", C));
+    expect(p("ai").cost(10, "lifetime", linked)).toBeCloseTo(p("ai").cost(10, "past", linked) + p("ai").cost(10, "future", linked), 6);
+  });
+
   it("can pay past use once and the rest as it happens", () => {
     const t = planTotals([{ productId: "desktop", amount: 1, cover: { past: true, ahead: "monthly" } }], C, "monthly");
     expect(t.oneTime!.donation).toBe(Math.max(LIFETIME_MIN_DONATION_USD, Math.ceil(p("desktop").cost(1, "past", C))));
     expect(t.recurring).not.toBeNull();
-    expect(coverBadge({ past: true, ahead: "monthly" }, "monthly")).toBe("to date + this month");
+    expect(coverBadge({ past: true, ahead: "monthly" }, "monthly")).toBe("to date + each month");
     expect(coverBadge({ past: true, ahead: "lifetime" }, "monthly")).toBe("for life");
   });
 });

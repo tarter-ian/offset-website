@@ -94,6 +94,16 @@ export const WEEKS_PER_MONTH = 4.35;
 // ---------------------------------------------------------------------------
 // Air pollution: health damage in dollars.
 
+// Shown to people as healthy life lost rather than dollars. The damage values are
+// almost all early deaths, valued at EPA's value of a statistical life (about $10M
+// in the 2016 dollars they use; $7.4M in 2006 dollars). Each early death from fine
+// particles costs about 8.5 years of life (Fann et al. 2012: 1.1 million life years
+// over 130,000 deaths). So $1 of damage is roughly 0.45 minutes of life, spread
+// across everyone who breathes the pollution.
+export const VSL_USD = 10_000_000;
+export const LIFE_YEARS_PER_AIR_DEATH = 8.5;
+export const MINUTES_OF_LIFE_PER_DAMAGE_USD = (LIFE_YEARS_PER_AIR_DEATH * 365.25 * 24 * 60) / VSL_USD;
+
 /** Grams in a US short ton, the unit the damage values use. */
 export const G_PER_SHORT_TON = 907_185;
 export const LB_PER_SHORT_TON = 2000;

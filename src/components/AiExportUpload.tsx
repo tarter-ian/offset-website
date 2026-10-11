@@ -6,7 +6,7 @@ import { combineSummaries, readExportFile, summarize, type UsageSummary } from "
 import type { ApiProvider } from "@/lib/ai/usageApi";
 import { WH_PER_AI_PROMPT } from "@/lib/factors";
 
-const NAMES = { chatgpt: "ChatGPT", claude: "Claude", "openai-api": "OpenAI API", "anthropic-api": "Anthropic API" } as const;
+const NAMES = { chatgpt: "ChatGPT", claude: "Claude", gemini: "Gemini", "openai-api": "OpenAI API", "anthropic-api": "Anthropic API" } as const;
 
 function describe(s: UsageSummary): string {
   const perPrompt = s.promptsPerDay > 0 ? s.whPerDay / s.promptsPerDay : 0;
@@ -20,7 +20,7 @@ function describe(s: UsageSummary): string {
   return parts.filter(Boolean).join(" ");
 }
 
-/** Reads ChatGPT or Claude data exports in the browser and measures AI use. */
+/** Reads ChatGPT, Claude or Gemini data exports in the browser and measures AI use. */
 export function AiExportUpload({ onResult, showApi = true }: { onResult: (s: UsageSummary) => void; showApi?: boolean }) {
   const [status, setStatus] = useState<{ kind: "idle" | "reading" | "done" | "error"; text?: string }>({
     kind: "idle",
@@ -55,17 +55,28 @@ export function AiExportUpload({ onResult, showApi = true }: { onResult: (s: Usa
 
   return (
     <div className="rounded-xl border border-dashed border-border bg-card p-4">
-      <p className="font-medium">Use your ChatGPT or Claude data export</p>
+      <p className="font-medium">Use your ChatGPT, Claude or Gemini data export</p>
+      <ul className="mt-1 list-disc space-y-0.5 pl-5 text-sm text-muted">
+        <li>ChatGPT: Settings, Data controls, Export data.</li>
+        <li>Claude: Settings, Privacy, Export data.</li>
+        <li>
+          Gemini: on{" "}
+          <a href="https://takeout.google.com" target="_blank" rel="noreferrer" className="underline">
+            Google Takeout
+          </a>
+          , deselect all, pick My Activity, choose only Gemini Apps, and set the format to JSON.
+        </li>
+      </ul>
       <p className="mt-1 text-sm text-muted">
-        In ChatGPT, go to Settings, Data controls, Export data. In Claude, go to Settings, Privacy, Export data. Add the
-        .zip you get by email. We measure how much you use AI right in your browser; the file never leaves your device.
+        Add the .zip you get by email. We measure how much you use AI right in your browser; the file never leaves your
+        device.
       </p>
       <input
         type="file"
         accept=".zip,.json,application/zip,application/json"
         multiple
         onChange={(e) => handle(e.target.files)}
-        aria-label="ChatGPT or Claude data export"
+        aria-label="ChatGPT, Claude or Gemini data export"
         className="mt-3 block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-accent-soft file:px-3 file:py-2 file:font-medium file:text-accent"
       />
       {status.kind === "reading" && <p className="mt-2 text-sm text-muted">Reading…</p>}
