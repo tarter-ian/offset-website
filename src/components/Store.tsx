@@ -48,6 +48,7 @@ interface Saved {
   plan: string[];
   billing?: Billing | null;
   entered?: Record<string, boolean>;
+  pastAll?: boolean;
 }
 
 function load(): Saved | null {
@@ -67,6 +68,13 @@ function priceText(price: { once: number; monthly: number }, cover: Cover, billi
   if (cover.ahead === "monthly") parts.push(per(price.monthly, billing));
   return parts.join(" + ");
 }
+/** Fits a store tile: "$4.75 for life", "$7.00/mo" or "$80.74 + $0.34/mo". */
+function shortPrice(price: { once: number; monthly: number }, cover: Cover, billing: Billing) {
+  const unit = billing === "annual" ? "/yr" : "/mo";
+  const ongoing = usd(billing === "annual" ? price.monthly * 12 : price.monthly) + unit;
+  if (cover.ahead === "monthly") return price.once > 0 ? `${once(price.once)} + ${ongoing}` : ongoing;
+  return `${once(price.once)} ${cover.past ? "for life" : "once"}`;
+}
 const amountText = (p: Product, amount: number | string) =>
   p.amount.kind === "number"
     ? `${p.amount.prefix ?? ""}${typeof amount === "number" ? amount.toLocaleString("en-US") : amount} ${
@@ -74,6 +82,7 @@ const amountText = (p: Product, amount: number | string) =>
       }`
     : (p.amount.options.find((o) => o.value === amount)?.label ?? String(amount));
 const providerName = (id: ProviderId) => PROVIDERS.find((x) => x.id === id)?.name ?? id;
+const SHELF_SIZE = 4;
 const LIVE_LINKS = new Set<ProviderId>(["chatgpt", "claude", "gemini", "openai-api", "anthropic-api"]);
 const LINK_ROW: { id: ProviderId; label: string }[] = [
   { id: "chatgpt", label: "ChatGPT, Claude or Gemini" },
@@ -96,6 +105,10 @@ export function Store() {
   const [open, setOpen] = useState(false);
   const [checkout, setCheckout] = useState(false);
   const [measuring, setMeasuring] = useState(false);
+  // Past use is one switch for the whole plan; an item can still be changed on its own.
+  const [pastAll, setPastAllState] = useState(true);
+  const [details, setDetails] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const s = load();
@@ -107,21 +120,27 @@ export function Store() {
     setAnyway(s.anyway ?? {});
     setPlan(s.plan ?? []);
     setBilling(s.billing ?? null);
+    setPastAllState(s.pastAll ?? true);
   }, []);
 
   useEffect(() => {
     try {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ ctx, amounts, entered, picked, anyway, plan, billing: billingPick } satisfies Saved),
+        JSON.stringify({ ctx, amounts, entered, picked, anyway, plan, billing: billingPick, pastAll } satisfies Saved),
       );
     } catch {
       // Storage can be unavailable (private mode); the page still works.
     }
-  }, [ctx, amounts, entered, picked, anyway, plan, billingPick]);
+  }, [ctx, amounts, entered, picked, anyway, plan, billingPick, pastAll]);
 
   const amountOf = (p: Product) => amounts[p.id] ?? defaultAmount(p, ctx);
-  const coverOf = (p: Product) => effectiveCover(p, amountOf(p), ctx, picked[p.id], anyway[p.id]);
+  const coverOf = (p: Product) => effectiveCover(p, amountOf(p), ctx, { past: pastAll, ...picked[p.id] }, anyway[p.id]);
+  const setPastAll = (v: boolean) => {
+    setPastAllState(v);
+    setPicked((x) => Object.fromEntries(Object.entries(x).map(([id, c]) => [id, { ...c, past: undefined }])));
+  };
+  const setPast = (id: string, v: boolean) => setPicked((x) => ({ ...x, [id]: { ...x[id], past: v } }));
   const lines = plan.map((id) => {
     const p = PRODUCTS.find((x) => x.id === id)!;
     return { productId: id, amount: amountOf(p), cover: coverOf(p) };
@@ -215,7 +234,7 @@ export function Store() {
   };
 
   /** Past use is a checkbox; going forward is ongoing or lifetime, one or the other. */
-  const coverControls = (p: Product) => {
+  const coverControls = (p: Product, withPast = false) => {
     if (!p.oneTime) return null;
     const amount = amountOf(p);
     const cover = coverOf(p);
@@ -224,11 +243,12 @@ export function Store() {
     const pastPrice = p.cost(amount, "past", ctx);
     return (
       <div className="space-y-1 text-sm">
+        {withPast && (
         <label className="flex min-h-9 cursor-pointer items-center gap-2">
           <input
             type="checkbox"
             checked={cover.past}
-            onChange={(e) => setPicked((x) => ({ ...x, [p.id]: { ...x[p.id], past: e.target.checked } }))}
+            onChange={(e) => setPast(p.id, e.target.checked)}
             className="h-4 w-4 accent-[var(--accent)]"
           />
           <span>
@@ -236,6 +256,7 @@ export function Store() {
             <span className="text-muted"> · {pastNote(p)}</span>
           </span>
         </label>
+        )}
         {options.length > 1 && (
           <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={`How to cover ${p.name} from now on`}>
             {options.map((a) => (
@@ -272,39 +293,72 @@ export function Store() {
     );
   };
 
-  const addButton = (p: Product, wide = false) => {
+  const addButton = (p: Product, small = false) => {
     const inPlan = plan.includes(p.id);
     return (
       <button
         type="button"
         aria-pressed={inPlan}
+        aria-label={small ? `${inPlan ? "Remove" : "Offset"} ${p.name}` : undefined}
         onClick={() => toggle(p.id)}
-        className={`min-h-11 shrink-0 rounded-md px-4 font-semibold ${wide ? "w-full" : ""} ${
+        className={`min-h-11 shrink-0 rounded-md font-semibold ${small ? "w-full px-3" : "px-4"} ${
           inPlan ? "border-2 border-accent text-accent" : "bg-accent text-on-accent hover:bg-accent-strong"
         }`}
       >
-        {inPlan ? "✓ In your plan" : "Offset this"}
+        {inPlan ? (small ? "✓ Added" : "✓ In your plan") : small ? "Offset" : "Offset this"}
       </button>
     );
   };
 
-  const row = (p: Product) => {
+  /** A store tile: what it is, your amount, the price and a one-tap add. Details open below the shelf. */
+  const tile = (p: Product) => {
     const price = coverPrice(p, amountOf(p), coverOf(p), ctx);
+    const isOpen = details === p.id;
     return (
-      <li key={p.id} className="grid gap-3 border-b border-border py-4 sm:grid-cols-[minmax(0,1fr)_11rem_auto] sm:items-start">
-        <div className="space-y-1">
-          <div>
-            <h3 className="font-semibold">{p.name}</h3>
-            <p className="text-sm text-muted">{p.blurb}</p>
-          </div>
-          {amountLine(p)}
-          {coverControls(p)}
+      <li key={p.id} className={`flex flex-col rounded-md bg-card p-3 ${isOpen ? "outline-2 outline-rule" : ""}`}>
+        <button
+          type="button"
+          onClick={() => setDetails(isOpen ? null : p.id)}
+          aria-expanded={isOpen}
+          className="text-left"
+        >
+          <h3 className="font-semibold leading-snug">{p.name}</h3>
+          <span className="mt-0.5 block text-sm text-muted">
+            {amountText(p, amountOf(p))} · {sourceNote(p)}
+          </span>
+          <span className="mt-1 block text-sm font-medium underline underline-offset-4">{isOpen ? "Close" : "Details"}</span>
+        </button>
+        <div className="mt-auto flex flex-col gap-2 pt-3">
+          <span className="figures text-sm font-medium">{shortPrice(price, coverOf(p), billing)}</span>
+          {addButton(p, true)}
         </div>
-        <div className="figures font-medium sm:pt-0.5 sm:text-right">{priceText(price, coverOf(p), billing)}</div>
-        {addButton(p)}
       </li>
     );
   };
+
+  const detailPanel = (p: Product) => (
+    <li key={`${p.id}-details`} className="col-span-full border-y-2 border-rule py-4">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h3 className="text-lg font-bold">{p.name}</h3>
+          <p className="text-sm text-muted">{p.blurb}</p>
+        </div>
+        <button type="button" onClick={() => setDetails(null)} className="min-h-10 text-sm underline">
+          Close
+        </button>
+      </div>
+      <div className="mt-3 grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+        <div className="space-y-2">
+          {amountLine(p)}
+          {coverControls(p, true)}
+        </div>
+        <div className="flex items-center gap-4">
+          <span className="figures font-medium">{priceText(coverPrice(p, amountOf(p), coverOf(p), ctx), coverOf(p), billing)}</span>
+          {addButton(p)}
+        </div>
+      </div>
+    </li>
+  );
 
   const ai = PRODUCTS.find((p) => p.id === "ai")!;
   const aiAmount = amountOf(ai);
@@ -320,7 +374,7 @@ export function Store() {
   const linkedSomething = ctx.aiFromExport;
 
   return (
-    <div className="pb-32">
+    <div className="pb-20">
       <section className="grid gap-10 pt-10 pb-12 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-14 lg:pt-14">
         <div>
           <h1 className="font-display text-4xl leading-[1.05] font-extrabold [font-stretch:85%] sm:text-6xl">
@@ -382,7 +436,7 @@ export function Store() {
             Includes a share of training the models and building the data centers. Future use counts three times over in
             case it grows.
           </p>
-          <div className="mt-4">{coverControls(ai)}</div>
+          <div className="mt-4">{coverControls(ai, true)}</div>
           <div className="mt-4 flex items-center justify-between gap-4 border-t-2 border-rule pt-3">
             <span className="figures text-2xl font-medium">{priceText(aiPrice, aiCover, billing)}</span>
             {addButton(ai)}
@@ -390,79 +444,75 @@ export function Store() {
         </aside>
       </section>
 
-      <section aria-labelledby="link-heading" className="mb-14 bg-card px-4 py-6 sm:px-6">
-        <h2 id="link-heading" className="text-2xl font-bold">
-          {linkedSomething ? "Link the rest" : "Swap our typical amounts for yours"}
-        </h2>
-        <p className="mt-1 max-w-2xl text-muted">
-          Each account you link replaces a guess with your real numbers. Everything is read-only, and you can unlink any
-          time.
-        </p>
-        <ul className="mt-4 flex flex-wrap gap-2">
+      <section aria-label="Link accounts" className="mb-6 border-y border-border py-3 text-sm">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
+          <span className="font-semibold">{linkedSomething ? "Link the rest:" : "Fill in your real numbers:"}</span>
           {LINK_ROW.map((l) => {
             const done = l.id === "chatgpt" && ctx.aiFromExport;
             return (
-              <li key={l.id}>
-                <button
-                  type="button"
-                  onClick={() => link(l.id)}
-                  className={`min-h-11 rounded-md border-2 px-4 font-semibold ${
-                    done ? "border-accent text-accent" : "border-rule bg-background hover:bg-foreground hover:text-background"
-                  }`}
-                >
-                  {done ? `✓ ${l.label}` : l.label}
-                </button>
-              </li>
+              <button
+                key={l.id}
+                type="button"
+                onClick={() => link(l.id)}
+                className={`inline-flex min-h-10 items-center underline underline-offset-4 ${done ? "text-accent" : "hover:text-accent"}`}
+              >
+                {done ? `✓ ${l.label}` : l.label}
+              </button>
             );
           })}
-        </ul>
+        </div>
         {asked.length > 0 && (
-          <p className="mt-3 text-sm text-muted">
-            Linking your {asked.map((a) => providerName(a).toLowerCase()).join(" and ")} opens at launch. Until then the
-            items below use typical amounts for {STATES[ctx.state].name}.
+          <p className="text-muted">
+            Linking your {asked.map((a) => providerName(a).toLowerCase()).join(" and ")} opens at launch. Until then we use
+            typical amounts for {STATES[ctx.state].name}.
           </p>
         )}
-        <div className="mt-5 flex flex-wrap items-end gap-4 border-t border-border pt-4 text-sm">
-          <label className="block">
-            <span className="block font-medium">Born in</span>
-            <span className="mt-1 block w-28">
-              <NumberInput
-                label="Birth year"
-                min={1900}
-                value={ctx.birthYear}
-                onChange={(n) => setCtx((c) => ({ ...c, birthYear: n ?? DEFAULT_CONTEXT.birthYear }))}
-              />
-            </span>
-          </label>
-          <label className="block w-52">
-            <span className="block font-medium">State</span>
-            <span className="mt-1 block">
-              <Select
-                label="State"
-                value={ctx.state}
-                onChange={(v) => setCtx((c) => ({ ...c, state: v as StateCode }))}
-                options={STATE_OPTIONS.map((s) => ({ value: s.code, label: s.name }))}
-              />
-            </span>
-          </label>
-          <p className="max-w-xs text-muted">Your age sets how many years a lifetime offset covers. Your state sets how clean your power is.</p>
-        </div>
       </section>
+
+      <nav aria-label="Aisles" className="sticky top-0 z-20 -mx-4 mb-8 border-b-2 border-rule bg-background px-4">
+        <ul className="flex gap-1 overflow-x-auto py-2 text-sm font-semibold [scrollbar-width:none]">
+          {SECTIONS.map((s) => (
+            <li key={s.key}>
+              <a href={`#section-${s.key}`} className="inline-flex min-h-10 items-center rounded-md px-3 whitespace-nowrap hover:bg-card">
+                {s.title}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
 
       {SECTIONS.map((s) => {
         const items = PRODUCTS.filter((p) => p.section === s.key && p.id !== "ai");
         if (!items.length) return null;
+        const shown = expanded[s.key] ? items : items.slice(0, SHELF_SIZE);
+        const hidden = items.length - shown.length;
+        // Keep an open item's details visible even if the shelf is collapsed.
+        const openItem = items.find((p) => p.id === details);
         return (
-          <section key={s.key} className="mb-12" aria-labelledby={`section-${s.key}`}>
-            <div className="flex flex-col gap-1 border-b-2 border-rule pb-2 sm:flex-row sm:items-baseline sm:gap-4">
-              <h2 id={`section-${s.key}`} className="text-2xl font-bold">
-                {s.title}
-              </h2>
-              <p className="text-muted">{s.blurb}</p>
+          <section key={s.key} id={`section-${s.key}`} className="mb-10 scroll-mt-16" aria-labelledby={`heading-${s.key}`}>
+            <div className="mb-3 flex items-baseline justify-between gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-3">
+                <h2 id={`heading-${s.key}`} className="text-2xl font-bold">
+                  {s.title}
+                </h2>
+                <p className="text-sm text-muted">{s.blurb}</p>
+              </div>
+              {items.length > SHELF_SIZE && (
+                <button
+                  type="button"
+                  onClick={() => setExpanded((x) => ({ ...x, [s.key]: !x[s.key] }))}
+                  className="inline-flex min-h-10 shrink-0 items-center text-sm font-semibold underline underline-offset-4"
+                >
+                  {hidden > 0 ? `See all ${items.length}` : "See fewer"}
+                </button>
+              )}
             </div>
-            <ul>{items.map(row)}</ul>
+            <ul className="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-3">
+              {shown.map(tile)}
+              {openItem && detailPanel(openItem)}
+            </ul>
             {(s.key === "online" || s.key === "devices") && (
-              <p className="mt-3 text-sm text-muted">
+              <p className="mt-2 text-xs text-muted">
                 No account can measure this yet, so it starts from typical use.
                 {s.key === "devices" && " Not counted: water and land used to mine and make devices, and e-waste."}
               </p>
@@ -484,10 +534,21 @@ export function Store() {
                 </div>
                 <ul className="mt-2 divide-y divide-border">
                   {totals.lines.map((l) => (
-                    <li key={l.productId} className="flex items-center justify-between gap-3 py-2 text-sm">
+                    <li key={l.productId} className="flex items-center justify-between gap-3 py-1.5 text-sm">
                       <span>
                         <span className="font-medium">{l.product.name}</span>{" "}
                         <span className="text-muted">· {coverBadge(l.cover, billing)}</span>
+                        {l.product.oneTime && (
+                          <label className="ml-3 inline-flex min-h-9 cursor-pointer items-center gap-1.5 text-muted">
+                            <input
+                              type="checkbox"
+                              checked={l.cover.past}
+                              onChange={(e) => setPast(l.productId, e.target.checked)}
+                              className="h-4 w-4 accent-[var(--accent)]"
+                            />
+                            past use
+                          </label>
+                        )}
                       </span>
                       <span className="flex items-center gap-3">
                         <span className="figures">
@@ -505,6 +566,43 @@ export function Store() {
                     </li>
                   ))}
                 </ul>
+                <div className="mt-3 flex flex-wrap items-end gap-x-6 gap-y-3 border-t border-border pt-3 text-sm">
+                  <label className="inline-flex min-h-10 cursor-pointer items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={pastAll}
+                      onChange={(e) => setPastAll(e.target.checked)}
+                      className="h-4 w-4 accent-[var(--accent)]"
+                    />
+                    <span>
+                      <span className="font-medium">Include past use</span>
+                      <span className="text-muted"> on every item that has it</span>
+                    </span>
+                  </label>
+                  <label className="block">
+                    <span className="block text-muted">Born in</span>
+                    <span className="mt-1 block w-24">
+                      <NumberInput
+                        label="Birth year"
+                        min={1900}
+                        value={ctx.birthYear}
+                        onChange={(n) => setCtx((c) => ({ ...c, birthYear: n ?? DEFAULT_CONTEXT.birthYear }))}
+                      />
+                    </span>
+                  </label>
+                  <label className="block w-48">
+                    <span className="block text-muted">State</span>
+                    <span className="mt-1 block">
+                      <Select
+                        label="State"
+                        value={ctx.state}
+                        onChange={(v) => setCtx((c) => ({ ...c, state: v as StateCode }))}
+                        options={STATE_OPTIONS.map((s) => ({ value: s.code, label: s.name }))}
+                      />
+                    </span>
+                  </label>
+                  <p className="max-w-56 text-xs text-muted">Age sets how many years lifetime covers; state sets how clean your power is.</p>
+                </div>
                 <dl className="figures mt-3 space-y-1 border-t border-border pt-3 text-sm">
                   {totals.oneTime && (
                     <div className="flex justify-between gap-4">
@@ -561,13 +659,21 @@ export function Store() {
                 )}
               </div>
             )}
-            <div className="flex items-center justify-between gap-3 py-3">
-              <button type="button" onClick={() => setOpen((o) => !o)} className="text-left text-sm">
+            <div className="flex items-center justify-between gap-3 py-1.5">
+              <button
+                type="button"
+                onClick={() => setOpen((o) => !o)}
+                aria-expanded={open}
+                className="flex min-h-11 flex-wrap items-baseline gap-x-3 text-left text-sm"
+              >
                 <span className="font-semibold">
-                  Your plan · {plan.length} {plan.length === 1 ? "item" : "items"}
+                  {open ? "▾" : "▴"} Your plan · {plan.length}
                 </span>
-                <span className="figures block text-muted">
-                  {[totals.oneTime && `${usd(totals.oneTime.total)} once`, totals.recurring && `${usd(totals.recurring.total)} ${BILLING[billing].per}`]
+                <span className="figures text-muted">
+                  {[
+                    totals.oneTime && `${usd(totals.oneTime.total)} once`,
+                    totals.recurring && `${usd(totals.recurring.total)}${billing === "annual" ? "/yr" : "/mo"}`,
+                  ]
                     .filter(Boolean)
                     .join(" + ")}
                 </span>
@@ -578,7 +684,7 @@ export function Store() {
                   setOpen(true);
                   setCheckout(true);
                 }}
-                className="min-h-11 shrink-0 rounded-md bg-accent px-5 font-semibold text-on-accent hover:bg-accent-strong"
+                className="min-h-11 shrink-0 rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-strong"
               >
                 Offset these
               </button>
