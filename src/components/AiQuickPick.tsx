@@ -153,7 +153,7 @@ export function AiQuickPick({
           </div>
           <p className="mt-2 text-sm text-muted">
             The Offset extension checks ChatGPT, Claude, Gemini and YouTube in the background, where you&apos;re already logged in, and
-            brings back your last 30 days. Only counts reach us, never your chats.{" "}
+            brings back your last 30 days. Only counts come back, never your chats.{" "}
             <a href="/extension" className="underline hover:text-foreground">
               How it works
             </a>
