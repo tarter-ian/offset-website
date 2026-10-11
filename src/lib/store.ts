@@ -11,6 +11,7 @@ import {
   type Span,
 } from "./lifetime";
 import type { ProviderId } from "./providers";
+import type { AiLevel } from "./ai/levels";
 import {
   type Billing,
   DEFAULT_BILLING,
@@ -48,6 +49,8 @@ export interface Context {
   aiFromExport?: boolean;
   /** All-time AI chat energy from linked exports, in Wh. */
   aiPastWh?: number;
+  /** A quick AI estimate: a picked level, or the plan from a sign-in. */
+  aiEstimate?: { level: AiLevel; from: string };
 }
 
 export const DEFAULT_CONTEXT: Context = { birthYear: DEFAULT_LIFETIME_INPUT.birthYear, state: DEFAULT_ANSWERS.state };

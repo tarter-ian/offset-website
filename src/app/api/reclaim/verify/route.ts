@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { verifyProof, type Proof, type ProviderVersionInfo } from "@reclaimprotocol/js-sdk";
-import { checkSessionToken, isReclaimService, reclaimConfig, reclaimEvents } from "@/lib/reclaim";
+import { checkSessionToken, isReclaimService, RECLAIM_SERVICES, reclaimAiPlan, reclaimConfig, reclaimEvents } from "@/lib/reclaim";
 
 // Checks a proof from a sign-in we started and returns the activity in it. Nothing is stored.
 export async function POST(req: Request) {
@@ -25,6 +25,10 @@ export async function POST(req: Request) {
     if (!isVerified) return NextResponse.json({ error: "We couldn't verify that sign-in." }, { status: 400 });
     const ok = data.every((d) => checkSessionToken(token, String(d.context.reclaimSessionId ?? ""), service, version, cfg.secret));
     if (!ok) return NextResponse.json({ error: "That sign-in didn't start here." }, { status: 400 });
+    if (RECLAIM_SERVICES[service].kind === "ai") {
+      const plan = data.map((d, i) => reclaimAiPlan(d.extractedParameters ?? {}, publicData[i])).find(Boolean);
+      return plan ? NextResponse.json(plan) : NextResponse.json({ error: "We couldn't see which plan you're on." }, { status: 422 });
+    }
     return NextResponse.json({ events: data.flatMap((d, i) => reclaimEvents(service, d.extractedParameters ?? {}, publicData[i])) });
   } catch {
     return NextResponse.json({ error: "We couldn't verify that sign-in." }, { status: 502 });

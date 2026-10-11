@@ -1,20 +1,26 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { ActivityEvent } from "./activity";
 import { parseNetflix } from "./activity";
+import { levelForPlan, type AiLevel } from "./ai/levels";
 
-// Signing in to Spotify, YouTube, Netflix or Uber through Reclaim Protocol
+// Signing in to Spotify, YouTube, Netflix, Uber or an AI service through Reclaim Protocol
 // (https://docs.reclaimprotocol.org). The person signs in on their own device;
 // Reclaim returns a signed proof of the data, which the server checks before
 // using it. Needs RECLAIM_APP_ID, RECLAIM_APP_SECRET and one provider id per
 // service, all as environment variables; a service without its id stays off.
 
 export const RECLAIM_SERVICES = {
-  netflix: { name: "Netflix", env: "RECLAIM_PROVIDER_NETFLIX" },
-  youtube: { name: "YouTube", env: "RECLAIM_PROVIDER_YOUTUBE" },
-  spotify: { name: "Spotify", env: "RECLAIM_PROVIDER_SPOTIFY" },
-  uber: { name: "Uber", env: "RECLAIM_PROVIDER_UBER" },
+  netflix: { name: "Netflix", env: "RECLAIM_PROVIDER_NETFLIX", kind: "activity" },
+  youtube: { name: "YouTube", env: "RECLAIM_PROVIDER_YOUTUBE", kind: "activity" },
+  spotify: { name: "Spotify", env: "RECLAIM_PROVIDER_SPOTIFY", kind: "activity" },
+  uber: { name: "Uber", env: "RECLAIM_PROVIDER_UBER", kind: "activity" },
+  // These prove only the account and its plan, not how much it's used.
+  chatgpt: { name: "ChatGPT", env: "RECLAIM_PROVIDER_CHATGPT", kind: "ai" },
+  claude: { name: "Claude", env: "RECLAIM_PROVIDER_CLAUDE", kind: "ai" },
+  perplexity: { name: "Perplexity", env: "RECLAIM_PROVIDER_PERPLEXITY", kind: "ai" },
 } as const;
 export type ReclaimService = keyof typeof RECLAIM_SERVICES;
+export type ReclaimKind = (typeof RECLAIM_SERVICES)[ReclaimService]["kind"];
 
 export const isReclaimService = (s: unknown): s is ReclaimService => typeof s === "string" && s in RECLAIM_SERVICES;
 
@@ -25,7 +31,26 @@ export function reclaimConfig(service: ReclaimService) {
   return appId && secret && providerId ? { appId, secret, providerId } : null;
 }
 
-export const enabledReclaimServices = () => (Object.keys(RECLAIM_SERVICES) as ReclaimService[]).filter((s) => reclaimConfig(s));
+export const enabledReclaimServices = (kind?: ReclaimKind) =>
+  (Object.keys(RECLAIM_SERVICES) as ReclaimService[]).filter((s) => (!kind || RECLAIM_SERVICES[s].kind === kind) && reclaimConfig(s));
+
+const PLAN_KEYS = ["membershipTier", "membership_tier", "tier", "plan", "planType", "plan_type", "subscription", "subscriptionStatus", "subscription_status", "currentPlan", "accountType"];
+
+/** The plan an AI sign-in proved, like "plus" or "free", and the usage level it suggests. */
+export function reclaimAiPlan(params: Record<string, string>, publicData?: unknown): { plan: string; level: AiLevel } | null {
+  let pub: unknown = publicData;
+  if (typeof pub === "string") {
+    try {
+      pub = JSON.parse(pub);
+    } catch {
+      pub = null;
+    }
+  }
+  const found = [params, isObj(pub) ? pub : {}].map((r) => pick(r, PLAN_KEYS)).find((v) => v !== undefined);
+  if (found === undefined) return null;
+  const plan = typeof found === "boolean" ? (found ? "paid" : "free") : String(found).trim();
+  return plan ? { plan, level: levelForPlan(plan) } : null;
+}
 
 /** A token tying a proof to a session this server started, so a proof from someone else's session is refused. */
 export function sessionToken(sessionId: string, service: ReclaimService, version: string, secret: string) {

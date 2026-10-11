@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { ActivityUpload } from "./ActivityUpload";
 import { AiExportUpload } from "./AiExportUpload";
+import { AiQuickPick } from "./AiQuickPick";
+import { AI_LEVELS } from "@/lib/ai/levels";
 import { Badge } from "./Badge";
 import { NumberInput, Select } from "./fields";
 import { WaitlistForm } from "./WaitlistForm";
@@ -197,6 +199,7 @@ export function Store() {
   const sourceNote = (p: Product) => {
     if (entered[p.id]) return "you entered";
     if (p.section === "ai" && ctx.aiFromExport) return "measured from your account";
+    if (p.id === "ai" && ctx.aiEstimate) return ctx.aiEstimate.from;
     if (linkedFrom[p.id]) return `from your ${linkedFrom[p.id].map((s) => SOURCE_NAMES[s]).join(" and ")} history`;
     if (p.id === "electricity") return `typical for ${STATES[ctx.state].name}`;
     return "typical";
@@ -550,31 +553,25 @@ export function Store() {
           </h1>
           <p className="mt-6 max-w-xl text-lg">
             Every prompt runs on data centers that burn power, pollute the air and use water, much of it in dry places.
-            Link your ChatGPT, Claude or Gemini account and we measure your real use, down to how long your chats run and which
-            models you pick. Then your money goes to charities that cut carbon, clean up air and save water.
+            Your money goes to charities that cut carbon, clean up air and save water.
           </p>
-          <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3">
-            <button
-              type="button"
-              onClick={() => setMeasuring(true)}
-              className="min-h-12 rounded-md bg-accent px-6 text-lg font-semibold text-on-accent hover:bg-accent-strong"
-            >
-              {ctx.aiFromExport ? "Link another account" : "Link ChatGPT, Claude or Gemini"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setEditing("ai")}
-              className="min-h-12 text-muted underline underline-offset-4 hover:text-foreground"
-            >
-              Or type in how much you use it
-            </button>
+          <div className="mt-8 max-w-xl">
+            <AiQuickPick
+              level={ctx.aiFromExport || entered.ai ? null : (ctx.aiEstimate?.level ?? null)}
+              onPick={(level, from) => {
+                setCtx((c) => ({ ...c, aiEstimate: { level, from }, aiFromExport: false, aiWhPerPrompt: undefined, aiPastWh: undefined }));
+                setAmounts((a) => ({ ...a, ai: AI_LEVELS[level].promptsPerDay }));
+                setEntered((e) => ({ ...e, ai: false }));
+              }}
+              onExact={() => setMeasuring(true)}
+            />
           </div>
           {measuring && (
             <div className="mt-6 max-w-xl">
               <AiExportUpload
                 onResult={(s) => {
                   const d = digitalFromExport(s);
-                  setCtx((c) => ({ ...c, aiWhPerPrompt: d.aiWhPerPrompt, aiFromExport: true, aiPastWh: d.aiPastWh }));
+                  setCtx((c) => ({ ...c, aiWhPerPrompt: d.aiWhPerPrompt, aiFromExport: true, aiPastWh: d.aiPastWh, aiEstimate: undefined }));
                   setAmounts((a) => ({ ...a, ai: d.aiPromptsPerDay, "ai-media": d.aiMediaPerWeek }));
                   setEntered((e) => ({ ...e, ai: false, "ai-media": false }));
                 }}
