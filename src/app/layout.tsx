@@ -24,8 +24,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               <Link href="/promises" className="hover:text-foreground">
                 Our promises
               </Link>
-              <Link href="/estimate" className="font-medium text-accent hover:text-accent-strong">
-                Get your estimate
+              <Link href="/start" className="font-medium text-accent hover:text-accent-strong">
+                Get started
               </Link>
             </div>
           </nav>

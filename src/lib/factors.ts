@@ -137,3 +137,15 @@ export const FOOD_SHARES = {
 
 // How goods and services split.
 export const SHOPPING_SHARES = { clothing: 0.15, electronics: 0.15, household: 0.15, services: 0.55 } as const;
+
+// ---------------------------------------------------------------------------
+// Lifetime internet and AI.
+
+// Video makes up most internet traffic; we scale streaming up to cover the rest
+// of a person's internet use (approximate share).
+export const VIDEO_SHARE_OF_INTERNET = 0.7;
+// Years we count back to: mainstream home internet and ChatGPT's launch.
+export const INTERNET_START_YEAR = 1995;
+export const AI_START_YEAR = 2022.9;
+export const ONLINE_FROM_AGE = 12;
+export const LIFETIME_TO_AGE = 85;

@@ -6,6 +6,8 @@ import {
   CARBON_MODES,
   type CarbonMode,
   FEE_PER_AREA_USD,
+  LIFETIME_FEE_USD,
+  LIFETIME_GROWTH_BUFFER,
   MAX_FEE_USD,
   MIN_DONATION_USD,
   usd,
@@ -156,6 +158,15 @@ export default function MethodPage() {
       <p className="mt-2 text-muted">
         Our fee is {usd(FEE_PER_AREA_USD)} for each area you cover (home, travel, food, shopping or digital), up to {usd(MAX_FEE_USD)} a month. Donations
         under {usd(MIN_DONATION_USD)} are rounded up to {usd(MIN_DONATION_USD)}, and all of it goes to the charities.
+      </p>
+
+      <h2 className="mt-10 text-xl font-semibold">Lifetime internet and AI</h2>
+      <p className="mt-2 text-muted">
+        The one-time lifetime offset counts your internet use from age {F.ONLINE_FROM_AGE} (or {F.INTERNET_START_YEAR}, whichever is later) and your AI
+        use from late 2022, both at today&apos;s rates, through age {F.LIFETIME_TO_AGE}. Video is about {Math.round(F.VIDEO_SHARE_OF_INTERNET * 100)}% of
+        internet traffic, so we scale your streaming up to cover the rest. Future internet use counts at today&apos;s rate, since networks get more
+        efficient about as fast as use grows; future AI use counts at {LIFETIME_GROWTH_BUFFER} times today&apos;s rate in case it keeps growing. The
+        price uses expected-impact climate pricing, plus a one-time {usd(LIFETIME_FEE_USD)} fee.
       </p>
 
       <h2 className="mt-10 text-xl font-semibold">What &ldquo;Fully Offset&rdquo; means</h2>
