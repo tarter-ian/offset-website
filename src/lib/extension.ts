@@ -2,7 +2,7 @@
 // content script on our pages answers window messages: it opens each service
 // in a background tab where the person is already logged in, counts the last
 // 30 days, closes the tab and sends back only the counts. The contract is in
-// extension/README.md.
+// the README of github.com/tarter-ian/offset-extension.
 
 export type ExtensionService = "chatgpt" | "claude" | "gemini" | "youtube";
 export const EXTENSION_SERVICES: ExtensionService[] = ["chatgpt", "claude", "gemini", "youtube"];
@@ -16,15 +16,13 @@ const EXT = "offset-extension";
 
 type ExtMessage = {
   source: typeof EXT;
-  type: "ready" | "started" | "usage" | "error";
+  type: "ready" | "started" | "counting" | "usage" | "error";
   version?: string;
   requestId?: string;
   service?: ExtensionService;
   services?: ExtensionService[];
   /** Services the person is being asked to allow before they're counted. */
   needsPermission?: ExtensionService[];
-  /** On a second "started": the person allowed access and these services are now counting. */
-  allowed?: boolean;
   usage?: unknown;
   error?: string;
 };
@@ -89,8 +87,12 @@ export function measure(services: ExtensionService[], handlers: MeasureHandlers,
       return;
     }
     if (m.type === "started") {
-      if (m.allowed && Array.isArray(m.services)) handlers.onCounting?.(m.services.filter((s) => waiting.has(s)));
-      else if (Array.isArray(m.needsPermission) && m.needsPermission.length) handlers.onAsking?.(m.needsPermission.filter((s) => waiting.has(s)));
+      if (Array.isArray(m.needsPermission) && m.needsPermission.length) handlers.onAsking?.(m.needsPermission.filter((s) => waiting.has(s)));
+      return;
+    }
+    // The person allowed access and this service's count has begun.
+    if (m.type === "counting") {
+      if (m.service && waiting.has(m.service)) handlers.onCounting?.([m.service]);
       return;
     }
     if (!m.service || !waiting.has(m.service)) return;
