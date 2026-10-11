@@ -114,7 +114,11 @@ export default function ExtensionPage() {
       </dl>
 
       <p className="mt-8 text-muted">
-        More on what we keep and how to delete it on{" "}
+        The extension&apos;s code is public, so anyone can check what it does:{" "}
+        <a href="https://github.com/tarter-ian/offset-extension" target="_blank" rel="noreferrer" className="text-accent hover:underline">
+          github.com/tarter-ian/offset-extension
+        </a>
+        . More on what we keep and how to delete it on{" "}
         <Link href="/data" className="text-accent hover:underline">
           Your data
         </Link>

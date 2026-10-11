@@ -23,6 +23,8 @@ type ExtMessage = {
   services?: ExtensionService[];
   /** Services the person is being asked to allow before they're counted. */
   needsPermission?: ExtensionService[];
+  /** On a second "started": the person allowed access and these services are now counting. */
+  allowed?: boolean;
   usage?: unknown;
   error?: string;
 };
@@ -55,6 +57,8 @@ export interface MeasureHandlers {
   onError: (service: ExtensionService, error: ExtensionError) => void;
   /** Services waiting on the person to allow access in the extension's own window. */
   onAsking?: (services: ExtensionService[]) => void;
+  /** Services that were allowed and are now counting. */
+  onCounting?: (services: ExtensionService[]) => void;
   /** Called once every service has answered. */
   onDone?: () => void;
 }
@@ -84,8 +88,9 @@ export function measure(services: ExtensionService[], handlers: MeasureHandlers,
       }
       return;
     }
-    if (m.type === "started" && Array.isArray(m.needsPermission) && m.needsPermission.length) {
-      handlers.onAsking?.(m.needsPermission.filter((s) => waiting.has(s)));
+    if (m.type === "started") {
+      if (m.allowed && Array.isArray(m.services)) handlers.onCounting?.(m.services.filter((s) => waiting.has(s)));
+      else if (Array.isArray(m.needsPermission) && m.needsPermission.length) handlers.onAsking?.(m.needsPermission.filter((s) => waiting.has(s)));
       return;
     }
     if (!m.service || !waiting.has(m.service)) return;

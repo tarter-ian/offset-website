@@ -92,6 +92,7 @@ export function AiQuickPick({
         },
         onError: (service, error) => setRows((r) => ({ ...r, [service]: { state: "error", error } })),
         onAsking: (asked) => setRows((r) => ({ ...r, ...Object.fromEntries(asked.map((x) => [x, { state: "asking" }])) })),
+        onCounting: (allowed) => setRows((r) => ({ ...r, ...Object.fromEntries(allowed.map((x) => [x, { state: "counting" }])) })),
       },
       inFront,
     );
@@ -168,7 +169,7 @@ export function AiQuickPick({
                     <dt className="font-semibold">{EXT_NAMES[x]}</dt>
                     <dd>
                       {r.state === "counting" && <span className="text-muted">Counting…</span>}
-                      {r.state === "asking" && <span className="text-muted">Allow it in the Offset window, then it counts…</span>}
+                      {r.state === "asking" && <span className="text-muted">Waiting for you to allow it in the Offset window…</span>}
                       {r.state === "done" && r.text}
                       {r.state === "error" && (
                         <span>
