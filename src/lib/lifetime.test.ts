@@ -59,6 +59,30 @@ describe("lifetimeOffset", () => {
   });
 });
 
+describe("spans", () => {
+  it("prices past use below lifetime, and monthly as a small recurring amount", () => {
+    const heavy = { ...typical, aiPromptsPerDay: 100, aiWhPerPrompt: 3 };
+    const past = lifetimeOffset(heavy, ["ai"], now, "past");
+    const life = lifetimeOffset(heavy, ["ai"], now, "lifetime");
+    const month = lifetimeOffset(heavy, ["ai"], now, "monthly");
+    expect(past.donation).toBeLessThan(life.donation);
+    expect(month.total).toBeLessThan(past.total);
+    expect(month.fee).toBe(1);
+    expect(month.donation).toBeGreaterThanOrEqual(1);
+  });
+
+  it("charges $1 a month per item, up to the monthly cap", () => {
+    expect(lifetimeOffset(typical, ["ai", "internet", "devices"], now, "monthly").fee).toBe(3);
+  });
+
+  it("makes a year of monthly payments add up to a year of use", () => {
+    const month = lifetimeOffset(typical, ["internet"], now, "monthly");
+    const life = lifetimeOffset(typical, ["internet"], now, "lifetime");
+    const years = life.pastYears.internet + life.futureYears;
+    expect(month.parts.internet.cost * 12 * years).toBeCloseTo(life.parts.internet.cost, 6);
+  });
+});
+
 describe("parseItems", () => {
   it("reads one or more items and falls back to all", () => {
     expect(parseItems("ai")).toEqual(["ai"]);

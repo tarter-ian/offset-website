@@ -1,6 +1,14 @@
 import * as F from "./factors";
 import { dataCenterImpacts, gridImpacts, IMPACT_KEYS, MARGINS, type Impacts } from "./footprint";
-import { impactCost, LIFETIME_FEE_USD, LIFETIME_GROWTH_BUFFER, LIFETIME_MIN_DONATION_USD } from "./pricing";
+import {
+  FEE_PER_AREA_USD,
+  impactCost,
+  LIFETIME_FEE_USD,
+  LIFETIME_GROWTH_BUFFER,
+  LIFETIME_MIN_DONATION_USD,
+  MAX_FEE_USD,
+  MIN_DONATION_USD,
+} from "./pricing";
 
 // One-time offsets for everything someone has done and will do online, sold as
 // three items: internet, AI and devices. Past years count at today's rate.
@@ -64,6 +72,7 @@ export interface LifetimePart {
 }
 
 export interface LifetimeOffset {
+  span: Span;
   items: LifetimeItem[];
   parts: Record<LifetimeItem, LifetimePart>;
   /** Unrounded donation per internet activity. */
@@ -92,14 +101,41 @@ export function parseItems(value?: string): LifetimeItem[] {
   return items.length ? ITEM_KEYS.filter((k) => items.includes(k)) : ITEM_KEYS;
 }
 
-export function lifetimeOffset(input: LifetimeInput, items: LifetimeItem[] = ITEM_KEYS, now = new Date()): LifetimeOffset {
+/** How much of someone's use an offset covers. */
+export type Span = "past" | "monthly" | "lifetime";
+
+export const SPANS: Record<Span, { label: string; badge: string; per: string; hint: string }> = {
+  past: { label: "Past use", badge: "to date", per: "once", hint: "Everything up to today, in one payment." },
+  monthly: { label: "Monthly", badge: "this month", per: "a month", hint: "This month's use, approved each month. Cancel anytime." },
+  lifetime: { label: "Lifetime", badge: "for life", per: "once", hint: "Everything so far and everything to come, in one payment." },
+};
+export const SPAN_KEYS = Object.keys(SPANS) as Span[];
+// Lifetime prices above this get the choice of past use or monthly; lighter users just see lifetime.
+export const SPAN_CHOICE_ABOVE_USD = 100;
+
+export function lifetimeOffset(
+  input: LifetimeInput,
+  items: LifetimeItem[] = ITEM_KEYS,
+  now = new Date(),
+  span: Span = "lifetime",
+): LifetimeOffset {
   const year = now.getFullYear() + now.getMonth() / 12;
   const birth = Math.min(Math.max(input.birthYear || 1990, 1900), year);
   const onlineSince = Math.max(birth + F.ONLINE_FROM_AGE, F.INTERNET_START_YEAR);
   const pastInternet = Math.max(0, year - onlineSince);
   const pastAi = Math.max(0, year - Math.max(F.AI_START_YEAR, onlineSince));
   const futureYears = Math.max(0, birth + F.LIFETIME_TO_AGE - year);
-  const internetYears = pastInternet + futureYears;
+  // Years of today's use each item covers. Future AI use is counted with the growth buffer.
+  const years =
+    span === "monthly"
+      ? { internet: 1 / 12, ai: 1 / 12, devices: 1 / 12 }
+      : span === "past"
+        ? { internet: pastInternet, ai: pastAi, devices: pastInternet }
+        : {
+            internet: pastInternet + futureYears,
+            ai: pastAi + futureYears * LIFETIME_GROWTH_BUFFER,
+            devices: pastInternet + futureYears,
+          };
 
   // Internet: hours a day for each activity, with a wider margin on the rough ones.
   let internet = zero;
@@ -107,7 +143,7 @@ export function lifetimeOffset(input: LifetimeInput, items: LifetimeItem[] = ITE
   for (const k of Object.keys(F.INTERNET_KWH_PER_HOUR) as InternetActivity[]) {
     const kwhPerYear = nonNeg(input.internetHoursPerDay[k]) * 365 * F.INTERNET_KWH_PER_HOUR[k];
     const margin = MARGINS.estimated + (k === "video" ? 0 : F.INTERNET_ROUGH_MARGIN);
-    const impacts = add(zero, dataCenterImpacts(kwhPerYear), internetYears * (1 + margin));
+    const impacts = add(zero, dataCenterImpacts(kwhPerYear), years.internet * (1 + margin));
     internetByActivity[k] = part(impacts).cost;
     internet = add(internet, impacts);
   }
@@ -118,24 +154,29 @@ export function lifetimeOffset(input: LifetimeInput, items: LifetimeItem[] = ITE
       1000 /
       (1 - F.AI_TRAINING_SHARE)) *
     (1 + (input.aiFromExport ? MARGINS.measured : MARGINS.estimated));
-  const aiYear = dataCenterImpacts(aiKwhPerYear);
-  const ai = add(add(zero, aiYear, pastAi), aiYear, futureYears * LIFETIME_GROWTH_BUFFER);
+  const ai = add(zero, dataCenterImpacts(aiKwhPerYear), years.ai);
 
   // Devices: making each one you'd go through, plus the power to run it.
   let devices = zero;
   for (const k of Object.keys(F.DEVICES) as Device[]) {
     const d = F.DEVICES[k];
     const count = nonNeg(input.devices[k]);
-    const made = { ...zero, carbon: (count * d.kgToMake * internetYears) / d.yearsKept };
-    devices = add(devices, add(made, gridImpacts(count * d.kwhPerYear * internetYears)), 1 + MARGINS.estimated);
+    const made = { ...zero, carbon: (count * d.kgToMake * years.devices) / d.yearsKept };
+    devices = add(devices, add(made, gridImpacts(count * d.kwhPerYear * years.devices)), 1 + MARGINS.estimated);
   }
 
   const parts = { internet: part(internet), ai: part(ai), devices: part(devices) };
   const chosen = ITEM_KEYS.filter((k) => items.includes(k));
   const impacts = chosen.reduce((sum, k) => add(sum, parts[k].impacts), zero);
   const raw = chosen.reduce((sum, k) => sum + parts[k].cost, 0);
-  const donation = Math.max(LIFETIME_MIN_DONATION_USD, Math.ceil(raw));
+  // Monthly works like the monthly plan: a $1 minimum and $1 a month for each item.
+  const donation =
+    span === "monthly"
+      ? Math.max(MIN_DONATION_USD, Math.ceil(raw * 100) / 100)
+      : Math.max(LIFETIME_MIN_DONATION_USD, Math.ceil(raw));
+  const fee = span === "monthly" ? Math.min(MAX_FEE_USD, FEE_PER_AREA_USD * chosen.length) : LIFETIME_FEE_USD;
   return {
+    span,
     items: chosen,
     parts,
     internetByActivity,
@@ -143,7 +184,7 @@ export function lifetimeOffset(input: LifetimeInput, items: LifetimeItem[] = ITE
     futureYears,
     impacts,
     donation,
-    fee: LIFETIME_FEE_USD,
-    total: donation + LIFETIME_FEE_USD,
+    fee,
+    total: donation + fee,
   };
 }
