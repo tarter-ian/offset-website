@@ -14,10 +14,10 @@ export const RECLAIM_SERVICES = {
   youtube: { name: "YouTube", env: "RECLAIM_PROVIDER_YOUTUBE", kind: "activity" },
   spotify: { name: "Spotify", env: "RECLAIM_PROVIDER_SPOTIFY", kind: "activity" },
   uber: { name: "Uber", env: "RECLAIM_PROVIDER_UBER", kind: "activity" },
-  // These prove only the account and its plan, not how much it's used.
+  // Proves the account and its planType, not how much it's used. Reclaim's
+  // Claude and Perplexity providers prove only the account id, with no plan,
+  // so those two stay on the light / medium / heavy pick.
   chatgpt: { name: "ChatGPT", env: "RECLAIM_PROVIDER_CHATGPT", kind: "ai" },
-  claude: { name: "Claude", env: "RECLAIM_PROVIDER_CLAUDE", kind: "ai" },
-  perplexity: { name: "Perplexity", env: "RECLAIM_PROVIDER_PERPLEXITY", kind: "ai" },
 } as const;
 export type ReclaimService = keyof typeof RECLAIM_SERVICES;
 export type ReclaimKind = (typeof RECLAIM_SERVICES)[ReclaimService]["kind"];
