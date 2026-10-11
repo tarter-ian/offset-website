@@ -7,7 +7,7 @@ import type { CategoryKey } from "./footprint";
 
 import type { ApiProvider } from "./ai/usageApi";
 
-export type ProviderId = "utility" | "bank" | "car" | "chatgpt" | "claude" | "gemini" | ApiProvider;
+export type ProviderId = "utility" | "bank" | "car" | "chatgpt" | "claude" | "gemini" | "activity" | ApiProvider;
 
 export interface Provider {
   id: ProviderId;
@@ -44,6 +44,13 @@ export const PROVIDERS: Provider[] = [
     covers: ["car"],
     blurb: "Miles driven, from most cars made since 2015.",
     via: { service: "Smartcar", envKey: "SMARTCAR_CLIENT_SECRET" },
+  },
+  {
+    id: "activity",
+    name: "Spotify, YouTube, Netflix or Google Maps",
+    covers: ["car", "transit", "flights"],
+    blurb: "Listening, watching and travel history from the file each service lets you download.",
+    export: true,
   },
   { id: "chatgpt", name: "ChatGPT", covers: ["ai"], blurb: "Measure your use from your data export.", export: true },
   { id: "claude", name: "Claude", covers: ["ai"], blurb: "Measure your use from your data export.", export: true },

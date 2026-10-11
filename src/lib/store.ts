@@ -325,7 +325,10 @@ const SOURCES: Record<SectionKey, ProviderId[]> = {
   shopping: ["bank"],
 };
 export function sourcesFor(p: Product): ProviderId[] {
-  if (p.id === "car") return ["car"];
+  if (p.id === "car") return ["activity", "car"];
+  if (p.id === "transit") return ["activity"];
+  if (p.id === "flights") return ["activity", "bank"];
+  if (p.id === "video" || p.id === "music") return ["activity"];
   return SOURCES[p.section];
 }
 

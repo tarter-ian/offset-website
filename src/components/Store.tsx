@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ActivityUpload } from "./ActivityUpload";
 import { AiExportUpload } from "./AiExportUpload";
 import { Badge } from "./Badge";
 import { NumberInput, Select } from "./fields";
@@ -11,6 +12,7 @@ import { IMPACT_KEYS, sumImpacts, type Impacts } from "@/lib/footprint";
 import { howEstimated, whereItGoes } from "@/lib/methods";
 import { PROVIDERS, type ProviderId } from "@/lib/providers";
 import { digitalFromExport } from "@/lib/ai/exportParser";
+import { SOURCE_NAMES, type ActivitySource } from "@/lib/activity";
 import { ONLINE_FROM_AGE } from "@/lib/factors";
 import {
   ANNUAL_FEE_MONTHS,
@@ -53,6 +55,7 @@ interface Saved {
   billing?: Billing | null;
   entered?: Record<string, boolean>;
   pastAll?: boolean;
+  linkedFrom?: Record<string, ActivitySource[]>;
 }
 
 function load(): Saved | null {
@@ -94,9 +97,10 @@ const amountText = (p: Product, amount: number | string) =>
     : (p.amount.options.find((o) => o.value === amount)?.label ?? String(amount));
 const providerName = (id: ProviderId) => PROVIDERS.find((x) => x.id === id)?.name ?? id;
 const SHELF_SIZE = 3;
-const LIVE_LINKS = new Set<ProviderId>(["chatgpt", "claude", "gemini", "openai-api", "anthropic-api"]);
+const LIVE_LINKS = new Set<ProviderId>(["chatgpt", "claude", "gemini", "openai-api", "anthropic-api", "activity"]);
 const LINK_ROW: { id: ProviderId; label: string }[] = [
   { id: "chatgpt", label: "ChatGPT, Claude or Gemini" },
+  { id: "activity", label: "Spotify, YouTube, Netflix or Google Maps" },
   { id: "utility", label: "Electric and gas utility" },
   { id: "bank", label: "Bank or card" },
   { id: "car", label: "Car" },
@@ -116,6 +120,9 @@ export function Store() {
   const [open, setOpen] = useState(false);
   const [checkout, setCheckout] = useState(false);
   const [measuring, setMeasuring] = useState(false);
+  const [activityOpen, setActivityOpen] = useState(false);
+  // Which downloaded histories filled in each tile's amount.
+  const [linkedFrom, setLinkedFrom] = useState<Record<string, ActivitySource[]>>({});
   // Past use is one switch for the whole plan; an item can still be changed on its own.
   const [pastAll, setPastAllState] = useState(true);
   const [details, setDetails] = useState<string | null>(null);
@@ -133,18 +140,19 @@ export function Store() {
     setPlan(s.plan ?? []);
     setBilling(s.billing ?? null);
     setPastAllState(s.pastAll ?? true);
+    setLinkedFrom(s.linkedFrom ?? {});
   }, []);
 
   useEffect(() => {
     try {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ ctx, amounts, entered, picked, anyway, plan, billing: billingPick, pastAll } satisfies Saved),
+        JSON.stringify({ ctx, amounts, entered, picked, anyway, plan, billing: billingPick, pastAll, linkedFrom } satisfies Saved),
       );
     } catch {
       // Storage can be unavailable (private mode); the page still works.
     }
-  }, [ctx, amounts, entered, picked, anyway, plan, billingPick, pastAll]);
+  }, [ctx, amounts, entered, picked, anyway, plan, billingPick, pastAll, linkedFrom]);
 
   const amountOf = (p: Product) => amounts[p.id] ?? defaultAmount(p, ctx);
   const coverOf = (p: Product) => effectiveCover(p, amountOf(p), ctx, { past: pastAll, ...picked[p.id] }, anyway[p.id]);
@@ -165,15 +173,27 @@ export function Store() {
     setEntered((e) => ({ ...e, [p.id]: true }));
   };
   const link = (id: ProviderId) => {
-    if (LIVE_LINKS.has(id)) {
+    if (id === "activity") {
+      setActivityOpen(true);
+      requestAnimationFrame(() => document.getElementById("link-activity")?.scrollIntoView({ behavior: "smooth", block: "center" }));
+    } else if (LIVE_LINKS.has(id)) {
       setMeasuring(true);
       document.getElementById("ai-chat")?.scrollIntoView({ behavior: "smooth", block: "center" });
     } else setAsked((a) => (a.includes(id) ? a : [...a, id]));
   };
 
+  const linkLabel = (p: Product, src: ProviderId) => {
+    if (p.section === "ai") return "Link your AI account";
+    if (src !== "activity") return `Link your ${providerName(src).toLowerCase()}`;
+    if (p.id === "music") return "Add your Spotify or YouTube history";
+    if (p.id === "video") return "Add your YouTube or Netflix history";
+    return "Add your Google Maps Timeline";
+  };
+
   const sourceNote = (p: Product) => {
     if (entered[p.id]) return "you entered";
     if (p.section === "ai" && ctx.aiFromExport) return "measured from your account";
+    if (linkedFrom[p.id]) return `from your ${linkedFrom[p.id].map((s) => SOURCE_NAMES[s]).join(" and ")} history`;
     if (p.id === "electricity") return `typical for ${STATES[ctx.state].name}`;
     return "typical";
   };
@@ -182,7 +202,7 @@ export function Store() {
   const amountLine = (p: Product) => {
     const amount = amountOf(p);
     const sources = sourcesFor(p);
-    const fromAccount = p.section === "ai" && ctx.aiFromExport && !entered[p.id];
+    const fromAccount = ((p.section === "ai" && ctx.aiFromExport) || !!linkedFrom[p.id]) && !entered[p.id];
     const waiting = sources.find((s) => asked.includes(s));
     if (editing === p.id) {
       return (
@@ -218,7 +238,7 @@ export function Store() {
               onClick={() => link(sources[0])}
               className="inline-flex min-h-10 items-center font-semibold text-accent underline underline-offset-4 hover:text-accent-strong"
             >
-              Link your {p.section === "ai" ? "AI account" : providerName(sources[0]).toLowerCase()}
+              {linkLabel(p, sources[0])}
             </button>
           )}
           <button
@@ -481,7 +501,7 @@ export function Store() {
         ? "Lifetime"
         : "All future use"
       : `${aiCover.past ? "Past use + " : ""}${billing === "annual" ? "each year" : "each month"}`;
-  const linkedSomething = ctx.aiFromExport;
+  const linkedSomething = ctx.aiFromExport || Object.keys(linkedFrom).length > 0;
 
   return (
     <div className="pb-20">
@@ -558,7 +578,7 @@ export function Store() {
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
           <span className="font-semibold">{linkedSomething ? "Link the rest:" : "Fill in your real numbers:"}</span>
           {LINK_ROW.map((l) => {
-            const done = l.id === "chatgpt" && ctx.aiFromExport;
+            const done = (l.id === "chatgpt" && ctx.aiFromExport) || (l.id === "activity" && Object.keys(linkedFrom).length > 0);
             return (
               <button
                 key={l.id}
@@ -571,6 +591,17 @@ export function Store() {
             );
           })}
         </div>
+        {activityOpen && (
+          <div id="link-activity" className="mt-3 max-w-2xl">
+            <ActivityUpload
+              onResult={(found, from) => {
+                setAmounts((a) => ({ ...a, ...found }));
+                setEntered((e) => ({ ...e, ...Object.fromEntries(Object.keys(found).map((k) => [k, false])) }));
+                setLinkedFrom((l) => ({ ...l, ...from }));
+              }}
+            />
+          </div>
+        )}
         {asked.length > 0 && (
           <p className="text-muted">
             Linking your {asked.map((a) => providerName(a).toLowerCase()).join(" and ")} opens at launch. Until then we use
@@ -622,7 +653,9 @@ export function Store() {
             {openItem && detailPanel(openItem)}
             {(s.key === "online" || s.key === "devices") && (
               <p className="mt-2 text-xs text-muted">
-                No account can measure this yet, so it starts from typical use.
+                {s.key === "online"
+                  ? "Video and music can be measured from your YouTube, Netflix or Spotify history; the rest start from typical use."
+                  : "No account can measure this yet, so it starts from typical use."}
                 {s.key === "devices" && " Not counted: air pollution from making devices, and e-waste."}
               </p>
             )}
