@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Offset: measure my usage",
-  "version": "0.2.0",
+  "version": "0.5.0",
   "description": "Counts how much you use ChatGPT, Claude, Gemini and YouTube, so Offset can work out your footprint. Only counts and dates are shared, never your chats or history.",
   "permissions": [
     "scripting",
@@ -10,7 +10,6 @@
   "host_permissions": [
     "https://chatgpt.com/*",
     "https://claude.ai/*",
-    "https://www.youtube.com/*",
     "https://myactivity.google.com/*"
   ],
   "background": {

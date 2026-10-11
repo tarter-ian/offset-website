@@ -4,16 +4,16 @@
 // the site and closes the tab.
 //
 // Two ways to ask:
-//   measure-all  Every service at once, in background tabs the person never has
-//                to look at. A service they are not signed in to is reported as
-//                "signed-out" and its tab is closed.
+//   measure-all  Every service at once, in a separate minimized window the person
+//                never has to look at. A service they are not signed in to is
+//                reported as "signed-out" and its tab is closed.
 //   measure      One service, in a tab brought to the front, so the person can
 //                sign in. Counting starts once they have.
 
 const SERVICES = {
   chatgpt: { url: 'https://chatgpt.com/', host: 'chatgpt.com', script: 'providers/chatgpt-usage.js' },
   claude: { url: 'https://claude.ai/new', host: 'claude.ai', script: 'providers/claude-usage.js' },
-  youtube: { url: 'https://www.youtube.com/feed/history', host: 'www.youtube.com', script: 'providers/youtube-history.js' },
+  youtube: { url: 'https://myactivity.google.com/product/youtube', host: 'myactivity.google.com', script: 'providers/youtube-activity.js' },
   gemini: { url: 'https://myactivity.google.com/product/gemini', host: 'myactivity.google.com', script: 'providers/gemini-activity.js' },
 };
 
@@ -35,9 +35,32 @@ async function finish(tabId, job, message, closeTab = true) {
   if (job.front) chrome.tabs.update(job.siteTabId, { active: true }).catch(() => {});
 }
 
-async function start(service, front, requestId, siteTab) {
-  const tab = await chrome.tabs.create({ url: SERVICES[service].url, active: front, windowId: siteTab.windowId });
-  await setJob(tab.id, { service, front, requestId, siteTabId: siteTab.id, startedAt: Date.now() });
+const newJob = (service, front, requestId, siteTab) => ({ service, front, requestId, siteTabId: siteTab.id, startedAt: Date.now() });
+
+// One service in a tab beside the site, in front, so the person can sign in.
+async function startInFront(service, requestId, siteTab) {
+  const tab = await chrome.tabs.create({ url: SERVICES[service].url, active: true, windowId: siteTab.windowId });
+  await setJob(tab.id, newJob(service, true, requestId, siteTab));
+}
+
+// Every service in a window of its own, minimized, so the site keeps the
+// screen and the keyboard. The window goes away when its last tab closes.
+async function startInBackground(services, requestId, siteTab) {
+  const urls = services.map((s) => SERVICES[s].url);
+  let tabs;
+  try {
+    const win = await chrome.windows.create({ url: urls, focused: false, state: 'minimized' });
+    tabs = win.tabs;
+  } catch (e) {
+    tabs = null;
+  }
+  if (!tabs || tabs.length !== services.length) {
+    // No separate window to be had; use background tabs beside the site instead.
+    if (tabs) for (const t of tabs) chrome.tabs.remove(t.id).catch(() => {});
+    tabs = [];
+    for (const url of urls) tabs.push(await chrome.tabs.create({ url, active: false, windowId: siteTab.windowId }));
+  }
+  for (let i = 0; i < services.length; i++) await setJob(tabs[i].id, newJob(services[i], false, requestId, siteTab));
 }
 
 async function inject(tabId, job) {
@@ -86,7 +109,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return;
     }
     (async () => {
-      for (const service of services) await start(service, !all, message.requestId, sender.tab);
+      if (all) await startInBackground(services, message.requestId, sender.tab);
+      else await startInFront(services[0], message.requestId, sender.tab);
       sendResponse({ ok: true, services });
     })();
     return true;

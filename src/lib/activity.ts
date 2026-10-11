@@ -75,7 +75,11 @@ export function youtubeDays(data: unknown): ActivityEvent[] {
     const time = Date.parse(String(d.date));
     const videos = Number(d.videos) || 0;
     const shorts = Number(d.shorts) || 0;
-    const hours = (videos * YOUTUBE_MIN_PER_VIDEO + shorts * YOUTUBE_MIN_PER_SHORT) / 60;
+    // From extension 0.5 on, `hours` is real watch time (each video held to the
+    // time until the next one started). Earlier versions sent inflated hours
+    // along with `cappedDays`, so those fall back to a typical time per video.
+    const measured = !("cappedDays" in d0) && typeof d.hours === "number" ? d.hours : null;
+    const hours = measured ?? (videos * YOUTUBE_MIN_PER_VIDEO + shorts * YOUTUBE_MIN_PER_SHORT) / 60;
     return Number.isFinite(time) && hours > 0 ? [{ target: "video", time, amount: hours }] : [];
   });
 }

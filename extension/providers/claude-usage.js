@@ -12,7 +12,7 @@
   var PAGE = 50;
   var MAX_PAGES = 8;
   var MAX_CONVERSATIONS = 200;
-  var BATCH = 3;
+  var BATCH = 10;
 
   var sleep = function (ms) {
     return new Promise(function (r) { setTimeout(r, ms); });
@@ -120,7 +120,6 @@
         });
         if (used) conversations++;
       });
-      await sleep(350);
     }
 
     // Share of the plan's rolling limits in use. Unlike the chat counts, this
@@ -204,5 +203,6 @@
       return;
     }
     run();
-  }, 3000);
+  }, 1000);
+  run();
 })();

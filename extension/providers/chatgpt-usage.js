@@ -11,7 +11,7 @@
   var PAGE = 28;
   var MAX_PAGES = 12;
   var MAX_CONVERSATIONS = 200;
-  var BATCH = 3;
+  var BATCH = 14;
 
   var sleep = function (ms) {
     return new Promise(function (r) { setTimeout(r, ms); });
@@ -129,7 +129,6 @@
         });
         if (used) conversations++;
       });
-      await sleep(350);
     }
 
     var daily = Object.keys(days).sort().map(function (k) { return days[k]; });
@@ -204,5 +203,6 @@
       return;
     }
     run();
-  }, 3000);
+  }, 1000);
+  run();
 })();

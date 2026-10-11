@@ -16,6 +16,7 @@ const ERRORS: Record<ExtensionError, (name: string) => string> = {
   "signed-out": (n) => `You're not logged in to ${n} in this browser.`,
   closed: () => "The tab was closed before it finished.",
   timeout: () => "It took too long.",
+  denied: (n) => `You didn't allow it on ${n}, so nothing was counted.`,
   unavailable: () => "Couldn't count this one.",
 };
 
@@ -171,7 +172,7 @@ export function AiQuickPick({
                         <span>
                           <span className="text-muted">{ERRORS[r.error ?? "unavailable"](EXT_NAMES[x])}</span>{" "}
                           <button type="button" onClick={() => run([x], r.error === "signed-out")} className="underline hover:text-muted">
-                            {r.error === "signed-out" ? `Log in to ${EXT_NAMES[x]}` : "Try again"}
+                            {r.error === "signed-out" ? `Log in to ${EXT_NAMES[x]}` : r.error === "denied" ? "Allow and count" : "Try again"}
                           </button>
                         </span>
                       )}
@@ -306,9 +307,9 @@ function ExtensionOffer({ name, service }: { name: string; service: QuickService
         you&apos;re already logged in. It reads: {SIGN_IN_READS[service]}
       </p>
       <p className="mt-2 text-sm text-muted">
-        Chrome may warn that it can &ldquo;read and change your data&rdquo; on {name}. That&apos;s Chrome&apos;s standard wording for any
-        extension that opens a site for you. Offset only counts there, changes nothing, and runs only when you press the button. After each
-        run you can see exactly what it sent.{" "}
+        It installs with no access to any site. The first time you measure {name}, it asks, and Chrome adds its standard line that it can
+        &ldquo;read and change your data&rdquo; there. Offset only counts, changes nothing, and runs only when you press the button. After
+        each run you can see exactly what it sent.{" "}
         <a href="/data#extension" className="underline hover:text-foreground">
           More on what it reads
         </a>
