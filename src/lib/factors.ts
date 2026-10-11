@@ -96,6 +96,22 @@ export const scarcityWeight = (source: keyof typeof STRESSED_WATER_SHARE) =>
 export const KG_PER_STREAMING_HOUR = 0.036;
 export const US_GRID_LB_PER_MWH = 770.9;
 
+// The US grid gets cleaner over time. EIA's 2025 outlook (full IRA) has power
+// CO2 per kWh falling ~6% a year to 2050; its no-IRA case ~2%. With 2025's cuts
+// to clean-power credits we take the cautious 2% a year to 2050, then flat.
+// Applied to future power use in lifetime prices, for every harm.
+export const GRID_CLEANER_PER_YEAR = 0.02;
+export const GRID_CLEANER_UNTIL = 2050;
+
+/** Years of future power use, counted at the grid each year is expected to have, from `from` for `years`. */
+export function gridYears(from: number, years: number): number {
+  const r = 1 - GRID_CLEANER_PER_YEAR;
+  const declining = Math.max(0, Math.min(years, GRID_CLEANER_UNTIL - from));
+  // Integral of r^t from 0 to the end of the decline, then flat at its final level.
+  const k = Math.log(r);
+  return (Math.pow(r, declining) - 1) / k + (years - declining) * Math.pow(r, declining);
+}
+
 export const DAYS_PER_MONTH = 30.4;
 export const WEEKS_PER_MONTH = 4.35;
 

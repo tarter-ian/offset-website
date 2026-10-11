@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import * as F from "./factors";
 import { DEFAULT_LIFETIME_INPUT, LIFETIME_MAX_USD, lifetimeOffset, parseItems } from "./lifetime";
 import { LIFETIME_FEE_USD, LIFETIME_MIN_DONATION_USD } from "./pricing";
 
@@ -78,7 +79,7 @@ describe("spans", () => {
   it("makes a year of monthly payments add up to a year of use", () => {
     const month = lifetimeOffset(typical, ["internet"], now, "monthly");
     const life = lifetimeOffset(typical, ["internet"], now, "lifetime");
-    const years = life.pastYears.internet + life.futureYears;
+    const years = life.pastYears.internet + F.gridYears(now.getFullYear() + now.getMonth() / 12, life.futureYears);
     expect(month.parts.internet.cost * 12 * years).toBeCloseTo(life.parts.internet.cost, 6);
   });
 });
@@ -89,5 +90,14 @@ describe("parseItems", () => {
     expect(parseItems("devices,internet")).toEqual(["internet", "devices"]);
     expect(parseItems("nope")).toEqual(["ai", "internet", "devices"]);
     expect(parseItems()).toEqual(["ai", "internet", "devices"]);
+  });
+});
+
+describe("gridYears", () => {
+  it("counts future years of power at a grid getting cleaner until 2050", () => {
+    expect(F.gridYears(2026, 0)).toBe(0);
+    expect(F.gridYears(2026, 1)).toBeCloseTo(0.99, 2);
+    expect(F.gridYears(2026, 50)).toBeLessThan(50);
+    expect(F.gridYears(2026, 50)).toBeGreaterThan(30);
   });
 });

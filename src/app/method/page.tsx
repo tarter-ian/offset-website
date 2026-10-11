@@ -189,8 +189,11 @@ export default function MethodPage() {
       <h2 className="mt-10 text-xl font-semibold">Lifetime internet, AI and devices</h2>
       <p className="mt-2 text-muted">
         The one-time lifetime offsets count from age {F.ONLINE_FROM_AGE} (or {F.INTERNET_START_YEAR}, whichever is later), and from late 2022 for AI,
-        through age {F.LIFETIME_TO_AGE}, at today&apos;s rates. Future internet use counts at today&apos;s rate, since networks get more efficient
-        about as fast as use grows; future AI use counts at {LIFETIME_GROWTH_BUFFER} times today&apos;s rate in case it keeps growing. Prices use
+        through age {F.LIFETIME_TO_AGE}. Past years count at today&apos;s rates. Future years count at today&apos;s amount of use, since networks
+        get more efficient about as fast as use grows, but the power for it gets cleaner: we assume the US grid&apos;s carbon, air pollution and
+        water per kWh fall {Math.round(F.GRID_CLEANER_PER_YEAR * 100)}% a year until {F.GRID_CLEANER_UNTIL}, then hold steady. That&apos;s a cautious
+        pace; the EIA&apos;s outlooks range from about 2% to 6% a year depending on clean-power policy. Making devices happens mostly overseas, so
+        it isn&apos;t discounted. Future AI use counts {LIFETIME_GROWTH_BUFFER} times over in case it keeps growing. Prices use
         expected-impact climate pricing, plus the one-time fee.
       </p>
       <ul className="mt-3 list-disc space-y-1 pl-5 text-muted">

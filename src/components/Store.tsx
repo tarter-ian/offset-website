@@ -609,7 +609,7 @@ export function Store() {
           </dl>
           <p className="mt-1 text-xs text-muted">
             Includes a share of training the models and building the data centers. Future use counts {LIFETIME_GROWTH_BUFFER} times over in
-            case it grows.
+            case it grows, on a grid that gets cleaner each year.
           </p>
           <div className="mt-4">{coverControls(ai, true)}</div>
           <div className="mt-4 flex items-center justify-between gap-4 border-t-2 border-rule pt-3">
