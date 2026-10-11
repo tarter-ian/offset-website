@@ -1,5 +1,5 @@
 import * as F from "./factors";
-import { dataCenterImpacts, gridImpacts, IMPACT_KEYS, MARGINS, type Impacts } from "./footprint";
+import { aiImpacts, dataCenterImpacts, gridImpacts, IMPACT_KEYS, MARGINS, type Impacts } from "./footprint";
 import {
   FEE_PER_AREA_USD,
   impactCost,
@@ -148,13 +148,12 @@ export function lifetimeOffset(
     internet = add(internet, impacts);
   }
 
-  // AI: prompts and media, each carrying a share of model training.
+  // AI: prompts and media, with their share of training, hardware and buildings.
   const aiKwhPerYear =
     ((nonNeg(input.aiPromptsPerDay) * 365 * (input.aiWhPerPrompt ?? F.WH_PER_AI_PROMPT) + nonNeg(input.aiMediaPerWeek) * 52 * F.WH_PER_AI_MEDIA) /
-      1000 /
-      (1 - F.AI_TRAINING_SHARE)) *
+      1000) *
     (1 + (input.aiFromExport ? MARGINS.measured : MARGINS.estimated));
-  const ai = add(zero, dataCenterImpacts(aiKwhPerYear), years.ai);
+  const ai = add(zero, aiImpacts(aiKwhPerYear), years.ai);
 
   // Devices: making each one you'd go through, plus the power to run it.
   let devices = zero;

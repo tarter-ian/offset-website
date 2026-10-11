@@ -68,6 +68,16 @@ export const CACHED_INPUT_SHARE = 0.1;
 // prompts (Patterson et al. 2022, Google: about 2/5 training, 3/5 inference).
 // Each prompt carries its share of training.
 export const AI_TRAINING_SHARE = 0.4;
+// Making the chips and servers and building the data centers, as a share of
+// AI's total carbon (rough; life-cycle studies of AI hardware put manufacturing
+// at roughly a fifth to a third).
+export const AI_HARDWARE_SHARE = 0.25;
+// Many new data centers are in water-stressed regions (about two thirds of
+// those built since 2022, per Bloomberg's 2025 analysis), so water used there
+// counts double. Some also run on-site gas turbines and diesel backup, which
+// pollute more locally than the grid average (rough).
+export const AI_WATER_STRESS_WEIGHT = 1 + 2 / 3;
+export const AI_LOCAL_AIR_WEIGHT = 1.2;
 export const KG_PER_STREAMING_HOUR = 0.036;
 export const US_GRID_LB_PER_MWH = 770.9;
 

@@ -195,6 +195,22 @@ export function dataCenterImpacts(kwh: number): Impacts {
   };
 }
 
+/**
+ * Everything behind AI use, from the energy to answer prompts (kWh): its share
+ * of training, grid power and cooling water, the hardware and buildings, and
+ * extra weight for data centers in dry areas or on their own gas power.
+ */
+export function aiImpacts(answerKwh: number): Impacts {
+  const kwh = answerKwh / (1 - F.AI_TRAINING_SHARE);
+  const g = gridImpacts(kwh);
+  return {
+    carbon: g.carbon / (1 - F.AI_HARDWARE_SHARE),
+    air: g.air * F.AI_LOCAL_AIR_WEIGHT,
+    water: (g.water + kwh * F.DATACENTER_L_PER_KWH) * F.AI_WATER_STRESS_WEIGHT,
+    land: 0,
+  };
+}
+
 /** Health damage in dollars per kWh from power plant NOx and SO2. */
 export function gridAirUsdPerKwh(noxLbPerMwh: number, so2LbPerMwh: number): number {
   return (
@@ -348,15 +364,12 @@ export function computeFootprint(a: Answers): Footprint {
 
   // AI: grid power plus on-site data center cooling water.
   const d = a.digital;
-  const aiImpacts = (kwh: number): Impacts => {
-    const g = gridImpacts(kwh);
-    return scale({ ...g, water: g.water + kwh * F.DATACENTER_L_PER_KWH }, personCount);
-  };
+  const aiFor = (kwh: number): Impacts => scale(aiImpacts(kwh), personCount);
   const prompts = nonNeg(d.aiPromptsPerDay) * F.DAYS_PER_MONTH;
   const media = nonNeg(d.aiMediaPerWeek) * F.WEEKS_PER_MONTH;
   const ai = category(
     "ai",
-    aiImpacts((prompts * (d.aiWhPerPrompt ?? F.WH_PER_AI_PROMPT) + media * F.WH_PER_AI_MEDIA) / 1000 / (1 - F.AI_TRAINING_SHARE)),
+    aiFor((prompts * (d.aiWhPerPrompt ?? F.WH_PER_AI_PROMPT) + media * F.WH_PER_AI_MEDIA) / 1000),
     d.aiFromExport ? "measured" : "estimated",
     `About ${Math.round(prompts)} prompts${media ? ` and ${Math.round(media)} images or videos` : ""} a month${
       d.aiFromExport ? ", prompts from your data export" : ""

@@ -20,7 +20,7 @@ export default async function LifetimePage({ searchParams }: { searchParams: Pro
         <LifetimeOffset initialItems={parseItems(cover)} />
       </div>
       <p className="mt-10 text-sm text-muted">
-        Not counted yet: water and land used to mine and make devices, e-waste, and building data centers. See{" "}
+        Not counted yet: water and land used to mine and make devices, e-waste, AI built into other products, and the full cost of AI video. See{" "}
         <Link href="/method" className="text-accent hover:underline">
           how we calculate
         </Link>

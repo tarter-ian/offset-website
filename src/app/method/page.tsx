@@ -179,7 +179,10 @@ export default function MethodPage() {
         </li>
         <li>
           <strong className="font-medium text-foreground">AI</strong> adds each prompt&apos;s share of training the models: about{" "}
-          {Math.round(F.AI_TRAINING_SHARE * 100)}% of machine learning energy goes to training.
+          {Math.round(F.AI_TRAINING_SHARE * 100)}% of machine learning energy goes to training. On top of that, making the chips and servers
+          and building the data centers adds about {Math.round(F.AI_HARDWARE_SHARE * 100)}% of AI&apos;s carbon. Many data centers are in dry
+          areas, so their water counts {F.AI_WATER_STRESS_WEIGHT.toFixed(1)} times, and some run their own gas power, so their air pollution
+          counts {F.AI_LOCAL_AIR_WEIGHT} times. AI built into other products, like search answers, and AI video aren&apos;t measured yet.
         </li>
         <li>
           <strong className="font-medium text-foreground">Devices</strong> counts the carbon to make each phone, laptop, tablet, computer, TV and
@@ -199,7 +202,7 @@ export default function MethodPage() {
       <h2 className="mt-10 text-xl font-semibold">What we don&apos;t count yet</h2>
       <p className="mt-2 text-muted">
         Air pollution from flights, oil and propane heating, and food; water used for fuel and flights; the water,
-        land and pollution behind the things you buy, including mining and making devices; e-waste; and building data centers. Your summary marks each gap.
+        land and pollution behind the things you buy, including mining and making devices; e-waste; building data centers for anything but AI; AI built into other products; and AI video. Your summary marks each gap.
       </p>
 
       <h2 className="mt-10 text-xl font-semibold">Sources</h2>
