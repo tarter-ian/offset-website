@@ -39,3 +39,10 @@ describe("reclaim sign-in", () => {
     expect(uber[0].amount).toBeCloseTo(5, 1);
   });
 });
+
+describe("our own sign-ins", () => {
+  it("turns YouTube's daily counts into viewing time at a typical length", () => {
+    const yt = reclaimEvents("youtube", { loggedIn: "true" }, { videos: 10, shorts: 120, watchedHours: 900, daily: [{ date: "2026-10-01", videos: 10, shorts: 120, hours: 30 }] });
+    expect(yt).toEqual([{ target: "video", time: Date.parse("2026-10-01"), amount: (10 * 12 + 120 * 0.5) / 60 }]);
+  });
+});

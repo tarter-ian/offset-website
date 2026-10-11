@@ -32,6 +32,8 @@ export const SOURCE_NAMES: Record<ActivitySource, string> = {
 
 /** YouTube's history lists videos without how long you watched; this is a rough average. */
 export const YOUTUBE_MIN_PER_VIDEO = 12;
+/** Shorts run up to a minute (three since late 2024); most are watched for well under one. */
+export const YOUTUBE_MIN_PER_SHORT = 0.5;
 export const YOUTUBE_MUSIC_MIN_PER_SONG = 3.5;
 /** Netflix's simple viewing history lists titles without durations. */
 export const NETFLIX_MIN_PER_TITLE = 40;

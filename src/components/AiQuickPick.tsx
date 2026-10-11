@@ -59,7 +59,7 @@ export function AiQuickPick({
                   ? ` You've also used ${Math.round(u.weeklyLimitUsedPercent!)}% of your plan's weekly limit, which counts Claude Code, so we estimate from that: about ${(claudeLimitWhPerDay(u) / 1000).toFixed(1)} kWh a day.`
                   : ""),
             });
-            onMeasured(summaryFromSignIn(service === "claude" ? "claude" : "chatgpt", u));
+            onMeasured(summaryFromSignIn(service === "claude" || service === "gemini" ? service : "chatgpt", u));
             return;
           }
           if (!res.ok || !out.level) {

@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { ActivityEvent } from "./activity";
-import { parseNetflix } from "./activity";
+import { parseNetflix, YOUTUBE_MIN_PER_SHORT, YOUTUBE_MIN_PER_VIDEO } from "./activity";
 import { levelForPlan, type AiLevel } from "./ai/levels";
 
 // Signing in to Spotify, YouTube, Netflix, Uber or an AI service through Reclaim Protocol
@@ -19,6 +19,7 @@ export const RECLAIM_SERVICES = {
   // return only the counts. An older plan-only provider still works as a fallback.
   chatgpt: { name: "ChatGPT", env: "RECLAIM_PROVIDER_CHATGPT", kind: "ai" },
   claude: { name: "Claude", env: "RECLAIM_PROVIDER_CLAUDE", kind: "ai" },
+  gemini: { name: "Gemini", env: "RECLAIM_PROVIDER_GEMINI", kind: "ai" },
 } as const;
 export type ReclaimService = keyof typeof RECLAIM_SERVICES;
 export type ReclaimKind = (typeof RECLAIM_SERVICES)[ReclaimService]["kind"];
@@ -113,6 +114,31 @@ const listIn = (raw: unknown, keys: string[]): Record<string, unknown>[] => {
 };
 
 /**
+ * Our YouTube sign-in (2026-10-11) returns daily counts, not a list of videos:
+ * `daily[]` of {date, videos, shorts, hours}. YouTube's own watched-hours
+ * figure runs far too high (long videos show as fully watched), so we use the
+ * counts at a typical length each, as with a Takeout download.
+ */
+function youtubeDays(publicData: unknown): ActivityEvent[] {
+  let data = publicData;
+  if (typeof data === "string") {
+    try {
+      data = JSON.parse(data);
+    } catch {
+      return [];
+    }
+  }
+  if (!isObj(data) || !Array.isArray(data.daily)) return [];
+  return data.daily.filter(isObj).flatMap((d): ActivityEvent[] => {
+    const time = parseTime(d.date);
+    const videos = Number(d.videos) || 0;
+    const shorts = Number(d.shorts) || 0;
+    const hours = (videos * YOUTUBE_MIN_PER_VIDEO + shorts * YOUTUBE_MIN_PER_SHORT) / 60;
+    return Number.isFinite(time) && hours > 0 ? [{ target: "video", time, amount: hours }] : [];
+  });
+}
+
+/**
  * Turns what a sign-in returned into activity. The providers chosen in the
  * Reclaim dashboard (2026-10-11) return their history as public data next to
  * the proof: Netflix `watchHistory[]` of {title, date}, Spotify `tracks[]` of
@@ -123,6 +149,10 @@ const listIn = (raw: unknown, keys: string[]): Record<string, unknown>[] => {
  * a provider is swapped for one that proves the list itself.
  */
 export function reclaimEvents(service: ReclaimService, params: Record<string, string>, publicData?: unknown): ActivityEvent[] {
+  if (service === "youtube") {
+    const days = youtubeDays(publicData);
+    if (days.length) return days;
+  }
   if (service === "netflix") {
     const csv = Object.values(params).find((v) => /Start Time|Title,Date/.test(v));
     if (csv) return parseNetflix(csv) ?? [];

@@ -43,3 +43,11 @@ describe("Claude usage limit", async () => {
     expect(summaryFromSignIn("claude", u).whPerDay).toBeCloseTo(claudeLimitWhPerDay(u), 6);
   });
 });
+
+describe("Gemini sign-in", async () => {
+  const { signInUsage, summaryFromSignIn } = await import("./signin");
+  it("counts prompts from Gemini Apps Activity", () => {
+    const u = signInUsage({ prompts: 8, activeDays: 1, truncated: false, daily: [{ date: "2026-10-02", prompts: 8 }] })!;
+    expect(summaryFromSignIn("gemini", u).promptsPerDay).toBeCloseTo(8 / 30, 6);
+  });
+});
