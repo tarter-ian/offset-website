@@ -139,7 +139,12 @@ export const usd = (n: number) =>
 // One-time "for life" option for plans that cost under the monthly minimum.
 // Covers this many years of today's use, times a buffer in case use grows.
 export const LIFETIME_YEARS = 30;
-export const LIFETIME_GROWTH_BUFFER = 3;
+/**
+ * Future AI use counts 1.5 times over (Ian, 2026-10-11). Energy per prompt is
+ * falling fast (Google measured a 33x drop in a year) while use keeps rising,
+ * so a person's AI footprint could go either way; 1.5x stays cautious.
+ */
+export const LIFETIME_GROWTH_BUFFER = 1.5;
 export const LIFETIME_MIN_DONATION_USD = 5;
 /**
  * $3 on a one-time payment. Waived for anyone already paying the monthly fee,

@@ -18,6 +18,7 @@ import { SOURCE_NAMES, type ActivitySource } from "@/lib/activity";
 import { ONLINE_FROM_AGE } from "@/lib/factors";
 import {
   ANNUAL_FEE_MONTHS,
+  LIFETIME_GROWTH_BUFFER,
   ANNUAL_MIN_DONATION_USD,
   BILLING,
   type Billing,
@@ -28,6 +29,7 @@ import {
 } from "@/lib/pricing";
 import {
   aheadFor,
+  aiLeadsLifetime,
   SMALL_MONTHLY_USD,
   aiBreakdown,
   type Cover,
@@ -549,7 +551,9 @@ export function Store() {
       <section className="grid gap-10 pt-10 pb-12 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-14 lg:pt-14">
         <div>
           <h1 className="font-display text-4xl leading-[1.05] font-extrabold [font-stretch:85%] sm:text-6xl">
-            Your AI habit, paid off for life: about {once(coverPrice(ai, aiAmount, { past: true, ahead: "lifetime" }, ctx).once)}.
+            {aiLeadsLifetime(aiAmount, ctx)
+              ? `Your AI habit, paid off for life: about ${once(coverPrice(ai, aiAmount, { past: true, ahead: "lifetime" }, ctx).once)}.`
+              : `Your AI habit, offset: about ${once(coverPrice(ai, aiAmount, { past: false, ahead: "monthly" }, ctx).monthly)} a month.`}
           </h1>
           <p className="mt-6 max-w-xl text-lg">
             Every prompt runs on data centers that burn power, pollute the air and use water, much of it in dry places.
@@ -604,7 +608,7 @@ export function Store() {
             ))}
           </dl>
           <p className="mt-1 text-xs text-muted">
-            Includes a share of training the models and building the data centers. Future use counts three times over in
+            Includes a share of training the models and building the data centers. Future use counts {LIFETIME_GROWTH_BUFFER} times over in
             case it grows.
           </p>
           <div className="mt-4">{coverControls(ai, true)}</div>

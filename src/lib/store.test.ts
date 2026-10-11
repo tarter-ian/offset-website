@@ -46,6 +46,9 @@ describe("why lines", () => {
 describe("covers", () => {
   it("offers every item monthly, leading with lifetime only for AI and items under $1 a month", () => {
     expect(aheadFor(p("ai"), 10, C)).toEqual(["monthly", "lifetime"]);
+    expect(effectiveCover(p("ai"), 10, C).ahead).toBe("lifetime");
+    // Heavy AI use leads with monthly once lifetime passes $100.
+    expect(effectiveCover(p("ai"), 10, { ...C, aiWhPerPrompt: 300, aiFromExport: true }).ahead).toBe("monthly");
     expect(effectiveCover(p("video"), 2, C).ahead).toBe("lifetime");
     expect(effectiveCover(p("video"), 2, C, { ahead: "monthly" }).ahead).toBe("monthly");
     expect(effectiveCover(p("ai"), 10, C).ahead).toBe("lifetime");

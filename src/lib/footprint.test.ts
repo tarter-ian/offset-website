@@ -13,6 +13,7 @@ import { STATES } from "./data/states";
 import {
   lifetimeCost,
   LIFETIME_FEE_USD,
+  LIFETIME_GROWTH_BUFFER,
   LIFETIME_MIN_DONATION_USD,
   MONTHLY_FEE_USD,
   MIN_DONATION_USD,
@@ -166,7 +167,7 @@ describe("lifetimeCost", () => {
     const m = monthlyCost(heavy, ["ai"]);
     const raw = m.byImpact.carbon + m.byImpact.air + m.byImpact.water + m.byImpact.land;
     expect(m.minimumApplied).toBe(true);
-    expect(lifetimeCost(m)?.donation).toBe(Math.max(LIFETIME_MIN_DONATION_USD, Math.ceil(raw * 12 * 30 * 3)));
+    expect(lifetimeCost(m)?.donation).toBe(Math.max(LIFETIME_MIN_DONATION_USD, Math.ceil(raw * 12 * 30 * LIFETIME_GROWTH_BUFFER)));
   });
 
   it("is not offered for bigger plans", () => {
