@@ -1,26 +1,43 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fbfaf6;
+  --foreground: #1c2a22;
+  --muted: #5d6b62;
+  --card: #ffffff;
+  --border: #e3e6df;
+  --accent: #2f7d4f;
+  --accent-strong: #1f5c38;
+  --accent-soft: #e6f2ea;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #101612;
+    --foreground: #e7ede8;
+    --muted: #9aa89f;
+    --card: #18201b;
+    --border: #2a352e;
+    --accent: #5dbb84;
+    --accent-strong: #7fd3a1;
+    --accent-soft: #1d3326;
+  }
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-muted: var(--muted);
+  --color-card: var(--card);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
 }
