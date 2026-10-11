@@ -35,7 +35,7 @@ const SHOPPING_NOTE = (what: string, share: number) => [
 export const HOW_ESTIMATED: Record<string, string[]> = {
   ai: [
     `About ${F.WH_PER_AI_PROMPT} Wh a prompt, or each prompt measured from your ChatGPT, Claude or Gemini export if you link it.`,
-    `How many prompts: the light (${AI_LEVELS.light.promptsPerDay} a day), medium (${AI_LEVELS.medium.promptsPerDay}) or heavy (${AI_LEVELS.heavy.promptsPerDay}) you pick or your plan suggests, or the real count from your export. Light is about the average ChatGPT user.`,
+    `How many prompts: the light (${AI_LEVELS.light.promptsPerDay} a day), medium (${AI_LEVELS.medium.promptsPerDay}) or heavy (${AI_LEVELS.heavy.promptsPerDay}) you pick or your plan suggests, or the real count from your export. Light is the average ChatGPT user and medium the average daily user, from OpenAI's prompt and user counts; heavy is our estimate for people who use it for hours a day.`,
     `Adds each prompt's share of training the models (${Math.round(F.AI_TRAINING_SHARE * 100)}% of AI energy) and of making the chips and buildings (+${Math.round(F.AI_HARDWARE_SHARE * 100)}% carbon).`,
     "Power is on the US grid; water is the power plants' plus data center cooling.",
     `Lifetime assumes use until age ${F.LIFETIME_TO_AGE} and allows for it to grow.`,
