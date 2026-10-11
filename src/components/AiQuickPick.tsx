@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { AI_LEVELS, type AiLevel } from "@/lib/ai/levels";
 
-const AI_NAMES: Record<string, string> = { chatgpt: "ChatGPT", claude: "Claude", perplexity: "Perplexity" };
+const AI_NAMES: Record<string, string> = { chatgpt: "ChatGPT", claude: "Claude", gemini: "Gemini" };
 
 /**
  * The quick way to size AI use: pick light, medium or heavy, or sign in and
@@ -82,26 +82,23 @@ export function AiQuickPick({
           );
         })}
       </div>
-      <p className="mt-3 text-sm text-muted">
-        {signIns.length > 0 && (
-          <>
-            Or sign in and we&apos;ll go by your plan:{" "}
-            {signIns.map((s, i) => (
-              <span key={s}>
-                {i > 0 && " · "}
-                <button type="button" onClick={() => signIn(s)} className="font-medium text-foreground underline underline-offset-4">
-                  {AI_NAMES[s] ?? s}
-                </button>
-              </span>
-            ))}
-            .{" "}
-          </>
-        )}
-        Want it exact?{" "}
-        <button type="button" onClick={onExact} className="font-medium text-foreground underline underline-offset-4">
-          Add your ChatGPT, Claude or Gemini export
-        </button>
-        .
+      <p className="mt-5 font-semibold">Or connect your account</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {(["chatgpt", "claude", "gemini"] as const).map((s) => (
+          <button
+            key={s}
+            type="button"
+            onClick={() => (signIns.includes(s) ? signIn(s) : onExact())}
+            className="min-h-11 rounded-md border-2 border-rule px-4 font-semibold hover:bg-foreground hover:text-background"
+          >
+            Connect {AI_NAMES[s]}
+          </button>
+        ))}
+      </div>
+      <p className="mt-2 text-sm text-muted">
+        {signIns.includes("chatgpt")
+          ? "ChatGPT is one sign-in and goes by your plan. Claude and Gemini use your data export, which counts every prompt."
+          : "You download your data from ChatGPT, Claude or Gemini and add it here. We count every prompt in your browser."}
       </p>
       {status.kind === "waiting" && <p className="mt-2 text-sm text-muted">{status.text}</p>}
       {status.kind === "error" && <p className="mt-2 text-sm text-red-700">{status.text}</p>}
