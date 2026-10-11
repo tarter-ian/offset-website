@@ -7,7 +7,8 @@ import { NumberInput, Select } from "./fields";
 import { WaitlistForm } from "./WaitlistForm";
 import { STATE_OPTIONS, STATES, type StateCode } from "@/lib/data/states";
 import { IMPACT_INFO } from "@/lib/impacts";
-import { IMPACT_KEYS, type Impacts } from "@/lib/footprint";
+import { IMPACT_KEYS, sumImpacts, type Impacts } from "@/lib/footprint";
+import { howEstimated, whereItGoes } from "@/lib/methods";
 import { PROVIDERS, type ProviderId } from "@/lib/providers";
 import { digitalFromExport } from "@/lib/ai/exportParser";
 import { ONLINE_FROM_AGE } from "@/lib/factors";
@@ -118,6 +119,7 @@ export function Store() {
   // Past use is one switch for the whole plan; an item can still be changed on its own.
   const [pastAll, setPastAllState] = useState(true);
   const [details, setDetails] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -309,19 +311,19 @@ export function Store() {
       <button
         type="button"
         aria-pressed={inPlan}
-        aria-label={small ? `${inPlan ? "Remove" : "Offset"} ${p.name}` : undefined}
+        aria-label={small ? `${inPlan ? "Remove" : "Add"} ${p.name}${inPlan ? " from" : " to"} your plan` : undefined}
         onClick={() => toggle(p.id)}
         className={`min-h-11 shrink-0 rounded-md px-4 font-semibold ${
           inPlan
             ? small
-              ? "bg-accent-soft text-accent"
-              : "border-2 border-accent text-accent"
+              ? "border-2 border-foreground bg-foreground text-background"
+              : "border-2 border-rule"
             : small
               ? "border-2 border-rule hover:bg-foreground hover:text-background"
-              : "bg-accent text-on-accent hover:bg-accent-strong"
+              : "bg-foreground text-background hover:opacity-85"
         }`}
       >
-        {inPlan ? (small ? "✓ Added" : "✓ In your plan") : small ? "Offset" : "Offset this"}
+        {inPlan ? (small ? "✓ Added" : "✓ In your plan") : small ? "Add" : "Add to plan"}
       </button>
     );
   };
@@ -343,6 +345,44 @@ export function Store() {
     return lines;
   };
 
+  /** The (i) panel over a tile: how the item is estimated and who gets the money. */
+  const infoPanel = (p: Product) => {
+    const c = coverImpacts(p, amountOf(p), coverOf(p), ctx);
+    const goes = whereItGoes(sumImpacts([c.once, c.monthly]));
+    return (
+      <div
+        id={`info-${p.id}`}
+        role="region"
+        aria-label={`About ${p.name}`}
+        className="mt-3 border-t-2 border-rule pt-3 text-sm"
+      >
+        <h4 className="font-bold">How we estimate it</h4>
+        <ul className="mt-1 list-disc space-y-1 pl-4 text-muted">
+          {howEstimated(p).map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+        <h4 className="mt-3 font-bold">Where the money goes</h4>
+        <ul className="mt-1 space-y-1">
+          {goes.map((g) => (
+            <li key={g.key} className="flex justify-between gap-3">
+              <span>
+                <a href={g.charity.url} target="_blank" rel="noreferrer" className="underline underline-offset-2">
+                  {g.charity.name}
+                </a>
+                <span className="block text-xs text-muted">{g.charity.focus}</span>
+              </span>
+              <span className="figures shrink-0">{Math.round(g.share * 100)}%</span>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-2 text-xs text-muted">
+          Example charities until our donation partner is set. <a href="/method" className="underline">Full method and sources</a>
+        </p>
+      </div>
+    );
+  };
+
   /** A store tile: what it is, why it matters, your amount, the price and a one-tap add. Details open below the shelf. */
   const tile = (p: Product, index: number, collapsed: boolean) => {
     const amount = amountOf(p);
@@ -355,7 +395,26 @@ export function Store() {
           collapsed && index >= SHELF_SIZE ? "md:hidden" : ""
         } ${isOpen ? "outline-2 outline-rule" : ""}`}
       >
-        <h3 className="text-lg font-bold leading-snug">{p.name}</h3>
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="text-lg font-bold leading-snug">{p.name}</h3>
+          <button
+            type="button"
+            onClick={() => setInfo(info === p.id ? null : p.id)}
+            aria-expanded={info === p.id}
+            aria-controls={`info-${p.id}`}
+            aria-label={`How ${p.name} is estimated and where the money goes`}
+            className="-mr-2 -mt-1 grid size-10 shrink-0 place-items-center"
+          >
+            <span
+              aria-hidden
+              className={`grid size-6 place-items-center rounded-full border-[1.5px] border-foreground text-sm font-bold leading-none ${
+                info === p.id ? "bg-foreground text-background" : ""
+              }`}
+            >
+              {info === p.id ? "×" : "i"}
+            </span>
+          </button>
+        </div>
         <p className="text-sm text-muted">{p.blurb}</p>
         {coversLines(p).map(([label, text]) => (
           <p key={label} className="mt-3 text-sm">
@@ -374,6 +433,7 @@ export function Store() {
             <span className="font-medium underline underline-offset-4">{isOpen ? "Close" : "Change"}</span>
           </span>
         </button>
+        {info === p.id && infoPanel(p)}
         <div className="mt-auto flex items-center justify-between gap-3 pt-3">
           <span className="leading-tight">
             <span className="figures block text-lg font-medium">{tp.big}</span>
@@ -740,7 +800,7 @@ export function Store() {
                 }}
                 className="min-h-11 shrink-0 rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-strong"
               >
-                Offset these
+                Review and pay
               </button>
             </div>
           </div>
