@@ -21,7 +21,7 @@ const ERRORS: Record<ExtensionError, (name: string) => string> = {
 };
 
 /** `raw` is exactly what the extension handed over, shown on request so people can check it holds only counts. */
-type Row = { state: "asking" | "counting" | "done" | "error"; text?: string; error?: ExtensionError; raw?: unknown };
+type Row = { state: "asking" | "counting" | "done" | "incomplete" | "error"; text?: string; error?: ExtensionError; raw?: unknown };
 
 /**
  * Sizing AI use. One click: pick light, medium or heavy. Exact: the Offset
@@ -80,6 +80,13 @@ export function AiQuickPick({
           const u = signInUsage(usage);
           if (!u) {
             setRows((r) => ({ ...r, [service]: { state: "error", error: "unavailable", raw: usage } }));
+            return;
+          }
+          if (u.missedChats) {
+            // A short count would under-price the offset, so it isn't used.
+            const missed = u.missedChats > 0 ? `${u.missedChats.toLocaleString("en-US")} chats` : "some chats";
+            const text = `${EXT_NAMES[service]} only let us read part of your history (${missed} skipped), so we haven't used this count. Try again in a while.`;
+            setRows((r) => ({ ...r, [service]: { state: "incomplete", text, raw: usage } }));
             return;
           }
           setRows((r) => ({ ...r, [service]: { state: "done", text: resultText(u), raw: usage } }));
@@ -171,6 +178,14 @@ export function AiQuickPick({
                       {r.state === "counting" && <span className="text-muted">Counting…</span>}
                       {r.state === "asking" && <span className="text-muted">Waiting for you to allow it in the Offset window…</span>}
                       {r.state === "done" && r.text}
+                      {r.state === "incomplete" && (
+                        <span>
+                          <span className="text-muted">{r.text}</span>{" "}
+                          <button type="button" onClick={() => run([x])} className="underline hover:text-muted">
+                            Try again
+                          </button>
+                        </span>
+                      )}
                       {r.state === "error" && (
                         <span>
                           <span className="text-muted">{ERRORS[r.error ?? "unavailable"](EXT_NAMES[x])}</span>{" "}

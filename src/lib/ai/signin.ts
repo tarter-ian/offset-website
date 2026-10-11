@@ -13,6 +13,11 @@ export interface SignInUsage {
   planType?: string;
   /** Claude only: share of the plan's weekly limit used, which includes Claude Code. */
   weeklyLimitUsedPercent?: number;
+  /**
+   * Chats the extension couldn't read (ChatGPT limits how fast chats can be read),
+   * or -1 when it stopped early without saying how many. Set means the count is too low.
+   */
+  missedChats?: number;
 }
 
 const count = (v: unknown) => {
@@ -42,6 +47,7 @@ export function signInUsage(data: unknown): SignInUsage | null {
     days,
     planType: plan,
     ...(Number.isFinite(weekly) && weekly > 0 ? { weeklyLimitUsedPercent: Math.min(weekly, 100) } : {}),
+    ...(count(r.failedConversations) > 0 ? { missedChats: count(r.failedConversations) } : r.truncated === true ? { missedChats: -1 } : {}),
   };
 }
 

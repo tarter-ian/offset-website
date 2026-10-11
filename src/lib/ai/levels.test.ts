@@ -43,4 +43,11 @@ describe("Gemini sign-in", async () => {
     const u = signInUsage({ prompts: 8, activeDays: 1, truncated: false, daily: [{ date: "2026-10-02", prompts: 8 }] })!;
     expect(summaryFromSignIn("gemini", u).promptsPerDay).toBeCloseTo(8 / 30, 6);
   });
+
+  it("marks a count with unread chats as incomplete", async () => {
+    const { signInUsage } = await import("./signin");
+    expect(signInUsage({ prompts: 30, failedConversations: 38 })!.missedChats).toBe(38);
+    expect(signInUsage({ prompts: 30, truncated: true })!.missedChats).toBe(-1);
+    expect(signInUsage({ prompts: 1611, failedConversations: 0, truncated: false })!.missedChats).toBeUndefined();
+  });
 });
