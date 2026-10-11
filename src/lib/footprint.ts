@@ -22,7 +22,7 @@ export const CONFIDENCE_LABELS: Record<Confidence, string> = {
 /**
  * The four kinds of harm we track.
  * carbon: kg CO2e. air: dollars of health damage from air pollution.
- * water: liters of fresh water consumed. land: square meters occupied for a year.
+ * water: liters of fresh water consumed, weighted by how scarce water is where it's used. land: square meters occupied for a year.
  */
 export type ImpactKey = "carbon" | "air" | "water" | "land";
 export type Impacts = Record<ImpactKey, number>;
@@ -191,7 +191,7 @@ export function dataCenterImpacts(kwh: number): Impacts {
   return {
     ...g,
     carbon: kwh * (F.KG_PER_STREAMING_HOUR / F.STREAMING_KWH_PER_HOUR),
-    water: g.water + kwh * F.DATACENTER_L_PER_KWH,
+    water: g.water + kwh * F.DATACENTER_L_PER_KWH * F.scarcityWeight("datacenter"),
   };
 }
 
@@ -206,7 +206,7 @@ export function aiImpacts(answerKwh: number): Impacts {
   return {
     carbon: g.carbon / (1 - F.AI_HARDWARE_SHARE),
     air: g.air * F.AI_LOCAL_AIR_WEIGHT,
-    water: (g.water + kwh * F.DATACENTER_L_PER_KWH) * F.AI_WATER_STRESS_WEIGHT,
+    water: g.water + kwh * F.DATACENTER_L_PER_KWH * F.scarcityWeight("datacenter"),
     land: 0,
   };
 }
@@ -226,7 +226,7 @@ export function gridImpacts(kwh: number, state?: StateCode): Impacts {
   return {
     carbon: kwh * (state ? gridKgPerKwh(state) : US_KG_PER_KWH),
     air: kwh * gridAirUsdPerKwh(s?.noxLbPerMwh ?? US_NOX_LB_PER_MWH, s?.so2LbPerMwh ?? US_SO2_LB_PER_MWH),
-    water: kwh * F.GRID_L_PER_KWH,
+    water: kwh * F.GRID_L_PER_KWH * F.scarcityWeight("grid"),
     land: 0,
   };
 }
@@ -348,7 +348,7 @@ export function computeFootprint(a: Answers): Footprint {
   const foodTotal: Impacts = {
     carbon: (F.DIET_KG_PER_YEAR[a.diet] / 12) * personCount,
     air: 0,
-    water: F.DIET_L_PER_DAY[a.diet] * F.DAYS_PER_MONTH * personCount,
+    water: F.DIET_L_PER_DAY[a.diet] * F.DAYS_PER_MONTH * F.scarcityWeight("food") * personCount,
     land: (F.DIET_M2_PER_YEAR[a.diet] / 12) * personCount,
   };
   const shares = F.FOOD_SHARES[a.diet];

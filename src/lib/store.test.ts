@@ -32,10 +32,10 @@ describe("spans", () => {
   });
 
   it("offers past, monthly and lifetime above $100, and hides lifetime above $1,000 unless asked", () => {
-    expect(spansFor(p("tv"), 1, C)).toEqual(["past", "monthly", "lifetime"]);
-    expect(spansFor(p("ai"), 2000, C)).toEqual(["past", "monthly"]);
+    expect(spansFor(p("desktop"), 1, C)).toEqual(["past", "monthly", "lifetime"]);
+    expect(spansFor(p("ai"), 5000, C)).toEqual(["past", "monthly"]);
     expect(spansFor(p("ai"), 2000, C, true)).toEqual(["past", "monthly", "lifetime"]);
-    expect(effectiveSpan(p("ai"), 2000, C, "lifetime")).toBe("monthly");
+    expect(effectiveSpan(p("ai"), 5000, C, "lifetime")).toBe("monthly");
   });
 });
 

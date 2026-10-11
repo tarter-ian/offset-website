@@ -23,9 +23,28 @@ export const DONATION_PER_TONNE_USD = CARBON_MODES[DEFAULT_CARBON_MODE].perTonne
 /** Air: share of the estimated health damage donated to clean-air work. */
 export const AIR_DAMAGE_SHARE = 0.1;
 
-/** Water: Bonneville Environmental Foundation Water Restoration Certificates,
- * $4 per 1,000 gallons restored (ClimeCo listing). */
-export const WATER_USD_PER_LITER = 4 / 3785.41;
+/**
+ * Water: how a (scarcity-weighted) gallon is covered. Expected impact funds paid
+ * water-saving work in dry regions, like farm irrigation upgrades, which has
+ * cost roughly $70 to $500 an acre-foot; we use about $400 ($1.25 per 1,000
+ * gallons). Verified buys Bonneville Environmental Foundation Water Restoration
+ * Certificates, $4 per 1,000 gallons returned to a river (ClimeCo listing).
+ */
+export type WaterMode = "expected" | "verified";
+export const WATER_MODES: Record<WaterMode, { label: string; per1000Gal: number; detail: string }> = {
+  expected: {
+    label: "Expected impact",
+    per1000Gal: 1.25,
+    detail: "Funds water-saving projects in dry regions. Cheapest, but the savings are estimated.",
+  },
+  verified: {
+    label: "1:1 restoration",
+    per1000Gal: 4,
+    detail: "Certified restoration. Every gallon is returned to a stressed river.",
+  },
+};
+export const DEFAULT_WATER_MODE: WaterMode = "expected";
+const LITERS_PER_1000_GAL = 3785.41;
 
 /** Nature: protect an area equal to the land used that month. Rainforest Trust
  * says protecting an acre of rainforest costs about $10. */
@@ -49,11 +68,15 @@ export interface MonthlyCost {
 
 const cents = (n: number) => Math.round(n * 100) / 100;
 
-export function impactCost(i: Impacts, carbonMode: CarbonMode = DEFAULT_CARBON_MODE): Impacts {
+export function impactCost(
+  i: Impacts,
+  carbonMode: CarbonMode = DEFAULT_CARBON_MODE,
+  waterMode: WaterMode = DEFAULT_WATER_MODE,
+): Impacts {
   return {
     carbon: (i.carbon / 1000) * CARBON_MODES[carbonMode].perTonne,
     air: i.air * AIR_DAMAGE_SHARE,
-    water: i.water * WATER_USD_PER_LITER,
+    water: (i.water / LITERS_PER_1000_GAL) * WATER_MODES[waterMode].per1000Gal,
     land: i.land * LAND_USD_PER_M2,
   };
 }
@@ -63,9 +86,10 @@ export function monthlyCost(
   covered: CategoryKey[],
   impacts: ImpactKey[] = IMPACT_KEYS,
   carbonMode: CarbonMode = DEFAULT_CARBON_MODE,
+  waterMode: WaterMode = DEFAULT_WATER_MODE,
 ): MonthlyCost {
   const chosen = footprint.categories.filter((c) => covered.includes(c.key));
-  const all = impactCost(sumImpacts(chosen.map((c) => c.offset)), carbonMode);
+  const all = impactCost(sumImpacts(chosen.map((c) => c.offset)), carbonMode, waterMode);
   const byImpact: Impacts = { carbon: 0, air: 0, water: 0, land: 0 };
   for (const k of impacts) byImpact[k] = all[k];
   const raw = byImpact.carbon + byImpact.air + byImpact.water + byImpact.land;

@@ -72,12 +72,19 @@ export const AI_TRAINING_SHARE = 0.4;
 // AI's total carbon (rough; life-cycle studies of AI hardware put manufacturing
 // at roughly a fifth to a third).
 export const AI_HARDWARE_SHARE = 0.25;
-// Many new data centers are in water-stressed regions (about two thirds of
-// those built since 2022, per Bloomberg's 2025 analysis), so water used there
-// counts double. Some also run on-site gas turbines and diesel backup, which
-// pollute more locally than the grid average (rough).
-export const AI_WATER_STRESS_WEIGHT = 1 + 2 / 3;
+// Some data centers run on-site gas turbines and diesel backup, which pollute
+// more locally than the grid average (rough).
 export const AI_LOCAL_AIR_WEIGHT = 1.2;
+
+// Water is weighted by scarcity: a liter from a water-stressed basin counts in
+// full, a liter from a basin with plenty counts a fifth (the ISO 14046 idea,
+// simplified). Stressed shares are rough: about two thirds of data centers
+// built since 2022 are in stressed areas (Bloomberg 2025); much US irrigation is
+// in the dry West; power plant cooling is spread more evenly.
+export const UNSTRESSED_WATER_WEIGHT = 0.2;
+export const STRESSED_WATER_SHARE = { grid: 0.4, datacenter: 2 / 3, food: 0.6 } as const;
+export const scarcityWeight = (source: keyof typeof STRESSED_WATER_SHARE) =>
+  STRESSED_WATER_SHARE[source] + (1 - STRESSED_WATER_SHARE[source]) * UNSTRESSED_WATER_WEIGHT;
 export const KG_PER_STREAMING_HOUR = 0.036;
 export const US_GRID_LB_PER_MWH = 770.9;
 

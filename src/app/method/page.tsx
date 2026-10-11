@@ -5,6 +5,8 @@ import {
   AIR_DAMAGE_SHARE,
   CARBON_MODES,
   type CarbonMode,
+  WATER_MODES,
+  type WaterMode,
   FEE_PER_AREA_USD,
   LIFETIME_FEE_USD,
   LIFETIME_GROWTH_BUFFER,
@@ -30,6 +32,10 @@ const SOURCES = [
   {
     name: "Patterson et al. 2022, The Carbon Footprint of Machine Learning Training Will Plateau, Then Shrink",
     url: "https://arxiv.org/abs/2204.05149",
+  },
+  {
+    name: "The Water Report, farm water conservation and the Colorado River",
+    url: "https://www.thewaterreport.com/agricultural-water-conservation-saves-colorado-river/",
   },
   { name: "Li et al., Making AI Less Thirsty", url: "https://arxiv.org/html/2304.03271v4" },
   {
@@ -64,8 +70,10 @@ const IMPACTS = [
   },
   {
     name: "Water",
-    measure: "Fresh water consumed, in liters, to generate your electricity, cool data centers and grow your food.",
-    price: "We fund restoring the same amount to rivers and streams, at about $4 per 1,000 gallons.",
+    measure: `Fresh water consumed, in liters, to generate your electricity, cool data centers and grow your food, weighted by scarcity: a liter from a water-stressed area counts in full and a liter from a well-watered one counts ${F.UNSTRESSED_WATER_WEIGHT * 100}%. We assume ${Math.round(F.STRESSED_WATER_SHARE.food * 100)}% of food water, ${Math.round(F.STRESSED_WATER_SHARE.datacenter * 100)}% of data center water and ${Math.round(F.STRESSED_WATER_SHARE.grid * 100)}% of power plant water come from stressed areas.`,
+    price: `You choose how: ${(Object.keys(WATER_MODES) as WaterMode[])
+      .map((m) => `${WATER_MODES[m].label.toLowerCase()} at ${usd(WATER_MODES[m].per1000Gal)} per 1,000 gallons`)
+      .join(", or ")}. Expected impact, the default, funds paid water-saving work in dry regions, like farm irrigation upgrades, which has cost roughly $70 to $500 an acre-foot. Restoration certificates return every gallon to a stressed river.`,
   },
   {
     name: "Nature",
@@ -180,9 +188,8 @@ export default function MethodPage() {
         <li>
           <strong className="font-medium text-foreground">AI</strong> adds each prompt&apos;s share of training the models: about{" "}
           {Math.round(F.AI_TRAINING_SHARE * 100)}% of machine learning energy goes to training. On top of that, making the chips and servers
-          and building the data centers adds about {Math.round(F.AI_HARDWARE_SHARE * 100)}% of AI&apos;s carbon. Many data centers are in dry
-          areas, so their water counts {F.AI_WATER_STRESS_WEIGHT.toFixed(1)} times, and some run their own gas power, so their air pollution
-          counts {F.AI_LOCAL_AIR_WEIGHT} times. AI built into other products, like search answers, and AI video aren&apos;t measured yet.
+          and building the data centers adds about {Math.round(F.AI_HARDWARE_SHARE * 100)}% of AI&apos;s carbon. Some data centers run their own gas power, so
+          their air pollution counts {F.AI_LOCAL_AIR_WEIGHT} times. AI built into other products, like search answers, and AI video aren&apos;t measured yet.
         </li>
         <li>
           <strong className="font-medium text-foreground">Devices</strong> counts the carbon to make each phone, laptop, tablet, computer, TV and

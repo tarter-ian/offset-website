@@ -24,6 +24,9 @@ import {
   DEFAULT_CARBON_MODE,
   FEE_PER_AREA_USD,
   type CarbonMode,
+  DEFAULT_WATER_MODE,
+  WATER_MODES,
+  type WaterMode,
   impactCost,
   LIFETIME_GROWTH_BUFFER,
   LIFETIME_YEARS,
@@ -59,8 +62,13 @@ const PRESETS: { label: string; keys: CategoryKey[] }[] = [
   { label: "Just AI", keys: ["ai"] },
 ];
 
-const costOf = (c: CategoryResult, impacts: ImpactKey[], mode: CarbonMode = DEFAULT_CARBON_MODE) => {
-  const i = impactCost(c.offset, mode);
+const costOf = (
+  c: CategoryResult,
+  impacts: ImpactKey[],
+  mode: CarbonMode = DEFAULT_CARBON_MODE,
+  water: WaterMode = DEFAULT_WATER_MODE,
+) => {
+  const i = impactCost(c.offset, mode, water);
   return impacts.reduce((s, k) => s + i[k], 0);
 };
 
@@ -109,8 +117,9 @@ export function Results({
   const [covered, setCovered] = useState<CategoryKey[]>(initialCovered);
   const [impacts, setImpacts] = useState<ImpactKey[]>(IMPACT_KEYS);
   const [carbonMode, setCarbonMode] = useState<CarbonMode>(DEFAULT_CARBON_MODE);
+  const [waterMode, setWaterMode] = useState<WaterMode>(DEFAULT_WATER_MODE);
   const rows = footprint.categories.filter((c) => show.includes(c.key));
-  const cost = monthlyCost(footprint, covered, impacts, carbonMode);
+  const cost = monthlyCost(footprint, covered, impacts, carbonMode, waterMode);
   const lifetime = lifetimeCost(cost);
   const rawDonation = cost.byImpact.carbon + cost.byImpact.air + cost.byImpact.water + cost.byImpact.land;
   const allImpacts = IMPACT_KEYS.every((k) => impacts.includes(k));
@@ -209,6 +218,30 @@ export function Results({
             </div>
           </div>
         )}
+        {impacts.includes("water") && (
+          <div className="mt-4">
+            <p className="font-medium">How to cover water</p>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="How to cover water">
+              {(Object.keys(WATER_MODES) as WaterMode[]).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  role="radio"
+                  aria-checked={waterMode === m}
+                  onClick={() => setWaterMode(m)}
+                  className={`rounded-lg border px-4 py-3 text-left ${
+                    waterMode === m ? "border-accent bg-accent-soft" : "border-border bg-card hover:border-accent"
+                  }`}
+                >
+                  <span className="block font-medium">
+                    {WATER_MODES[m].label}: {usd(WATER_MODES[m].per1000Gal)} per 1,000 gallons
+                  </span>
+                  <span className="block text-sm text-muted">{WATER_MODES[m].detail}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
 
       <section>
@@ -249,7 +282,7 @@ export function Results({
             {groups.map((g) => {
               const keys = g.rows.map((c) => c.key);
               const n = keys.filter((k) => covered.includes(k)).length;
-              const areaCost = g.rows.reduce((s, c) => s + costOf(c, impacts, carbonMode), 0);
+              const areaCost = g.rows.reduce((s, c) => s + costOf(c, impacts, carbonMode, waterMode), 0);
               return (
                 <tbody key={g.key} className="border-b border-border last:border-0">
                   {!single && (
@@ -310,7 +343,7 @@ export function Results({
                         <td className="px-4 py-3 text-muted">
                           {counted.length ? `${CONFIDENCE_LABELS[c.confidence]}, +${Math.round(c.margin * 100)}%` : ""}
                         </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-right font-medium">{usd(costOf(c, impacts, carbonMode))}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-right font-medium">{usd(costOf(c, impacts, carbonMode, waterMode))}</td>
                       </tr>
                     );
                   })}
