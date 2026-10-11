@@ -321,7 +321,7 @@ const SOURCES: Record<SectionKey, ProviderId[]> = {
   devices: [],
   home: ["utility"],
   travel: ["bank"],
-  food: ["bank"],
+  food: [],
   shopping: ["bank"],
 };
 export function sourcesFor(p: Product): ProviderId[] {

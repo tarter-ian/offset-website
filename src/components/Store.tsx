@@ -102,7 +102,6 @@ const LINK_ROW: { id: ProviderId; label: string }[] = [
   { id: "chatgpt", label: "ChatGPT, Claude or Gemini" },
   { id: "activity", label: "Spotify, YouTube, Netflix or Google Maps" },
   { id: "utility", label: "Electric and gas utility" },
-  { id: "bank", label: "Bank or card" },
   { id: "car", label: "Car" },
 ];
 
