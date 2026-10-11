@@ -39,7 +39,7 @@ const QUESTIONS = [
   },
   {
     q: "Does it send my data to you?",
-    a: "No. The counts go from the extension to this page in your own browser. They only leave your device if you save a plan, and then only as amounts. The extension itself has no analytics and only contacts the services it's counting.",
+    a: "No. The counts go from the extension to this page in your own browser. They only leave your device if you save a plan, and then only as amounts. The extension itself has no analytics and only contacts the services it's counting. To save time next month, it keeps how many prompts each ChatGPT chat had per day, on your computer only, never titles or text. The Clear button on Your data deletes that.",
   },
   {
     q: "Do I need it?",

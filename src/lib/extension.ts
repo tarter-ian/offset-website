@@ -16,7 +16,7 @@ const EXT = "offset-extension";
 
 type ExtMessage = {
   source: typeof EXT;
-  type: "ready" | "started" | "counting" | "usage" | "error";
+  type: "ready" | "started" | "counting" | "usage" | "error" | "forgotten";
   version?: string;
   requestId?: string;
   service?: ExtensionService;
@@ -47,6 +47,27 @@ export function detectExtension(timeoutMs = 1000): Promise<string | null> {
     window.addEventListener("message", onMessage);
     const timer = setTimeout(() => done(null), timeoutMs);
     post({ type: "ping" });
+  });
+}
+
+/**
+ * Asks the extension to delete the per-chat counts it keeps between runs (so a
+ * later measure only reads new chats). Resolves true once it confirms, false if
+ * it isn't installed or doesn't answer.
+ */
+export function forgetExtensionData(timeoutMs = 2000): Promise<boolean> {
+  return new Promise((resolve) => {
+    const done = (v: boolean) => {
+      window.removeEventListener("message", onMessage);
+      clearTimeout(timer);
+      resolve(v);
+    };
+    const onMessage = (e: MessageEvent) => {
+      if (fromExtension(e)?.type === "forgotten") done(true);
+    };
+    window.addEventListener("message", onMessage);
+    const timer = setTimeout(() => done(false), timeoutMs);
+    post({ type: "forget" });
   });
 }
 

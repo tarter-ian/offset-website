@@ -85,7 +85,7 @@ export function AiQuickPick({
           if (u.missedChats) {
             // A short count would under-price the offset, so it isn't used.
             const missed = u.missedChats > 0 ? `${u.missedChats.toLocaleString("en-US")} chats` : "some chats";
-            const text = `${EXT_NAMES[service]} only let us read part of your history (${missed} skipped), so we haven't used this count. Try again in a while.`;
+            const text = `${EXT_NAMES[service]} only let us read part of your history so far (${missed} skipped), so we haven't used this count yet. Measure again later and it carries on from where it stopped.`;
             setRows((r) => ({ ...r, [service]: { state: "incomplete", text, raw: usage } }));
             return;
           }

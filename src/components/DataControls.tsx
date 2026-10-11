@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { forgetExtensionData } from "@/lib/extension";
 
 // Everything the site keeps in this browser. Add new keys here when the site starts saving more.
 const BROWSER_KEYS = ["offset:plan:v2", "offset:answers"];
@@ -12,12 +13,14 @@ export function DataControls() {
   const [state, setState] = useState<"idle" | "sending" | "done" | "error">("idle");
   const [error, setError] = useState("");
 
-  function clearBrowser() {
+  async function clearBrowser() {
     try {
       for (const k of BROWSER_KEYS) localStorage.removeItem(k);
     } catch {
       // Storage blocked: nothing was saved to begin with.
     }
+    // The extension's per-chat counts too, if it's installed.
+    await forgetExtensionData();
     setCleared(true);
   }
 
@@ -42,7 +45,7 @@ export function DataControls() {
     <div className="grid gap-6 sm:grid-cols-2">
       <div className="border-2 border-rule p-4">
         <p className="font-display text-lg font-bold">Clear this browser</p>
-        <p className="mt-1 text-sm text-muted">Removes your plan and answers from this device. The page starts fresh.</p>
+        <p className="mt-1 text-sm text-muted">Removes your plan and answers from this device, and the counts the extension keeps. The page starts fresh.</p>
         <button
           type="button"
           onClick={clearBrowser}

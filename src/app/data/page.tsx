@@ -15,7 +15,11 @@ const NAMES: Record<SignInService, string> = {
 const KEPT = [
   { where: "In your browser", what: "The plan you build and the amounts you enter, so they're still there when you come back. It never leaves your device." },
   { where: "On our server", what: "Your email, only if you join the waitlist. Nothing else." },
-  { where: "Nowhere", what: "Anything the extension counts or a file you add. We turn it into amounts on the page and keep none of it. API keys are used once and never saved or logged." },
+  {
+    where: "In the extension",
+    what: "If you use it: how many prompts and images each ChatGPT chat had per day, so next time it only reads chats that changed. Never titles or text, and never sent to us. Clearing below deletes it, and so does removing the extension.",
+  },
+  { where: "Nowhere else", what: "The counts the extension hands this page, and any file you add. We turn them into amounts on the page and keep none of it. API keys are used once and never saved or logged." },
 ];
 
 export default function DataPage() {
