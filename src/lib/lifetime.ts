@@ -106,7 +106,7 @@ export type Span = "past" | "monthly" | "lifetime";
 
 export const SPANS: Record<Span, { label: string; badge: string; per: string; hint: string }> = {
   past: { label: "Past use", badge: "to date", per: "once", hint: "Everything up to today, in one payment." },
-  monthly: { label: "Monthly", badge: "this month", per: "a month", hint: "This month's use, approved each month. Cancel anytime." },
+  monthly: { label: "Ongoing", badge: "this year", per: "a year", hint: "Your use as it happens, billed yearly or monthly. Cancel anytime." },
   lifetime: { label: "Lifetime", badge: "for life", per: "once", hint: "Everything so far and everything to come, in one payment." },
 };
 export const SPAN_KEYS = Object.keys(SPANS) as Span[];

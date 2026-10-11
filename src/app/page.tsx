@@ -12,7 +12,7 @@ const POINTS = [
   },
   {
     title: "You approve every payment",
-    body: "Each month you see your footprint and approve the donation yourself. Nothing is charged automatically.",
+    body: "You approve every payment yourself, once a year or each month. Nothing is charged automatically.",
   },
   {
     title: "More than carbon",
@@ -31,7 +31,7 @@ const POINTS = [
 const STEPS = [
   "Pick the parts of your life you want to offset, starting with AI.",
   "Link your accounts for exact numbers, or go with typical amounts.",
-  "Pay once for life, or approve each month. Nothing is charged automatically.",
+  "Pay once for life, or approve each year or month. Nothing is charged automatically.",
 ];
 
 export default function Home() {

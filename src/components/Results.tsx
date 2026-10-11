@@ -24,6 +24,11 @@ import {
   DEFAULT_CARBON_MODE,
   FEE_PER_AREA_USD,
   type CarbonMode,
+  BILLING,
+  type Billing,
+  defaultBilling,
+  ANNUAL_FEE_MONTHS,
+  recurringPrice,
   DEFAULT_WATER_MODE,
   WATER_MODES,
   type WaterMode,
@@ -32,7 +37,6 @@ import {
   LIFETIME_YEARS,
   lifetimeCost,
   MAX_FEE_USD,
-  MIN_DONATION_USD,
   monthlyCost,
   usd,
 } from "@/lib/pricing";
@@ -118,10 +122,14 @@ export function Results({
   const [impacts, setImpacts] = useState<ImpactKey[]>(IMPACT_KEYS);
   const [carbonMode, setCarbonMode] = useState<CarbonMode>(DEFAULT_CARBON_MODE);
   const [waterMode, setWaterMode] = useState<WaterMode>(DEFAULT_WATER_MODE);
+  // null until the person picks, so the default follows the price.
+  const [billingPick, setBilling] = useState<Billing | null>(null);
   const rows = footprint.categories.filter((c) => show.includes(c.key));
   const cost = monthlyCost(footprint, covered, impacts, carbonMode, waterMode);
   const lifetime = lifetimeCost(cost);
   const rawDonation = cost.byImpact.carbon + cost.byImpact.air + cost.byImpact.water + cost.byImpact.land;
+  const billing = billingPick ?? defaultBilling(cost.total);
+  const bill = recurringPrice(rawDonation, cost.fee, billing);
   const allImpacts = IMPACT_KEYS.every((k) => impacts.includes(k));
   const everything = allImpacts && CATEGORY_KEYS.every((k) => covered.includes(k));
   const who = answers.scope === "household" ? "Your household's" : "Your";
@@ -356,7 +364,7 @@ export function Results({
 
       <section className="grid gap-4 sm:grid-cols-2">
         <div className="rounded-xl border border-border bg-card p-6">
-          <h3 className="font-semibold">Your monthly offset</h3>
+          <h3 className="font-semibold">Your {BILLING[billing].label.toLowerCase()} offset</h3>
           {!active ? (
             <p className="mt-4 text-muted">Pick at least one item and one kind of harm to cover.</p>
           ) : (
@@ -364,27 +372,46 @@ export function Results({
               <dl className="mt-4 space-y-2">
                 <div className="flex justify-between gap-4">
                   <dt className="text-muted">Donation to charities</dt>
-                  <dd>{usd(cost.donation)}</dd>
+                  <dd>{usd(bill.donation)}</dd>
                 </div>
                 <div className="flex justify-between gap-4">
                   <dt className="text-muted">
-                    Our fee ({usd(FEE_PER_AREA_USD)} an area, up to {usd(MAX_FEE_USD)})
+                    Our fee ({usd(FEE_PER_AREA_USD)} an area a month, up to {usd(MAX_FEE_USD)}
+                    {billing === "annual" && `, ${12 - ANNUAL_FEE_MONTHS} months free`})
                   </dt>
-                  <dd>{usd(cost.fee)}</dd>
+                  <dd>{usd(bill.fee)}</dd>
                 </div>
                 <div className="flex justify-between gap-4 border-t border-border pt-2 font-semibold">
                   <dt>Total</dt>
-                  <dd>{usd(cost.total)}</dd>
+                  <dd>
+                    {usd(bill.total)} {BILLING[billing].per}
+                  </dd>
                 </div>
               </dl>
-              {cost.minimumApplied && (
+              <div className="mt-3 flex flex-wrap gap-2 text-sm" role="radiogroup" aria-label="How often to pay">
+                {(Object.keys(BILLING) as Billing[]).map((b) => (
+                  <button
+                    key={b}
+                    type="button"
+                    role="radio"
+                    aria-checked={billing === b}
+                    onClick={() => setBilling(b)}
+                    className={`rounded-md border px-2.5 py-1 ${
+                      billing === b ? "border-accent bg-accent-soft font-medium text-accent" : "border-border hover:border-accent"
+                    }`}
+                  >
+                    Pay {BILLING[b].label.toLowerCase()}
+                  </button>
+                ))}
+              </div>
+              {bill.minimumApplied && (
                 <p className="mt-3 text-sm text-muted">
-                  Covering this costs {usd(rawDonation)}, so we round the donation up to {usd(MIN_DONATION_USD)}. All of
-                  it goes to the charities.
+                  Covering this costs {usd(billing === "annual" ? rawDonation * 12 : rawDonation)}, so we round the
+                  donation up to {usd(bill.donation)}. All of it goes to the charities.
                 </p>
               )}
               <p className="mt-4 text-sm text-muted">
-                You&apos;ll review and approve this each month. Nothing is charged automatically.
+                You&apos;ll review and approve this {BILLING[billing].approve}. Nothing is charged automatically.
               </p>
               {lifetime && (
                 <div className="mt-5 rounded-lg bg-accent-soft p-4">

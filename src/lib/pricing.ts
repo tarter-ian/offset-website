@@ -50,12 +50,51 @@ const LITERS_PER_1000_GAL = 3785.41;
  * says protecting an acre of rainforest costs about $10. */
 export const LAND_USD_PER_M2 = 10 / M2_PER_ACRE;
 
+const cents = (n: number) => Math.round(n * 100) / 100;
+
 /** Fee: $1 for each area (home, travel, ...) with anything covered, capped. */
 export const FEE_PER_AREA_USD = 1;
 export const MAX_FEE_USD = 4;
 
 /** Smallest donation we pass on, so tiny plans still reach the charities. */
 export const MIN_DONATION_USD = 1;
+
+/**
+ * Ongoing offsets are billed yearly by default: one approval a year, and card
+ * fees take far less of one larger payment. Paying yearly gets two months of
+ * our fee free. Monthly billing stays available.
+ */
+export type Billing = "annual" | "monthly";
+export const DEFAULT_BILLING: Billing = "annual";
+/** Small plans default to yearly, where card fees bite hardest; bigger ones to monthly so no one faces a large charge by default. */
+export const MONTHLY_BILLING_FROM_USD = 20;
+export const defaultBilling = (monthlyTotal: number): Billing =>
+  monthlyTotal >= MONTHLY_BILLING_FROM_USD ? "monthly" : "annual";
+export const ANNUAL_FEE_MONTHS = 10;
+export const ANNUAL_MIN_DONATION_USD = 5;
+export const BILLING: Record<Billing, { label: string; per: string; approve: string }> = {
+  annual: { label: "Yearly", per: "a year", approve: "once a year" },
+  monthly: { label: "Monthly", per: "a month", approve: "each month" },
+};
+
+export interface Recurring {
+  donation: number;
+  fee: number;
+  total: number;
+  minimumApplied: boolean;
+}
+
+/** Turns a month's donation and fee into what's charged each billing period. */
+export function recurringPrice(rawMonthlyDonation: number, monthlyFee: number, billing: Billing): Recurring {
+  if (billing === "monthly") {
+    const donation = Math.max(MIN_DONATION_USD, Math.ceil(rawMonthlyDonation * 100) / 100);
+    return { donation, fee: monthlyFee, total: cents(donation + monthlyFee), minimumApplied: rawMonthlyDonation < MIN_DONATION_USD };
+  }
+  const raw = rawMonthlyDonation * 12;
+  const donation = Math.max(ANNUAL_MIN_DONATION_USD, Math.ceil(raw));
+  const fee = monthlyFee * ANNUAL_FEE_MONTHS;
+  return { donation, fee, total: donation + fee, minimumApplied: raw < ANNUAL_MIN_DONATION_USD };
+}
 
 export interface MonthlyCost {
   /** Donation for each kind of impact, before the minimum. */
@@ -65,8 +104,6 @@ export interface MonthlyCost {
   total: number;
   minimumApplied: boolean;
 }
-
-const cents = (n: number) => Math.round(n * 100) / 100;
 
 export function impactCost(
   i: Impacts,

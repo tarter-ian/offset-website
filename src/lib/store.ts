@@ -11,17 +11,21 @@ import {
   type Span,
 } from "./lifetime";
 import {
+  type Billing,
+  DEFAULT_BILLING,
   FEE_PER_AREA_USD,
   impactCost,
   LIFETIME_FEE_USD,
   LIFETIME_MIN_DONATION_USD,
   MAX_FEE_USD,
-  MIN_DONATION_USD,
+  type Recurring,
+  recurringPrice,
 } from "./pricing";
 
 // The storefront: each part of someone's life is an item they can offset on its
 // own, priced from their amount. Online items can be covered for life, to date or
-// monthly; everyday items are monthly. Minimums and fees apply to the whole plan.
+// ongoing; everyday items are ongoing, billed yearly or monthly. Minimums and fees
+// apply to the whole plan.
 
 export type SectionKey = "ai" | "online" | "devices" | "home" | "travel" | "food" | "shopping";
 
@@ -290,17 +294,18 @@ export interface PlanLine {
 export interface PlanTotals {
   lines: (PlanLine & { product: Product; cost: number })[];
   oneTime: { donation: number; fee: number; total: number } | null;
-  monthly: { donation: number; fee: number; total: number } | null;
+  /** Ongoing items, charged each billing period. */
+  recurring: Recurring | null;
 }
 
-/** Adds up a plan: one-time items share one minimum and fee, monthly items pay $1 each up to the cap. */
-export function planTotals(plan: PlanLine[], ctx: Context): PlanTotals {
+/** Adds up a plan: one-time items share one minimum and fee; ongoing items pay $1 a month each, up to the cap, billed yearly or monthly. */
+export function planTotals(plan: PlanLine[], ctx: Context, billing: Billing = DEFAULT_BILLING): PlanTotals {
   const lines = plan.flatMap((l) => {
     const product = productById(l.productId);
     return product ? [{ ...l, product, cost: product.cost(l.amount, l.span, ctx) }] : [];
   });
   const once = lines.filter((l) => l.span !== "monthly");
-  const month = lines.filter((l) => l.span === "monthly");
+  const ongoing = lines.filter((l) => l.span === "monthly");
   const sum = (ls: typeof lines) => ls.reduce((s, l) => s + l.cost, 0);
   const oneTime = once.length
     ? (() => {
@@ -308,13 +313,8 @@ export function planTotals(plan: PlanLine[], ctx: Context): PlanTotals {
         return { donation, fee: LIFETIME_FEE_USD, total: donation + LIFETIME_FEE_USD };
       })()
     : null;
-  const monthlyTotals = month.length
-    ? (() => {
-        const donation = Math.max(MIN_DONATION_USD, Math.ceil(sum(month) * 100) / 100);
-        const fee = Math.min(MAX_FEE_USD, FEE_PER_AREA_USD * month.length);
-        return { donation, fee, total: donation + fee };
-      })()
+  const recurring = ongoing.length
+    ? recurringPrice(sum(ongoing), Math.min(MAX_FEE_USD, FEE_PER_AREA_USD * ongoing.length), billing)
     : null;
-  return { lines, oneTime, monthly: monthlyTotals };
+  return { lines, oneTime, recurring };
 }
-

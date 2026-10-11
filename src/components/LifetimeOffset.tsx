@@ -25,7 +25,7 @@ import {
   type LifetimeInput,
   type LifetimeItem,
 } from "@/lib/lifetime";
-import { LIFETIME_MIN_DONATION_USD, MIN_DONATION_USD, usd } from "@/lib/pricing";
+import { BILLING, type Billing, defaultBilling, LIFETIME_MIN_DONATION_USD, recurringPrice, usd } from "@/lib/pricing";
 
 const badgeName = (items: LifetimeItem[]) =>
   items.length === ITEM_KEYS.length ? "Everything online" : items.map((k) => LIFETIME_ITEMS[k].label).join(" + ");
@@ -44,19 +44,31 @@ export function LifetimeOffset({ initialItems = ITEM_KEYS }: { initialItems?: Li
   const span: Span = !showSpans ? "lifetime" : spans.includes(spanChoice) ? spanChoice : "monthly";
   const o = lifetimeOffset(input, items, undefined, span);
   const monthly = span === "monthly";
+  // Ongoing offsets bill yearly or monthly; the default follows the price until the person picks.
+  const [billingPick, setBillingPick] = useState<Billing | null>(null);
+  const recur = (its: LifetimeItem[], b?: Billing) => {
+    const m = lifetimeOffset(input, its, undefined, "monthly");
+    const raw = its.reduce((s, k) => s + m.parts[k].cost, 0);
+    return recurringPrice(raw, m.fee, b ?? billingPick ?? defaultBilling(m.total));
+  };
+  const billing = billingPick ?? defaultBilling(lifetimeOffset(input, items, undefined, "monthly").total);
+  const price = (its: LifetimeItem[], sp: Span) => (sp === "monthly" ? recur(its, billing) : lifetimeOffset(input, its, undefined, sp));
+  const shown = price(items, span);
+  const per = (sp: Span) => (sp === "monthly" ? ` ${BILLING[billing].per}` : "");
+  const partScale = monthly && billing === "annual" ? 12 : 1;
   const has = (k: LifetimeItem) => items.includes(k);
   const set = (patch: Partial<LifetimeInput>) => setInput((i) => ({ ...i, ...patch }));
   const toggle = (k: LifetimeItem) =>
     setItems((cur) => (cur.includes(k) ? (cur.length > 1 ? cur.filter((x) => x !== k) : cur) : ITEM_KEYS.filter((x) => x === k || cur.includes(x))));
 
   const covered = monthly
-    ? ["This month's use, approved by you each month"]
+    ? [`This ${billing === "annual" ? "year" : "month"}'s use, approved by you ${BILLING[billing].approve}`]
     : [
         (has("internet") || has("devices")) && `${Math.round(o.pastYears.internet)} years online so far`,
         has("ai") && `${o.pastYears.ai.toFixed(1)} years of AI chat`,
         span === "lifetime" && `${Math.round(o.futureYears)} years to come`,
       ].filter(Boolean);
-  const minimum = monthly ? MIN_DONATION_USD : LIFETIME_MIN_DONATION_USD;
+  const roundedUp = monthly ? (shown as { minimumApplied: boolean }).minimumApplied : o.donation === LIFETIME_MIN_DONATION_USD;
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
@@ -73,8 +85,8 @@ export function LifetimeOffset({ initialItems = ITEM_KEYS }: { initialItems?: Li
                   has(k) ? "border-accent bg-accent text-white" : "border-border bg-card hover:border-accent"
                 }`}
               >
-                {LIFETIME_ITEMS[k].label} · {usd(lifetimeOffset(input, [k], undefined, span).total)}
-                {monthly ? "/mo" : ""}
+                {LIFETIME_ITEMS[k].label} · {usd(price([k], span).total)}
+                {per(span)}
               </button>
             ))}
           </div>
@@ -101,8 +113,8 @@ export function LifetimeOffset({ initialItems = ITEM_KEYS }: { initialItems?: Li
                     span === k ? "border-accent bg-accent text-white" : "border-border bg-card hover:border-accent"
                   }`}
                 >
-                  {SPANS[k].label} · {usd(lifetimeOffset(input, items, undefined, k).total)}
-                  {k === "monthly" ? "/mo" : ""}
+                  {k === "monthly" ? BILLING[billing].label : SPANS[k].label} · {usd(price(items, k).total)}
+                  {per(k)}
                 </button>
               ))}
             </div>
@@ -195,14 +207,22 @@ export function LifetimeOffset({ initialItems = ITEM_KEYS }: { initialItems?: Li
 
       <aside className="h-fit space-y-5 rounded-2xl border border-border bg-card p-6 lg:sticky lg:top-6">
         <div className="flex items-center gap-4">
-          <Badge area={badgeName(items)} detail={SPANS[span].badge} size="sm" />
+          <Badge
+            area={badgeName(items)}
+            detail={monthly ? `this ${billing === "annual" ? "year" : "month"}` : SPANS[span].badge}
+            size="sm"
+          />
           <div>
             <div className="text-sm text-muted">
-              {monthly ? "Each month, cancel anytime" : span === "past" ? "One payment, everything to date" : "One payment, for life"}
+              {monthly
+                ? `${billing === "annual" ? "Each year" : "Each month"}, cancel anytime`
+                : span === "past"
+                  ? "One payment, everything to date"
+                  : "One payment, for life"}
             </div>
             <div className="text-3xl font-semibold">
-              {usd(o.total)}
-              {monthly && <span className="text-base font-normal text-muted"> a month</span>}
+              {usd(shown.total)}
+              {monthly && <span className="text-base font-normal text-muted">{per(span)}</span>}
             </div>
           </div>
         </div>
@@ -211,7 +231,7 @@ export function LifetimeOffset({ initialItems = ITEM_KEYS }: { initialItems?: Li
             <div key={k}>
               <div className="flex justify-between">
                 <dt className="text-muted">{LIFETIME_ITEMS[k].label}</dt>
-                <dd>{usd(o.parts[k].cost)}</dd>
+                <dd>{usd(o.parts[k].cost * partScale)}</dd>
               </div>
               {k === "internet" && (
                 <div className="mt-0.5 space-y-0.5 border-l-2 border-border pl-3 text-xs">
@@ -220,7 +240,7 @@ export function LifetimeOffset({ initialItems = ITEM_KEYS }: { initialItems?: Li
                     .map((a) => (
                       <div key={a} className="flex justify-between">
                         <dt className="text-muted">{INTERNET_ACTIVITIES[a].label}</dt>
-                        <dd>{usd(o.internetByActivity[a])}</dd>
+                        <dd>{usd(o.internetByActivity[a] * partScale)}</dd>
                       </div>
                     ))}
                 </div>
@@ -229,11 +249,11 @@ export function LifetimeOffset({ initialItems = ITEM_KEYS }: { initialItems?: Li
           ))}
           <div className="flex justify-between border-t border-border pt-1">
             <dt className="text-muted">Donation to charities</dt>
-            <dd>{usd(o.donation)}</dd>
+            <dd>{usd(shown.donation)}</dd>
           </div>
           <div className="flex justify-between">
-            <dt className="text-muted">{monthly ? "Our monthly fee" : "Our one-time fee"}</dt>
-            <dd>{usd(o.fee)}</dd>
+            <dt className="text-muted">{monthly ? `Our ${BILLING[billing].label.toLowerCase()} fee` : "Our one-time fee"}</dt>
+            <dd>{usd(shown.fee)}</dd>
           </div>
         </dl>
         <div className="border-t border-border pt-4 text-sm">
@@ -241,13 +261,31 @@ export function LifetimeOffset({ initialItems = ITEM_KEYS }: { initialItems?: Li
           <p className="mt-1 text-muted">
             {covered.join(", ")}.
             {span === "lifetime" && has("ai") && " Future AI use is counted three times over in case it grows."}
-            {o.donation === minimum && ` The math comes to less than ${usd(minimum)}, so we round up to it.`}
+            {roundedUp && ` The math comes to less than ${usd(shown.donation)}, so we round up to it.`}
           </p>
+          {monthly && (
+            <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="How often to pay">
+              {(Object.keys(BILLING) as Billing[]).map((b) => (
+                <button
+                  key={b}
+                  type="button"
+                  role="radio"
+                  aria-checked={billing === b}
+                  onClick={() => setBillingPick(b)}
+                  className={`rounded-md border px-2.5 py-1 ${
+                    billing === b ? "border-accent bg-accent-soft font-medium text-accent" : "border-border hover:border-accent"
+                  }`}
+                >
+                  Pay {BILLING[b].label.toLowerCase()}
+                </button>
+              ))}
+            </div>
+          )}
           <ul className="mt-3 space-y-1">
             {IMPACT_KEYS.filter((k) => o.impacts[k] > 0).map((k) => (
               <li key={k} className="flex justify-between">
                 <span className="text-muted">{IMPACT_INFO[k].label}</span>
-                <span>{IMPACT_INFO[k].format(o.impacts[k])}</span>
+                <span>{IMPACT_INFO[k].format(o.impacts[k] * partScale)}</span>
               </li>
             ))}
           </ul>

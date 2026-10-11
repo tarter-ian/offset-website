@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "Our promises | Offset" };
 const PROMISES = [
   {
     title: "We never charge you automatically",
-    body: "Each month you see your footprint and approve the donation yourself. Skip a month or stop any time, with nothing to cancel.",
+    body: "You see your footprint and approve each payment yourself, once a year or each month, whichever you choose. Skip or stop any time, with nothing to cancel.",
   },
   {
     title: "Your donation goes straight to charities",
@@ -15,7 +15,7 @@ const PROMISES = [
   },
   {
     title: "One simple fee, shown up front",
-    body: "Our fee is $1 for each area of your life you cover, like home or travel, up to $4 a month. It's listed separately from your donation on every summary.",
+    body: "Our fee is $1 for each area of your life you cover, like home or travel, up to $4 a month, with two months free when you pay yearly. It's listed separately from your donation on every summary.",
   },
   {
     title: "No cheap, unverified carbon credits",

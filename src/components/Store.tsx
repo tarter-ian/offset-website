@@ -9,7 +9,16 @@ import { WaitlistForm } from "./WaitlistForm";
 import { STATE_OPTIONS, type StateCode } from "@/lib/data/states";
 import { digitalFromExport } from "@/lib/ai/exportParser";
 import { SPANS, type Span } from "@/lib/lifetime";
-import { LIFETIME_MIN_DONATION_USD, MIN_DONATION_USD, usd } from "@/lib/pricing";
+import {
+  ANNUAL_FEE_MONTHS,
+  ANNUAL_MIN_DONATION_USD,
+  BILLING,
+  type Billing,
+  defaultBilling,
+  LIFETIME_MIN_DONATION_USD,
+  MIN_DONATION_USD,
+  usd,
+} from "@/lib/pricing";
 import {
   DEFAULT_CONTEXT,
   defaultAmount,
@@ -30,6 +39,7 @@ interface Saved {
   picked: Record<string, Span>;
   anyway: Record<string, boolean>;
   plan: string[];
+  billing?: Billing | null;
 }
 
 function load(): Saved | null {
@@ -41,8 +51,11 @@ function load(): Saved | null {
   }
 }
 
-const priceText = (cost: number, span: Span) =>
-  span === "monthly" ? `${usd(cost)} a month` : `${usd(Math.max(0.01, Math.ceil(cost * 100) / 100))} ${span === "past" ? "to date" : "for life"}`;
+const priceText = (cost: number, span: Span, billing: Billing) =>
+  span === "monthly"
+    ? `${usd(billing === "annual" ? cost * 12 : cost)} ${BILLING[billing].per}`
+    : `${usd(Math.max(0.01, Math.ceil(cost * 100) / 100))} ${span === "past" ? "to date" : "for life"}`;
+const spanLabel = (s: Span, billing: Billing) => (s === "monthly" ? BILLING[billing].label : SPANS[s].label);
 
 /** The storefront: browse parts of your life, set your amount, and add the ones you want to offset to your plan. */
 export function Store() {
@@ -51,6 +64,8 @@ export function Store() {
   const [picked, setPicked] = useState<Record<string, Span>>({});
   const [anyway, setAnyway] = useState<Record<string, boolean>>({});
   const [plan, setPlan] = useState<string[]>([]);
+  // null until the person picks, so the default follows the price.
+  const [billingPick, setBilling] = useState<Billing | null>(null);
   const [open, setOpen] = useState(false);
   const [checkout, setCheckout] = useState(false);
   const [measuring, setMeasuring] = useState(false);
@@ -63,25 +78,25 @@ export function Store() {
     setPicked(s.picked ?? {});
     setAnyway(s.anyway ?? {});
     setPlan(s.plan ?? []);
+    setBilling(s.billing ?? null);
   }, []);
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ ctx, amounts, picked, anyway, plan } satisfies Saved));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ ctx, amounts, picked, anyway, plan, billing: billingPick } satisfies Saved));
     } catch {
       // Storage can be unavailable (private mode); the page still works.
     }
-  }, [ctx, amounts, picked, anyway, plan]);
+  }, [ctx, amounts, picked, anyway, plan, billingPick]);
 
   const amountOf = (p: Product) => amounts[p.id] ?? defaultAmount(p, ctx);
   const spanOf = (p: Product) => effectiveSpan(p, amountOf(p), ctx, picked[p.id], anyway[p.id]);
-  const totals = planTotals(
-    plan.map((id) => {
-      const p = PRODUCTS.find((x) => x.id === id)!;
-      return { productId: id, amount: amountOf(p), span: spanOf(p) };
-    }),
-    ctx,
-  );
+  const lines = plan.map((id) => {
+    const p = PRODUCTS.find((x) => x.id === id)!;
+    return { productId: id, amount: amountOf(p), span: spanOf(p) };
+  });
+  const billing = billingPick ?? defaultBilling(planTotals(lines, ctx, "monthly").recurring?.total ?? 0);
+  const totals = planTotals(lines, ctx, billing);
   const toggle = (id: string) => setPlan((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
 
   const card = (p: Product, featured = false) => {
@@ -147,7 +162,7 @@ export function Store() {
                   span === s ? "border-accent bg-accent-soft font-medium text-accent" : "border-border hover:border-accent"
                 }`}
               >
-                {SPANS[s].label}
+                {spanLabel(s, billing)}
               </button>
             ))}
           </div>
@@ -162,7 +177,7 @@ export function Store() {
           </button>
         )}
         <div className="mt-auto flex items-center justify-between gap-3 pt-1">
-          <span className={featured ? "text-xl font-semibold" : "font-semibold"}>{priceText(p.cost(amount, span, ctx), span)}</span>
+          <span className={featured ? "text-xl font-semibold" : "font-semibold"}>{priceText(p.cost(amount, span, ctx), span, billing)}</span>
           <button
             type="button"
             aria-pressed={inPlan}
@@ -257,10 +272,10 @@ export function Store() {
                     <li key={l.productId} className="flex items-center justify-between gap-3 py-2 text-sm">
                       <span>
                         <span className="font-medium">{l.product.name}</span>{" "}
-                        <span className="text-muted">· {SPANS[l.span].label.toLowerCase()}</span>
+                        <span className="text-muted">· {spanLabel(l.span, billing).toLowerCase()}</span>
                       </span>
                       <span className="flex items-center gap-3">
-                        <span>{priceText(l.cost, l.span)}</span>
+                        <span>{priceText(l.cost, l.span, billing)}</span>
                         <button
                           type="button"
                           onClick={() => toggle(l.productId)}
@@ -282,22 +297,48 @@ export function Store() {
                       <dd className="font-medium">{usd(totals.oneTime.total)}</dd>
                     </div>
                   )}
-                  {totals.monthly && (
+                  {totals.recurring && (
                     <div className="flex justify-between">
                       <dt className="text-muted">
-                        Each month: {usd(totals.monthly.donation)} to charities + {usd(totals.monthly.fee)} fee
+                        {billing === "annual" ? "Each year" : "Each month"}: {usd(totals.recurring.donation)} to charities +{" "}
+                        {usd(totals.recurring.fee)} fee
                       </dt>
-                      <dd className="font-medium">{usd(totals.monthly.total)}</dd>
+                      <dd className="font-medium">{usd(totals.recurring.total)}</dd>
                     </div>
                   )}
                 </dl>
+                {totals.recurring && (
+                  <div className="mt-3 flex flex-wrap gap-2 text-sm" role="radiogroup" aria-label="How often to pay">
+                    {(Object.keys(BILLING) as Billing[]).map((b) => (
+                      <button
+                        key={b}
+                        type="button"
+                        role="radio"
+                        aria-checked={billing === b}
+                        onClick={() => setBilling(b)}
+                        className={`rounded-md border px-2.5 py-1 ${
+                          billing === b ? "border-accent bg-accent-soft font-medium text-accent" : "border-border hover:border-accent"
+                        }`}
+                      >
+                        Pay {BILLING[b].label.toLowerCase()}
+                        {b === "annual" && ` (${12 - ANNUAL_FEE_MONTHS} months of fees free)`}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <p className="mt-2 text-xs text-muted">
-                  One-time donations have a {usd(LIFETIME_MIN_DONATION_USD)} minimum and monthly ones {usd(MIN_DONATION_USD)}. You approve every monthly payment;
-                  nothing is charged automatically.
+                  Donations have a minimum of {usd(LIFETIME_MIN_DONATION_USD)} for one-time payments,{" "}
+                  {usd(ANNUAL_MIN_DONATION_USD)} a year or {usd(MIN_DONATION_USD)} a month. You approve every payment{" "}
+                  {billing === "annual" ? "once a year" : "each month"}; nothing is charged automatically.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-3">
                   {totals.lines.map((l) => (
-                    <Badge key={l.productId} area={l.product.name} detail={SPANS[l.span].badge} size="sm" />
+                    <Badge
+                      key={l.productId}
+                      area={l.product.name}
+                      detail={l.span === "monthly" ? `this ${billing === "annual" ? "year" : "month"}` : SPANS[l.span].badge}
+                      size="sm"
+                    />
                   ))}
                 </div>
                 {checkout && (
@@ -314,7 +355,7 @@ export function Store() {
                   Your plan · {plan.length} {plan.length === 1 ? "item" : "items"}
                 </span>
                 <span className="block text-muted">
-                  {[totals.oneTime && `${usd(totals.oneTime.total)} once`, totals.monthly && `${usd(totals.monthly.total)} a month`]
+                  {[totals.oneTime && `${usd(totals.oneTime.total)} once`, totals.recurring && `${usd(totals.recurring.total)} ${BILLING[billing].per}`]
                     .filter(Boolean)
                     .join(" + ")}
                 </span>
