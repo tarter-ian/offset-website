@@ -22,7 +22,6 @@ import {
   CARBON_MODES,
   CARBON_POLICY_SHARE,
   DEFAULT_CARBON_MODE,
-  FEE_PER_AREA_USD,
   type CarbonMode,
   BILLING,
   type Billing,
@@ -36,7 +35,7 @@ import {
   LIFETIME_GROWTH_BUFFER,
   LIFETIME_YEARS,
   lifetimeCost,
-  MAX_FEE_USD,
+  MONTHLY_FEE_USD,
   monthlyCost,
   usd,
 } from "@/lib/pricing";
@@ -376,7 +375,7 @@ export function Results({
                 </div>
                 <div className="flex justify-between gap-4">
                   <dt className="text-muted">
-                    Our fee ({usd(FEE_PER_AREA_USD)} an area a month, up to {usd(MAX_FEE_USD)}
+                    Our fee ({usd(MONTHLY_FEE_USD)} a month
                     {billing === "annual" && `, ${12 - ANNUAL_FEE_MONTHS} months free`})
                   </dt>
                   <dd>{usd(bill.fee)}</dd>

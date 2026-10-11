@@ -792,7 +792,8 @@ export function Store() {
                   {totals.oneTime && (
                     <div className="flex justify-between gap-4">
                       <dt className="font-sans text-muted">
-                        One payment: {usd(totals.oneTime.donation)} to charities + {usd(totals.oneTime.fee)} fee
+                        One payment: {usd(totals.oneTime.donation)} to charities
+                        {totals.oneTime.fee ? ` + ${usd(totals.oneTime.fee)} fee` : ", no fee with a monthly plan"}
                       </dt>
                       <dd className="font-medium">{usd(totals.oneTime.total)}</dd>
                     </div>

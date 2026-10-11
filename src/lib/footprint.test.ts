@@ -14,7 +14,7 @@ import {
   lifetimeCost,
   LIFETIME_FEE_USD,
   LIFETIME_MIN_DONATION_USD,
-  MAX_FEE_USD,
+  MONTHLY_FEE_USD,
   MIN_DONATION_USD,
   monthlyCost,
   type CarbonMode,
@@ -119,11 +119,10 @@ describe("computeFootprint", () => {
 describe("monthlyCost", () => {
   const f = computeFootprint(base);
 
-  it("charges a dollar fee per area with anything covered, capped", () => {
-    expect(monthlyCost(f, ["ai"]).fee).toBe(1);
-    expect(monthlyCost(f, ["car", "flights"]).fee).toBe(1);
-    expect(monthlyCost(f, ["ai", "meat"]).fee).toBe(2);
-    expect(monthlyCost(f, CATEGORY_KEYS).fee).toBe(MAX_FEE_USD);
+  it("charges one flat monthly fee with anything covered", () => {
+    expect(monthlyCost(f, []).fee).toBe(0);
+    expect(monthlyCost(f, ["ai"]).fee).toBe(MONTHLY_FEE_USD);
+    expect(monthlyCost(f, CATEGORY_KEYS).fee).toBe(MONTHLY_FEE_USD);
   });
 
   it("only prices the covered categories", () => {
@@ -145,7 +144,7 @@ describe("monthlyCost", () => {
     const ai = monthlyCost(f, ["ai"]);
     expect(ai.minimumApplied).toBe(true);
     expect(ai.donation).toBe(MIN_DONATION_USD);
-    expect(ai.total).toBe(MIN_DONATION_USD + 1);
+    expect(ai.total).toBe(MIN_DONATION_USD + MONTHLY_FEE_USD);
   });
 
   it("charges nothing when nothing is covered", () => {

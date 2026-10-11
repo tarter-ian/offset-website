@@ -6,7 +6,7 @@ import {
   DEFAULT_BILLING,
   LIFETIME_FEE_USD,
   LIFETIME_MIN_DONATION_USD,
-  MAX_FEE_USD,
+  MONTHLY_FEE_USD,
   MIN_DONATION_USD,
 } from "./pricing";
 
@@ -96,7 +96,7 @@ describe("billing", () => {
 });
 
 describe("planTotals", () => {
-  it("applies one minimum and one fee to one-time items, and $1 a month per ongoing item up to the cap", () => {
+  it("applies one minimum to one-time items, one flat monthly fee, and waives the one-time fee alongside a monthly plan", () => {
     const t = planTotals(
       [
         { productId: "ai", amount: 10, cover: { past: true, ahead: "lifetime" } },
@@ -107,9 +107,16 @@ describe("planTotals", () => {
       "monthly",
     );
     expect(t.oneTime!.donation).toBeGreaterThanOrEqual(LIFETIME_MIN_DONATION_USD);
-    expect(t.oneTime!.fee).toBe(LIFETIME_FEE_USD);
-    expect(t.recurring!.fee).toBe(MAX_FEE_USD);
+    expect(t.oneTime!.fee).toBe(0);
+    expect(t.oneTime!.total).toBe(t.oneTime!.donation);
+    expect(t.recurring!.fee).toBe(MONTHLY_FEE_USD);
     expect(t.recurring!.donation).toBeGreaterThan(MIN_DONATION_USD);
+  });
+
+  it("charges the one-time fee on a first purchase only", () => {
+    const line = [{ productId: "ai", amount: 10, cover: { past: true, ahead: "lifetime" as const } }];
+    expect(planTotals(line, C).oneTime!.fee).toBe(LIFETIME_FEE_USD);
+    expect(planTotals(line, C, "monthly", { returning: true }).oneTime!.fee).toBe(0);
   });
 
   it("bills ongoing items yearly with two months of fees free", () => {

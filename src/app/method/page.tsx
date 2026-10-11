@@ -9,10 +9,9 @@ import {
   type WaterMode,
   ANNUAL_FEE_MONTHS,
   ANNUAL_MIN_DONATION_USD,
-  FEE_PER_AREA_USD,
   LIFETIME_FEE_USD,
   LIFETIME_GROWTH_BUFFER,
-  MAX_FEE_USD,
+  MONTHLY_FEE_USD,
   MIN_DONATION_USD,
   usd,
 } from "@/lib/pricing";
@@ -180,7 +179,7 @@ export default function MethodPage() {
 
       <h2 className="mt-10 text-xl font-semibold">Fees</h2>
       <p className="mt-2 text-muted">
-        Our fee is {usd(FEE_PER_AREA_USD)} a month for each thing you cover, whether one item like driving or a whole area like home, up to {usd(MAX_FEE_USD)} a month. Ongoing offsets are billed monthly unless you choose yearly; paying yearly gets {12 - ANNUAL_FEE_MONTHS} months of our fee free. Donations
+        Our fee is a flat {usd(MONTHLY_FEE_USD)} a month for a monthly plan, however many things it covers. One-time payments carry a {usd(LIFETIME_FEE_USD)} fee the first time only; there&apos;s no fee on later ones, or on any while you have a monthly plan. Ongoing offsets are billed monthly unless you choose yearly; paying yearly gets {12 - ANNUAL_FEE_MONTHS} months of our fee free. Donations
         under {usd(MIN_DONATION_USD)} a month, or {usd(ANNUAL_MIN_DONATION_USD)} a year, are rounded up, and all of it goes to the charities.
       </p>
 
@@ -189,7 +188,7 @@ export default function MethodPage() {
         The one-time lifetime offsets count from age {F.ONLINE_FROM_AGE} (or {F.INTERNET_START_YEAR}, whichever is later), and from late 2022 for AI,
         through age {F.LIFETIME_TO_AGE}, at today&apos;s rates. Future internet use counts at today&apos;s rate, since networks get more efficient
         about as fast as use grows; future AI use counts at {LIFETIME_GROWTH_BUFFER} times today&apos;s rate in case it keeps growing. Prices use
-        expected-impact climate pricing, plus a one-time {usd(LIFETIME_FEE_USD)} fee.
+        expected-impact climate pricing, plus the one-time fee.
       </p>
       <ul className="mt-3 list-disc space-y-1 pl-5 text-muted">
         <li>

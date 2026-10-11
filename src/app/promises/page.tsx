@@ -15,7 +15,7 @@ const PROMISES = [
   },
   {
     title: "One simple fee, shown up front",
-    body: "Our fee is $1 a month for each thing you cover, like driving or electricity, up to $4 a month, with two months free when you pay yearly. One-time payments carry a single $3 fee. It's listed separately from your donation on every summary.",
+    body: "Our fee is a flat $2 a month for a monthly plan, however much it covers, with two months free when you pay yearly. Your first one-time payment carries a $3 fee; later ones, and any while you have a monthly plan, have none. It's listed separately from your donation on every summary.",
   },
   {
     title: "No cheap, unverified carbon credits",

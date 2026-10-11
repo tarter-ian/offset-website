@@ -67,12 +67,12 @@ describe("spans", () => {
     const month = lifetimeOffset(heavy, ["ai"], now, "monthly");
     expect(past.donation).toBeLessThan(life.donation);
     expect(month.total).toBeLessThan(past.total);
-    expect(month.fee).toBe(1);
+    expect(month.fee).toBe(2);
     expect(month.donation).toBeGreaterThanOrEqual(1);
   });
 
-  it("charges $1 a month per item, up to the monthly cap", () => {
-    expect(lifetimeOffset(typical, ["ai", "internet", "devices"], now, "monthly").fee).toBe(3);
+  it("charges one flat monthly fee", () => {
+    expect(lifetimeOffset(typical, ["ai", "internet", "devices"], now, "monthly").fee).toBe(2);
   });
 
   it("makes a year of monthly payments add up to a year of use", () => {

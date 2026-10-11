@@ -1,5 +1,5 @@
 import { M2_PER_ACRE } from "./factors";
-import { AREAS, IMPACT_KEYS, sumImpacts, type CategoryKey, type Footprint, type ImpactKey, type Impacts } from "./footprint";
+import { IMPACT_KEYS, sumImpacts, type CategoryKey, type Footprint, type ImpactKey, type Impacts } from "./footprint";
 
 // Placeholder prices, to set before launch.
 
@@ -52,9 +52,8 @@ export const LAND_USD_PER_M2 = 10 / M2_PER_ACRE;
 
 const cents = (n: number) => Math.round(n * 100) / 100;
 
-/** Fee: $1 for each area (home, travel, ...) with anything covered, capped. */
-export const FEE_PER_AREA_USD = 1;
-export const MAX_FEE_USD = 4;
+/** Fee: a flat $2 a month for a monthly plan, however many things it covers. */
+export const MONTHLY_FEE_USD = 2;
 
 /** Smallest donation we pass on, so tiny plans still reach the charities. */
 export const MIN_DONATION_USD = 1;
@@ -130,8 +129,7 @@ export function monthlyCost(
   const active = chosen.length > 0 && impacts.length > 0;
   const minimumApplied = active && raw < MIN_DONATION_USD;
   const donation = active ? cents(Math.max(raw, MIN_DONATION_USD)) : 0;
-  const areas = active ? AREAS.filter((a) => a.categories.some((k) => covered.includes(k))).length : 0;
-  const fee = Math.min(MAX_FEE_USD, areas * FEE_PER_AREA_USD);
+  const fee = active ? MONTHLY_FEE_USD : 0;
   return { byImpact, donation, fee, total: cents(donation + fee), minimumApplied };
 }
 
@@ -143,7 +141,13 @@ export const usd = (n: number) =>
 export const LIFETIME_YEARS = 30;
 export const LIFETIME_GROWTH_BUFFER = 3;
 export const LIFETIME_MIN_DONATION_USD = 5;
+/**
+ * $3 on a one-time payment. Waived for anyone already paying the monthly fee,
+ * and on every one-time payment after someone's first.
+ */
 export const LIFETIME_FEE_USD = 3;
+export const oneTimeFee = (opts: { hasMonthly?: boolean; returning?: boolean } = {}) =>
+  opts.hasMonthly || opts.returning ? 0 : LIFETIME_FEE_USD;
 
 export interface LifetimeCost {
   donation: number;

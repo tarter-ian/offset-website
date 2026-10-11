@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Store } from "@/components/Store";
 import { WaitlistForm } from "@/components/WaitlistForm";
-import { ANNUAL_FEE_MONTHS, FEE_PER_AREA_USD, LIFETIME_FEE_USD, MAX_FEE_USD, usd } from "@/lib/pricing";
+import { ANNUAL_FEE_MONTHS, LIFETIME_FEE_USD, MONTHLY_FEE_USD, usd } from "@/lib/pricing";
 
 export default function Home() {
   return (
@@ -20,9 +20,9 @@ export default function Home() {
             measured is an option on your footprint summary, at about twelve times the price per tonne.
           </p>
           <p>
-            Our cut is a separate fee: {usd(FEE_PER_AREA_USD)} a month for each thing you cover, never more than{" "}
-            {usd(MAX_FEE_USD)}, or {usd(LIFETIME_FEE_USD)} on a one-time payment. Paying yearly takes {12 - ANNUAL_FEE_MONTHS}{" "}
-            months off the fee. Nothing is charged until you approve it.
+            Our cut is a separate fee: {usd(MONTHLY_FEE_USD)} a month for a monthly plan, however much it covers, or{" "}
+            {usd(LIFETIME_FEE_USD)} on your first one-time payment. Later one-time payments, and any while you have a monthly
+            plan, have no fee. Paying yearly takes {12 - ANNUAL_FEE_MONTHS} months off the fee. Nothing is charged until you approve it.
           </p>
           <p>
             <Link href="/promises" className="font-semibold text-accent underline underline-offset-4">

@@ -14,11 +14,11 @@ import type { ProviderId } from "./providers";
 import {
   type Billing,
   DEFAULT_BILLING,
-  FEE_PER_AREA_USD,
+  MONTHLY_FEE_USD,
   impactCost,
   LIFETIME_FEE_USD,
+  oneTimeFee,
   LIFETIME_MIN_DONATION_USD,
-  MAX_FEE_USD,
   type Recurring,
   recurringPrice,
 } from "./pricing";
@@ -365,7 +365,7 @@ export function aheadFor(p: Product, amount: number | string, ctx: Context, show
   return life > LIFETIME_MAX_USD && !showLifetimeAnyway ? ["monthly"] : ["monthly", "lifetime"];
 }
 
-/** Below this a month, an item leads with paying once for life: cents a month reads as trivial, but the $1 monthly fee isn't. */
+/** Below this a month, an item leads with paying once for life: cents a month reads as trivial, but the $2 monthly fee isn't. */
 export const SMALL_MONTHLY_USD = 1;
 
 /** The cover an item actually uses: what was picked if still offered, else monthly (lifetime for the featured AI item and tiny items). Past use starts checked. */
@@ -420,8 +420,17 @@ export interface PlanTotals {
   recurring: Recurring | null;
 }
 
-/** Adds up a plan: past use and lifetime items share one payment, minimum and fee; ongoing items pay $1 a month each, up to the cap, billed yearly or monthly. */
-export function planTotals(plan: PlanLine[], ctx: Context, billing: Billing = DEFAULT_BILLING): PlanTotals {
+/**
+ * Adds up a plan: past use and lifetime items share one payment and minimum;
+ * ongoing items share one flat monthly fee, billed yearly or monthly. The
+ * one-time fee is waived alongside a monthly plan, or for a returning buyer.
+ */
+export function planTotals(
+  plan: PlanLine[],
+  ctx: Context,
+  billing: Billing = DEFAULT_BILLING,
+  opts: { returning?: boolean } = {},
+): PlanTotals {
   const lines = plan.flatMap((l) => {
     const product = productById(l.productId);
     if (!product) return [];
@@ -435,13 +444,14 @@ export function planTotals(plan: PlanLine[], ctx: Context, billing: Billing = DE
   const oneTime = hasOnce
     ? (() => {
         const donation = Math.max(LIFETIME_MIN_DONATION_USD, Math.ceil(onceSum));
-        return { donation, fee: LIFETIME_FEE_USD, total: donation + LIFETIME_FEE_USD };
+        const fee = oneTimeFee({ hasMonthly: ongoing.length > 0, returning: opts.returning });
+        return { donation, fee, total: donation + fee };
       })()
     : null;
   const recurring = ongoing.length
     ? recurringPrice(
         ongoing.reduce((s, l) => s + l.aheadCost, 0),
-        Math.min(MAX_FEE_USD, FEE_PER_AREA_USD * ongoing.length),
+        MONTHLY_FEE_USD,
         billing,
       )
     : null;
