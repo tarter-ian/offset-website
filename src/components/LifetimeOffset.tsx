@@ -15,6 +15,7 @@ import {
   ITEM_KEYS,
   LIFETIME_ITEMS,
   lifetimeOffset,
+  LIFETIME_MAX_USD,
   SPAN_CHOICE_ABOVE_USD,
   SPAN_KEYS,
   SPANS,
@@ -35,8 +36,11 @@ export function LifetimeOffset({ initialItems = ITEM_KEYS }: { initialItems?: Li
   const [items, setItems] = useState<LifetimeItem[]>(initialItems);
   const [spanChoice, setSpanChoice] = useState<Span>("lifetime");
   // Only heavier users get past-only and monthly options; light users just see lifetime.
-  const showSpans = lifetimeOffset(input, items).total > SPAN_CHOICE_ABOVE_USD;
-  const span = showSpans ? spanChoice : "lifetime";
+  const lifetimeTotal = lifetimeOffset(input, items).total;
+  const showSpans = lifetimeTotal > SPAN_CHOICE_ABOVE_USD;
+  const lifetimeOffered = lifetimeTotal <= LIFETIME_MAX_USD;
+  const spans = SPAN_KEYS.filter((k) => k !== "lifetime" || lifetimeOffered);
+  const span: Span = !showSpans ? "lifetime" : spans.includes(spanChoice) ? spanChoice : "monthly";
   const o = lifetimeOffset(input, items, undefined, span);
   const monthly = span === "monthly";
   const has = (k: LifetimeItem) => items.includes(k);
@@ -76,9 +80,16 @@ export function LifetimeOffset({ initialItems = ITEM_KEYS }: { initialItems?: Li
         </Field>
 
         {showSpans && (
-          <Field label="How do you want to cover it?" hint={SPANS[span].hint}>
+          <Field
+            label="How do you want to cover it?"
+            hint={
+              lifetimeOffered
+                ? SPANS[span].hint
+                : `${SPANS[span].hint} Lifetime isn't offered above $${LIFETIME_MAX_USD.toLocaleString("en-US")}, since most of it would be a guess about decades of future use.`
+            }
+          >
             <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="How to cover it">
-              {SPAN_KEYS.map((k) => (
+              {spans.map((k) => (
                 <button
                   key={k}
                   type="button"
