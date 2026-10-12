@@ -60,7 +60,7 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
   {
     title: "Paying again",
     body: PAYMENT_MODE === "every"
-      ? "You approve each gift yourself unless you tick autopay at checkout. With autopay on, Every.org charges the same gifts each month or year until you cancel them in your Every.org account. We can't email you first or hold a charge back."
+      ? "You approve each gift yourself unless you tick autopay at checkout. With autopay on, Every.org charges the same amounts each month or year until you cancel them in your Every.org account. Those amounts are set from your use at checkout and don't follow later changes. We can't email you first or hold a charge back."
       : "You approve each payment yourself unless you switch on autopay. With autopay on, we email you a few days before every charge with the amount and a one-click skip or stop. A charge more than $5 or 25% above the last one, whichever is smaller, waits for your approval. You can stop autopay at any time, and it takes effect before the next charge.",
   },
   {

@@ -1077,7 +1077,7 @@ export function Store() {
                       {repeatTotal > 0 && (
                         <p className="font-sans text-muted">
                           Then {usd(repeatTotal)} {BILLING[billing].per}, one gift to each charity with its own card fee.{" "}
-                          {autopay ? "Every.org charges it until you stop it." : "Nothing repeats on its own: you come back and give again."}
+                          {autopay ? "Every.org charges this same amount until you stop it, even if your use changes." : "Nothing repeats on its own: you come back and give again."}
                         </p>
                       )}
                     </dl>
@@ -1409,8 +1409,8 @@ function PaySection({
               <span>
                 <span className="font-medium">Repeat these gifts automatically {BILLING[billing].approve}</span>
                 <span className="block text-muted">
-                  Off unless you tick it. With it on, Every.org charges your card {BILLING[billing].approve} until you cancel in your
-                  Every.org account. We can&apos;t email you first or hold a charge back, so leave it off to approve each one yourself.
+                  Off unless you tick it. With it on, Every.org charges the same amount {BILLING[billing].approve}, set from your use
+                  today, until you cancel in your Every.org account. It won&apos;t follow changes in your use. We can&apos;t email you first or hold a charge back, so leave it off to approve each one yourself.
                 </span>
               </span>
             </label>

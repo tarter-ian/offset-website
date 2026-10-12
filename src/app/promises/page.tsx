@@ -10,7 +10,7 @@ const PROMISES = [
   {
     title: "Never charged without your say-so",
     body: PAYMENT_MODE === "every"
-      ? "You approve each gift yourself, on Every.org, one charity at a time. Nothing repeats unless you tick autopay at checkout. If you do, Every.org charges the same gifts each month or year until you cancel them in your Every.org account. We can't email you before those charges or hold one back, so leave autopay off if you want to approve each one."
+      ? "You approve each gift yourself, on Every.org, one charity at a time. Nothing repeats unless you tick autopay at checkout. If you do, Every.org charges the same amounts each month or year until you cancel them in your Every.org account, even if your use changes. We can't email you before those charges or hold one back, so leave autopay off if you want to approve each one."
       : "By default you approve each payment yourself, once a year or each month. Autopay is off unless you switch it on. If you do, we email you a few days before every charge with the amount and a one-click skip or stop, and a month that comes out more than $5 or 25% higher than the last, whichever is smaller, waits for your approval instead. The email shows the exact limit in dollars.",
   },
   {
