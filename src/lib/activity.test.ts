@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { GAS_PRICE_PER_THERM } from "./factors";
-import { activityAmounts, parseActivityJson, parseGreenButtonCsv, parseGreenButtonXml, parseNetflix, YOUTUBE_MIN_PER_SHORT, YOUTUBE_MIN_PER_VIDEO, youtubeDays } from "./activity";
+import { activityAmounts, amazonShopping, parseActivityJson, parseGreenButtonCsv, parseGreenButtonXml, parseNetflix, YOUTUBE_MIN_PER_SHORT, YOUTUBE_MIN_PER_VIDEO, youtubeDays } from "./activity";
 
 const DAY = 86_400_000;
 const END = Date.UTC(2026, 9, 1);
@@ -133,5 +133,21 @@ describe("Green Button", () => {
     const gas = "Date,Usage (therms)\n01/01/2026,2\n01/02/2026,3\n";
     expect(parseGreenButtonCsv(gas)!.every((e) => e.target === "heating")).toBe(true);
     expect(parseGreenButtonCsv("Title,Date\nx,1/1/26")).toBeNull();
+  });
+});
+
+describe("amazonShopping", () => {
+  it("turns 30 days of spending by kind into dollars a month per card, leaving food out", () => {
+    const m = amazonShopping({ clothing: 30, electronics: 60, home: 15, books_media: 10, beauty_health: 5, toys_sports: 0, other: 15, food: 100 }, 30);
+    const month = 365 / 12 / 30;
+    expect(m.clothing).toBeCloseTo(30 * month, 6);
+    expect(m.electronics).toBeCloseTo(60 * month, 6);
+    expect(m.household).toBeCloseTo(15 * month, 6);
+    expect(m.othergoods).toBeCloseTo(30 * month, 6);
+    expect(Object.keys(m)).not.toContain("food");
+  });
+  it("ignores bad input", () => {
+    expect(amazonShopping(null, 30)).toEqual({});
+    expect(amazonShopping({ clothing: "x", electronics: -5 }, 30)).toEqual({});
   });
 });

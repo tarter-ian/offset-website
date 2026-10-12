@@ -137,6 +137,8 @@ export function Store() {
   const [activityOpen, setActivityOpen] = useState(false);
   // Which downloaded histories filled in each tile's amount.
   const [linkedFrom, setLinkedFrom] = useState<Record<string, ActivitySource[]>>({});
+  /** Amazon dollars a month for shopping cards that kept the typical amount because it was higher. */
+  const [amazonBelow, setAmazonBelow] = useState<Record<string, number>>({});
   // Past use is one switch for the whole plan; an item can still be changed on its own.
   const [pastAll, setPastAllState] = useState(true);
   const [details, setDetails] = useState<string | null>(null);
@@ -246,6 +248,27 @@ export function Store() {
     setLinkedFrom((l) => ({ ...l, [id]: from }));
   };
 
+  /**
+   * Amazon is only part of what people buy, so a card takes Amazon's figure
+   * only when it's above the typical amount; otherwise it keeps the typical one.
+   */
+  const amazonShopping = (usd: Partial<Record<string, number>>) => {
+    for (const id of ["clothing", "electronics", "household", "othergoods"]) {
+      if (entered[id]) continue;
+      const amazon = Math.round(usd[id] ?? 0);
+      const p = productById(id);
+      const typical = p?.amount.kind === "number" ? p.amount.default : 0;
+      if (amazon >= typical) {
+        measuredAmount(id, amazon, ["amazon"]);
+        setAmazonBelow((b) => { const n = { ...b }; delete n[id]; return n; });
+      } else {
+        setAmounts((a) => ({ ...a, [id]: typical }));
+        setLinkedFrom((l) => { const n = { ...l }; delete n[id]; return n; });
+        setAmazonBelow((b) => ({ ...b, [id]: amazon }));
+      }
+    }
+  };
+
   const sourceNote = (p: Product) => {
     if (entered[p.id]) return "you entered";
     if (p.id === "ai" && ctx.aiFromExport && ctx.aiCode)
@@ -254,6 +277,7 @@ export function Store() {
     if (p.id === "ai" && ctx.aiEstimate) return ctx.aiEstimate.from;
     if ((p.id === "ai-media" || p.id === "ai-video") && ctx.aiEstimate?.level) return ctx.aiEstimate.from;
     if (linkedFrom[p.id]) return `from your ${linkedFrom[p.id].map((s) => SOURCE_NAMES[s]).join(" and ")} history`;
+    if (amazonBelow[p.id] !== undefined) return `typical, more than the $${amazonBelow[p.id]} a month you spend on Amazon`;
     if (p.id === "electricity") return `typical for ${STATES[ctx.state].name}`;
     return "typical";
   };
@@ -638,6 +662,7 @@ export function Store() {
               onVideo={(h, from) => measuredAmount("video", h, from)}
               onRides={(n) => measuredAmount("rideshare", n, ["uber"])}
               onDelivery={(n) => measuredAmount("delivery", n, ["doordash", "ubereats"])}
+              onShopping={amazonShopping}
               onMeasured={(s, note) => {
                 const d = digitalFromExport(s);
                 setCtx((c) => ({

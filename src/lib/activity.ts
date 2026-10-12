@@ -6,7 +6,7 @@ import { GAS_PRICE_PER_THERM } from "./factors";
 // the browser, and turns them into the amounts on the store's tiles. Nothing is
 // uploaded.
 
-export type ActivitySource = "spotify" | "youtube" | "netflix" | "timeline" | "uber" | "greenbutton" | "doordash" | "ubereats";
+export type ActivitySource = "spotify" | "youtube" | "netflix" | "timeline" | "uber" | "greenbutton" | "doordash" | "ubereats" | "amazon";
 type Target = "music" | "video" | "car" | "transit" | "flights" | "electricity" | "heating";
 
 /** One thing that happened: hours of listening or watching, miles travelled, or a flight leg. */
@@ -33,6 +33,7 @@ export const SOURCE_NAMES: Record<ActivitySource, string> = {
   greenbutton: "utility",
   doordash: "DoorDash",
   ubereats: "Uber Eats",
+  amazon: "Amazon",
 };
 
 /**
@@ -381,4 +382,28 @@ export function activityAmounts(events: ActivityEvent[], now = Date.now()): Acti
     else amounts[t] = Math.round((sum / days) * 7);
   }
   return { amounts, days: Math.round(longest) };
+}
+
+/** The shopping cards Amazon's kinds fill. Food is left out: it's counted under your diet. */
+export const AMAZON_KIND_CARD: Record<string, "clothing" | "electronics" | "household" | "othergoods" | undefined> = {
+  clothing: "clothing",
+  electronics: "electronics",
+  home: "household",
+  books_media: "othergoods",
+  beauty_health: "othergoods",
+  toys_sports: "othergoods",
+  other: "othergoods",
+};
+
+/** Dollars a month per shopping card from the extension's Amazon `spendByKind` over `days`. */
+export function amazonShopping(spendByKind: unknown, days: number): Partial<Record<"clothing" | "electronics" | "household" | "othergoods", number>> {
+  const out: Partial<Record<"clothing" | "electronics" | "household" | "othergoods", number>> = {};
+  if (typeof spendByKind !== "object" || !spendByKind || !(days > 0)) return out;
+  for (const [kind, v] of Object.entries(spendByKind as Record<string, unknown>)) {
+    const card = AMAZON_KIND_CARD[kind];
+    const usd = Number(v);
+    if (!card || !Number.isFinite(usd) || usd < 0) continue;
+    out[card] = (out[card] ?? 0) + (usd / days) * (365 / 12);
+  }
+  return out;
 }
