@@ -4,10 +4,23 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CheckoutSteps } from "./Checkout";
 import { type Covered, STORAGE_KEY } from "@/lib/covered";
-import { GIFT_LIMITS, GIFTABLE, type Gift, giftLabel, giftRows, giftSpans, type GiftSpan } from "@/lib/gifts";
+import {
+  defaultGiftSpan,
+  GIFT_LIMITS,
+  GIFT_SPANS,
+  GIFTABLE,
+  type Gift,
+  giftContext,
+  type GiftItem,
+  giftRows,
+  giftSentence,
+  type GiftSpan,
+  giftUntil,
+  SPAN_LABEL,
+} from "@/lib/gifts";
 import { allConfirmed, type Checkout, newPlanId, paymentsOn, PLAN_ID, sumTotal } from "@/lib/payments";
 import { usd } from "@/lib/pricing";
-import { productById } from "@/lib/store";
+import { DEFAULT_CONTEXT, defaultAmount, type Product, productById, SECTIONS } from "@/lib/store";
 
 // One gift in progress per browser, kept apart from the person's own checkout.
 const GIFT_KEY = "offset:gift:v1";
@@ -30,32 +43,39 @@ function saveGift(c: Checkout | null) {
   }
 }
 
-/** "driving", but "AI chat" keeps its capitals. */
-const lower = (name: string) => (/^[A-Z]{2}/.test(name) ? name : name.charAt(0).toLowerCase() + name.slice(1));
-
 const inputClass = "mt-1 block min-h-11 w-full rounded-md border border-border bg-background px-3";
 
+type Picks = Record<string, GiftSpan>;
+const toItems = (picks: Picks): GiftItem[] => Object.entries(picks).map(([productId, span]) => ({ productId, span }));
+
 /** The gift as its card reads, for both the giver's preview and the person receiving it. */
-function GiftCard({ gift }: { gift: Pick<Gift, "productId" | "span" | "from" | "to" | "note"> }) {
+function GiftCard({ gift }: { gift: Pick<Gift, "items" | "from" | "to" | "note"> }) {
   return (
     <div className="border-y-4 border-rule py-5">
       <p className="text-sm text-muted">A gift for {gift.to || "someone"}</p>
       <p className="mt-1 text-2xl font-extrabold [font-stretch:85%]">
-        {gift.from || "Someone"} covered your {lower(giftLabel(gift))}.
+        {gift.from || "Someone"} covered {giftSentence(gift.items) || "something for you"}.
       </p>
       {gift.note && <p className="mt-3 whitespace-pre-line">&ldquo;{gift.note}&rdquo;</p>}
       <p className="mt-3 text-sm text-muted">
-        Paid to the charities on My Offset for typical US use of {lower(productById(gift.productId)?.name ?? "this item")}: its
-        carbon, air pollution, water, nature and e-waste.
+        Paid to the charities on My Offset at typical US use: the carbon, air pollution, water, nature and e-waste behind each one.
       </p>
     </div>
   );
 }
 
+/** What one item costs for a span, before fees and minimums, for the picker. */
+function itemPrice(p: Product, span: GiftSpan, birthYear: number) {
+  const ctx = giftContext(birthYear);
+  const amount = defaultAmount(p, ctx);
+  if (span === "life") return p.cost(amount, "future", ctx);
+  return p.cost(amount, "monthly", ctx) * 12 * { year: 1, "5years": 5, "10years": 10 }[span];
+}
+
 /** Choosing a gift and paying for it, at /gift. */
 export function GiftMaker() {
-  const [productId, setProductId] = useState("ai");
-  const [span, setSpan] = useState<GiftSpan>("life");
+  const [picks, setPicks] = useState<Picks>({ ai: "life" });
+  const [birth, setBirth] = useState<number | undefined>(undefined);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [note, setNote] = useState("");
@@ -91,10 +111,10 @@ export function GiftMaker() {
     );
   }
 
-  const product = productById(productId) ?? GIFTABLE[0];
-  const spans = giftSpans(product);
-  const chosen = spans.includes(span) ? span : spans[0];
-  const rows = giftRows(product.id, chosen);
+  const birthYear = birth && birth > 1900 && birth <= new Date().getFullYear() ? birth : DEFAULT_CONTEXT.birthYear;
+  const items = toItems(picks);
+  const rows = items.length ? giftRows(items, birthYear) : [];
+  const everydayForLife = items.some((i) => i.span === "life" && !productById(i.productId)?.oneTime);
   const start = async () => {
     setError(null);
     setBusy(true);
@@ -103,19 +123,10 @@ export function GiftMaker() {
       const r = await fetch("/api/gifts", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ id, productId: product.id, span: chosen, from, to, note }),
+        body: JSON.stringify({ id, items, birthYear, from, to, note }),
       });
       if (!r.ok) throw new Error(((await r.json().catch(() => null)) as { error?: string } | null)?.error ?? "Couldn't save the gift.");
-      const c: Checkout = {
-        id,
-        created: new Date().toISOString(),
-        billing: "annual",
-        rows,
-        lines: [],
-        done: {},
-        confirmed: {},
-        returnPath: `/gift/${id}`,
-      };
+      const c: Checkout = { id, created: new Date().toISOString(), billing: "monthly", rows, lines: [], done: {}, confirmed: {}, returnPath: `/gift/${id}` };
       saveGift(c);
       window.location.assign(`/gift/${id}`);
     } catch (e) {
@@ -126,42 +137,96 @@ export function GiftMaker() {
 
   return (
     <form
-      className="mt-6 space-y-5"
+      className="mt-6 space-y-6"
       onSubmit={(e) => {
         e.preventDefault();
         start();
       }}
     >
-      <label className="block">
-        <span className="font-semibold">What to cover</span>
-        <select value={product.id} onChange={(e) => setProductId(e.target.value)} className={`${inputClass} cursor-pointer`}>
-          {GIFTABLE.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-      </label>
       <fieldset>
-        <legend className="font-semibold">For how long</legend>
-        <div className="mt-1 flex flex-wrap gap-2">
-          {spans.map((s) => {
-            const total = sumTotal(giftRows(product.id, s));
-            return (
-              <label
-                key={s}
-                className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border px-3 ${
-                  chosen === s ? "border-rule bg-foreground text-background" : "border-border hover:border-rule"
-                }`}
-              >
-                <input type="radio" name="span" value={s} checked={chosen === s} onChange={() => setSpan(s)} className="sr-only" />
-                {s === "life" ? "For life" : "For a year"} <span className="figures">{usd(total)}</span>
-              </label>
-            );
-          })}
+        <legend className="font-semibold">What to cover</legend>
+        <div className="mt-1 flex flex-wrap gap-x-4 text-sm">
+          <button
+            type="button"
+            onClick={() => setPicks(Object.fromEntries(GIFTABLE.map((p) => [p.id, defaultGiftSpan(p)])))}
+            className="min-h-10 cursor-pointer font-semibold underline underline-offset-4 hover:text-muted"
+          >
+            Choose everything
+          </button>
+          {items.length > 0 && (
+            <button type="button" onClick={() => setPicks({})} className="min-h-10 cursor-pointer text-muted underline underline-offset-4 hover:text-foreground">
+              Clear
+            </button>
+          )}
         </div>
-        <p className="mt-1 text-sm text-muted">At typical use. If they measure theirs and it&apos;s higher, they can cover the rest.</p>
+        {SECTIONS.map((sec) => {
+          const ps = GIFTABLE.filter((p) => p.section === sec.key);
+          if (!ps.length) return null;
+          return (
+            <div key={sec.key} className="mt-3">
+              <h3 className="text-sm font-bold">{sec.title}</h3>
+              <ul className="divide-y divide-border border-y border-border">
+                {ps.map((p) => {
+                  const span = picks[p.id];
+                  return (
+                    <li key={p.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-1.5 text-sm">
+                      <label className="inline-flex min-h-10 cursor-pointer items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={!!span}
+                          onChange={(e) =>
+                            setPicks((x) => {
+                              const next = { ...x };
+                              if (e.target.checked) next[p.id] = defaultGiftSpan(p);
+                              else delete next[p.id];
+                              return next;
+                            })
+                          }
+                          className="h-4 w-4 cursor-pointer accent-[var(--accent)]"
+                        />
+                        {p.name}
+                      </label>
+                      {span && (
+                        <span className="flex items-center gap-2">
+                          <select
+                            aria-label={`How long to cover ${p.name}`}
+                            value={span}
+                            onChange={(e) => setPicks((x) => ({ ...x, [p.id]: e.target.value as GiftSpan }))}
+                            className="min-h-10 cursor-pointer rounded-md border border-border bg-background px-2"
+                          >
+                            {GIFT_SPANS.map((sp) => (
+                              <option key={sp} value={sp}>
+                                {SPAN_LABEL[sp].replace(/^for /, "For ")}
+                              </option>
+                            ))}
+                          </select>
+                          <span className="figures w-20 text-right">{usd(itemPrice(p, span, birthYear))}</span>
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          );
+        })}
+        <p className="mt-2 text-sm text-muted">
+          At typical use. If they measure theirs and it&apos;s higher, they can cover the rest.
+          {everydayForLife && " Everyday items for life assume today's habits until age 85, which is a rough guess."}
+        </p>
       </fieldset>
+      <label className="block max-w-56">
+        <span className="font-semibold">Their birth year</span> <span className="text-muted">(optional)</span>
+        <input
+          type="number"
+          inputMode="numeric"
+          value={birth ?? ""}
+          onChange={(e) => setBirth(e.target.value ? Number(e.target.value) : undefined)}
+          placeholder={String(DEFAULT_CONTEXT.birthYear)}
+          className={inputClass}
+        />
+        <span className="mt-1 block text-sm text-muted">Sets how many years &ldquo;for life&rdquo; covers.</span>
+      </label>
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block">
           <span className="font-semibold">Your name</span>
@@ -176,7 +241,7 @@ export function GiftMaker() {
         <span className="font-semibold">A note</span> <span className="text-muted">(optional)</span>
         <textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={GIFT_LIMITS.note} rows={2} className={`${inputClass} py-2`} />
       </label>
-      <GiftCard gift={{ productId: product.id, span: chosen, from, to, note }} />
+      <GiftCard gift={{ items, from, to, note }} />
       <p className="text-sm text-muted">
         You pay each charity through Every.org, which emails you the receipts. The names and note are kept with the gift so its link can
         show them; nothing is sent to anyone.
@@ -191,20 +256,22 @@ export function GiftMaker() {
         disabled={busy || !rows.length}
         className="min-h-11 cursor-pointer rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-strong disabled:opacity-60"
       >
-        Pay for this gift ({usd(sumTotal(rows))})
+        {rows.length ? `Pay for this gift (${usd(sumTotal(rows))}, fees included)` : "Pick something to cover"}
       </button>
     </form>
   );
 }
 
-/** Marks the gifted item as covered in this browser's plan. */
+/** Marks the gifted items as covered in this browser's plan. */
 function acceptGift(gift: Gift) {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}") as { covered?: Record<string, Covered> };
-    const until = new Date(gift.createdAt);
-    until.setFullYear(until.getFullYear() + 1);
-    const covered: Covered = gift.span === "life" ? { kind: "life", giftFrom: gift.from } : { kind: "period", until: until.toISOString(), giftFrom: gift.from };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...saved, covered: { ...saved.covered, [gift.productId]: covered } }));
+    const covered = { ...saved.covered };
+    for (const item of gift.items) {
+      const until = giftUntil(item, gift.createdAt);
+      covered[item.productId] = until ? { kind: "period", until, giftFrom: gift.from } : { kind: "life", giftFrom: gift.from };
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...saved, covered }));
     return true;
   } catch {
     return false;
@@ -281,7 +348,7 @@ export function GiftView({ id }: { id: string }) {
       {paid ? (
         accepted ? (
           <p className="mt-6">
-            Done. {giftLabel(gift)} shows as covered in{" "}
+            Done. {gift.items.length === 1 ? "It shows" : "They show"} as covered in{" "}
             <Link href="/" className="cursor-pointer font-semibold underline underline-offset-4 hover:text-muted">
               your plan
             </Link>

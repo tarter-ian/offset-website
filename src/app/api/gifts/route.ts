@@ -19,8 +19,9 @@ export async function POST(req: Request) {
   const g = parsed.gift;
   try {
     await (await db()).execute({
-      sql: "INSERT OR IGNORE INTO gifts (id, product_id, span, from_name, to_name, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      args: [g.id, g.productId, g.span, g.from, g.to, g.note, g.createdAt],
+      sql: `INSERT OR IGNORE INTO gifts (id, product_id, span, items, birth_year, from_name, to_name, note, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [g.id, g.items[0].productId, g.items[0].span, JSON.stringify(g.items), g.birthYear, g.from, g.to, g.note, g.createdAt],
     });
   } catch (e) {
     console.error("gifts: couldn't save", e instanceof NoDatabaseError ? "no database" : e);
