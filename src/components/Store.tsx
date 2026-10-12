@@ -58,7 +58,21 @@ interface Saved {
   entered?: Record<string, boolean>;
   pastAll?: boolean;
   linkedFrom?: Record<string, ActivitySource[]>;
+  covered?: Record<string, Covered>;
 }
+
+/** An item already paid for: for life, or until a date for a month or year. Set once payments go through. */
+type Covered = { kind: "life" } | { kind: "period"; until: string };
+
+/** `?preview=covered` shows how paid items look, without saving anything. */
+function previewCovered(): Record<string, Covered> | null {
+  if (typeof window === "undefined" || new URLSearchParams(window.location.search).get("preview") !== "covered") return null;
+  const inDays = (d: number) => new Date(Date.now() + d * 86400000).toISOString();
+  return { ai: { kind: "life" }, phone: { kind: "life" }, video: { kind: "period", until: inDays(30) }, electricity: { kind: "period", until: inDays(300) } };
+}
+
+const paidCover = (c: Covered | undefined): Covered | null =>
+  !c ? null : c.kind === "life" ? c : Date.parse(c.until) > Date.now() ? c : null;
 
 function load(): Saved | null {
   try {
@@ -69,6 +83,7 @@ function load(): Saved | null {
   }
 }
 
+const shortDate = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 const once = (n: number) => usd(Math.max(0.01, Math.ceil(n * 100) / 100));
 const per = (monthly: number, billing: Billing) => `${usd(billing === "annual" ? monthly * 12 : monthly)} ${BILLING[billing].per}`;
 function priceText(price: { once: number; monthly: number }, cover: Cover, billing: Billing) {
@@ -139,6 +154,8 @@ export function Store() {
   const [asked, setAsked] = useState<ProviderId[]>([]);
   const [open, setOpen] = useState(false);
   const [checkout, setCheckout] = useState(false);
+  const [covered, setCovered] = useState<Record<string, Covered>>({});
+  const [previewing, setPreviewing] = useState(false);
   // An optional tip toward running the site, added once to the next payment. Off unless chosen.
   const [tip, setTip] = useState(0);
   const [adjusting, setAdjusting] = useState(false);
@@ -184,18 +201,27 @@ export function Store() {
     setBilling(s.billing ?? null);
     setPastAllState(s.pastAll ?? true);
     setLinkedFrom(s.linkedFrom ?? {});
+    setCovered(s.covered ?? {});
+  }, []);
+
+  useEffect(() => {
+    const preview = previewCovered();
+    if (preview) {
+      setPreviewing(true);
+      setCovered(preview);
+    }
   }, []);
 
   useEffect(() => {
     try {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ ctx, amounts, entered, picked, anyway, plan, billing: billingPick, pastAll, linkedFrom } satisfies Saved),
+        JSON.stringify({ ctx, amounts, entered, picked, anyway, plan, billing: billingPick, pastAll, linkedFrom, ...(previewing ? {} : { covered }) } satisfies Saved),
       );
     } catch {
       // Storage can be unavailable (private mode); the page still works.
     }
-  }, [ctx, amounts, entered, picked, anyway, plan, billingPick, pastAll, linkedFrom]);
+  }, [ctx, amounts, entered, picked, anyway, plan, billingPick, pastAll, linkedFrom, covered, previewing]);
 
   const amountOf = (p: Product) => amounts[p.id] ?? defaultAmount(p, ctx);
   const coverOf = (p: Product) => effectiveCover(p, amountOf(p), ctx, { past: pastAll, ...picked[p.id] }, anyway[p.id]);
@@ -532,15 +558,25 @@ export function Store() {
         }
       : null;
     const isOpen = details === p.id;
+    const paid = paidCover(covered[p.id]);
     return (
       <li
         key={p.id}
-        className={`flex w-[78%] shrink-0 snap-start flex-col rounded-md bg-card p-4 md:w-auto ${
+        className={`flex w-[78%] shrink-0 snap-start flex-col rounded-md p-4 md:w-auto ${
+          paid?.kind === "life" ? "bg-life" : paid ? "bg-period" : "bg-card"
+        } ${
           collapsed && index >= SHELF_SIZE ? "md:hidden" : ""
         } ${isOpen ? "outline-2 outline-rule" : ""}`}
       >
         <div className="flex items-start justify-between gap-2">
-          <h3 className="text-lg font-bold leading-snug">{p.name}</h3>
+          <div>
+            <h3 className="text-lg font-bold leading-snug">{p.name}</h3>
+            {paid && (
+              <p className={`text-sm font-semibold ${paid.kind === "life" ? "text-life-ink" : "text-period-ink"}`}>
+                ✓ {paid.kind === "life" ? "Covered for life" : `Covered through ${shortDate(paid.until)}`}
+              </p>
+            )}
+          </div>
           <button
             type="button"
             onClick={() => setInfo(info === p.id ? null : p.id)}
@@ -581,7 +617,9 @@ export function Store() {
             : `Covers ${coversLines(p).at(-1)![1]}`}
         </p>
         {info === p.id && infoPanel(p)}
-        {!nothing && (
+        {paid?.kind === "life" ? (
+          <p className="mt-auto pt-3 text-sm text-life-ink">Paid off. Nothing more to pay for this, ever.</p>
+        ) : !nothing && (
         <div className="mt-auto flex items-center justify-between gap-3 pt-3">
           <span className="leading-tight">
             <span className="figures block text-lg font-medium">{tp.big}</span>
@@ -590,7 +628,7 @@ export function Store() {
           {addButton(p, true)}
         </div>
         )}
-        {alt && !nothing && (
+        {alt && !nothing && paid?.kind !== "life" && (
           <button
             type="button"
             onClick={() => setPicked((x) => ({ ...x, [p.id]: { ...x[p.id], ahead: alt.ahead } }))}
