@@ -292,6 +292,7 @@ export function Store() {
     const renew = (q.get("renew") ?? "").split(",").filter((id) => productById(id));
     if (renew.length) {
       setPlan(renew);
+      setPicked((p) => ({ ...p, ...Object.fromEntries(renew.map((id) => [id, { ...p[id], ahead: "monthly" as const }])) }));
       setOpen(true);
       setCheckout(true);
       setTimeout(() => document.getElementById("pay-steps")?.scrollIntoView({ behavior: "smooth", block: "start" }), 300);

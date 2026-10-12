@@ -147,15 +147,24 @@ function UseChart({ use }: { use: MonthUse[] | null }) {
     );
   const max = Math.max(...use.map(monthTotal), 1);
   const last = use[use.length - 1];
-  const prev = use.length > 1 ? use[use.length - 2] : null;
-  const change = prev && monthTotal(prev) > 0 ? Math.round(((monthTotal(last) - monthTotal(prev)) / monthTotal(prev)) * 100) : null;
+  const thisMonth = new Date().toISOString().slice(0, 7);
+  const partial = last.month === thisMonth;
+  // A month still under way isn't compared with a whole one; compare the last two whole months instead.
+  const whole = use.filter((m) => m.month !== thisMonth);
+  const [a, b] = whole.slice(-2);
+  const change = a && b && monthTotal(a) > 0 ? Math.round(((monthTotal(b) - monthTotal(a)) / monthTotal(a)) * 100) : null;
   const services = AI_CHAT_SERVICES.filter((s) => use.some((m) => m.prompts[s] > 0));
   return (
     <>
       <p className="mt-2">
-        {monthShort(last.month)}: <b className="amount">{monthTotal(last).toLocaleString()} prompts</b>
-        {change !== null && `, ${change === 0 ? "the same as" : `${change > 0 ? "up" : "down"} ${Math.abs(change)}% on`} ${monthShort(prev!.month)}`}
-        {last.daysCounted < 28 && <span className="text-muted"> (counted on {last.daysCounted} days so far)</span>}.
+        {partial ? "This month so far" : monthShort(last.month)}: <b className="amount">{monthTotal(last).toLocaleString()} prompts</b>
+        {partial && <span className="text-muted"> over {last.daysCounted} days</span>}.
+        {change !== null && b && (
+          <span className="text-muted">
+            {" "}
+            {monthShort(b.month)} was {change === 0 ? "the same as" : `${change > 0 ? "up" : "down"} ${Math.abs(change)}% on`} {monthShort(a.month)}.
+          </span>
+        )}
       </p>
       <div
         role="img"
