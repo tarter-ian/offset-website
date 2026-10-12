@@ -87,7 +87,7 @@ const IMPACTS = [
     measure: "Greenhouse gases in kg of CO₂e, which counts methane and nitrous oxide as well as CO₂.",
     price: `You choose how: ${(Object.keys(CARBON_MODES) as CarbonMode[])
       .map((m) => `${CARBON_MODES[m].label.toLowerCase()} at ${usd(CARBON_MODES[m].perTonne)} a tonne`)
-      .join(", ")}. Policy charities are estimated to avert a tonne for under $10 but can't be measured; certified removal is measured per tonne but costs far more. The default is expected impact; you can opt into the blend (90% policy, 10% removal) or verified-only.`,
+      .join(", ")}. Policy charities are estimated to avert a tonne for $0.10 to $10, and we use the middle, but those tonnes can't be measured; certified removal is measured per tonne but costs far more. The default is expected impact; you can opt into the blend (90% policy, 10% removal) or verified-only.`,
   },
   {
     name: "Air pollution",
@@ -100,11 +100,11 @@ const IMPACTS = [
   {
     name: "Water",
     unit: "liters used up, weighted by scarcity",
-    priceShort: `${usd(WATER_MODES[DEFAULT_WATER_MODE].per1000Gal)} per 1,000 gallons, to water saving in dry places`,
+    priceShort: `${usd(WATER_MODES[DEFAULT_WATER_MODE].per1000Gal)} per 1,000 gallons, to put water back in dry rivers`,
     measure: `Fresh water consumed, in liters, to generate your electricity, cool data centers, grow your food, refine your fuel and make your electronics, weighted by scarcity: a liter from a water-stressed area counts in full and a liter from a well-watered one counts ${F.UNSTRESSED_WATER_WEIGHT * 100}%. We assume ${Math.round(F.STRESSED_WATER_SHARE.food * 100)}% of food water, ${Math.round(F.STRESSED_WATER_SHARE.datacenter * 100)}% of data center water and ${Math.round(F.STRESSED_WATER_SHARE.grid * 100)}% of power plant water come from stressed areas.`,
     price: `You choose how: ${(Object.keys(WATER_MODES) as WaterMode[])
       .map((m) => `${WATER_MODES[m].label.toLowerCase()} at ${usd(WATER_MODES[m].per1000Gal)} per 1,000 gallons`)
-      .join(", or ")}. Expected impact, the default, funds paid water-saving work in dry regions, like farm irrigation upgrades, which has cost roughly $70 to $500 an acre-foot. Restoration certificates return every gallon to a stressed river.`,
+      .join(", or ")}. Expected impact, the default, goes to Colorado Water Trust, which leases water back into dry rivers for about $0.29 per 1,000 gallons all-in. Restoration certificates from Bonneville Environmental Foundation return every gallon to a stressed river.`,
   },
   {
     name: "Nature",

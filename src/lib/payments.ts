@@ -24,9 +24,9 @@ export const feeFor = (donation: number, mode: PaymentMode = PAYMENT_MODE) => pa
 export const EVERY_SLUGS: Partial<Record<ImpactKey, string>> = {
   carbon: "cleanaircatf", // Clean Air Task Force, EIN 04-3512550
   air: "lung", // American Lung Association
-  water: "b-e-f", // Bonneville Environmental Foundation, Portland, OR
+  water: "colorado-water-trust", // Colorado Water Trust, EIN 84-1606567
   land: "rainforest-trust", // Rainforest Trust, EIN 13-3500609
-  ewaste: "human-i-t", // human-I-T
+  ewaste: "pcs-for-people", // PCs for People, EIN 26-2066045
 };
 
 const HARM_ORDER: ImpactKey[] = ["carbon", "air", "water", "land", "ewaste"];

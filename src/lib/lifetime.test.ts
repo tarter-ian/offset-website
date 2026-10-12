@@ -55,7 +55,8 @@ describe("lifetimeOffset", () => {
   it("lands internet and AI in a price people would pay once", () => {
     for (const item of ["internet", "ai"] as const) {
       const o = lifetimeOffset(typical, [item], now);
-      expect(o.donation).toBeGreaterThan(LIFETIME_MIN_DONATION_USD);
+      // Light AI use for life can land on the minimum gift at middle-of-range prices.
+      expect(o.donation).toBeGreaterThanOrEqual(LIFETIME_MIN_DONATION_USD);
       expect(o.total).toBeLessThan(LIFETIME_MAX_USD);
     }
   });

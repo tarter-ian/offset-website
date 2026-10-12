@@ -5,13 +5,15 @@ import { IMPACT_KEYS, sumImpacts, type CategoryKey, type Footprint, type ImpactK
 
 /**
  * Carbon: how a tonne is covered. Policy charities are cheap per expected tonne
- * but can't be measured (Founders Pledge puts its top picks under $10/t);
+ * but can't be measured: published estimates run from about $0.10 to $10/t
+ * (Founders Pledge; Giving Green's bar is about $1/t), so the default takes $5,
+ * the middle, leaning up since checked estimates have tended to run optimistic;
  * certified removal (Puro biochar, ~EUR 159/t) is measured but costly. The
  * blend is 90% policy at a conservative $10/t plus 10% removal at ~$400/t.
  */
 export type CarbonMode = "expected" | "blend" | "verified";
 export const CARBON_MODES: Record<CarbonMode, { label: string; perTonne: number; detail: string }> = {
-  expected: { label: "Expected impact", perTonne: 15, detail: "All to policy charities. Cheapest, but no tonne is measured." },
+  expected: { label: "Expected impact", perTonne: 5, detail: "All to policy charities. Cheapest, but no tonne is measured." },
   blend: { label: "Blend", perTonne: 49, detail: "90% policy charities, 10% measured carbon removal." },
   verified: { label: "Verified only", perTonne: 185, detail: "Certified carbon removal. Every tonne is measured." },
 };
@@ -24,23 +26,23 @@ export const DONATION_PER_TONNE_USD = CARBON_MODES[DEFAULT_CARBON_MODE].perTonne
 export const AIR_DAMAGE_SHARE = 0.1;
 
 /**
- * Water: how a (scarcity-weighted) gallon is covered. Expected impact funds paid
- * water-saving work in dry regions, like farm irrigation upgrades, which has
- * cost roughly $70 to $500 an acre-foot; we use about $400 ($1.25 per 1,000
- * gallons). Verified buys Bonneville Environmental Foundation Water Restoration
- * Certificates, $4 per 1,000 gallons returned to a river (ClimeCo listing).
+ * Water: how a (scarcity-weighted) gallon is covered. Expected impact goes to
+ * Colorado Water Trust, which leases water rights back into dry rivers: about
+ * $0.29 per 1,000 gallons all-in (2025 program spending $1.51M for 5.12B
+ * gallons), so we use $0.30. Verified buys Bonneville Environmental Foundation
+ * Water Restoration Certificates, $4 per 1,000 gallons returned to a river.
  */
 export type WaterMode = "expected" | "verified";
 export const WATER_MODES: Record<WaterMode, { label: string; per1000Gal: number; detail: string }> = {
   expected: {
     label: "Expected impact",
-    per1000Gal: 1.25,
-    detail: "Funds water-saving projects in dry regions. Cheapest, but the savings are estimated.",
+    per1000Gal: 0.3,
+    detail: "Leases water back into dry Colorado rivers. Cheapest, but your gift isn't tied to specific gallons.",
   },
   verified: {
     label: "1:1 restoration",
     per1000Gal: 4,
-    detail: "Certified restoration. Every gallon is returned to a stressed river.",
+    detail: "Certified restoration through Bonneville Environmental Foundation. Every gallon is returned to a stressed river.",
   },
 };
 export const DEFAULT_WATER_MODE: WaterMode = "expected";
@@ -54,9 +56,9 @@ export const LAND_USD_PER_M2 = 10 / M2_PER_ACRE;
  * E-waste: pay for every kilogram of the electronics you'll throw away to be
  * reused or recycled properly. Nonprofit refurbishers spend about $8 to $14 per
  * kg they handle (total spending over pounds reported: PCs for People 2024
- * ~$8.50, Free Geek FY25 ~$9.40, Human-I-T 2025 ~$14). That overstates one more
- * kg, since it includes internet and skills programs and ignores device sales,
- * so we take the low end. Only about a fifth of the world's e-waste is recycled
+ * ~$8.50, Free Geek FY25 ~$9.40, Human-I-T 2025 ~$14). We give to the most
+ * efficient, PCs for People, at its own figure, rounded down because it
+ * includes internet programs and ignores device sales. Only about a fifth of the world's e-waste is recycled
  * properly (Global E-waste Monitor 2024). Approximate.
  */
 export const EWASTE_USD_PER_KG = 8;
