@@ -175,6 +175,14 @@ export function Store() {
   });
   const billing = billingPick ?? DEFAULT_BILLING;
   const totals = planTotals(lines, ctx, billing);
+  // Room below the footer for the plan bar, so it never covers the last lines of the page.
+  useEffect(() => {
+    document.body.style.paddingBottom = plan.length ? "5rem" : "";
+    return () => {
+      document.body.style.paddingBottom = "";
+    };
+  }, [plan.length]);
+
   const toggle = (id: string) => setPlan((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
   // Meat, dairy and plant foods are three parts of one diet, so they share one answer.
   const FOOD_IDS = PRODUCTS.filter((x) => x.section === "food").map((x) => x.id);
@@ -674,6 +682,8 @@ export function Store() {
         )}
       </section>
 
+      {/* The aisle bar sticks only while the shelves are on screen. */}
+      <div>
       <nav aria-label="Aisles" className="sticky top-0 z-20 -mx-4 mb-8 border-b-2 border-rule bg-background px-4">
         <ul className="flex gap-1 overflow-x-auto py-2 text-sm font-semibold [scrollbar-width:none]">
           {SECTIONS.map((s) => (
@@ -731,9 +741,10 @@ export function Store() {
           </section>
         );
       })}
+      </div>
 
       {plan.length > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-10 border-t-2 border-rule bg-background">
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t-2 border-rule bg-background">
           <div className="mx-auto max-w-5xl px-4">
             {open && (
               <div className="max-h-[60vh] overflow-y-auto border-b border-border py-4">
