@@ -512,3 +512,33 @@ export function planTotals(plan: PlanLine[], ctx: Context, billing: Billing = DE
     : null;
   return { lines, oneTime, recurring };
 }
+
+export type HarmSplit = Record<"carbon" | "air" | "water" | "land" | "ewaste", { once: number; perPeriod: number }>;
+
+/**
+ * How a plan's donation divides between the five harms, for people who'd rather
+ * give to each charity themselves. Each line's cost is split in proportion to
+ * what it costs per harm; ongoing amounts are per billing period. Before minimums and fees.
+ */
+export function harmSplit(totals: PlanTotals, ctx: Context, billing: Billing = DEFAULT_BILLING): HarmSplit {
+  const out: HarmSplit = {
+    carbon: { once: 0, perPeriod: 0 },
+    air: { once: 0, perPeriod: 0 },
+    water: { once: 0, perPeriod: 0 },
+    land: { once: 0, perPeriod: 0 },
+    ewaste: { once: 0, perPeriod: 0 },
+  };
+  const add = (cost: number, impacts: Impacts, field: "once" | "perPeriod") => {
+    const c = impactCost(impacts);
+    const sum = c.carbon + c.air + c.water + c.land + c.ewaste;
+    if (!(cost > 0) || !(sum > 0)) return;
+    for (const k of Object.keys(out) as (keyof HarmSplit)[]) out[k][field] += (cost * c[k]) / sum;
+  };
+  for (const l of totals.lines) {
+    if (l.pastCost) add(l.pastCost, l.product.impacts(l.amount, "past", ctx), "once");
+    const lifetime = l.cover.ahead === "lifetime";
+    const ahead = l.product.impacts(l.amount, lifetime ? "future" : "monthly", ctx);
+    add(lifetime ? l.aheadCost : l.aheadCost * (billing === "annual" ? 12 : 1), ahead, lifetime ? "once" : "perPeriod");
+  }
+  return out;
+}
