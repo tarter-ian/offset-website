@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { ConnectAccounts } from "@/components/ConnectAccounts";
 
-export const metadata: Metadata = { title: "Link your accounts | Offset" };
+export const metadata: Metadata = { title: "Link your accounts | My Offset" };
 
 export default function StartPage() {
   return (
