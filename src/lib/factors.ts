@@ -83,6 +83,8 @@ export const WH_PER_AI_VIDEO = 944;
 export const AI_BUILT_IN_PROMPTS_PER_DAY = 4;
 export const AI_BUILT_IN_START_YEAR = 2024.4;
 export const AI_VIDEO_START_YEAR = 2024.9;
+// Coding agents (Claude Code, Codex, Cursor's agent) took off in 2025.
+export const AI_CODING_START_YEAR = 2025;
 // Measuring a data export: energy scales with tokens. Epoch AI puts a short
 // reply (~500 tokens out) at ~0.3 Wh and a 10k-token input at ~2.5 Wh. Each turn
 // of a chat re-reads the whole conversation so far, so long chats cost more.

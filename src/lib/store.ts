@@ -242,6 +242,12 @@ const aiChat = (a: number | string, span: Span, ctx: Context) =>
     span,
   ).parts.ai.impacts;
 
+/** Coding hours to count: none when a linked Claude or ChatGPT account already measured coding in with chat. */
+export const codingMeasured = (ctx: Context) => Boolean(ctx.aiFromExport && (ctx.aiCode || ctx.aiAgent));
+const codingHours = (a: number | string, ctx: Context) => (codingMeasured(ctx) ? 0 : num(a));
+const aiCoding = (a: number | string, span: Span, ctx: Context) =>
+  lifetimeOffset({ ...base(ctx), aiCodingHoursPerWeek: codingHours(a, ctx) }, ["ai"], undefined, span).parts.ai.impacts;
+
 export const PRODUCTS: Product[] = [
   {
     id: "ai",
@@ -278,6 +284,17 @@ export const PRODUCTS: Product[] = [
     cost: (a, span, ctx) => costOf(lifetimeOffset({ ...base(ctx), aiVideoPerWeek: num(a) }, ["ai"], undefined, span).parts.ai.impacts),
     impacts: (a, span, ctx) => lifetimeOffset({ ...base(ctx), aiVideoPerWeek: num(a) }, ["ai"], undefined, span).parts.ai.impacts,
     kgPerYear: (a) => aiImpacts((num(a) * 52 * F.WH_PER_AI_VIDEO) / 1000).carbon,
+  },
+  {
+    id: "ai-coding",
+    section: "ai",
+    name: "Coding with AI",
+    blurb: "Hours you spend with a coding agent like Claude Code, Codex or Cursor. An hour of it takes far more power than chatting.",
+    amount: { kind: "number", label: "Hours a week with a coding agent", unit: "hours a week", default: 0, step: 5 },
+    oneTime: true,
+    cost: (a, span, ctx) => costOf(aiCoding(a, span, ctx)),
+    impacts: (a, span, ctx) => aiCoding(a, span, ctx),
+    kgPerYear: (a, ctx) => aiImpacts((codingHours(a, ctx) * 52 * F.WH_PER_CLAUDE_CODE_HOUR) / 1000).carbon,
   },
   onlineItem("video", "Video streaming", "YouTube, Netflix, Twitch.", 2),
   onlineItem("social", "Social media", "TikTok, Instagram, Facebook, X.", 1),

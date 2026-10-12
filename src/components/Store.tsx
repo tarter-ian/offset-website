@@ -53,6 +53,7 @@ import {
   aiLeadsLifetime,
   SMALL_MONTHLY_USD,
   aiBreakdown,
+  codingMeasured,
   type Cover,
   coverBadge,
   coverPrice,
@@ -417,6 +418,7 @@ export function Store() {
       return `measured from your account, plus Claude Code, estimated from ${Math.round(ctx.aiCode.limitPercent)}% of your ${ctx.aiCode.plan} weekly limit`;
     if (p.id === "ai" && ctx.aiFromExport && ctx.aiAgent)
       return `measured from your account, plus ${AGENT_TOOL_NAMES[ctx.aiAgent.tool ?? "both"]}, estimated from its token total`;
+    if (p.id === "ai-coding" && codingMeasured(ctx)) return "counted in AI chat, measured from your account";
     if (p.section === "ai" && ctx.aiFromExport) return "measured from your account";
     if (p.id === "ai" && ctx.aiEstimate) return ctx.aiEstimate.from;
     if ((p.id === "ai-media" || p.id === "ai-video") && ctx.aiEstimate?.level) return ctx.aiEstimate.from;
@@ -1405,6 +1407,7 @@ export function Store() {
                       prompts: Number(amountOf(ai)) || 0,
                       images: Number(amountOf(productById("ai-media")!)) || 0,
                       videos: Number(amountOf(productById("ai-video")!)) || 0,
+                      codingHours: codingMeasured(ctx) ? 0 : Number(amountOf(productById("ai-coding")!)) || 0,
                     },
                     ctx,
                   )}
