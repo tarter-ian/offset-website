@@ -274,29 +274,7 @@ export function AiQuickPick({
 
   return (
     <div>
-      <p className="font-semibold">How much do you use AI?</p>
-      <div className="mt-2 grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="How much you use AI">
-        {(Object.keys(AI_LEVELS) as AiLevel[]).map((k) => {
-          const l = AI_LEVELS[k];
-          const on = level === k;
-          return (
-            <button
-              key={k}
-              type="button"
-              role="radio"
-              aria-checked={on}
-              onClick={() => onPick(k, `you picked ${l.label.toLowerCase()}`)}
-              className={`min-h-14 rounded-md border-2 px-3 py-2 text-left ${on ? "border-rule bg-foreground text-background" : "border-border hover:border-rule"}`}
-            >
-              <span className="block font-semibold">{l.label}</span>
-              <span className={`block text-sm ${on ? "opacity-80" : "text-muted"}`}>
-                {l.who}, about {l.promptsPerDay} prompts
-              </span>
-            </button>
-          );
-        })}
-      </div>
-      <p className="mt-5 font-semibold">Or get your real numbers</p>
+      <p className="font-display text-xl font-bold">See your real numbers</p>
       {ext ? (
         <div className="mt-2">
           <div className="flex flex-wrap items-center gap-2">
@@ -514,6 +492,28 @@ export function AiQuickPick({
         </div>
       )}
       {status.kind === "error" && <p className="mt-2 text-sm text-red-700">{status.text}</p>}
+      <p className="mt-6 text-muted">{ext ? "Or take a guess instead:" : "No extension? Take a guess for now:"}</p>
+      <div className="mt-2 grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="How much you use AI">
+        {(Object.keys(AI_LEVELS) as AiLevel[]).map((k) => {
+          const l = AI_LEVELS[k];
+          const on = level === k;
+          return (
+            <button
+              key={k}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              onClick={() => onPick(k, `you picked ${l.label.toLowerCase()}`)}
+              className={`min-h-14 rounded-md border-2 px-3 py-2 text-left ${on ? "border-rule bg-foreground text-background" : "border-border hover:border-rule"}`}
+            >
+              <span className="block font-semibold">{l.label}</span>
+              <span className={`block text-sm ${on ? "opacity-80" : "text-muted"}`}>
+                {l.who}, about {l.promptsPerDay} prompts
+              </span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

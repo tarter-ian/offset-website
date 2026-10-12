@@ -981,6 +981,23 @@ export function Store() {
         : "All future use"
       : `${aiCover.past ? "Past use + " : ""}${billing === "annual" ? "each year" : "each month"}`;
   const linkedSomething = ctx.aiFromExport || Object.keys(linkedFrom).length > 0;
+  /** The hero's green button: puts AI chat in the plan if it isn't, then opens checkout. */
+  const reviewAndPay = () => {
+    setPlan((cur) => (cur.includes(ai.id) ? cur : [...cur, ai.id]));
+    setOpen(true);
+    setCheckout(true);
+    setTimeout(() => document.getElementById("pay-steps")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+  };
+  // Says plainly whether the AI numbers were counted or guessed (Ian, 2026-10-12: accurate tracking is the appeal).
+  const aiBasis = ctx.aiFromExport
+    ? "Measured"
+    : entered.ai
+      ? "Your number"
+      : ctx.aiEstimate?.level
+        ? `Your guess (${AI_LEVELS[ctx.aiEstimate.level].label.toLowerCase()})`
+        : ctx.aiEstimate
+          ? "Your count"
+          : "Typical use";
 
   return (
     <div className="pb-20">
@@ -1059,6 +1076,7 @@ export function Store() {
           </div>
           <dl className="amount divide-y divide-border text-sm">
             {[
+              ["Based on", aiBasis],
               ["Covers", covers],
               ...(["carbon", "air", "water", "land"] as const).map((k) => [IMPACT_INFO[k].label, k === "air" ? airShort(ab.impacts[k]) : IMPACT_INFO[k].format(ab.impacts[k])]),
             ].map(([k, v]) => (
@@ -1078,8 +1096,21 @@ export function Store() {
           <div className="mt-4">{coverControls(ai, true)}</div>
           <div className="mt-4 flex items-center justify-between gap-4 border-t border-border pt-3">
             <span className="amount text-2xl font-semibold">{priceText(aiPrice, aiCover, billing)}</span>
-            {addButton(ai)}
+            {paidCover(covered.ai) ? null : (
+              <button
+                type="button"
+                onClick={reviewAndPay}
+                className="min-h-11 shrink-0 cursor-pointer rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-strong"
+              >
+                {plan.includes(ai.id) ? "Review and pay" : "Cover my AI use"}
+              </button>
+            )}
           </div>
+          {plan.includes(ai.id) && !paidCover(covered.ai) && (
+            <button type="button" onClick={() => toggle(ai.id)} className="mt-2 min-h-10 cursor-pointer text-sm text-muted underline underline-offset-4 hover:text-foreground">
+              Take AI chat out of your plan
+            </button>
+          )}
         </aside>
       </section>
 
@@ -1119,6 +1150,25 @@ export function Store() {
           </p>
         )}
       </section>
+
+      <nav aria-label="Other things you can do" className="mb-10 flex flex-wrap gap-x-6 gap-y-1 text-sm">
+        <span className="inline-flex min-h-10 items-center text-muted">Not sure yet?</span>
+        <Link href="/ledger" className="inline-flex min-h-10 items-center underline underline-offset-4 hover:text-muted">
+          Where the money goes
+        </Link>
+        <Link href="/method" className="inline-flex min-h-10 items-center underline underline-offset-4 hover:text-muted">
+          How we calculate
+        </Link>
+        <span className="inline-flex min-h-10 items-center text-muted">Giving?</span>
+        <Link href="/gift" className="inline-flex min-h-10 items-center underline underline-offset-4 hover:text-muted">
+          Give one to someone
+        </Link>
+      </nav>
+
+      <div className="mb-4">
+        <h2 className="font-display text-3xl font-extrabold [font-stretch:85%]">Cover more than AI</h2>
+        <p className="mt-1 max-w-2xl text-muted">Streaming, devices, travel, food and shopping, each priced the same way. Start with the ones you know you have.</p>
+      </div>
 
       {/* The aisle bar sticks only while the shelves are on screen. */}
       <div>
