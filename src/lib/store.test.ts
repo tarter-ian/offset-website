@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aheadFor, yearlyLine, coverBadge, coverPrice, DEFAULT_CONTEXT as C, defaultAmount, effectiveCover, planTotals, PRODUCTS, productById } from "./store";
+import { aheadFor, defaultPastYears, everydayPastMonths, everydaySince, yearlyLine, coverBadge, coverPrice, DEFAULT_CONTEXT as C, defaultAmount, effectiveCover, planTotals, PRODUCTS, productById } from "./store";
 import {
   ANNUAL_MIN_DONATION_USD,
   DEFAULT_BILLING,
@@ -62,10 +62,30 @@ describe("covers", () => {
     expect(effectiveCover(p("ai"), 20000, C, { ahead: "lifetime" }).ahead).toBe("monthly");
   });
 
-  it("checks past use by default on one-time items only, and lets it be unchecked", () => {
+  it("checks past use by default on one-time items only, and lets everyday items opt in", () => {
     expect(effectiveCover(p("ai"), 10, C).past).toBe(true);
     expect(effectiveCover(p("ai"), 10, C, { past: false }).past).toBe(false);
-    expect(effectiveCover(p("car"), 200, C, { past: true }).past).toBe(false);
+    expect(effectiveCover(p("car"), 200, C).past).toBe(false);
+    expect(effectiveCover(p("car"), 200, C, { past: true }).past).toBe(true);
+  });
+
+  it("prices everyday past use as today's month times the months since the start year", () => {
+    const now = new Date();
+    const since = now.getFullYear() - 10;
+    const ctx = { ...C, pastSinceYear: since };
+    const months = 120 + now.getMonth();
+    expect(everydayPastMonths(ctx, now)).toBe(months);
+    expect(p("car").cost(200, "past", ctx)).toBeCloseTo(p("car").cost(200, "monthly", ctx) * months, 6);
+    expect(p("car").impacts(200, "past", ctx).carbon).toBeCloseTo(p("car").impacts(200, "monthly", ctx).carbon * months, 6);
+    expect(everydaySince(C)).toBe(C.birthYear + 18);
+  });
+
+  it("spreads past use just enough to keep it at $10 a month or less", () => {
+    expect(defaultPastYears(8)).toBe(0);
+    expect(defaultPastYears(100)).toBe(1);
+    expect(defaultPastYears(233)).toBe(2);
+    expect(defaultPastYears(300)).toBe(3);
+    expect(defaultPastYears(5000)).toBe(5);
   });
 
   it("splits lifetime into past use plus the years to come", () => {
@@ -147,27 +167,30 @@ describe("planTotals", () => {
 describe("spreading past use over years", async () => {
   const { harmSplit } = await import("./store");
   const lines = [
-    { productId: "ai", amount: 30, cover: { past: true, ahead: "lifetime" as const } },
+    { productId: "tv", amount: defaultAmount(p("tv"), C), cover: { past: true, ahead: "monthly" as const } },
     { productId: "car", amount: 200, cover: { past: false, ahead: "monthly" as const } },
   ];
-  it("moves past use from the one-time payment into each month, with nothing added or taken off", () => {
+  it("moves monthly items' past use from the one-time payment into each month, with nothing added or taken off", () => {
     const now = planTotals(lines, C, "monthly");
     const spread = planTotals(lines, C, "monthly", 2);
     const past = now.lines[0].pastCost;
     expect(past).toBeGreaterThan(0);
     expect(now.pastSpread).toBeNull();
+    expect(now.oneTime).not.toBeNull();
     expect(spread.pastSpread).toEqual({ total: past, years: 2, perMonth: past / 24 });
-    const futureOnly = Math.max(LIFETIME_MIN_DONATION_USD, Math.ceil(now.lines[0].aheadCost));
-    expect(spread.oneTime!.donation).toBe(futureOnly);
-    expect(spread.recurring!.donation).toBeCloseTo(Math.ceil((p("car").cost(200, "monthly", C) + past / 24) * 100) / 100, 6);
+    expect(spread.oneTime).toBeNull();
+    const monthly = p("car").cost(200, "monthly", C) + now.lines[0].aheadCost + past / 24;
+    expect(spread.recurring!.donation).toBeCloseTo(Math.ceil(monthly * 100) / 100, 6);
+    const s = harmSplit(spread, C, "monthly");
+    expect(Object.values(s).reduce((a, v) => a + v.perPeriod, 0)).toBeCloseTo(monthly, 6);
   });
 
-  it("adds a repeating payment even when nothing else repeats", () => {
-    const t = planTotals(lines.slice(0, 1), C, "annual", 5);
-    expect(t.recurring).not.toBeNull();
-    const s = harmSplit(t, C, "annual");
-    const perYear = Object.values(s).reduce((a, v) => a + v.perPeriod, 0);
-    expect(perYear).toBeCloseTo(t.lines[0].pastCost / 5, 6);
+  it("keeps a lifetime item's past use in its one-time payment", () => {
+    const life = [{ productId: "ai", amount: 30, cover: { past: true, ahead: "lifetime" as const } }];
+    const t = planTotals(life, C, "annual", 5);
+    expect(t.pastSpread).toBeNull();
+    expect(t.recurring).toBeNull();
+    expect(t.oneTime).not.toBeNull();
   });
 
   it("does nothing when there's no past use", () => {

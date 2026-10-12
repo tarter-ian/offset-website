@@ -58,9 +58,21 @@ export interface Context {
   aiStartYear?: number;
   /** A quick AI estimate: a picked level, or the plan from a sign-in. */
   aiEstimate?: { level?: AiLevel; from: string };
+  /** The year everyday items' past use counts from, when the person picks one. */
+  pastSinceYear?: number;
 }
 
 export const DEFAULT_CONTEXT: Context = { birthYear: DEFAULT_LIFETIME_INPUT.birthYear, state: DEFAULT_ANSWERS.state };
+
+/** Everyday items' past use counts from this age unless the person picks a year (Ian, 2026-10-12). */
+export const PAST_FROM_AGE = 18;
+export const everydaySince = (ctx: Context) => ctx.pastSinceYear ?? ctx.birthYear + PAST_FROM_AGE;
+/**
+ * Months of past use for everyday items, from the start of that year to now, at
+ * today's habits. That likely undercounts: cars and the grid were dirtier then.
+ */
+export const everydayPastMonths = (ctx: Context, now = new Date()) =>
+  Math.max(0, (now.getFullYear() - everydaySince(ctx)) * 12 + now.getMonth());
 
 type Amount =
   | { kind: "number"; label: string; unit: string; default: number; step: number; prefix?: string }
@@ -164,8 +176,14 @@ function lifeItem(
     blurb,
     amount,
     oneTime: false,
-    cost: (a, _span, ctx) => costOf(monthly(keys, { ...DEFAULT_ANSWERS, state: ctx.state, ...answers(a, ctx) })),
-    impacts: (a, _span, ctx) => monthly(keys, { ...DEFAULT_ANSWERS, state: ctx.state, ...answers(a, ctx) }),
+    cost: (a, span, ctx) =>
+      costOf(monthly(keys, { ...DEFAULT_ANSWERS, state: ctx.state, ...answers(a, ctx) })) * (span === "past" ? everydayPastMonths(ctx) : 1),
+    impacts: (a, span, ctx) => {
+      const m = monthly(keys, { ...DEFAULT_ANSWERS, state: ctx.state, ...answers(a, ctx) });
+      if (span !== "past") return m;
+      const n = everydayPastMonths(ctx);
+      return { carbon: m.carbon * n, air: m.air * n, water: m.water * n, land: m.land * n, ewaste: m.ewaste * n };
+    },
     kgPerYear: (a, ctx) => {
       const ks = Array.isArray(keys) ? keys : [keys];
       const f = computeFootprint({ ...DEFAULT_ANSWERS, state: ctx.state, ...answers(a, ctx) });
@@ -403,7 +421,7 @@ export function defaultAmount(p: Product, ctx: Context): number | string {
 /**
  * How an item is covered. Past use is a checkbox that adds to either choice;
  * going forward is ongoing (billed yearly or monthly) or lifetime (one payment),
- * never both. Everyday items are ongoing only, with no past option.
+ * never both. Everyday items are ongoing only, with past use as an opt-in.
  */
 export type Ahead = "monthly" | "lifetime";
 export interface Cover {
@@ -441,7 +459,8 @@ export function effectiveCover(
   const small = p.id === "ai" ? aiLeadsLifetime(amount, ctx) : p.cost(amount, "monthly", ctx) < SMALL_MONTHLY_USD;
   const fallback: Ahead = small && options.includes("lifetime") ? "lifetime" : "monthly";
   const ahead = picked.ahead && options.includes(picked.ahead) ? picked.ahead : fallback;
-  return { past: p.oneTime && (picked.past ?? true), ahead };
+  // Online items start with past use in; everyday items' past is opt-in, since years of driving or food add up fast.
+  return { past: picked.past ?? p.oneTime, ahead };
 }
 
 /** Badge wording for a cover, e.g. "for life" or "to date + each month". */
@@ -482,6 +501,15 @@ export interface PlanLine {
 export const PAST_YEARS = [0, 1, 2, 3, 5] as const;
 export type PastYears = (typeof PAST_YEARS)[number];
 
+/** The most a past-use instalment should add to a month by default. */
+export const PAST_MONTHLY_CAP_USD = 10;
+
+/** The shortest spread that keeps past use at or under the cap a month, or the longest one offered. */
+export function defaultPastYears(pastTotal: number): PastYears {
+  if (pastTotal <= PAST_MONTHLY_CAP_USD) return 0;
+  return PAST_YEARS.find((y) => y > 0 && pastTotal / (y * 12) <= PAST_MONTHLY_CAP_USD) ?? PAST_YEARS[PAST_YEARS.length - 1];
+}
+
 export interface PlanTotals {
   lines: (PlanLine & { product: Product; pastCost: number; aheadCost: number })[];
   oneTime: { donation: number; fee: number; total: number } | null;
@@ -505,11 +533,13 @@ export function planTotals(plan: PlanLine[], ctx: Context, billing: Billing = DE
     const aheadCost = product.cost(l.amount, l.cover.ahead === "lifetime" ? "future" : "monthly", ctx);
     return [{ ...l, product, pastCost, aheadCost }];
   });
-  const pastSum = lines.reduce((s, l) => s + l.pastCost, 0);
+  // Only items paid monthly spread their past use; a lifetime item's past goes in with it, all at once.
+  const spreadable = (l: (typeof lines)[number]) => l.cover.ahead === "monthly";
+  const pastSum = lines.reduce((s, l) => s + (spreadable(l) ? l.pastCost : 0), 0);
   const pastSpread = pastYears > 0 && pastSum > 0 ? { total: pastSum, years: pastYears as Exclude<PastYears, 0>, perMonth: pastSum / (pastYears * 12) } : null;
-  const onceSum = lines.reduce((s, l) => s + (pastSpread ? 0 : l.pastCost) + (l.cover.ahead === "lifetime" ? l.aheadCost : 0), 0);
+  const onceSum = lines.reduce((s, l) => s + (pastSpread && spreadable(l) ? 0 : l.pastCost) + (l.cover.ahead === "lifetime" ? l.aheadCost : 0), 0);
   const ongoing = lines.filter((l) => l.cover.ahead === "monthly");
-  const hasOnce = lines.some((l) => (l.cover.past && !pastSpread) || l.cover.ahead === "lifetime");
+  const hasOnce = lines.some((l) => (l.cover.past && !(pastSpread && spreadable(l))) || l.cover.ahead === "lifetime");
   const oneTime = hasOnce
     ? (() => {
         const donation = Math.max(LIFETIME_MIN_DONATION_USD, Math.ceil(onceSum));
@@ -547,7 +577,7 @@ export function harmSplit(totals: PlanTotals, ctx: Context, billing: Billing = D
   };
   for (const l of totals.lines) {
     const months = totals.pastSpread ? totals.pastSpread.years * 12 : 0;
-    if (l.pastCost && months) add((l.pastCost / months) * (billing === "annual" ? 12 : 1), l.product.impacts(l.amount, "past", ctx), "perPeriod");
+    if (l.pastCost && months && l.cover.ahead === "monthly") add((l.pastCost / months) * (billing === "annual" ? 12 : 1), l.product.impacts(l.amount, "past", ctx), "perPeriod");
     else if (l.pastCost) add(l.pastCost, l.product.impacts(l.amount, "past", ctx), "once");
     const lifetime = l.cover.ahead === "lifetime";
     const ahead = l.product.impacts(l.amount, lifetime ? "future" : "monthly", ctx);

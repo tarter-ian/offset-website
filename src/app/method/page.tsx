@@ -3,7 +3,7 @@ import * as F from "@/lib/factors";
 import { CONFIDENCE_LABELS, IMPACT_KEYS, MARGINS, type Confidence } from "@/lib/footprint";
 import { STATES } from "@/lib/data/states";
 import { IMPACT_INFO } from "@/lib/impacts";
-import { DEFAULT_CONTEXT, PRODUCTS } from "@/lib/store";
+import { DEFAULT_CONTEXT, PAST_FROM_AGE, PAST_MONTHLY_CAP_USD, PAST_YEARS, PRODUCTS } from "@/lib/store";
 import { PAYMENT_MODE } from "@/lib/payments";
 import {
   AIR_DAMAGE_SHARE,
@@ -309,6 +309,12 @@ export default function MethodPage() {
         {Math.round(F.GRID_AIR_CLEANER_PER_YEAR * 100)}% a year for air. Data center cooling water and making devices, mostly overseas, aren&apos;t
         discounted. Future AI use counts {LIFETIME_GROWTH_BUFFER} times over in case it keeps growing. Prices use
         expected-impact climate pricing, plus fees.
+      </p>
+      <p className="mt-4 text-muted">
+        Everyday items (driving, flights, food, home and shopping) can include past use too, if you tick it: today&apos;s monthly amount
+        times the months since the year you turned {PAST_FROM_AGE}, or a year you pick. That probably undercounts, since cars and the grid
+        were dirtier then. Past use can be paid all at once or spread over up to {PAST_YEARS.at(-1)} years; by default it&apos;s spread
+        just enough to add no more than {usd(PAST_MONTHLY_CAP_USD)} a month, with nothing added or taken off.
       </p>
       <ul className="mt-3 list-disc space-y-1 pl-5 text-muted">
         <li>

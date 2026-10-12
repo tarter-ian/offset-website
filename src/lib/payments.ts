@@ -1,7 +1,8 @@
 import { CHARITIES } from "./charities";
 import type { ImpactKey } from "./footprint";
 import { BILLING, type Billing, cardFee, MIN_DONATION_USD, paymentFee, type PaymentMode, sponsorRate } from "./pricing";
-import type { HarmSplit } from "./store";
+import { defaultPastYears, harmSplit, type HarmSplit, PAST_MONTHLY_CAP_USD, PAST_YEARS, type PastYears, type PlanLine, planTotals } from "./store";
+import type { Context } from "./store";
 
 // How people pay. For now each charity is paid through Every.org directly, a free
 // 501(c)(3) donation platform that sends its own receipt for each gift (Ian,
@@ -98,6 +99,31 @@ export function payRows(split: HarmSplit, billing: Billing, autopay: boolean, mo
 export const repeatRows = (split: HarmSplit, billing: Billing, mode: PaymentMode = PAYMENT_MODE) =>
   payRows(split, billing, true, mode).filter((r) => r.frequency !== "ONCE");
 
+/**
+ * The default spread for past use: of the spreads that keep it at or under the
+ * monthly cap, the one that costs least in total over five years once every
+ * charity's gift is rounded up to the smallest donation and given its fee
+ * (Ian, 2026-10-12). Spreading a little can lift small monthly gifts to $1 that
+ * would otherwise be rounded up for nothing; ties go to the shortest spread.
+ */
+export function bestPastYears(plan: PlanLine[], ctx: Context, billing: Billing, mode: PaymentMode = PAYMENT_MODE): PastYears {
+  const base = planTotals(plan, ctx, billing, 0);
+  const past = base.lines.reduce((s, l) => s + (l.cover.ahead === "monthly" ? l.pastCost : 0), 0);
+  if (!(past > 0)) return 0;
+  const months = 12 * PAST_YEARS[PAST_YEARS.length - 1];
+  const perPeriod = billing === "annual" ? 12 : 1;
+  const paid = (y: PastYears) => {
+    const rows = payRows(harmSplit(planTotals(plan, ctx, billing, y), ctx, billing), billing, true, mode);
+    const plainRepeat = y ? payRows(harmSplit(base, ctx, billing), billing, true, mode).filter((r) => r.frequency !== "ONCE") : [];
+    const once = sumTotal(rows.filter((r) => r.frequency === "ONCE"));
+    const repeat = sumTotal(rows.filter((r) => r.frequency !== "ONCE"));
+    return once + repeat * ((12 * (y || months / 12)) / perPeriod) + (y ? sumTotal(plainRepeat) * ((months - 12 * y) / perPeriod) : 0);
+  };
+  const first = defaultPastYears(past);
+  const allowed = PAST_YEARS.filter((y) => (y === 0 ? past <= PAST_MONTHLY_CAP_USD : y >= first));
+  return allowed.reduce((best, y) => (paid(y) < paid(best) - 0.005 ? y : best), allowed[0]);
+}
+
 export const sumTotal = (rows: PayRow[]) => Math.round(rows.reduce((s, r) => s + r.total, 0) * 100) / 100;
 
 /** The card fees for giving these amounts to the charities one payment each, as Every.org charges them. */
@@ -178,7 +204,7 @@ export interface Checkout {
   billing: Billing;
   rows: PayRow[];
   /** Items paid for, to mark covered once every gift is confirmed. */
-  lines: { productId: string; lifetime: boolean; pastSpread?: boolean }[];
+  lines: { productId: string; lifetime: boolean }[];
   /** Rows the person came back from Every.org on, with when. */
   done: Record<string, string>;
   /** Rows whose gift Every.org's webhook has confirmed. */
