@@ -843,7 +843,9 @@ export function Store() {
   const allLife = lines.length > 0 && lines.every((l) => l.cover.ahead === "lifetime");
   const setAllAhead = (ahead: Cover["ahead"]) => {
     setPicked((x) => ({ ...x, ...Object.fromEntries(lines.map((l) => [l.productId, { ...x[l.productId], ahead }])) }));
-    if (ahead === "lifetime") setAnyway((x) => ({ ...x, ...Object.fromEntries(lines.map((l) => [l.productId, true])) }));
+    // Lifetime prices show on every tile while paying once for life; going back hides them again, so
+    // "or $X for life" stays on online items only (Ian, 2026-10-12).
+    setAnyway((x) => ({ ...x, ...Object.fromEntries(lines.map((l) => [l.productId, ahead === "lifetime"])) }));
   };
   /** Monthly, yearly or once for life, for the whole plan. Picking monthly or yearly brings lifetime items back to ongoing. */
   const payChoices = (annualNote: string) =>
