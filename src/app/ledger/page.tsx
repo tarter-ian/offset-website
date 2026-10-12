@@ -127,7 +127,8 @@ export default function LedgerPage() {
       </ul>
       <p className="mt-3 text-muted">
         Tips received and what they were spent on go up here each month, next to the donations. Anything left over after a month&apos;s
-        costs goes to the charities with that month&apos;s donations.
+        costs goes to the charities with that month&apos;s donations, split the same way the donations were: a charity that got 40% of
+        the month&apos;s donations gets 40% of the leftover tips.
       </p>
 
       <p className="mt-10 text-muted">
