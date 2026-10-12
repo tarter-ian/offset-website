@@ -286,7 +286,9 @@ function acceptGift(gift: Gift) {
     const covered = { ...saved.covered };
     for (const item of gift.items) {
       const until = giftUntil(item, gift.createdAt);
-      covered[item.productId] = until ? { kind: "period", until, giftFrom: gift.from } : { kind: "life", giftFrom: gift.from };
+      covered[item.productId] = until
+        ? { kind: "period", until, giftFrom: gift.from, since: gift.createdAt }
+        : { kind: "life", giftFrom: gift.from, since: gift.createdAt };
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...saved, covered }));
     return true;
