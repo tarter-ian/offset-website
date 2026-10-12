@@ -869,7 +869,12 @@ export function Store() {
                 </div>
                 )}
                 <div className="mt-3 flex border-t border-border pt-3 flex-wrap items-center gap-2 text-sm" role="radiogroup" aria-label="Optional tip">
-                  <span className="text-muted">Add a tip to help keep Offset running?</span>
+                  <span className="text-muted">
+                    Add a tip to help keep Offset running?{" "}
+                    <a href="/ledger#tips" target="_blank" className="underline hover:text-foreground">
+                      What tips pay for
+                    </a>
+                  </span>
                   {TIPS.map((t) => (
                     <button
                       key={t}

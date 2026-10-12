@@ -14,6 +14,14 @@ const STEPS = [
   { title: "The charities", body: "The partner pools small donations and pays each charity on your summary once a month. The card fee goes to the card processor. We keep only tips people choose to add, which pay for running the site." },
 ];
 
+// What tips pay for. Rough monthly costs of keeping the site up; amounts are list prices.
+const RUNNING_COSTS = [
+  { what: "Hosting the site (Vercel Pro)", cost: "$20 a month" },
+  { what: "The web address", cost: "about $15 a year" },
+  { what: "Database for saved plans and the waitlist (Turso)", cost: "free at our size for now" },
+  { what: "Listing the browser extension in the Chrome Web Store", cost: "$5, once" },
+];
+
 export default function LedgerPage() {
   const causes = [
     ...IMPACT_KEYS.map((k) => ({ key: k as string, label: IMPACT_INFO[k].label, charity: CHARITIES[k] })),
@@ -96,6 +104,23 @@ export default function LedgerPage() {
           ))}
         </>
       )}
+
+      <h2 id="tips" className="mt-12 scroll-mt-6 text-xl font-semibold">What tips pay for</h2>
+      <p className="mt-2 text-muted">
+        Tips are optional and separate from your donation. They pay only for keeping Offset running; nobody draws a salary from them.
+      </p>
+      <ul className="mt-3 border-t-2 border-rule">
+        {RUNNING_COSTS.map((c) => (
+          <li key={c.what} className="flex justify-between gap-4 border-b border-border py-2">
+            <span>{c.what}</span>
+            <span className="text-right font-mono text-sm">{c.cost}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-muted">
+        Tips received and what they were spent on go up here each month, next to the donations. Anything left over after a month&apos;s
+        costs goes to the charities with that month&apos;s donations.
+      </p>
 
       <p className="mt-10 text-muted">
         See <Link href="/promises" className="text-accent hover:underline">our promises</Link> and{" "}
