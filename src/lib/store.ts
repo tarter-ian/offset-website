@@ -1,6 +1,6 @@
 import * as F from "./factors";
 import { STATES, type StateCode } from "./data/states";
-import { aiImpacts, computeFootprint, dataCenterImpacts, DEFAULT_ANSWERS, gridImpacts, sumImpacts, type Impacts, type Answers, type CategoryKey, type Diet, type Shopping } from "./footprint";
+import { aiImpacts, computeFootprint, IMPACT_KEYS, dataCenterImpacts, DEFAULT_ANSWERS, gridImpacts, sumImpacts, type Impacts, type Answers, type CategoryKey, type Diet, type Shopping } from "./footprint";
 import {
   DEFAULT_LIFETIME_INPUT,
   LIFETIME_MAX_USD,
@@ -60,10 +60,21 @@ export interface Context {
   aiEstimate?: { level?: AiLevel; from: string };
   /** Coding energy to date, from ChatGPT's agent and Codex token totals and Claude's weekly limit, in Wh. */
   aiCodingPastWh?: number;
+  /**
+   * Habits that changed: what an everyday item was before a year, like meat at most meals
+   * until going vegan. Past use before that year is priced at the old habit.
+   */
+  before?: Record<string, Before>;
   /** Video hours watched to date, from YouTube and Netflix whole history. */
   videoPast?: { hours: number; since: string };
   /** The year everyday items' past use counts from, when the person picks one. */
   pastSinceYear?: number;
+}
+
+export interface Before {
+  amount: number | string;
+  /** The year the habit changed. */
+  until: number;
 }
 
 export const DEFAULT_CONTEXT: Context = { birthYear: DEFAULT_LIFETIME_INPUT.birthYear, state: DEFAULT_ANSWERS.state };
@@ -198,6 +209,17 @@ function lifeItem(
   answers: (a: number | string, ctx: Context) => Partial<Answers>,
   keys: CategoryKey | CategoryKey[],
 ): Product {
+  const month = (a: number | string, ctx: Context) => monthly(keys, { ...DEFAULT_ANSWERS, state: ctx.state, ...answers(a, ctx) });
+  const impacts = (a: number | string, span: Span, ctx: Context): Impacts => {
+    const now = month(a, ctx);
+    const used = everydaySpan(now, span, ctx, keys);
+    const b = ctx.before?.[id];
+    if (!b || (span !== "past" && span !== "lifetime")) return used;
+    // The months before the habit changed are priced at the old habit instead.
+    const months = Math.min(everydayPastMonths(ctx), Math.max(0, (b.until - everydaySince(ctx)) * 12));
+    const then = month(b.amount, ctx);
+    return Object.fromEntries(IMPACT_KEYS.map((k) => [k, Math.max(0, used[k] + (then[k] - now[k]) * months)])) as Impacts;
+  };
   return {
     id,
     section,
@@ -205,14 +227,30 @@ function lifeItem(
     blurb,
     amount,
     oneTime: false,
-    cost: (a, span, ctx) => costOf(everydaySpan(monthly(keys, { ...DEFAULT_ANSWERS, state: ctx.state, ...answers(a, ctx) }), span, ctx, keys)),
-    impacts: (a, span, ctx) => everydaySpan(monthly(keys, { ...DEFAULT_ANSWERS, state: ctx.state, ...answers(a, ctx) }), span, ctx, keys),
+    cost: (a, span, ctx) => costOf(impacts(a, span, ctx)),
+    impacts: (a, span, ctx) => impacts(a, span, ctx),
     kgPerYear: (a, ctx) => {
       const ks = Array.isArray(keys) ? keys : [keys];
       const f = computeFootprint({ ...DEFAULT_ANSWERS, state: ctx.state, ...answers(a, ctx) });
       return 12 * f.categories.filter((c) => ks.includes(c.key)).reduce((sum, c) => sum + c.impacts.carbon, 0);
     },
   };
+}
+
+const DIET_IDS = ["meat", "dairy", "plants"];
+/** Everyday items whose habit can have changed, and the items that change with it: one diet sets all three food cards. */
+export const BEFORE_GROUPS: Record<string, string[]> = { meat: DIET_IDS, dairy: DIET_IDS, plants: DIET_IDS, car: ["car"], flights: ["flights"] };
+
+/**
+ * A card a lifestyle choice covers, like meat on a vegan diet (Ian, 2026-10-12).
+ * Only for choices that leave nothing to pay going forward.
+ */
+export function lifestyleBadge(p: Product, amount: number | string): string | null {
+  if (p.id === "meat" && (amount === "vegan" || amount === "vegetarian")) return `Covered by eating ${amount}`;
+  if (p.id === "dairy" && amount === "vegan") return "Covered by eating vegan";
+  if (p.id === "car" && num(amount) === 0) return "Covered by not driving";
+  if (p.id === "flights" && num(amount) === 0) return "Covered by not flying";
+  return null;
 }
 
 const DIETS: { value: Diet; label: string }[] = [

@@ -53,6 +53,8 @@ import {
   aiLeadsLifetime,
   SMALL_MONTHLY_USD,
   aiBreakdown,
+  BEFORE_GROUPS,
+  lifestyleBadge,
   codingMeasured,
   type Cover,
   coverBadge,
@@ -71,6 +73,7 @@ import {
   productById,
   yearlyLine,
   PAST_YEARS,
+  type Before,
   type Context,
   type PastYears,
   type Product,
@@ -116,7 +119,7 @@ const per = (monthly: number, billing: Billing) => `${usd(billing === "annual" ?
 function priceText(price: { once: number; monthly: number }, cover: Cover, billing: Billing) {
   const parts = [];
   if (price.once > 0) parts.push(`${once(price.once)} ${cover.past && cover.ahead === "lifetime" ? "for life" : "once"}`);
-  if (cover.ahead === "monthly") parts.push(per(price.monthly, billing));
+  if (cover.ahead === "monthly" && !(price.once > 0 && price.monthly < 0.005)) parts.push(per(price.monthly, billing));
   return parts.join(" + ");
 }
 /** Fits a store tile: a big figure with a small note, e.g. "$4.75" / "for life" or "$80.74" / "+ $0.34 a month". */
@@ -126,6 +129,11 @@ function tilePrice(price: { once: number; monthly: number }, cover: Cover, billi
   const per = BILLING[billing].per;
   if (cover.ahead === "monthly") {
     if (!(price.once > 0)) return { big: ongoing, note: per };
+    // Nothing going forward, like meat after going vegan: only the past is left to pay.
+    if (price.monthly < 0.005)
+      return spreadYears
+        ? { big: usd((billing === "annual" ? 12 : 1) * (price.once / (spreadYears * 12))), note: `${per} for ${spreadYears} year${spreadYears > 1 ? "s" : ""}, for past use` }
+        : { big: once(price.once), note: "once, for past use" };
     const past = spreadYears
       ? `${usd((billing === "annual" ? 12 : 1) * (price.once / (spreadYears * 12)))} ${per} for ${spreadYears} year${spreadYears > 1 ? "s" : ""}`
       : `${once(price.once)} once`;
@@ -497,7 +505,10 @@ export function Store() {
       return ctx.aiStartYear && ctx.aiStartYear > 2022
         ? `growing steadily to today's rate since you started in ${ctx.aiStartYear}`
         : "growing steadily to today's rate since ChatGPT launched in late 2022";
-    if (!p.oneTime) return `today's habits since ${everydaySince(ctx)}`;
+    if (!p.oneTime)
+      return ctx.before?.[p.id] && ctx.before[p.id].until > everydaySince(ctx)
+        ? `your old habits from ${everydaySince(ctx)}, today's since ${ctx.before[p.id].until}`
+        : `today's habits since ${everydaySince(ctx)}`;
     return `today's rate since you were ${ONLINE_FROM_AGE}, or 1995`;
   };
 
@@ -675,11 +686,13 @@ export function Store() {
       : null;
     const isOpen = details === p.id;
     const paid = paidCover(covered[p.id]);
+    // A lifestyle choice that leaves nothing to pay going forward, like meat on a vegan diet, counts as covered.
+    const lifestyle = !paid && coverPrice(p, amount, { past: false, ahead: "monthly" }, ctx).monthly < 0.005 ? lifestyleBadge(p, amount) : null;
     return (
       <li
         key={p.id}
         className={`flex w-[78%] shrink-0 snap-start flex-col rounded-md p-4 md:w-auto ${
-          paid?.kind === "life" ? "bg-life" : paid ? "bg-period" : "bg-card"
+          paid?.kind === "life" || lifestyle ? "bg-life" : paid ? "bg-period" : "bg-card"
         } ${
           collapsed && index >= SHELF_SIZE ? "md:hidden" : ""
         } ${isOpen ? "outline-2 outline-rule" : ""}`}
@@ -696,6 +709,7 @@ export function Store() {
                 {paid.giftFrom && `, a gift from ${paid.giftFrom}`}
               </p>
             )}
+            {lifestyle && <p className="text-sm font-semibold text-life-ink">✓ {lifestyle}</p>}
           </div>
           <button
             type="button"
@@ -731,10 +745,12 @@ export function Store() {
         {/* One line: what the big price covers. Past use is in the price note and the details. */}
         <p className="mt-1 text-xs leading-relaxed text-muted">
           {nothing
-            ? p.section === "food"
+            ? lifestyle
+              ? "Nothing to offset going forward."
+              : p.section === "food"
               ? `Nothing to offset on a ${amountText(p, amount).toLowerCase()} diet.`
               : "Nothing to offset at this amount."
-            : `Covers ${coversLines(p).at(-1)![1]}`}
+            : `Covers ${(coversLines(p).filter((l) => l[1]).at(-1) ?? ["", ""])[1]}`}
         </p>
         {info === p.id && infoPanel(p)}
         {paid?.kind === "life" ? (
@@ -761,6 +777,56 @@ export function Store() {
     );
   };
 
+  /** Past use when a habit changed: "Until 2021 I ate meat at most meals", priced at the old habit before that year. */
+  const setBefore = (p: Product, b: Before | undefined) =>
+    setCtx((c) => {
+      const before = { ...c.before };
+      for (const id of BEFORE_GROUPS[p.id] ?? [p.id]) {
+        if (b) before[id] = b;
+        else delete before[id];
+      }
+      return { ...c, before: Object.keys(before).length ? before : undefined };
+    });
+  const beforeLine = (p: Product) => {
+    const b = ctx.before?.[p.id];
+    const thisYear = new Date().getFullYear();
+    if (!b)
+      return (
+        <button
+          type="button"
+          onClick={() => setBefore(p, { amount: p.amount.kind === "choice" ? "meat-heavy" : p.amount.default, until: thisYear - 1 })}
+          className="inline-flex min-h-10 items-center text-sm underline underline-offset-4"
+        >
+          {p.section === "food" ? "Used to eat differently?" : p.id === "car" ? "Used to drive more or less?" : "Used to fly more or less?"}
+        </button>
+      );
+    return (
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span>Until</span>
+        <span className="w-24">
+          <NumberInput label="The year it changed" step={1} value={b.until} onChange={(n) => setBefore(p, { ...b, until: Math.min(thisYear, Math.max(everydaySince(ctx), Math.round(n ?? thisYear))) })} />
+        </span>
+        <span>{p.section === "food" ? "I ate" : p.id === "car" ? "I drove" : "I flew"}</span>
+        {p.amount.kind === "number" ? (
+          <NumberInput
+            label={`Before then: ${p.amount.label.toLowerCase()}`}
+            step={p.amount.step}
+            suffix={p.amount.unit}
+            value={typeof b.amount === "number" ? b.amount : undefined}
+            onChange={(n) => setBefore(p, { ...b, amount: n ?? 0 })}
+          />
+        ) : (
+          <span className="w-56">
+            <Select label="Before then: your diet" value={String(b.amount)} onChange={(v) => setBefore(p, { ...b, amount: v })} options={p.amount.options} />
+          </span>
+        )}
+        <button type="button" onClick={() => setBefore(p, undefined)} className="min-h-10 px-2 underline">
+          Same as now
+        </button>
+      </div>
+    );
+  };
+
   const detailPanel = (p: Product) => (
     <div className="mt-3 border-y-2 border-rule py-4">
       <div className="flex items-start justify-between gap-4">
@@ -777,6 +843,7 @@ export function Store() {
           <p className="text-sm">{yearlyLine(p, amountOf(p), ctx)}</p>
           {amountLine(p)}
           {coverControls(p, true)}
+          {BEFORE_GROUPS[p.id] && coverOf(p).past && beforeLine(p)}
         </div>
         <div className="flex items-center gap-4">
           <span className="figures font-medium">{priceText(coverPrice(p, amountOf(p), coverOf(p), ctx), coverOf(p), billing)}</span>
