@@ -39,6 +39,7 @@ import {
   SECTIONS,
   coverImpacts,
   sourcesFor,
+  productById,
   yearlyLine,
   type Context,
   type Product,
@@ -156,7 +157,15 @@ export function Store() {
     }
     if (!s) return;
     setCtx({ ...DEFAULT_CONTEXT, ...s.ctx });
-    setAmounts(s.amounts ?? {});
+    // Drop saved amounts of the wrong kind, like a shopping level saved before those cards took dollars.
+    setAmounts(
+      Object.fromEntries(
+        Object.entries(s.amounts ?? {}).filter(([id, v]) => {
+          const p = productById(id);
+          return !p || (p.amount.kind === "number") === (typeof v === "number");
+        }),
+      ),
+    );
     setEntered(s.entered ?? {});
     setPicked(s.picked ?? {});
     setAnyway(s.anyway ?? {});

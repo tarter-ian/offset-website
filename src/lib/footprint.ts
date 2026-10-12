@@ -67,6 +67,8 @@ export interface Answers {
   transit?: { milesPerWeek: number };
   diet: Diet;
   shopping: Shopping;
+  /** Dollars a month on goods, which replace the shopping level for each kind given. */
+  shoppingUsd?: Partial<Record<keyof typeof F.GOODS_KG_CO2_PER_USD, number>>;
   digital: {
     aiPromptsPerDay: number;
     aiMediaPerWeek: number;
@@ -415,7 +417,8 @@ export function computeFootprint(a: Answers): Footprint {
   // Goods and services, split by typical spending shares.
   const shopTotal = (F.SHOPPING_KG_PER_YEAR[a.shopping] / 12) * personCount;
   const shopping = (["clothing", "electronics", "household", "services"] as const).map((k) => {
-    const carbon = shopTotal * F.SHOPPING_SHARES[k];
+    const usd = k === "services" ? undefined : a.shoppingUsd?.[k];
+    const carbon = usd !== undefined ? nonNeg(usd) * F.GOODS_KG_CO2_PER_USD[k as keyof typeof F.GOODS_KG_CO2_PER_USD] * personCount : shopTotal * F.SHOPPING_SHARES[k];
     // Electronics get the water and land of making them; the rest use EPA's supply-chain ratios.
     if (k === "electronics")
       return category(k, { carbon, ...electronicsMaking(carbon), ewaste: carbon * F.EWASTE_KG_PER_KG_CO2 }, "estimated", undefined);

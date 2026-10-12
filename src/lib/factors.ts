@@ -310,6 +310,17 @@ export const GOODS_PER_KG_CO2 = {
 // (2018 technical support document, $140k to $470k). Approximate.
 export const GOODS_USD_PER_TON_PM25 = 250_000;
 
+// Goods priced by the dollar, for the Shopping cards. Supply-chain kg CO2e per
+// dollar at purchaser prices, approximate, from EPA USEEIO v2.0.1 (apparel,
+// computers and electronics, furniture and household goods, and other
+// manufactured goods such as toys, books and personal care).
+export const GOODS_KG_CO2_PER_USD = { clothing: 0.4, electronics: 0.3, household: 0.45 } as const;
+// Default dollars a month per person: BLS Consumer Expenditure Survey 2024
+// ($2,001 a year on apparel, about $2,550 on household furnishings and
+// equipment, about $700 on electronics and computers, about $1,200 on toys,
+// pets, reading and personal care products, per household of 2.5 people).
+export const GOODS_USD_PER_MONTH = { clothing: 67, electronics: 25, household: 85, other: 40 } as const;
+
 // How goods and services split.
 export const SHOPPING_SHARES = { clothing: 0.15, electronics: 0.15, household: 0.15, services: 0.55 } as const;
 
