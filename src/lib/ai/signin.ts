@@ -22,9 +22,27 @@ export interface SignInUsage {
   conversations?: number;
   /** ChatGPT and Claude: every chat the account still has, by when it was started. */
   history?: ChatHistory;
-  /** ChatGPT's agent and Codex tools: tokens in the window and ever, from the profile page. */
-  agentTokens?: { window: number; lifetime: number };
+  /** ChatGPT's agent and Codex tools: tokens in the window and ever, from the profile page, and which tools they came from. */
+  agentTokens?: { window: number; lifetime: number; tool: AgentTool };
 }
+
+/** Which of ChatGPT's token-counted tools were used: its own agent, Codex, or both (also when the extension doesn't say). */
+export type AgentTool = "agent" | "codex" | "both";
+
+function agentToolOf(agentic: Record<string, unknown>): AgentTool {
+  const agent = Number(agentic.agentTokens), codex = Number(agentic.codexTokens);
+  if (!Number.isFinite(agent) || !Number.isFinite(codex)) return "both";
+  if (agent > 0 && codex <= 0) return "agent";
+  if (codex > 0 && agent <= 0) return "codex";
+  return "both";
+}
+
+/** How the tools are named on the page. */
+export const AGENT_TOOL_NAMES: Record<AgentTool, string> = {
+  agent: "ChatGPT's agent",
+  codex: "Codex",
+  both: "ChatGPT's agent and Codex",
+};
 
 /** From the extension's chat list: no chat opened, so chats are counted, not prompts. */
 export interface ChatHistory {
@@ -70,7 +88,7 @@ export function signInUsage(data: unknown): SignInUsage | null {
   const weekly = Number(r.weeklyLimitUsedPercent);
   const history = chatHistory(r.history);
   const agentic = typeof r.agentic === "object" && r.agentic !== null ? (r.agentic as Record<string, unknown>) : null;
-  const agentTokens = agentic ? { window: count(agentic.tokens), lifetime: count(agentic.lifetimeTokens) } : null;
+  const agentTokens = agentic ? { window: count(agentic.tokens), lifetime: count(agentic.lifetimeTokens), tool: agentToolOf(agentic) } : null;
   return {
     prompts: count(r.prompts),
     reasoningResponses: count(r.reasoningResponses),
@@ -103,7 +121,7 @@ export function summaryFromSignIn(provider: AiProvider, u: SignInUsage): UsageSu
     totalPrompts: u.prompts,
     promptsPerDay: u.prompts / u.days,
     whPerDay: Math.max(wh / u.days, fromLimit) + agentPerDay,
-    ...(u.agentTokens ? { agent: { whPerDay: agentPerDay, lifetimeWh: agentWh(u.agentTokens.lifetime), lifetimeTokens: u.agentTokens.lifetime } } : {}),
+    ...(u.agentTokens ? { agent: { whPerDay: agentPerDay, lifetimeWh: agentWh(u.agentTokens.lifetime), lifetimeTokens: u.agentTokens.lifetime, tool: u.agentTokens.tool } } : {}),
     ...(fromLimit > wh / u.days
       ? { code: { whPerDay: fromLimit - wh / u.days, limitPercent: u.weeklyLimitUsedPercent ?? 0, plan: claudePlanName(u.planType) } }
       : {}),
