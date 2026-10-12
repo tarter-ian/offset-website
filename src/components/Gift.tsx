@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CheckoutSteps } from "./Checkout";
+import { joinList, ListOptIn } from "./ListOptIn";
 import { type Covered, STORAGE_KEY } from "@/lib/covered";
 import {
   defaultGiftSpan,
@@ -286,6 +287,31 @@ function acceptGift(gift: Gift) {
 }
 
 /** A gift's own page, /gift/<id>: paying for it if this browser is the giver's, the card and a way to accept it otherwise. */
+/** The recipient, not the giver, decides whether a gift puts them on the public list (Ian, 2026-10-12). */
+function GiftListing({ giftId }: { giftId: string }) {
+  const [name, setName] = useState<string | null>(null);
+  const [note, setNote] = useState("");
+  return (
+    <div className="mt-6 border-t-2 border-rule pt-3">
+      <ListOptIn label="Show me on the public list" onChange={setName} />
+      {name && !note && (
+        <button
+          type="button"
+          onClick={() => joinList(name, { source: "gift", giftId }).then((err) => setNote(err ?? `You're on the public list as ${name}.`))}
+          className="ml-6 mt-2 min-h-10 cursor-pointer rounded-md border-2 border-rule px-3 text-sm font-semibold hover:bg-foreground hover:text-background"
+        >
+          Add me
+        </button>
+      )}
+      {note && (
+        <p role="status" className="mt-2 text-sm">
+          {note} <Link href="/list/edit" className="underline">Change or leave</Link>
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function GiftView({ id }: { id: string }) {
   const [state, setState] = useState<{ gift: Gift; paid: boolean } | "missing" | "error" | null>(null);
   const [mine, setMine] = useState<Checkout | null>(null);
@@ -374,7 +400,9 @@ export function GiftView({ id }: { id: string }) {
             <p className="mt-2 text-sm text-muted">Saved only in this browser, like the rest of your plan.</p>
           </div>
         )
-      ) : (
+      ) : null}
+      {paid && <GiftListing giftId={gift.id} />}
+      {paid ? null : (
         <p className="mt-6 font-semibold">This gift is still being paid for. Check back soon.</p>
       )}
     </div>
