@@ -60,6 +60,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               <Link href="/ledger" className="underline hover:text-foreground">
                 Where the money goes
               </Link>
+              <Link href="/list" className="underline hover:text-foreground">
+                Public list
+              </Link>
               <Link href="/data" className="underline hover:text-foreground">
                 Your data
               </Link>
