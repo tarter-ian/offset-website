@@ -156,7 +156,8 @@ export function measure(
   return stop;
 }
 
-export type SavedResult = { usage: unknown; measuredAt: string };
+/** A saved count, with every day the extension has counted for that service (`record`, oldest first). */
+export type SavedResult = { usage: unknown; measuredAt: string; record?: unknown[] };
 
 /** When a `usage` message was counted (extension 0.16.0 and later), if it says. */
 export const measuredAtOf = (usage: unknown): string | undefined => {
@@ -181,9 +182,9 @@ export function savedResults(timeoutMs = 1500): Promise<Partial<Record<Extension
       const out: Partial<Record<ExtensionService, SavedResult>> = {};
       const results = typeof m.results === "object" && m.results ? (m.results as Record<string, unknown>) : {};
       for (const s of EXTENSION_SERVICES) {
-        const r = results[s] as { usage?: unknown; measuredAt?: unknown; history?: unknown } | undefined;
+        const r = results[s] as { usage?: unknown; measuredAt?: unknown; history?: unknown; record?: unknown } | undefined;
         if (r && r.usage && typeof r.measuredAt === "string" && Number.isFinite(Date.parse(r.measuredAt)))
-          out[s] = { usage: withHistory(r.usage, r.history), measuredAt: r.measuredAt };
+          out[s] = { usage: withHistory(r.usage, r.history), measuredAt: r.measuredAt, ...(Array.isArray(r.record) ? { record: r.record } : {}) };
       }
       done(out);
     };

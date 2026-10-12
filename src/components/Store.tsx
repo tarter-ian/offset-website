@@ -3,6 +3,7 @@
 import { AGENT_TOOL_NAMES } from "@/lib/ai/signin";
 import Link from "next/link";
 import { type Covered, STORAGE_KEY } from "@/lib/covered";
+import { recordStatus } from "@/lib/record";
 import { useEffect, useState } from "react";
 import { ActivityUpload } from "./ActivityUpload";
 import { CheckoutSteps } from "./Checkout";
@@ -261,6 +262,12 @@ export function Store() {
         .catch(() => {});
     }
     if (!s) return;
+    // Anyone who has covered something lands on their record, unless they came to the store on purpose.
+    const q = new URLSearchParams(window.location.search);
+    if (!q.has("store") && !q.has("preview") && recordStatus(s.covered ?? {}).kind !== "none") {
+      window.location.replace("/record");
+      return;
+    }
     setCtx({ ...DEFAULT_CONTEXT, ...s.ctx });
     // Drop saved amounts of the wrong kind, like a shopping level saved before those cards took dollars.
     setAmounts(
@@ -281,6 +288,14 @@ export function Store() {
     setPastEverydayState(s.pastEveryday ?? false);
     setLinkedFrom(s.linkedFrom ?? {});
     setCovered(s.covered ?? {});
+    // From the record page's "Cover the next month": just the items whose month ran out, straight to checkout.
+    const renew = (q.get("renew") ?? "").split(",").filter((id) => productById(id));
+    if (renew.length) {
+      setPlan(renew);
+      setOpen(true);
+      setCheckout(true);
+      setTimeout(() => document.getElementById("pay-steps")?.scrollIntoView({ behavior: "smooth", block: "start" }), 300);
+    }
   }, []);
 
   useEffect(() => setPayState(loadCheckout()), []);
@@ -297,7 +312,7 @@ export function Store() {
       ...Object.fromEntries(
         payState.lines.map((l): [string, Covered] => [
           l.productId,
-          l.lifetime ? { kind: "life" } : { kind: "period", until: until.toISOString() },
+          { ...(l.lifetime ? { kind: "life" as const } : { kind: "period" as const, until: until.toISOString() }), since: c[l.productId]?.since ?? payState.created },
         ]),
       ),
     }));
@@ -1152,6 +1167,11 @@ export function Store() {
       </section>
 
       <nav aria-label="Other things you can do" className="mb-10 flex flex-wrap gap-x-6 gap-y-1 text-sm">
+        {recordStatus(covered).kind !== "none" && !previewing && (
+          <Link href="/record" className="inline-flex min-h-10 items-center font-semibold underline underline-offset-4 hover:text-muted">
+            Your record
+          </Link>
+        )}
         <span className="inline-flex min-h-10 items-center text-muted">Not sure yet?</span>
         <Link href="/ledger" className="inline-flex min-h-10 items-center underline underline-offset-4 hover:text-muted">
           Where the money goes

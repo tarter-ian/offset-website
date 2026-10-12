@@ -5,6 +5,8 @@ export const STORAGE_KEY = "offset:plan:v2";
  * An item already paid for: for life, or until a date for a month or year. Set once payments go through.
  */
 export type Covered = ({ kind: "life" } | { kind: "period"; until: string }) & {
+  /** When it was first covered, for the record page. Missing on covers saved before 2026-10-12. */
+  since?: string;
   /** Who gave it, when it came as a gift. */
   giftFrom?: string;
 };
