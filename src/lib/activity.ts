@@ -6,7 +6,7 @@ import { GAS_PRICE_PER_THERM } from "./factors";
 // the browser, and turns them into the amounts on the store's tiles. Nothing is
 // uploaded.
 
-export type ActivitySource = "spotify" | "youtube" | "netflix" | "timeline" | "uber" | "greenbutton";
+export type ActivitySource = "spotify" | "youtube" | "netflix" | "timeline" | "uber" | "greenbutton" | "doordash" | "ubereats";
 type Target = "music" | "video" | "car" | "transit" | "flights" | "electricity" | "heating";
 
 /** One thing that happened: hours of listening or watching, miles travelled, or a flight leg. */
@@ -31,6 +31,8 @@ export const SOURCE_NAMES: Record<ActivitySource, string> = {
   timeline: "Google Maps",
   uber: "Uber",
   greenbutton: "utility",
+  doordash: "DoorDash",
+  ubereats: "Uber Eats",
 };
 
 /**

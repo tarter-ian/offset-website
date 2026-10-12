@@ -4,8 +4,8 @@
 // 30 days, closes the tab and sends back only the counts. The contract is in
 // the README of github.com/tarter-ian/offset-extension.
 
-export type ExtensionService = "chatgpt" | "claude" | "gemini" | "youtube";
-export const EXTENSION_SERVICES: ExtensionService[] = ["chatgpt", "claude", "gemini", "youtube"];
+export type ExtensionService = "chatgpt" | "claude" | "gemini" | "youtube" | "doordash" | "ubereats";
+export const EXTENSION_SERVICES: ExtensionService[] = ["chatgpt", "claude", "gemini", "youtube", "doordash", "ubereats"];
 /** Why a service couldn't be counted: logged out, tab closed by the person, too slow, or not supported. */
 const DENIED: unknown[] = ["denied", "not-allowed", "not_allowed", "permission-denied"];
 
