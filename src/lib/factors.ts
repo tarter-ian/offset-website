@@ -22,6 +22,13 @@ export const AVG_PROPANE_GAL_PER_MONTH = 60;
  * plus the drive to pick up). Packaging isn't counted.
  */
 export const MILES_PER_DELIVERY = 6;
+/**
+ * Ride-hailing drives about 40% more miles than the rides themselves, between
+ * fares and on the way to pickups (California Air Resources Board, SB 1014
+ * baseline, 2019). Default: our estimate, about one short ride a week.
+ */
+export const RIDESHARE_EMPTY_MILES = 1.4;
+export const RIDESHARE_MILES_PER_WEEK = 5;
 /** DoorDash handled 2.6 billion orders in 2024 for 42 million monthly users: about 1.2 a week each (DoorDash 2024 annual report). */
 export const DELIVERIES_PER_WEEK = 1;
 export const GAS_PRICE_PER_THERM = 1.5;

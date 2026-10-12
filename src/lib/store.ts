@@ -278,6 +278,15 @@ export const PRODUCTS: Product[] = [
     "car",
   ),
   lifeItem(
+    "rideshare",
+    "travel",
+    "Uber and Lyft",
+    "Your rides, plus the driving between fares.",
+    { kind: "number", label: "Ride miles a week", unit: "ride miles a week", default: F.RIDESHARE_MILES_PER_WEEK, step: 5 },
+    (a) => ({ car: { type: "gas", milesPerWeek: num(a) * F.RIDESHARE_EMPTY_MILES } }),
+    "car",
+  ),
+  lifeItem(
     "flights",
     "travel",
     "Flights",

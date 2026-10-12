@@ -88,6 +88,10 @@ export const HOW_ESTIMATED: Record<string, string[]> = {
   meat: FOOD_NOTE("meat and fish"),
   dairy: FOOD_NOTE("dairy and eggs"),
   plants: FOOD_NOTE("plant foods"),
+  rideshare: [
+    `Each ride mile counts as ${F.RIDESHARE_EMPTY_MILES} miles in an average gas car, adding the driving between fares and to pick you up (California Air Resources Board).`,
+    "Measured from your Uber trips by the Offset extension.",
+  ],
   delivery: [
     `Each delivery counts as about ${F.MILES_PER_DELIVERY} miles in an average gas car: the courier's drive to the restaurant and on to you. The food itself is under your diet; packaging isn't counted yet.`,
     "Measured from your DoorDash and Uber Eats orders by the Offset extension; pickups don't count.",

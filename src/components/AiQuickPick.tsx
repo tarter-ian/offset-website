@@ -5,13 +5,21 @@ import { AI_LEVELS, type AiLevel } from "@/lib/ai/levels";
 import { claudeLimitWhPerDay, signInUsage, summaryFromSignIn, type SignInUsage } from "@/lib/ai/signin";
 import { CLAUDE_PLANS, usageFromQuickCount, type ClaudePlan, type QuickService } from "@/lib/ai/quickCount";
 import { combineSummaries, type UsageSummary } from "@/lib/ai/exportParser";
-import { activityAmounts, youtubeDays } from "@/lib/activity";
+import { activityAmounts, NETFLIX_MIN_PER_TITLE, youtubeDays } from "@/lib/activity";
 import { canInstallExtension, detectExtension, EXTENSION_SERVICES, EXTENSION_URL, measure, type ExtensionError, type ExtensionService } from "@/lib/extension";
 import { SIGN_IN_READS } from "@/lib/signinReads";
 
 const AI_NAMES: Record<QuickService, string> = { chatgpt: "ChatGPT", claude: "Claude", gemini: "Gemini" };
 const SERVICES = Object.keys(AI_NAMES) as QuickService[];
-const EXT_NAMES: Record<ExtensionService, string> = { ...AI_NAMES, youtube: "YouTube", doordash: "DoorDash", ubereats: "Uber Eats" };
+const EXT_NAMES: Record<ExtensionService, string> = {
+  ...AI_NAMES,
+  youtube: "YouTube",
+  netflix: "Netflix",
+  doordash: "DoorDash",
+  ubereats: "Uber Eats",
+  amazon: "Amazon",
+  uber: "Uber",
+};
 type FoodService = "doordash" | "ubereats";
 const ERRORS: Record<ExtensionError, (name: string) => string> = {
   "signed-out": (n) => `You're not logged in to ${n} in this browser.`,
@@ -38,6 +46,7 @@ export function AiQuickPick({
   onMeasured,
   onVideo,
   onDelivery,
+  onRides,
 }: {
   level: AiLevel | null;
   onPick: (level: AiLevel, from: string) => void;
@@ -45,12 +54,15 @@ export function AiQuickPick({
   /** A summary of real use. `note` is set when it's the person's own count rather than a measurement. */
   onMeasured: (s: UsageSummary, note?: string) => void;
   /** Hours a day of video, measured from YouTube by the extension. */
-  onVideo?: (hoursPerDay: number) => void;
+  onVideo?: (hoursPerDay: number, from: ("youtube" | "netflix")[]) => void;
+  /** Ride-hailing miles a week, measured from Uber. */
+  onRides?: (milesPerWeek: number) => void;
   /** Deliveries a week, measured from DoorDash and Uber Eats together. */
   onDelivery?: (perWeek: number) => void;
 }) {
   const [ext, setExt] = useState<string | null>(null);
   const [rows, setRows] = useState<Partial<Record<ExtensionService, Row>>>({});
+  const [, setVideo] = useState<Partial<Record<"youtube" | "netflix", number>>>({});
   const [, setFood] = useState<Partial<Record<FoodService, number>>>({});
   const [aiSummaries, setAiSummaries] = useState<Partial<Record<QuickService, UsageSummary>>>({});
   const [installable, setInstallable] = useState(false);
@@ -94,7 +106,43 @@ export function AiQuickPick({
                 ? { state: "done", raw: usage, text: `${totals.videos.toLocaleString("en-US")} videos and ${totals.shorts.toLocaleString("en-US")} Shorts in 30 days, about ${video} hours a day` }
                 : { state: "error", error: "unavailable", raw: usage },
             }));
-            if (video) onVideo?.(video);
+            if (video) reportVideo("youtube", video);
+            return;
+          }
+          if (service === "netflix") {
+            const n = countOver(usage, "titles");
+            if (!n) {
+              setRows((r) => ({ ...r, netflix: { state: "error", error: "unavailable", raw: usage } }));
+              return;
+            }
+            const hours = (n.total / n.days) * (NETFLIX_MIN_PER_TITLE / 60);
+            setRows((r) => ({
+              ...r,
+              netflix: { state: "done", raw: usage, text: `${n.total} episodes and films in ${n.days} days, about ${hours.toFixed(1)} hours a day` },
+            }));
+            reportVideo("netflix", hours);
+            return;
+          }
+          if (service === "uber") {
+            const m = countOver(usage, "miles");
+            const rides = Number((usage as Record<string, unknown>)?.rides) || 0;
+            if (!m) {
+              setRows((r) => ({ ...r, uber: { state: "error", error: "unavailable", raw: usage } }));
+              return;
+            }
+            setRows((r) => ({ ...r, uber: { state: "done", raw: usage, text: `${rides} rides, ${Math.round(m.total)} miles in ${m.days} days` } }));
+            onRides?.(Math.round((m.total / m.days) * 7));
+            return;
+          }
+          if (service === "amazon") {
+            const o = countOver(usage, "orders");
+            const items = Number((usage as Record<string, unknown>)?.items) || 0;
+            setRows((r) => ({
+              ...r,
+              amazon: o
+                ? { state: "done", raw: usage, text: `${o.total} orders, ${items} items in ${o.days} days. Spending by category comes with the next extension update.` }
+                : { state: "error", error: "unavailable", raw: usage },
+            }));
             return;
           }
           const u = signInUsage(usage);
@@ -126,6 +174,16 @@ export function AiQuickPick({
     );
   }
 
+  /** Video hours from YouTube and Netflix add up on the one video card. */
+  function reportVideo(service: "youtube" | "netflix", hoursPerDay: number) {
+    setVideo((prev) => {
+      const next = { ...prev, [service]: hoursPerDay };
+      const total = Object.values(next).reduce((s, n) => s + (n ?? 0), 0);
+      onVideo?.(Math.round(total * 20) / 20, Object.keys(next) as ("youtube" | "netflix")[]);
+      return next;
+    });
+  }
+
   function reportFood(service: FoodService, perWeek: number) {
     setFood((prev) => {
       const next = { ...prev, [service]: perWeek };
@@ -142,6 +200,7 @@ export function AiQuickPick({
   function skip(x: ExtensionService) {
     setRows((r) => ({ ...r, [x]: { state: "skipped" } }));
     if (x === "doordash" || x === "ubereats") reportFood(x, 0);
+    if (x === "uber") onRides?.(0);
   }
 
   const signedOut = EXTENSION_SERVICES.filter((x) => rows[x]?.state === "error" && rows[x]?.error === "signed-out");
@@ -201,7 +260,7 @@ export function AiQuickPick({
             ))}
           </div>
           <p className="mt-2 text-sm text-muted">
-            The Offset extension checks ChatGPT, Claude, Gemini, YouTube, DoorDash and Uber Eats in the background, where you&apos;re already logged in, and
+            The Offset extension checks ChatGPT, Claude, Gemini, YouTube, Netflix, DoorDash, Uber Eats, Amazon and Uber in the background, where you&apos;re already logged in, and
             brings back your last 30 days. Only counts come back, never your chats or orders.{" "}
             <a href="/extension" className="underline hover:text-foreground">
               How it works
@@ -380,6 +439,14 @@ export function AiQuickPick({
       {status.kind === "error" && <p className="mt-2 text-sm text-red-700">{status.text}</p>}
     </div>
   );
+}
+
+/** A total from the extension (like `miles` or `titles`) and the days it covers. */
+function countOver(usage: unknown, key: string): { total: number; days: number } | null {
+  if (typeof usage !== "object" || !usage) return null;
+  const u = usage as Record<string, unknown>;
+  const total = Number(u[key]);
+  return Number.isFinite(total) ? { total, days: Number(u.windowDays) || 30 } : null;
 }
 
 /** DoorDash or Uber Eats counts from the extension: deliveries and pickups over its window. */

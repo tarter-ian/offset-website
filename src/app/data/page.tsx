@@ -10,8 +10,11 @@ const NAMES: Record<SignInService, string> = {
   claude: "Claude",
   gemini: "Gemini",
   youtube: "YouTube",
+  netflix: "Netflix",
   doordash: "DoorDash",
   ubereats: "Uber Eats",
+  amazon: "Amazon",
+  uber: "Uber",
 };
 
 const KEPT = [

@@ -635,7 +635,8 @@ export function Store() {
                 setEntered((e) => ({ ...e, ai: false }));
               }}
               onExact={() => setMeasuring(true)}
-              onVideo={(h) => measuredAmount("video", h, ["youtube"])}
+              onVideo={(h, from) => measuredAmount("video", h, from)}
+              onRides={(n) => measuredAmount("rideshare", n, ["uber"])}
               onDelivery={(n) => measuredAmount("delivery", n, ["doordash", "ubereats"])}
               onMeasured={(s, note) => {
                 const d = digitalFromExport(s);

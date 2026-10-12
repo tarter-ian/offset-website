@@ -13,8 +13,11 @@ const NAMES: Record<SignInService, string> = {
   claude: "Claude",
   gemini: "Gemini",
   youtube: "YouTube",
+  netflix: "Netflix",
   doordash: "DoorDash",
   ubereats: "Uber Eats",
+  amazon: "Amazon",
+  uber: "Uber",
 };
 
 const STEPS = [
@@ -62,7 +65,7 @@ export default function ExtensionPage() {
     <article className="mx-auto max-w-4xl px-4 py-12">
       <h1 className="text-4xl font-extrabold [font-stretch:85%]">The Offset extension</h1>
       <p className="mt-4 text-lg text-muted">
-        A free add-on for Chrome and Edge that counts how much you use ChatGPT, Claude, Gemini, YouTube, DoorDash and Uber Eats, so your offset is sized from
+        A free add-on for Chrome and Edge that counts how much you use ChatGPT, Claude, Gemini, YouTube, Netflix, DoorDash, Uber Eats, Amazon and Uber, so your offset is sized from
         your real use instead of a guess.
       </p>
       <div className="mt-6">
