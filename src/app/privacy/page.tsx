@@ -57,6 +57,10 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
       : "Payments aren't switched on yet. When they are, a card processor will take your card details, and we will never see or store your card number. We will keep your email, what you gave and when, so we can send receipts and the heads-up before any autopay charge. Your donation goes through a donation partner, which keeps your name and email to issue the tax receipt under its own privacy policy. This section will name both companies before the first payment.",
   },
   {
+    title: "Gifts",
+    body: "If you give someone an offset, we keep the item, the two names and the note you type, so the gift's link can show them. Only someone with that link can see it. We don't email or contact the person you give it to.",
+  },
+  {
     title: "Who we share it with",
     body: PAYMENT_MODE === "every"
       ? "No one, except the companies that make the service run: our host, and Every.org for payments, each only for its own job. We will never sell your data or share it for advertising."

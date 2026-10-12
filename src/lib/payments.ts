@@ -38,7 +38,7 @@ export interface PayRow {
   /** The charity's key, with "-repeat" on a repeating gift: "carbon", "carbon-repeat". */
   key: string;
   charity: ImpactKey;
-  /** The harms this gift pays for: its own, plus any too small to send on their own. */
+  /** The harms this gift pays for: every harm whose charity this is. */
   harms: ImpactKey[];
   donation: number;
   fee: number;
@@ -67,31 +67,16 @@ function byPayee(amounts: Partial<Record<ImpactKey, number>>) {
 
 /**
  * Turns a plan's per-harm amounts into one payment per charity. Harms worth
- * nothing are skipped, and harms paid to the same charity go in one gift. A
- * gift worth less than the smallest donation is added to the largest gift
- * instead, since its own 30¢ card fee would eat most of it.
+ * nothing are skipped, and harms paid to the same charity go in one gift. Every
+ * harm's money goes to its own charity, even a small share, which is rounded up
+ * to the smallest donation (Ian, 2026-10-12: never to another harm's charity).
  */
 function rowsFor(amounts: Record<ImpactKey, number>, frequency: Frequency, suffix: string, mode: PaymentMode): PayRow[] {
-  const groups = [...byPayee(amounts)];
-  if (!groups.length) return [];
-  const [largest] = groups.reduce((a, b) => (b[1].amount > a[1].amount ? b : a));
-  const small = groups.filter(([k, g]) => k !== largest && g.amount < MIN_DONATION_USD);
-  return groups
-    .filter((g) => !small.includes(g))
-    .map(([k, g]) => {
-      const raw = g.amount + (k === largest ? small.reduce((s, [, x]) => s + x.amount, 0) : 0);
-      const donation = Math.max(MIN_DONATION_USD, upToCent(raw));
-      const fee = feeFor(donation, mode);
-      return {
-        key: `${k}${suffix}`,
-        charity: k,
-        harms: k === largest ? [...g.harms, ...small.flatMap(([, x]) => x.harms)] : g.harms,
-        donation,
-        fee,
-        total: Math.round((donation + fee) * 100) / 100,
-        frequency,
-      };
-    });
+  return [...byPayee(amounts)].map(([k, g]) => {
+    const donation = Math.max(MIN_DONATION_USD, upToCent(g.amount));
+    const fee = feeFor(donation, mode);
+    return { key: `${k}${suffix}`, charity: k, harms: g.harms, donation, fee, total: Math.round((donation + fee) * 100) / 100, frequency };
+  });
 }
 
 /**
@@ -162,11 +147,11 @@ export const partnerDonationId = (planId: string, rowKey: string) => `${planId}.
 export const PLAN_ID = /^[a-z0-9]{12,40}$/;
 
 /** Where the person pays for one row. The one place a sponsor's single link would go later. */
-export function payLink(planId: string, row: PayRow, origin: string, mode: PaymentMode = PAYMENT_MODE): string | null {
+export function payLink(planId: string, row: PayRow, origin: string, mode: PaymentMode = PAYMENT_MODE, returnPath = "/checkout/return"): string | null {
   if (mode !== "every") return null; // No sponsor yet.
   const slug = EVERY_SLUGS[row.charity];
   if (!slug) return null;
-  const back = (extra: string) => `${origin}/checkout/return?plan=${encodeURIComponent(planId)}${extra}`;
+  const back = (extra: string) => `${origin}${returnPath}?plan=${encodeURIComponent(planId)}${extra}`;
   return everyDonateUrl({
     slug,
     amount: row.total,
@@ -200,6 +185,8 @@ export interface Checkout {
   confirmed: Record<string, true>;
   /** Set once covered items have been marked from this checkout. */
   applied?: boolean;
+  /** Where Every.org sends the person back to, when not the plan's own return page (a gift's page). */
+  returnPath?: string;
 }
 
 export function newPlanId(): string {

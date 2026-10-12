@@ -271,9 +271,9 @@ export default function MethodPage() {
         <p className="mt-2 text-muted">
           We make nothing on fees. Each charity is paid separately through Every.org, which charges card payments 2.2% + 30¢ and bank
           payments nothing. The card fee is worked out on the whole gift and added on top, so the donation arrives in full, and checkout
-          shows it for each charity. Paying yearly means one 30¢ fee per charity a year instead of twelve. Gifts under{" "}
-          {usd(MIN_DONATION_USD)} are rounded up, and a charity&apos;s share under {usd(MIN_DONATION_USD)} is added to the largest gift
-          instead, so a 30¢ fee doesn&apos;t eat it.
+          shows it for each charity. Paying yearly means one 30¢ fee per charity a year instead of twelve. Each harm&apos;s
+          share always goes to its own charity; a share under {usd(MIN_DONATION_USD)} is rounded up to {usd(MIN_DONATION_USD)} rather than
+          moved to another charity.
         </p>
       ) : (
         <p className="mt-2 text-muted">
