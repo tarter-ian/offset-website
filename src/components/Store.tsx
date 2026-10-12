@@ -13,7 +13,7 @@ import { AiQuickPick } from "./AiQuickPick";
 import { AI_LEVELS } from "@/lib/ai/levels";
 import { NumberInput, Select } from "./fields";
 import { STATE_OPTIONS, STATES, type StateCode } from "@/lib/data/states";
-import { IMPACT_INFO } from "@/lib/impacts";
+import { airShort, IMPACT_INFO } from "@/lib/impacts";
 import { CHARITIES } from "@/lib/charities";
 import { IMPACT_KEYS, sumImpacts, type Impacts } from "@/lib/footprint";
 import { howEstimated, whereItGoes } from "@/lib/methods";
@@ -143,11 +143,11 @@ function tilePrice(price: { once: number; monthly: number }, cover: Cover, billi
   }
   return { big: once(price.once), note: cover.past ? "once, for life" : "once, for all future use" };
 }
-/** Every kind of harm covered, skipping ones too small to show, e.g. "181 kg CO₂e · 7.7 min of life · 947 L water". */
+/** Every kind of harm covered, skipping ones too small to show, e.g. "181 kg CO₂e · air 7.7 min · 947 L water". */
 const MIN_SHOWN: Impacts = { carbon: 0.005, air: 0.0005, water: 0.05, land: 0.001, ewaste: 0.01 };
 const coversText = (i: Impacts) =>
   IMPACT_KEYS.filter((k) => i[k] >= MIN_SHOWN[k])
-    .map((k) => IMPACT_INFO[k].format(i[k]))
+    .map((k) => (k === "air" ? `air ${airShort(i[k])}` : IMPACT_INFO[k].format(i[k])))
     .join(" · ");
 
 const amountText = (p: Product, amount: number | string) =>
@@ -360,8 +360,21 @@ export function Store() {
       },
       { monthly: 0, life: 0, past: 0 },
     );
-  /** Cover everything starts every item it adds on monthly, small ones too, so it reads as one monthly price (Ian, 2026-10-12). */
-  const everythingMonthly = addable(PRODUCTS).reduce((t, p) => t + p.cost(amountOf(p), "monthly", ctx), 0);
+  /**
+   * Cover everything starts every item it adds on monthly, small ones too, so it reads as one monthly price,
+   * and shows what checkout will: card fees and the past-use instalment included (Ian, 2026-10-12).
+   */
+  const everything = (() => {
+    const evLines = addable(PRODUCTS).map((p) => ({
+      productId: p.id,
+      amount: amountOf(p),
+      cover: { past: coverOf(p).past, ahead: plan.includes(p.id) ? coverOf(p).ahead : ("monthly" as const) },
+    }));
+    const years = pastYears ?? bestPastYears(evLines, ctx, billing);
+    const t = planTotals(evLines, ctx, billing, years);
+    const evSplit = harmSplit(t, ctx, billing);
+    return { today: sumTotal(payRows(evSplit, billing, autopay)), then: sumTotal(repeatRows(evSplit, billing)), spread: t.pastSpread };
+  })();
   const addEverything = () => {
     const ids = addable(PRODUCTS).map((p) => p.id);
     setPicked((x) => ({ ...x, ...Object.fromEntries(ids.map((id) => [id, { ...x[id], ahead: "monthly" as const }])) }));
@@ -1001,7 +1014,7 @@ export function Store() {
           <dl className="figures divide-y divide-border text-sm">
             {[
               ["Covers", covers],
-              ...(["carbon", "air", "water", "land"] as const).map((k) => [IMPACT_INFO[k].label, IMPACT_INFO[k].format(ab.impacts[k])]),
+              ...(["carbon", "air", "water", "land"] as const).map((k) => [IMPACT_INFO[k].label, k === "air" ? airShort(ab.impacts[k]) : IMPACT_INFO[k].format(ab.impacts[k])]),
             ].map(([k, v]) => (
               <div key={k} className="flex justify-between gap-4 py-2">
                 <dt className="font-sans text-muted">{k}</dt>
@@ -1143,11 +1156,19 @@ export function Store() {
           </h2>
           <p className="mt-1 text-sm text-muted">
             Every item above at the amounts shown:{" "}
-            <span className="figures text-foreground">{per(everythingMonthly, billing)}</span>
-            {groupParts(PRODUCTS).past > 0 && (
+            {Math.abs(everything.today - everything.then) > 0.01 && (
               <>
-                , plus <span className="figures text-foreground">{once(groupParts(PRODUCTS).past)}</span> for past use, which you can pay
-                all at once or over up to {PAST_YEARS.at(-1)} years
+                <span className="figures text-foreground">{usd(everything.today)}</span> today, then{" "}
+              </>
+            )}
+            <span className="figures text-foreground">
+              {usd(everything.then)} {BILLING[billing].per}
+            </span>
+            , card fees included
+            {everything.spread && (
+              <>
+                , with <span className="figures text-foreground">{usd(everything.spread.perMonth * (billing === "annual" ? 12 : 1))}</span> of
+                it toward past use for {everything.spread.years} years
               </>
             )}
             . Covering it all earns the Fully Offset badge.
