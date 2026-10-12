@@ -1062,7 +1062,12 @@ export function Store() {
                       </span>
                       <span className="flex items-center gap-3">
                         <span className="figures">
-                          {priceText({ once: l.pastCost + (l.cover.ahead === "lifetime" ? l.aheadCost : 0), monthly: l.aheadCost }, l.cover, billing)}
+                          {totals.pastSpread && l.pastCost > 0
+                            ? [
+                                l.cover.ahead === "lifetime" ? `${once(l.aheadCost)} once` : per(l.aheadCost, billing),
+                                `${per(l.pastCost / (totals.pastSpread.years * 12), billing)} for ${totals.pastSpread.years} yr${totals.pastSpread.years > 1 ? "s" : ""}`,
+                              ].join(" + ")
+                            : priceText({ once: l.pastCost + (l.cover.ahead === "lifetime" ? l.aheadCost : 0), monthly: l.aheadCost }, l.cover, billing)}
                         </span>
                         <button
                           type="button"
@@ -1080,7 +1085,7 @@ export function Store() {
                   <div className="mt-2 border-t border-border pt-2 text-sm">
                     <div className="flex flex-wrap items-center gap-2" role="radiogroup" aria-label="When to pay for past use">
                       <span className="text-muted">
-                        Pay past use (<span className="figures">{usd(pastTotal)}</span>)
+                        Pay past use (<span className="figures">{once(pastTotal)}</span>)
                       </span>
                       {PAST_YEARS.map((y) => (
                         <button
