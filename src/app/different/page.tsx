@@ -33,7 +33,7 @@ const ROWS = [
   {
     topic: "Billing",
     usual: "A monthly charge that renews until you cancel.",
-    ours: "Nothing is charged automatically. You approve each payment, monthly or yearly, and can skip any month.",
+    ours: "You approve each payment, monthly or yearly, and can skip any month. Autopay is there if you want it, off by default, with an email before every charge.",
   },
   {
     topic: "Paying once",

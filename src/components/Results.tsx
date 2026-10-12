@@ -407,7 +407,7 @@ export function Results({
                 </p>
               )}
               <p className="mt-4 text-sm text-muted">
-                You&apos;ll review and approve this {BILLING[billing].approve}. Nothing is charged automatically.
+                You&apos;ll review and approve this {BILLING[billing].approve}. Nothing is charged without your say-so.
               </p>
               {lifetime && (
                 <div className="mt-5 rounded-lg bg-accent-soft p-4">

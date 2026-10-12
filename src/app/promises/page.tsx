@@ -6,8 +6,8 @@ export const metadata: Metadata = { title: "Our promises | Offset" };
 // Each promise answers a common complaint about offset apps.
 const PROMISES = [
   {
-    title: "We never charge you automatically",
-    body: "You see your footprint and approve each payment yourself, once a year or each month, whichever you choose. Skip or stop any time, with nothing to cancel.",
+    title: "Never charged without your say-so",
+    body: "By default you approve each payment yourself, once a year or each month. Autopay is off unless you switch it on. If you do, we email you a few days before every charge with the amount and a one-click skip or stop, and a month that comes out more than 25% higher than the last waits for your approval instead.",
   },
   {
     title: "Your donation goes straight to charities",
