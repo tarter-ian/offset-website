@@ -15,6 +15,7 @@ import { IMPACT_KEYS, sumImpacts, type Impacts } from "@/lib/footprint";
 import { howEstimated, whereItGoes } from "@/lib/methods";
 import { PROVIDERS, type ProviderId } from "@/lib/providers";
 import { digitalFromExport } from "@/lib/ai/exportParser";
+import { aiMonthTotals, shareLines, shareQuery, type ShareTotals } from "@/lib/share";
 import { SOURCE_NAMES, type ActivitySource } from "@/lib/activity";
 import * as F from "@/lib/factors";
 import { ONLINE_FROM_AGE } from "@/lib/factors";
@@ -1085,6 +1086,16 @@ export function Store() {
                   month, so none is lost to extra card fees. You approve each payment yourself, unless you choose autopay, and even then we email you before every charge.
                 </p>
                 <GiveDirectly totals={totals} ctx={ctx} billing={billing} />
+                <ShareAi
+                  totals={aiMonthTotals(
+                    {
+                      prompts: Number(amountOf(ai)) || 0,
+                      images: Number(amountOf(productById("ai-media")!)) || 0,
+                      videos: Number(amountOf(productById("ai-video")!)) || 0,
+                    },
+                    ctx,
+                  )}
+                />
                 {checkout && (
                   <p className="mt-4 text-sm text-muted">Payments aren&apos;t switched on yet. Your plan stays saved in this browser until they are.</p>
                 )}
@@ -1123,6 +1134,41 @@ export function Store() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Shares a month of AI use as a link with a receipt card. Only the two totals go in the link. */
+function ShareAi({ totals }: { totals: ShareTotals }) {
+  const [status, setStatus] = useState<string | null>(null);
+  const share = async () => {
+    const url = `${window.location.origin}/share?${shareQuery(totals)}`;
+    const lines = shareLines(totals);
+    const text = `My AI use this month: ${lines.carbon} and ${lines.life} of healthy life lost to air pollution.`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: "My AI use this month", text, url });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      setStatus("Link copied");
+    } catch (e) {
+      // Closing the share sheet isn't an error.
+      if ((e as Error)?.name !== "AbortError") setStatus("Couldn't share. Try again.");
+    }
+  };
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
+      <button
+        type="button"
+        onClick={share}
+        className="min-h-10 rounded-md border-2 border-rule px-3 font-medium hover:bg-foreground hover:text-background"
+      >
+        Share my AI month
+      </button>
+      <span className="text-muted" role="status">
+        {status ?? "Shares your AI totals only, not your prompts or plan."}
+      </span>
     </div>
   );
 }

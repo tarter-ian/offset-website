@@ -334,7 +334,7 @@ export default function MethodPage() {
         Making the hardware is counted for carbon, water, land and e-waste. Tell us what&apos;s missing.
       </p>
 
-      <h2 className="mt-10 text-xl font-semibold">Sources</h2>
+      <h2 id="sources" className="mt-10 text-xl font-semibold">Sources</h2>
       <ul className="mt-2 list-disc space-y-1 pl-5">
         {SOURCES.map((s) => (
           <li key={s.url}>
