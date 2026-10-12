@@ -19,11 +19,9 @@ import { ONLINE_FROM_AGE } from "@/lib/factors";
 import {
   ANNUAL_FEE_MONTHS,
   LIFETIME_GROWTH_BUFFER,
-  ANNUAL_MIN_DONATION_USD,
   BILLING,
   type Billing,
   DEFAULT_BILLING,
-  LIFETIME_MIN_DONATION_USD,
   MIN_DONATION_USD,
   usd,
 } from "@/lib/pricing";
@@ -873,9 +871,8 @@ export function Store() {
                   </div>
                 )}
                 <p className="mt-2 text-xs text-muted">
-                  Donations have a minimum of {usd(LIFETIME_MIN_DONATION_USD)} for one-time payments,{" "}
-                  {usd(ANNUAL_MIN_DONATION_USD)} a year or {usd(MIN_DONATION_USD)} a month. You approve every payment
-                  yourself; nothing is charged automatically.
+                  The smallest donation is {usd(MIN_DONATION_USD)}. We pool small donations and send each charity one payment a
+                  month, so none is lost to card fees. You approve every payment yourself; nothing is charged automatically.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-3">
                   {totals.lines.map((l) => (

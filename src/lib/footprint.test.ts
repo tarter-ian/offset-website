@@ -158,8 +158,8 @@ describe("lifetimeCost", () => {
 
   it("is offered for plans under the monthly minimum, at least the lifetime minimum", () => {
     const life = lifetimeCost(monthlyCost(f, ["ai"]));
-    expect(life?.donation).toBe(LIFETIME_MIN_DONATION_USD);
-    expect(life?.total).toBe(LIFETIME_MIN_DONATION_USD + LIFETIME_FEE_USD);
+    expect(life?.donation).toBeGreaterThanOrEqual(LIFETIME_MIN_DONATION_USD);
+    expect(life?.total).toBe(life!.donation + LIFETIME_FEE_USD);
   });
 
   it("scales with heavy use", () => {

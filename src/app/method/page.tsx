@@ -8,7 +8,6 @@ import {
   WATER_MODES,
   type WaterMode,
   ANNUAL_FEE_MONTHS,
-  ANNUAL_MIN_DONATION_USD,
   LIFETIME_FEE_USD,
   LIFETIME_GROWTH_BUFFER,
   MONTHLY_FEE_USD,
@@ -185,7 +184,8 @@ export default function MethodPage() {
       <h2 className="mt-10 text-xl font-semibold">Fees</h2>
       <p className="mt-2 text-muted">
         Our fee is a flat {usd(MONTHLY_FEE_USD)} a month for a monthly plan, however many things it covers. One-time payments carry a {usd(LIFETIME_FEE_USD)} fee the first time only; there&apos;s no fee on later ones, or on any while you have a monthly plan. Ongoing offsets are billed monthly unless you choose yearly; paying yearly gets {12 - ANNUAL_FEE_MONTHS} months of our fee free. Donations
-        under {usd(MIN_DONATION_USD)} a month, or {usd(ANNUAL_MIN_DONATION_USD)} a year, are rounded up, and all of it goes to the charities.
+        under {usd(MIN_DONATION_USD)} are rounded up. Small donations are pooled and each charity gets one payment a month, so card
+        fees don&apos;t eat them, and all of it goes to the charities.
       </p>
 
       <h2 className="mt-10 text-xl font-semibold">Lifetime internet, AI and devices</h2>

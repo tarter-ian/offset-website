@@ -55,7 +55,10 @@ const cents = (n: number) => Math.round(n * 100) / 100;
 /** Fee: a flat $2 a month for a monthly plan, however many things it covers. */
 export const MONTHLY_FEE_USD = 2;
 
-/** Smallest donation we pass on, so tiny plans still reach the charities. */
+/**
+ * Smallest donation, a dollar on any payment. Small donations are pooled and
+ * each charity gets one payment a month, so they still arrive in full (Ian, 2026-10-12).
+ */
 export const MIN_DONATION_USD = 1;
 
 /**
@@ -67,7 +70,7 @@ export type Billing = "annual" | "monthly";
 /** Monthly by default: most consumers prefer it because it is easier to budget and cancel. Yearly is the discounted option. */
 export const DEFAULT_BILLING: Billing = "monthly";
 export const ANNUAL_FEE_MONTHS = 10;
-export const ANNUAL_MIN_DONATION_USD = 5;
+export const ANNUAL_MIN_DONATION_USD = MIN_DONATION_USD;
 export const BILLING: Record<Billing, { label: string; per: string; approve: string }> = {
   annual: { label: "Yearly", per: "a year", approve: "once a year" },
   monthly: { label: "Monthly", per: "a month", approve: "each month" },
@@ -145,7 +148,7 @@ export const LIFETIME_YEARS = 30;
  * so a person's AI footprint could go either way; 1.5x stays cautious.
  */
 export const LIFETIME_GROWTH_BUFFER = 1.5;
-export const LIFETIME_MIN_DONATION_USD = 5;
+export const LIFETIME_MIN_DONATION_USD = MIN_DONATION_USD;
 /**
  * $3 on a one-time payment. Waived for anyone already paying the monthly fee,
  * and on every one-time payment after someone's first.
