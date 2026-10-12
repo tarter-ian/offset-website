@@ -60,6 +60,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               <Link href="/data" className="underline hover:text-foreground">
                 Your data
               </Link>
+              <Link href="/privacy" className="underline hover:text-foreground">
+                Privacy
+              </Link>
+              <Link href="/terms" className="underline hover:text-foreground">
+                Terms
+              </Link>
               <Link href="/promises#who" className="underline hover:text-foreground">
                 Made by Ian Tarter
               </Link>
