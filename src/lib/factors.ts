@@ -70,6 +70,9 @@ export const CACHED_INPUT_SHARE = 0.1;
 // An hour of Claude Code is ~120 Wh (range 40 to 350): Anthropic's ~$13 a
 // developer-day as Sonnet tokens (mostly cache reads), at per-token energy
 // worked back from Epoch AI (Couch 2026) and Google's 2025 measurements.
+// Checked against published heavy users: Couch (Jan 2026) ~1.3 kWh on a median
+// day, Hausfather (The Climate Brink, 2026) ~3.0 kWh a day (1.2 to 5.9). A full
+// Max 5x week at this rate is 2.4 kWh a day, inside that range.
 // Prompts per chat, for turning a count of chats into prompts. Real chatbot logs
 // average 2.5 (WildChat, 1M ChatGPT chats) to 3.5 (ShareGPT, chats people chose
 // to share) prompts per chat (Zhao et al. 2024, table 1). We take 3.
