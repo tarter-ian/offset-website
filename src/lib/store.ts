@@ -229,7 +229,7 @@ export const PRODUCTS: Product[] = [
     section: "ai",
     name: "AI video",
     blurb: "Short clips you make with Sora, Veo and the like. Each one takes far more power than a picture.",
-    amount: { kind: "number", label: "AI videos a week", unit: "videos a week", default: 1, step: 1 },
+    amount: { kind: "number", label: "AI videos a week", unit: "videos a week", default: 0, step: 1 },
     oneTime: true,
     cost: (a, span, ctx) => costOf(lifetimeOffset({ ...base(ctx), aiVideoPerWeek: num(a) }, ["ai"], undefined, span).parts.ai.impacts),
     impacts: (a, span, ctx) => lifetimeOffset({ ...base(ctx), aiVideoPerWeek: num(a) }, ["ai"], undefined, span).parts.ai.impacts,
