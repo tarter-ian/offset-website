@@ -58,6 +58,8 @@ describe("gifts", () => {
       ]),
     ).toBe("your AI chat and TV for life, and your driving for 5 years");
     expect(giftSentence(GIFTABLE.map((p) => ({ productId: p.id, span: "life" as const })))).toMatch(/^your whole footprint for life/);
+    expect(giftSentence(GIFTABLE.map((p) => ({ productId: p.id, span: "month" as const })))).toMatch(/^your whole footprint for a month:/);
+    expect(giftSentence(GIFTABLE.map((p, n) => ({ productId: p.id, span: n ? ("year" as const) : ("life" as const) })))).toMatch(/^your whole footprint for a year or longer:/);
     expect(giftUntil({ productId: "car", span: "5years" }, "2026-10-12T00:00:00.000Z")).toBe("2031-10-12T00:00:00.000Z");
     expect(giftUntil({ productId: "ai", span: "life" }, "2026-10-12T00:00:00.000Z")).toBeNull();
     expect(giftUntil({ productId: "car", span: "month" }, "2026-10-12T00:00:00.000Z")).toBe("2026-11-12T00:00:00.000Z");
