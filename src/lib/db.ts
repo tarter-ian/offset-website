@@ -16,7 +16,6 @@ interface D1 {
 export class NoDatabaseError extends Error {}
 
 let client: Db | undefined;
-let ready: Promise<unknown> | undefined;
 
 function d1(): Db | null {
   try {
@@ -43,12 +42,5 @@ async function libsql(): Promise<Db | null> {
 export async function db(): Promise<Db> {
   client ??= d1() ?? (await libsql()) ?? undefined;
   if (!client) throw new NoDatabaseError("No database is connected.");
-  ready ??= client.execute({
-    sql: `CREATE TABLE IF NOT EXISTS waitlist (
-       email TEXT PRIMARY KEY,
-       created_at TEXT NOT NULL DEFAULT (datetime('now'))
-     )`,
-  });
-  await ready;
   return client;
 }

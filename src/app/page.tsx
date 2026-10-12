@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Store } from "@/components/Store";
-import { WaitlistForm } from "@/components/WaitlistForm";
 import { CARD_RATE } from "@/lib/pricing";
 
 export default function Home() {
@@ -34,19 +33,6 @@ export default function Home() {
             </Link>
             .
           </p>
-        </div>
-      </section>
-
-      <section aria-labelledby="launch" className="grid gap-8 border-t border-border py-10 pb-20 md:grid-cols-[14rem_minmax(0,1fr)]">
-        <h2 id="launch" className="text-2xl font-bold">
-          Not open yet
-        </h2>
-        <div className="max-w-xl">
-          <p className="mb-4">
-            AI accounts link today. Utilities, banks, cars and payments open at launch. Leave your email and we&apos;ll
-            write once, when they do.
-          </p>
-          <WaitlistForm />
         </div>
       </section>
     </div>

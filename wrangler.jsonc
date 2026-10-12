@@ -1,5 +1,5 @@
 // Cloudflare Workers settings for running the site with OpenNext.
-// The waitlist lives in Cloudflare D1, bound as DB. Its ID isn't secret; any secrets go in the dashboard, never here.
+// The site's database is Cloudflare D1, bound as DB (unused until accounts arrive). Its ID isn't secret; any secrets go in the dashboard, never here.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "offset-website",
@@ -13,7 +13,7 @@
   "d1_databases": [
     { "binding": "DB", "database_name": "offset", "database_id": "c8712e60-f24e-4e79-a964-7f20b189a18a" }
   ],
-  // Preview builds of pull requests share the same waitlist table; it only holds emails people chose to leave.
+  // Preview builds of pull requests share the same database; use a separate one before it holds real accounts.
   "previews": {
     "d1_databases": [{ "binding": "DB", "database_id": "c8712e60-f24e-4e79-a964-7f20b189a18a" }]
   },

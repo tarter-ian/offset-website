@@ -14,7 +14,7 @@ const NAMES: Record<SignInService, string> = {
 
 const KEPT = [
   { where: "In your browser", what: "The plan you build and the amounts you enter, so they're still there when you come back. It never leaves your device." },
-  { where: "On our server", what: "Your email, only if you join the waitlist. Nothing else." },
+  { where: "On our server", what: "Nothing. There are no accounts yet, so we keep no email or name. When accounts arrive, this line will say exactly what they store." },
   {
     where: "In the extension",
     what: "If you use it: how many prompts and images each ChatGPT chat had per day, so next time it only reads chats that changed. Never titles or text, and never sent to us. Clearing below deletes it, and so does removing the extension.",
