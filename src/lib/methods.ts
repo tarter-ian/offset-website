@@ -41,7 +41,6 @@ export const HOW_ESTIMATED: Record<string, string[]> = {
   ai: [
     `About ${F.WH_PER_AI_PROMPT} Wh a prompt, or each prompt measured from your ChatGPT, Claude or Gemini export if you link it.`,
     `How many prompts: the light (${AI_LEVELS.light.promptsPerDay} a day), medium (${AI_LEVELS.medium.promptsPerDay}) or heavy (${AI_LEVELS.heavy.promptsPerDay}) you pick, the real count from the My Offset extension or your export, or your own count of chats (${F.PROMPTS_PER_CHAT} prompts a chat, the middle of published chatbot logs). Light is the average ChatGPT user and medium the average daily user, from OpenAI's prompt and user counts; heavy is our estimate for people who use it for hours a day.`,
-    `For Claude we also use how much of your plan's weekly limit you've used, which includes Claude Code. We turn that into hours of use from Anthropic's published limits, at about ${F.WH_PER_CLAUDE_CODE_HOUR} Wh an hour, and use it when it's more than your chats.`,
     `Also counts the AI built into search and other apps, such as Google's AI answers and email summaries, as ${F.AI_BUILT_IN_PROMPTS_PER_DAY} typical prompts a day since mid-2024.`,
     `Adds each prompt's share of training the models (${Math.round(F.AI_TRAINING_SHARE * 100)}% of AI energy) and of making the chips and buildings (+${Math.round(F.AI_HARDWARE_SHARE * 100)}% carbon).`,
     "Power is on the US grid; water is the power plants' plus data center cooling.",
@@ -52,12 +51,17 @@ export const HOW_ESTIMATED: Record<string, string[]> = {
     `About ${F.WH_PER_AI_VIDEO} Wh for a 5-second clip, the one published measurement (an open model, measured for MIT Technology Review in 2025). Commercial video models don't publish theirs.`,
     "Same training, hardware and water as chat. Past use counts from late 2024, when video tools opened to the public.",
   ],
+  video: [
+    `About ${F.STREAMING_KWH_PER_HOUR} kWh and ${g(F.KG_PER_STREAMING_HOUR)} of CO₂ an hour, from the IEA.`,
+    "If the extension counts your whole history, past watching is measured from YouTube's hours and Netflix's titles (about 40 minutes each), and only the years before that history starts are estimated.",
+    ONLINE_NOTE,
+  ],
   "ai-coding": [
     `About ${F.WH_PER_CLAUDE_CODE_HOUR} Wh an hour of a coding agent working (published estimates run ${F.WH_PER_CLAUDE_CODE_HOUR_RANGE[0]} to ${F.WH_PER_CLAUDE_CODE_HOUR_RANGE[1]} Wh). Using a Claude plan's whole weekly limit is about ${F.CLAUDE_WEEKLY_HOURS.pro} hours a week on Pro and ${F.CLAUDE_WEEKLY_HOURS.max_5x} on Max 5x.`,
-    "If you link Claude or ChatGPT, coding is measured from your account and counted with AI chat instead, so this card adds nothing.",
+    `Linking Claude fills this in from how much of your plan's weekly limit you've used beyond your chats, which includes Claude Code, turned into hours from Anthropic's published limits. Linking ChatGPT adds its agent and Codex tools from their token totals, at about ${F.WH_PER_MILLION_AGENT_TOKENS} Wh a million tokens.`,
+    "Cursor, Copilot and coding through an API key can't be seen from your accounts, so add those hours yourself.",
     "Same training, hardware and water as chat. Past use counts from 2025, when coding agents took off.",
   ],
-  video: [`About ${F.STREAMING_KWH_PER_HOUR} kWh and ${g(F.KG_PER_STREAMING_HOUR)} of CO₂ an hour, from the IEA.`, ONLINE_NOTE],
   social: [ONLINE_NOTE],
   gaming: [ONLINE_NOTE],
   calls: [ONLINE_NOTE],

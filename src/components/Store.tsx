@@ -414,11 +414,13 @@ export function Store() {
 
   const sourceNote = (p: Product) => {
     if (entered[p.id]) return "you entered";
-    if (p.id === "ai" && ctx.aiFromExport && ctx.aiCode)
-      return `measured from your account, plus Claude Code, estimated from ${Math.round(ctx.aiCode.limitPercent)}% of your ${ctx.aiCode.plan} weekly limit`;
-    if (p.id === "ai" && ctx.aiFromExport && ctx.aiAgent)
-      return `measured from your account, plus ${AGENT_TOOL_NAMES[ctx.aiAgent.tool ?? "both"]}, estimated from its token total`;
-    if (p.id === "ai-coding" && codingMeasured(ctx)) return "counted in AI chat, measured from your account";
+    if (p.id === "ai-coding" && codingMeasured(ctx))
+      return [
+        ctx.aiCode && `Claude Code, estimated from ${Math.round(ctx.aiCode.limitPercent)}% of your ${ctx.aiCode.plan} weekly limit`,
+        ctx.aiAgent && `${AGENT_TOOL_NAMES[ctx.aiAgent.tool ?? "both"]}, from its token total`,
+      ]
+        .filter(Boolean)
+        .join(", plus ");
     if (p.section === "ai" && ctx.aiFromExport) return "measured from your account";
     if (p.id === "ai" && ctx.aiEstimate) return ctx.aiEstimate.from;
     if ((p.id === "ai-media" || p.id === "ai-video") && ctx.aiEstimate?.level) return ctx.aiEstimate.from;
@@ -814,7 +816,7 @@ export function Store() {
             <AiQuickPick
               level={ctx.aiFromExport || entered.ai ? null : (ctx.aiEstimate?.level ?? null)}
               onPick={(level, from) => {
-                setCtx((c) => ({ ...c, aiEstimate: { level, from }, aiFromExport: false, aiWhPerPrompt: undefined, aiPastWh: undefined, aiCode: undefined, aiAgent: undefined }));
+                setCtx((c) => ({ ...c, aiEstimate: { level, from }, aiFromExport: false, aiWhPerPrompt: undefined, aiPastWh: undefined, aiCode: undefined, aiAgent: undefined, aiCodingPastWh: undefined }));
                 // Images and video follow the pick too, unless the person typed their own.
                 setAmounts((a) => ({
                   ...a,
@@ -827,6 +829,7 @@ export function Store() {
               }}
               onExact={() => setMeasuring(true)}
               onVideo={(h, from) => measuredAmount("video", h, from)}
+              onVideoPast={(videoPast) => setCtx((c) => ({ ...c, videoPast }))}
               onRides={(n) => measuredAmount("rideshare", n, ["uber"])}
               onDelivery={(n) => measuredAmount("delivery", n, ["doordash", "ubereats"])}
               onShopping={amazonShopping}
@@ -839,11 +842,12 @@ export function Store() {
                   aiAgent: d.aiAgent,
                   aiFromExport: !note,
                   aiPastWh: note ? undefined : d.aiPastWh,
+                  aiCodingPastWh: note ? undefined : d.aiCodingPastWh,
                   aiEstimate: note ? { from: note } : undefined,
                 }));
-                setAmounts((a) => ({ ...a, ai: d.aiPromptsPerDay, "ai-media": d.aiMediaPerWeek }));
+                setAmounts((a) => ({ ...a, ai: d.aiPromptsPerDay, "ai-media": d.aiMediaPerWeek, ...(d.aiCodingPastWh !== undefined ? { "ai-coding": d.aiCodingHoursPerWeek } : {}) }));
                 resetAiCover();
-                setEntered((e) => ({ ...e, ai: false, "ai-media": false }));
+                setEntered((e) => ({ ...e, ai: false, "ai-media": false, ...(d.aiCodingPastWh !== undefined ? { "ai-coding": false } : {}) }));
               }}
             />
           </div>
@@ -852,10 +856,10 @@ export function Store() {
               <AiExportUpload
                 onResult={(s) => {
                   const d = digitalFromExport(s);
-                  setCtx((c) => ({ ...c, aiWhPerPrompt: d.aiWhPerPrompt, aiCode: d.aiCode, aiAgent: d.aiAgent, aiFromExport: true, aiPastWh: d.aiPastWh, aiEstimate: undefined }));
-                  setAmounts((a) => ({ ...a, ai: d.aiPromptsPerDay, "ai-media": d.aiMediaPerWeek }));
+                  setCtx((c) => ({ ...c, aiWhPerPrompt: d.aiWhPerPrompt, aiCode: d.aiCode, aiAgent: d.aiAgent, aiFromExport: true, aiPastWh: d.aiPastWh, aiCodingPastWh: d.aiCodingPastWh, aiEstimate: undefined }));
+                  setAmounts((a) => ({ ...a, ai: d.aiPromptsPerDay, "ai-media": d.aiMediaPerWeek, ...(d.aiCodingPastWh !== undefined ? { "ai-coding": d.aiCodingHoursPerWeek } : {}) }));
                   resetAiCover();
-                  setEntered((e) => ({ ...e, ai: false, "ai-media": false }));
+                  setEntered((e) => ({ ...e, ai: false, "ai-media": false, ...(d.aiCodingPastWh !== undefined ? { "ai-coding": false } : {}) }));
                 }}
               />
             </div>
@@ -1406,7 +1410,7 @@ export function Store() {
                       prompts: Number(amountOf(ai)) || 0,
                       images: Number(amountOf(productById("ai-media")!)) || 0,
                       videos: Number(amountOf(productById("ai-video")!)) || 0,
-                      codingHours: codingMeasured(ctx) ? 0 : Number(amountOf(productById("ai-coding")!)) || 0,
+                      codingHours: Number(amountOf(productById("ai-coding")!)) || 0,
                     },
                     ctx,
                   )}

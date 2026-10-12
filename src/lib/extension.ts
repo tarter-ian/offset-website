@@ -24,8 +24,14 @@ type ExtMessage = {
   /** Services the person is being asked to allow before they're counted. */
   needsPermission?: ExtensionService[];
   usage?: unknown;
+  /** The last whole-history count (extension 0.19.0), sent beside `usage` once one has been made. */
+  history?: unknown;
   error?: string;
 };
+
+/** Puts a whole-history count sent beside `usage` into it, unless the usage already has its own. */
+const withHistory = (usage: unknown, history: unknown): unknown =>
+  history && typeof usage === "object" && usage && !(usage as Record<string, unknown>).history ? { ...(usage as object), history } : usage;
 
 const fromExtension = (e: MessageEvent): ExtMessage | null =>
   e.source === window && e.data && typeof e.data === "object" && e.data.source === EXT ? (e.data as ExtMessage) : null;
@@ -88,7 +94,14 @@ export interface MeasureHandlers {
  * Asks the extension to measure services. With one service and `inFront`, its tab opens in front
  * so the person can log in first. Returns a function that stops listening.
  */
-export function measure(services: ExtensionService[], handlers: MeasureHandlers, inFront = false, maxAgeHours?: number): () => void {
+export function measure(
+  services: ExtensionService[],
+  handlers: MeasureHandlers,
+  inFront = false,
+  maxAgeHours?: number,
+  /** Read each account's whole history, not just 30 days (YouTube, Netflix and Gemini; slower). */
+  history = false,
+): () => void {
   const requestId = Math.random().toString(36).slice(2);
   const waiting = new Set(services);
   const settle = (s: ExtensionService) => {
@@ -124,7 +137,7 @@ export function measure(services: ExtensionService[], handlers: MeasureHandlers,
       return;
     }
     if (m.type === "usage") {
-      handlers.onUsage(m.service, m.usage);
+      handlers.onUsage(m.service, withHistory(m.usage, m.history));
       settle(m.service);
     }
     if (m.type === "error") {
@@ -137,8 +150,9 @@ export function measure(services: ExtensionService[], handlers: MeasureHandlers,
   };
   const stop = () => window.removeEventListener("message", onMessage);
   window.addEventListener("message", onMessage);
-  if (inFront && services.length === 1) post({ type: "measure", service: services[0], requestId });
-  else post({ type: "measure-all", services, requestId, ...(maxAgeHours ? { maxAgeHours } : {}) });
+  const whole = history ? { history: true } : {};
+  if (inFront && services.length === 1) post({ type: "measure", service: services[0], requestId, ...whole });
+  else post({ type: "measure-all", services, requestId, ...whole, ...(maxAgeHours && !history ? { maxAgeHours } : {}) });
   return stop;
 }
 
@@ -167,8 +181,9 @@ export function savedResults(timeoutMs = 1500): Promise<Partial<Record<Extension
       const out: Partial<Record<ExtensionService, SavedResult>> = {};
       const results = typeof m.results === "object" && m.results ? (m.results as Record<string, unknown>) : {};
       for (const s of EXTENSION_SERVICES) {
-        const r = results[s] as { usage?: unknown; measuredAt?: unknown } | undefined;
-        if (r && r.usage && typeof r.measuredAt === "string" && Number.isFinite(Date.parse(r.measuredAt))) out[s] = { usage: r.usage, measuredAt: r.measuredAt };
+        const r = results[s] as { usage?: unknown; measuredAt?: unknown; history?: unknown } | undefined;
+        if (r && r.usage && typeof r.measuredAt === "string" && Number.isFinite(Date.parse(r.measuredAt)))
+          out[s] = { usage: withHistory(r.usage, r.history), measuredAt: r.measuredAt };
       }
       done(out);
     };

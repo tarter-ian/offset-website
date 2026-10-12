@@ -58,6 +58,10 @@ export interface Context {
   aiStartYear?: number;
   /** A quick AI estimate: a picked level, or the plan from a sign-in. */
   aiEstimate?: { level?: AiLevel; from: string };
+  /** Coding energy to date, from ChatGPT's agent and Codex token totals and Claude's weekly limit, in Wh. */
+  aiCodingPastWh?: number;
+  /** Video hours watched to date, from YouTube and Netflix whole history. */
+  videoPast?: { hours: number; since: string };
   /** The year everyday items' past use counts from, when the person picks one. */
   pastSinceYear?: number;
 }
@@ -100,6 +104,7 @@ const base = (ctx: Context): LifetimeInput => ({
   ...DEFAULT_LIFETIME_INPUT,
   birthYear: ctx.birthYear,
   aiStartYear: ctx.aiStartYear,
+  videoPast: ctx.videoPast,
   internetHoursPerDay: NO_ONLINE,
   aiPromptsPerDay: 0,
   aiMediaPerWeek: 0,
@@ -240,10 +245,11 @@ const aiChat = (a: number | string, span: Span, ctx: Context) =>
   ).parts.ai.impacts;
 
 /** Coding hours to count: none when a linked Claude or ChatGPT account already measured coding in with chat. */
+/** Coding measured from a linked account: Claude's weekly limit (which covers Claude Code) or ChatGPT's agent and Codex tokens. */
 export const codingMeasured = (ctx: Context) => Boolean(ctx.aiFromExport && (ctx.aiCode || ctx.aiAgent));
-const codingHours = (a: number | string, ctx: Context) => (codingMeasured(ctx) ? 0 : num(a));
+const codingHours = (a: number | string) => num(a);
 const aiCoding = (a: number | string, span: Span, ctx: Context) =>
-  lifetimeOffset({ ...base(ctx), aiCodingHoursPerWeek: codingHours(a, ctx) }, ["ai"], undefined, span).parts.ai.impacts;
+  lifetimeOffset({ ...base(ctx), aiCodingHoursPerWeek: num(a), aiCodingPastWh: ctx.aiCodingPastWh }, ["ai"], undefined, span).parts.ai.impacts;
 
 export const PRODUCTS: Product[] = [
   {
@@ -286,12 +292,12 @@ export const PRODUCTS: Product[] = [
     id: "ai-coding",
     section: "ai",
     name: "Coding with AI",
-    blurb: "Hours you spend with a coding agent like Claude Code, Codex or Cursor. An hour of it takes far more power than chatting.",
+    blurb: "Hours you spend with a coding agent like Claude Code, Codex or Cursor. An hour of it takes far more power than chatting. Linking Claude or ChatGPT fills this in.",
     amount: { kind: "number", label: "Hours a week with a coding agent", unit: "hours a week", default: 0, step: 5 },
     oneTime: true,
     cost: (a, span, ctx) => costOf(aiCoding(a, span, ctx)),
     impacts: (a, span, ctx) => aiCoding(a, span, ctx),
-    kgPerYear: (a, ctx) => aiImpacts((codingHours(a, ctx) * 52 * F.WH_PER_CLAUDE_CODE_HOUR) / 1000).carbon,
+    kgPerYear: (a) => aiImpacts((codingHours(a) * 52 * F.WH_PER_CLAUDE_CODE_HOUR) / 1000).carbon,
   },
   onlineItem("video", "Video streaming", "YouTube, Netflix, Twitch.", 2),
   onlineItem("social", "Social media", "TikTok, Instagram, Facebook, X.", 1),
