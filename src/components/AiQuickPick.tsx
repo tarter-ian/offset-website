@@ -7,7 +7,7 @@ import { claudeLimitWhPerDay, signInUsage, summaryFromSignIn, type SignInUsage }
 import { CLAUDE_PLANS, usageFromQuickCount, type ClaudePlan, type QuickService } from "@/lib/ai/quickCount";
 import { combineSummaries, type UsageSummary } from "@/lib/ai/exportParser";
 import { activityAmounts, amazonShopping, NETFLIX_MIN_PER_TITLE, youtubeDays } from "@/lib/activity";
-import { canInstallExtension, detectExtension, EXTENSION_SERVICES, EXTENSION_URL, measure, type ExtensionError, type ExtensionService } from "@/lib/extension";
+import { canInstallExtension, detectExtension, EXTENSION_SERVICES, EXTENSION_URL, measure, measuredAtOf, savedResults, type ExtensionError, type ExtensionService, type SavedResult } from "@/lib/extension";
 import { SIGN_IN_READS } from "@/lib/signinReads";
 
 const AI_NAMES: Record<QuickService, string> = { chatgpt: "ChatGPT", claude: "Claude", gemini: "Gemini" };
@@ -22,6 +22,10 @@ const EXT_NAMES: Record<ExtensionService, string> = {
   uber: "Uber",
 };
 type FoodService = "doordash" | "ubereats";
+/** "Measure everything" reuses a result counted this recently instead of counting again. */
+const REUSE_HOURS = 24;
+/** Saved results older than this are re-counted in the background when the page opens. */
+const REFRESH_DAYS = 7;
 const ERRORS: Record<ExtensionError, (name: string) => string> = {
   "signed-out": (n) => `You're not logged in to ${n} in this browser.`,
   closed: () => "The tab was closed before it finished.",
@@ -66,6 +70,8 @@ export function AiQuickPick({
 }) {
   const [ext, setExt] = useState<string | null>(null);
   const [rows, setRows] = useState<Partial<Record<ExtensionService, Row>>>({});
+  /** When each service's shown result was measured, from the extension's saved results or a fresh count. */
+  const [measuredAt, setMeasuredAt] = useState<Partial<Record<ExtensionService, string>>>({});
   const [, setVideo] = useState<Partial<Record<"youtube" | "netflix", number>>>({});
   const [, setFood] = useState<Partial<Record<FoodService, number>>>({});
   const [aiSummaries, setAiSummaries] = useState<Partial<Record<QuickService, UsageSummary>>>({});
@@ -75,104 +81,122 @@ export function AiQuickPick({
 
   useEffect(() => {
     setInstallable(canInstallExtension());
-    detectExtension().then(setExt);
+    detectExtension().then((v) => {
+      setExt(v);
+      if (!v) return;
+      // Show what the extension saved last time straight away, and quietly re-count anything older than a week.
+      savedResults().then((saved) => {
+        const stale: ExtensionService[] = [];
+        for (const [service, r] of Object.entries(saved) as [ExtensionService, SavedResult][]) {
+          applyUsage(service, r.usage, r.measuredAt);
+          if (Date.now() - Date.parse(r.measuredAt) > REFRESH_DAYS * 86400000) stale.push(service);
+        }
+        if (stale.length) run(stale);
+      });
+    });
+    // Runs once on load; applyUsage and run only read state through setters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
 
-  function run(services: ExtensionService[], inFront = false, then?: () => void) {
+  /** Puts one service's counts on its row and the cards it fills. */
+  function applyUsage(service: ExtensionService, usage: unknown, at?: string) {
+    setMeasuredAt((m) => ({ ...m, [service]: at ?? new Date().toISOString() }));
+    if (service === "doordash" || service === "ubereats") {
+      const d = deliveries(usage);
+      if (!d) {
+        setRows((r) => ({ ...r, [service]: { state: "error", error: "unavailable", raw: usage } }));
+        return;
+      }
+      setRows((r) => ({
+        ...r,
+        [service]: { state: "done", raw: usage, text: `${d.deliveries} deliveries and ${d.pickups} pickups in ${d.days} days` },
+      }));
+      reportFood(service, (d.deliveries / d.days) * 7);
+      return;
+    }
+    if (service === "youtube") {
+      const days = youtubeDays(usage);
+      const video = activityAmounts(days)?.amounts.video;
+      const totals = youtubeTotals(usage);
+      setRows((r) => ({
+        ...r,
+        youtube: video
+          ? { state: "done", raw: usage, text: `${totals.videos.toLocaleString("en-US")} videos and ${totals.shorts.toLocaleString("en-US")} Shorts in 30 days, about ${video} hours a day` }
+          : { state: "error", error: "unavailable", raw: usage },
+      }));
+      if (video) reportVideo("youtube", video);
+      return;
+    }
+    if (service === "netflix") {
+      const n = countOver(usage, "titles");
+      if (!n) {
+        setRows((r) => ({ ...r, netflix: { state: "error", error: "unavailable", raw: usage } }));
+        return;
+      }
+      const hours = (n.total / n.days) * (NETFLIX_MIN_PER_TITLE / 60);
+      setRows((r) => ({
+        ...r,
+        netflix: { state: "done", raw: usage, text: `${n.total} episodes and films in ${n.days} days, about ${hours.toFixed(1)} hours a day` },
+      }));
+      reportVideo("netflix", hours);
+      return;
+    }
+    if (service === "uber") {
+      const m = countOver(usage, "miles");
+      const rides = Number((usage as Record<string, unknown>)?.rides) || 0;
+      if (!m) {
+        setRows((r) => ({ ...r, uber: { state: "error", error: "unavailable", raw: usage } }));
+        return;
+      }
+      setRows((r) => ({ ...r, uber: { state: "done", raw: usage, text: `${rides} rides, ${Math.round(m.total)} miles in ${m.days} days` } }));
+      onRides?.(Math.round((m.total / m.days) * 7));
+      return;
+    }
+    if (service === "amazon") {
+      const o = countOver(usage, "orders");
+      const u = (usage ?? {}) as Record<string, unknown>;
+      const items = Number(u.items) || 0;
+      const spend = Number(u.spend);
+      const spent = Number.isFinite(spend) ? `, $${Math.round(spend).toLocaleString("en-US")}` : "";
+      setRows((r) => ({
+        ...r,
+        amazon: o
+          ? { state: "done", raw: usage, text: `${o.total} orders, ${items} items${spent} in ${o.days} days` }
+          : { state: "error", error: "unavailable", raw: usage },
+      }));
+      if (o && u.spendByKind) onShopping?.(amazonShopping(u.spendByKind, o.days));
+      return;
+    }
+    const u = signInUsage(usage);
+    if (!u) {
+      setRows((r) => ({ ...r, [service]: { state: "error", error: "unavailable", raw: usage } }));
+      return;
+    }
+    if (u.missedChats) {
+      // A short count would under-price the offset, so it isn't used.
+      const missed = u.missedChats > 0 ? `${u.missedChats.toLocaleString("en-US")} chats` : "some chats";
+      const text = `${EXT_NAMES[service]} only let us read part of your history so far (${missed} skipped), so we haven't used this count yet. Measure again later and it carries on from where it stopped.`;
+      setRows((r) => ({ ...r, [service]: { state: "incomplete", text, raw: usage } }));
+      return;
+    }
+    setRows((r) => ({ ...r, [service]: { state: "done", text: resultText(u), raw: usage } }));
+    setAiSummaries((prev) => {
+      const next = { ...prev, [service]: summaryFromSignIn(service, u) };
+      const all = combineSummaries(Object.values(next) as UsageSummary[]);
+      if (all) onMeasured(all);
+      return next;
+    });
+  }
+
+  function run(services: ExtensionService[], inFront = false, then?: () => void, maxAgeHours?: number) {
     setStatus({ kind: "idle" });
     setOpen(null);
     setRows((r) => ({ ...r, ...Object.fromEntries(services.map((x) => [x, { state: "counting" }])) }));
     measure(
       services,
       {
-        onUsage: (service, usage) => {
-          if (service === "doordash" || service === "ubereats") {
-            const d = deliveries(usage);
-            if (!d) {
-              setRows((r) => ({ ...r, [service]: { state: "error", error: "unavailable", raw: usage } }));
-              return;
-            }
-            setRows((r) => ({
-              ...r,
-              [service]: { state: "done", raw: usage, text: `${d.deliveries} deliveries and ${d.pickups} pickups in ${d.days} days` },
-            }));
-            reportFood(service, (d.deliveries / d.days) * 7);
-            return;
-          }
-          if (service === "youtube") {
-            const days = youtubeDays(usage);
-            const video = activityAmounts(days)?.amounts.video;
-            const totals = youtubeTotals(usage);
-            setRows((r) => ({
-              ...r,
-              youtube: video
-                ? { state: "done", raw: usage, text: `${totals.videos.toLocaleString("en-US")} videos and ${totals.shorts.toLocaleString("en-US")} Shorts in 30 days, about ${video} hours a day` }
-                : { state: "error", error: "unavailable", raw: usage },
-            }));
-            if (video) reportVideo("youtube", video);
-            return;
-          }
-          if (service === "netflix") {
-            const n = countOver(usage, "titles");
-            if (!n) {
-              setRows((r) => ({ ...r, netflix: { state: "error", error: "unavailable", raw: usage } }));
-              return;
-            }
-            const hours = (n.total / n.days) * (NETFLIX_MIN_PER_TITLE / 60);
-            setRows((r) => ({
-              ...r,
-              netflix: { state: "done", raw: usage, text: `${n.total} episodes and films in ${n.days} days, about ${hours.toFixed(1)} hours a day` },
-            }));
-            reportVideo("netflix", hours);
-            return;
-          }
-          if (service === "uber") {
-            const m = countOver(usage, "miles");
-            const rides = Number((usage as Record<string, unknown>)?.rides) || 0;
-            if (!m) {
-              setRows((r) => ({ ...r, uber: { state: "error", error: "unavailable", raw: usage } }));
-              return;
-            }
-            setRows((r) => ({ ...r, uber: { state: "done", raw: usage, text: `${rides} rides, ${Math.round(m.total)} miles in ${m.days} days` } }));
-            onRides?.(Math.round((m.total / m.days) * 7));
-            return;
-          }
-          if (service === "amazon") {
-            const o = countOver(usage, "orders");
-            const u = (usage ?? {}) as Record<string, unknown>;
-            const items = Number(u.items) || 0;
-            const spend = Number(u.spend);
-            const spent = Number.isFinite(spend) ? `, $${Math.round(spend).toLocaleString("en-US")}` : "";
-            setRows((r) => ({
-              ...r,
-              amazon: o
-                ? { state: "done", raw: usage, text: `${o.total} orders, ${items} items${spent} in ${o.days} days` }
-                : { state: "error", error: "unavailable", raw: usage },
-            }));
-            if (o && u.spendByKind) onShopping?.(amazonShopping(u.spendByKind, o.days));
-            return;
-          }
-          const u = signInUsage(usage);
-          if (!u) {
-            setRows((r) => ({ ...r, [service]: { state: "error", error: "unavailable", raw: usage } }));
-            return;
-          }
-          if (u.missedChats) {
-            // A short count would under-price the offset, so it isn't used.
-            const missed = u.missedChats > 0 ? `${u.missedChats.toLocaleString("en-US")} chats` : "some chats";
-            const text = `${EXT_NAMES[service]} only let us read part of your history so far (${missed} skipped), so we haven't used this count yet. Measure again later and it carries on from where it stopped.`;
-            setRows((r) => ({ ...r, [service]: { state: "incomplete", text, raw: usage } }));
-            return;
-          }
-          setRows((r) => ({ ...r, [service]: { state: "done", text: resultText(u), raw: usage } }));
-          setAiSummaries((prev) => {
-            const next = { ...prev, [service]: summaryFromSignIn(service, u) };
-            const all = combineSummaries(Object.values(next) as UsageSummary[]);
-            if (all) onMeasured(all);
-            return next;
-          });
-        },
+        onUsage: (service, usage) => applyUsage(service, usage, measuredAtOf(usage)),
         onError: (service, error) => setRows((r) => ({ ...r, [service]: { state: "error", error } })),
         onAsking: (asked) => setRows((r) => ({ ...r, ...Object.fromEntries(asked.map((x) => [x, { state: "asking" }])) })),
         onCounting: (allowed) => setRows((r) => ({ ...r, ...Object.fromEntries(allowed.map((x) => [x, { state: "counting" }])) })),
@@ -183,6 +207,7 @@ export function AiQuickPick({
         onDone: then,
       },
       inFront,
+      maxAgeHours,
     );
   }
 
@@ -252,7 +277,7 @@ export function AiQuickPick({
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => run(EXTENSION_SERVICES)}
+              onClick={() => run(EXTENSION_SERVICES, false, undefined, REUSE_HOURS)}
               disabled={busy}
               className="min-h-11 rounded-md bg-foreground px-5 font-semibold text-background hover:opacity-90 disabled:opacity-60"
             >
@@ -322,7 +347,12 @@ export function AiQuickPick({
                     <dd>
                       {r.state === "counting" && <span className="text-muted">{r.text ?? "Counting…"}</span>}
                       {r.state === "asking" && <span className="text-muted">Waiting for you to allow it in the Offset window…</span>}
-                      {r.state === "done" && r.text}
+                      {r.state === "done" && (
+                        <>
+                          {r.text}
+                          {measuredAt[x] && <span className="text-muted"> · measured {ago(measuredAt[x]!)}</span>}
+                        </>
+                      )}
                       {r.state === "skipped" && <span className="text-muted">Left out: you don&apos;t use it.</span>}
                       {r.state === "incomplete" && (
                         <span>
@@ -463,6 +493,15 @@ function progressText(usage: unknown): string | null {
   const total = Number(u.chatsTotal);
   if (!Number.isFinite(prompts) || !(total > 0) || !Number.isFinite(read)) return null;
   return `About ${Math.round(prompts).toLocaleString("en-US")} prompts so far (read ${read} of ${total} chats). Still counting; we price only the final figure.`;
+}
+
+/** "just now", "3 hours ago", "2 days ago". */
+function ago(iso: string): string {
+  const h = (Date.now() - Date.parse(iso)) / 3600000;
+  if (!Number.isFinite(h) || h < 1) return "just now";
+  if (h < 24) return `${Math.round(h)} hour${Math.round(h) === 1 ? "" : "s"} ago`;
+  const d = Math.round(h / 24);
+  return `${d} day${d === 1 ? "" : "s"} ago`;
 }
 
 function countOver(usage: unknown, key: string): { total: number; days: number } | null {
