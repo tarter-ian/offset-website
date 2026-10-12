@@ -129,8 +129,10 @@ describe("monthlyCost", () => {
     const food = monthlyCost(f, ["meat", "dairy", "plants"]);
     const all = monthlyCost(f, CATEGORY_KEYS);
     expect(food.donation).toBeLessThan(all.donation);
-    // Land comes only from food and shopping.
-    expect(monthlyCost(f, ["meat", "dairy", "plants", "clothing", "electronics", "household", "services"]).byImpact.land).toBeCloseTo(all.byImpact.land, 6);
+    // Food and shopping hold most of the land; power plants and data centers add a little.
+    const landHeavy = monthlyCost(f, ["meat", "dairy", "plants", "clothing", "electronics", "household", "services"]).byImpact.land;
+    expect(landHeavy).toBeLessThan(all.byImpact.land);
+    expect(landHeavy / all.byImpact.land).toBeGreaterThan(0.99);
   });
 
   it("only prices the chosen impact types", () => {

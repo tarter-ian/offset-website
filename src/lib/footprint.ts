@@ -194,6 +194,7 @@ export function dataCenterImpacts(kwh: number): Impacts {
     ...g,
     carbon: kwh * (F.KG_PER_STREAMING_HOUR / F.STREAMING_KWH_PER_HOUR),
     water: g.water + coolingWater(kwh),
+    land: g.land + kwh * F.DATACENTER_M2_YEARS_PER_KWH,
   };
 }
 
@@ -215,7 +216,7 @@ export function aiImpacts(answerKwh: number): Impacts {
     carbon: g.carbon / (1 - F.AI_HARDWARE_SHARE),
     air: g.air * F.AI_LOCAL_AIR_WEIGHT,
     water: g.water + coolingWater(kwh),
-    land: 0,
+    land: g.land + kwh * F.DATACENTER_M2_YEARS_PER_KWH,
   };
 }
 
@@ -235,7 +236,7 @@ export function gridImpacts(kwh: number, state?: StateCode): Impacts {
     carbon: kwh * (state ? gridKgPerKwh(state) : US_KG_PER_KWH),
     air: kwh * gridAirUsdPerKwh(s?.noxLbPerMwh ?? US_NOX_LB_PER_MWH, s?.so2LbPerMwh ?? US_SO2_LB_PER_MWH),
     water: kwh * F.GRID_L_PER_KWH * F.scarcityWeight("grid"),
-    land: 0,
+    land: kwh * F.GRID_M2_YEARS_PER_KWH,
   };
 }
 

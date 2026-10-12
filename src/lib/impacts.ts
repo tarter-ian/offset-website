@@ -31,6 +31,7 @@ export const IMPACT_INFO: Record<ImpactKey, { label: string; short: string; form
   land: {
     label: "Nature",
     short: "land",
-    format: (m2) => `${Math.round(m2).toLocaleString("en-US")} m² land`,
+    format: (m2) =>
+      m2 >= 10 ? `${Math.round(m2).toLocaleString("en-US")} m² land` : m2 >= 0.1 ? `${m2.toFixed(1)} m² land` : "under 0.1 m² land",
   },
 };

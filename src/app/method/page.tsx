@@ -90,7 +90,7 @@ const IMPACTS = [
   },
   {
     name: "Nature",
-    measure: "Land used to grow your food and to mine and make your electronics, in square meters.",
+    measure: "Land used to grow your food, to mine and make your electronics, and for the power plants and data centers behind your electricity and online use, in square meters. Power and data centers are a sliver of it: about 0.005 m² a year per kWh for power plants and their fuel (Lovering et al. 2022, weighted by the US mix) and 0.0005 for data centers.",
     price: "We fund permanently protecting the same area of threatened forest, at about $10 an acre.",
   },
 ];

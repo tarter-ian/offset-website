@@ -184,6 +184,15 @@ export const DIET_L_PER_DAY = {
 // ---------------------------------------------------------------------------
 // Nature: land occupied, in square meter-years.
 
+// Power plants, their fuel and their sites, per kWh on the US grid: median land
+// use for each source (Lovering et al. 2022, PLOS ONE, ha per TWh a year)
+// weighted by the 2023 US mix. Wind counts only its pads and roads, since the
+// land between turbines stays in use. About 500 ha/TWh. Rough.
+export const GRID_M2_YEARS_PER_KWH = 0.005;
+// Data center campuses take roughly an acre per megawatt of power; running
+// most of the year, that's about this much land per kWh. Rough.
+export const DATACENTER_M2_YEARS_PER_KWH = 0.0005;
+
 // Food, per person per year, Scarborough et al. 2023.
 export const DIET_M2_PER_YEAR = {
   "meat-heavy": 6125,
