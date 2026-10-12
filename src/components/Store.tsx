@@ -6,6 +6,7 @@ import { type Covered, STORAGE_KEY } from "@/lib/covered";
 import { useEffect, useState } from "react";
 import { ActivityUpload } from "./ActivityUpload";
 import { CheckoutSteps } from "./Checkout";
+import { joinList, ListOptIn } from "./ListOptIn";
 import { AiExportUpload } from "./AiExportUpload";
 import { AiQuickPick } from "./AiQuickPick";
 import { AI_LEVELS } from "@/lib/ai/levels";
@@ -35,7 +36,6 @@ import {
 import { digitalFromExport } from "@/lib/ai/exportParser";
 import { aiMonthTotals, shareLines, shareQuery, type ShareTotals } from "@/lib/share";
 import { SOURCE_NAMES, type ActivitySource } from "@/lib/activity";
-import * as F from "@/lib/factors";
 import { ONLINE_FROM_AGE } from "@/lib/factors";
 import {
   LIFETIME_GROWTH_BUFFER,
@@ -76,6 +76,7 @@ import {
   type Before,
   type Context,
   type PastYears,
+  type PlanLine,
   type Product,
 } from "@/lib/store";
 
@@ -940,14 +941,6 @@ export function Store() {
           </div>
           <div className="mt-3 border-b border-border pb-3">
             {amountLine(ai)}
-            {ctx.aiFromExport && ctx.aiCode && (
-              <p className="mt-1 text-sm text-muted">
-                Claude Code is about{" "}
-                {Math.round((ctx.aiCode.whPerDay / ((ctx.aiWhPerPrompt ?? F.WH_PER_AI_PROMPT) * Number(amountOf(ai)) || 1)) * 100)}% of the energy, or{" "}
-                {Math.round(ctx.aiCode.whPerDay / F.WH_PER_AI_PROMPT).toLocaleString("en-US")} typical prompts a day. Chat apps don&apos;t count it, so
-                we estimate it from your weekly limit at {F.WH_PER_CLAUDE_CODE_HOUR} Wh an hour, {F.CLAUDE_WEEKLY_HOURS[ctx.aiCode.plan === "Max 20x" ? "max_20x" : ctx.aiCode.plan === "Max 5x" ? "max_5x" : "pro"]} hours in a full {ctx.aiCode.plan} week.
-              </p>
-            )}
           </div>
           <dl className="figures divide-y divide-border text-sm">
             {[
@@ -1368,6 +1361,7 @@ export function Store() {
                       <PaySection
                         rows={giftRows}
                         lines={totals.lines.map((l) => ({ productId: l.productId, lifetime: l.cover.ahead === "lifetime" }))}
+                        listing={{ lines, ctx, pastYears: spreadYears }}
                         billing={billing}
                         hasRepeat={repeatTotal > 0}
                         autopay={autopay}
@@ -1617,9 +1611,12 @@ function PaySection({
   setAutopay,
   payState,
   setPayState,
+  listing,
 }: {
   rows: PayRow[];
   lines: Checkout["lines"];
+  /** What the server needs to work the checkout out again for the public list. */
+  listing: { lines: PlanLine[]; ctx: Context; pastYears: PastYears };
   billing: Billing;
   hasRepeat: boolean;
   autopay: boolean;
@@ -1629,6 +1626,8 @@ function PaySection({
 }) {
   const [draftId, setDraftId] = useState<string | null>(null);
   const [confirmedBig, setConfirmedBig] = useState(false);
+  const [listName, setListName] = useState<string | null>(null);
+  const [listNote, setListNote] = useState("");
   // Every row is charged today, a repeating one for the first time.
   const today = sumTotal(rows);
   useEffect(() => setDraftId(newPlanId()), []);
@@ -1701,8 +1700,18 @@ function PaySection({
                 const c = { ...current, created: new Date().toISOString() };
                 saveCheckout(c);
                 setPayState(c);
+                if (listName && !saved)
+                  joinList(listName, { source: "plan", planId: c.id, billing, autopay, pastYears: listing.pastYears, lines: listing.lines, ctx: listing.ctx, rows }).then(
+                    (err) => setListNote(err ?? `You'll show on the public list as ${listName} once Every.org confirms every gift.`),
+                  );
               }}
             />
+          )}
+          {!saved && current && rows.length > 0 && <ListOptIn label="List me publicly" onChange={setListName} />}
+          {listNote && (
+            <p role="status" className="mt-2 text-sm">
+              {listNote} <Link href="/list/edit" className="underline">Change or leave</Link>
+            </p>
           )}
         </>
       )}

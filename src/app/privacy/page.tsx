@@ -61,6 +61,10 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
     body: "If you give someone an offset, we keep the item, the two names and the note you type, so the gift's link can show them. Only someone with that link can see it. We don't email or contact the person you give it to.",
   },
   {
+    title: "The public list",
+    body: "Only if you tick \"List me publicly\" (a gift's recipient decides for themselves). We keep the name you pick, which items your checkout or gift covered and when, and the gifts it asked of each charity, so the list can check Every.org confirmed them. The list shows the name, the items and since when, never amounts or email. A secret kept in your browser lets you rename or leave; leaving deletes all of it.",
+  },
+  {
     title: "Who we share it with",
     body: PAYMENT_MODE === "every"
       ? "No one, except the companies that make the service run: our host, and Every.org for payments, each only for its own job. We will never sell your data or share it for advertising."
