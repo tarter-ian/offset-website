@@ -45,7 +45,7 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
   },
   {
     title: "Paying again",
-    body: "You approve each payment yourself unless you switch on autopay. With autopay on, we email you a few days before every charge with the amount and a one-click skip or stop. A charge more than 25% above the last one waits for your approval. You can stop autopay at any time, and it takes effect before the next charge.",
+    body: "You approve each payment yourself unless you switch on autopay. With autopay on, we email you a few days before every charge with the amount and a one-click skip or stop. A charge more than $5 or 25% above the last one, whichever is smaller, waits for your approval. You can stop autopay at any time, and it takes effect before the next charge.",
   },
   {
     title: "Lifetime plans",
