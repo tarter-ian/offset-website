@@ -12,10 +12,9 @@ import {
 import { STATES } from "./data/states";
 import {
   lifetimeCost,
-  LIFETIME_FEE_USD,
   LIFETIME_GROWTH_BUFFER,
   LIFETIME_MIN_DONATION_USD,
-  MONTHLY_FEE_USD,
+  paymentFee,
   MIN_DONATION_USD,
   monthlyCost,
   type CarbonMode,
@@ -120,10 +119,10 @@ describe("computeFootprint", () => {
 describe("monthlyCost", () => {
   const f = computeFootprint(base);
 
-  it("charges one flat monthly fee with anything covered", () => {
+  it("charges the card fee on what's covered, and nothing when nothing is", () => {
     expect(monthlyCost(f, []).fee).toBe(0);
-    expect(monthlyCost(f, ["ai"]).fee).toBe(MONTHLY_FEE_USD);
-    expect(monthlyCost(f, CATEGORY_KEYS).fee).toBe(MONTHLY_FEE_USD);
+    const all = monthlyCost(f, CATEGORY_KEYS);
+    expect(all.fee).toBe(paymentFee(all.donation));
   });
 
   it("only prices the covered categories", () => {
@@ -145,7 +144,7 @@ describe("monthlyCost", () => {
     const ai = monthlyCost(f, ["ai"]);
     expect(ai.minimumApplied).toBe(true);
     expect(ai.donation).toBe(MIN_DONATION_USD);
-    expect(ai.total).toBe(MIN_DONATION_USD + MONTHLY_FEE_USD);
+    expect(ai.total).toBeCloseTo(MIN_DONATION_USD + paymentFee(MIN_DONATION_USD), 6);
   });
 
   it("charges nothing when nothing is covered", () => {
@@ -159,7 +158,7 @@ describe("lifetimeCost", () => {
   it("is offered for plans under the monthly minimum, at least the lifetime minimum", () => {
     const life = lifetimeCost(monthlyCost(f, ["ai"]));
     expect(life?.donation).toBeGreaterThanOrEqual(LIFETIME_MIN_DONATION_USD);
-    expect(life?.total).toBe(life!.donation + LIFETIME_FEE_USD);
+    expect(life?.total).toBeCloseTo(life!.donation + paymentFee(life!.donation), 6);
   });
 
   it("scales with heavy use", () => {

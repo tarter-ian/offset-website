@@ -52,8 +52,14 @@ export const LAND_USD_PER_M2 = 10 / M2_PER_ACRE;
 
 const cents = (n: number) => Math.round(n * 100) / 100;
 
-/** Fee: a flat $2 a month for a monthly plan, however many things it covers. */
-export const MONTHLY_FEE_USD = 2;
+/**
+ * Our fee is only what the card payment costs us, so we make no profit on it
+ * (Ian, 2026-10-12): Stripe's 30¢ + 2.9%, plus 0.7% for its billing, on each
+ * payment. It's worked out on the whole payment, so the donation arrives in full.
+ */
+export const CARD_FIXED_USD = 0.3;
+export const CARD_RATE = 0.036;
+export const paymentFee = (donation: number) => (donation > 0 ? Math.ceil(((CARD_FIXED_USD + CARD_RATE * donation) / (1 - CARD_RATE)) * 100) / 100 : 0);
 
 /**
  * Smallest donation, a dollar on any payment. Small donations are pooled and
@@ -61,15 +67,10 @@ export const MONTHLY_FEE_USD = 2;
  */
 export const MIN_DONATION_USD = 1;
 
-/**
- * Ongoing offsets are billed yearly by default: one approval a year, and card
- * fees take far less of one larger payment. Paying yearly gets two months of
- * our fee free. Monthly billing stays available.
- */
+/** Ongoing offsets can be billed yearly: one approval and one 30¢ card charge a year instead of twelve. */
 export type Billing = "annual" | "monthly";
 /** Monthly by default: most consumers prefer it because it is easier to budget and cancel. Yearly is the discounted option. */
 export const DEFAULT_BILLING: Billing = "monthly";
-export const ANNUAL_FEE_MONTHS = 10;
 export const ANNUAL_MIN_DONATION_USD = MIN_DONATION_USD;
 export const BILLING: Record<Billing, { label: string; per: string; approve: string }> = {
   annual: { label: "Yearly", per: "a year", approve: "once a year" },
@@ -83,16 +84,17 @@ export interface Recurring {
   minimumApplied: boolean;
 }
 
-/** Turns a month's donation and fee into what's charged each billing period. */
-export function recurringPrice(rawMonthlyDonation: number, monthlyFee: number, billing: Billing): Recurring {
+/** Turns a month's donation into what's charged each billing period, with that payment's card fee. */
+export function recurringPrice(rawMonthlyDonation: number, billing: Billing): Recurring {
   if (billing === "monthly") {
     const donation = Math.max(MIN_DONATION_USD, Math.ceil(rawMonthlyDonation * 100) / 100);
-    return { donation, fee: monthlyFee, total: cents(donation + monthlyFee), minimumApplied: rawMonthlyDonation < MIN_DONATION_USD };
+    const fee = paymentFee(donation);
+    return { donation, fee, total: cents(donation + fee), minimumApplied: rawMonthlyDonation < MIN_DONATION_USD };
   }
   const raw = rawMonthlyDonation * 12;
   const donation = Math.max(ANNUAL_MIN_DONATION_USD, Math.ceil(raw));
-  const fee = monthlyFee * ANNUAL_FEE_MONTHS;
-  return { donation, fee, total: donation + fee, minimumApplied: raw < ANNUAL_MIN_DONATION_USD };
+  const fee = paymentFee(donation);
+  return { donation, fee, total: cents(donation + fee), minimumApplied: raw < ANNUAL_MIN_DONATION_USD };
 }
 
 export interface MonthlyCost {
@@ -132,7 +134,7 @@ export function monthlyCost(
   const active = chosen.length > 0 && impacts.length > 0;
   const minimumApplied = active && raw < MIN_DONATION_USD;
   const donation = active ? cents(Math.max(raw, MIN_DONATION_USD)) : 0;
-  const fee = active ? MONTHLY_FEE_USD : 0;
+  const fee = paymentFee(donation);
   return { byImpact, donation, fee, total: cents(donation + fee), minimumApplied };
 }
 
@@ -149,13 +151,6 @@ export const LIFETIME_YEARS = 30;
  */
 export const LIFETIME_GROWTH_BUFFER = 1.5;
 export const LIFETIME_MIN_DONATION_USD = MIN_DONATION_USD;
-/**
- * $3 on a one-time payment. Waived for anyone already paying the monthly fee,
- * and on every one-time payment after someone's first.
- */
-export const LIFETIME_FEE_USD = 3;
-export const oneTimeFee = (opts: { hasMonthly?: boolean; returning?: boolean } = {}) =>
-  opts.hasMonthly || opts.returning ? 0 : LIFETIME_FEE_USD;
 
 export interface LifetimeCost {
   donation: number;
@@ -168,5 +163,6 @@ export function lifetimeCost(monthly: MonthlyCost): LifetimeCost | null {
   if (!monthly.minimumApplied) return null;
   const raw = monthly.byImpact.carbon + monthly.byImpact.air + monthly.byImpact.water + monthly.byImpact.land;
   const donation = Math.max(LIFETIME_MIN_DONATION_USD, Math.ceil(raw * 12 * LIFETIME_YEARS * LIFETIME_GROWTH_BUFFER));
-  return { donation, fee: LIFETIME_FEE_USD, total: donation + LIFETIME_FEE_USD };
+  const fee = paymentFee(donation);
+  return { donation, fee, total: cents(donation + fee) };
 }

@@ -17,7 +17,6 @@ import { digitalFromExport } from "@/lib/ai/exportParser";
 import { SOURCE_NAMES, type ActivitySource } from "@/lib/activity";
 import { ONLINE_FROM_AGE } from "@/lib/factors";
 import {
-  ANNUAL_FEE_MONTHS,
   LIFETIME_GROWTH_BUFFER,
   BILLING,
   type Billing,
@@ -836,7 +835,7 @@ export function Store() {
                     <div className="flex justify-between gap-4">
                       <dt className="font-sans text-muted">
                         One payment: {usd(totals.oneTime.donation)} to charities
-                        {totals.oneTime.fee ? ` + ${usd(totals.oneTime.fee)} fee` : ", no fee with a monthly plan"}
+                        {totals.oneTime.fee ? ` + ${usd(totals.oneTime.fee)} card fee` : ""}
                       </dt>
                       <dd className="font-medium">{usd(totals.oneTime.total)}</dd>
                     </div>
@@ -845,7 +844,7 @@ export function Store() {
                     <div className="flex justify-between gap-4">
                       <dt className="font-sans text-muted">
                         {billing === "annual" ? "Each year" : "Each month"}: {usd(totals.recurring.donation)} to charities +{" "}
-                        {usd(totals.recurring.fee)} fee
+                        {usd(totals.recurring.fee)} card fee
                       </dt>
                       <dd className="font-medium">{usd(totals.recurring.total)}</dd>
                     </div>
@@ -865,7 +864,7 @@ export function Store() {
                         }`}
                       >
                         Pay {BILLING[b].label.toLowerCase()}
-                        {b === "annual" && ` (${12 - ANNUAL_FEE_MONTHS} months of fees free)`}
+                        {b === "annual" && " (one card fee a year)"}
                       </button>
                     ))}
                   </div>

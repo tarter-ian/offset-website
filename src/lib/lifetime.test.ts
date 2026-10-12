@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as F from "./factors";
 import { DEFAULT_LIFETIME_INPUT, LIFETIME_MAX_USD, lifetimeOffset, parseItems } from "./lifetime";
-import { LIFETIME_FEE_USD, LIFETIME_MIN_DONATION_USD } from "./pricing";
+import { LIFETIME_MIN_DONATION_USD, paymentFee } from "./pricing";
 
 const now = new Date(Date.UTC(2026, 0, 1));
 const typical = { ...DEFAULT_LIFETIME_INPUT, birthYear: 1990 };
@@ -22,7 +22,7 @@ describe("lifetimeOffset", () => {
     const light = lifetimeOffset({ ...typical, aiPromptsPerDay: 1 }, ["ai"], now);
     const heavy = lifetimeOffset({ ...typical, aiPromptsPerDay: 200 }, ["ai"], now);
     expect(heavy.donation).toBeGreaterThan(light.donation);
-    expect(heavy.total).toBe(heavy.donation + LIFETIME_FEE_USD);
+    expect(heavy.total).toBeCloseTo(heavy.donation + paymentFee(heavy.donation), 6);
     expect(light.donation).toBe(LIFETIME_MIN_DONATION_USD);
   });
 
@@ -68,12 +68,13 @@ describe("spans", () => {
     const month = lifetimeOffset(heavy, ["ai"], now, "monthly");
     expect(past.donation).toBeLessThan(life.donation);
     expect(month.total).toBeLessThan(past.total);
-    expect(month.fee).toBe(2);
+    expect(month.fee).toBe(paymentFee(month.donation));
     expect(month.donation).toBeGreaterThanOrEqual(1);
   });
 
-  it("charges one flat monthly fee", () => {
-    expect(lifetimeOffset(typical, ["ai", "internet", "devices"], now, "monthly").fee).toBe(2);
+  it("charges only the card fee on the monthly payment", () => {
+    const m = lifetimeOffset(typical, ["ai", "internet", "devices"], now, "monthly");
+    expect(m.fee).toBe(paymentFee(m.donation));
   });
 
   it("makes a year of monthly payments add up to a year of use", () => {

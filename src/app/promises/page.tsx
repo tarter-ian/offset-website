@@ -15,8 +15,8 @@ const PROMISES = [
     link: { href: "/ledger", text: "Where the money goes" },
   },
   {
-    title: "One simple fee, shown up front",
-    body: "Our fee is a flat $2 a month for a monthly plan, however much it covers, with two months free when you pay yearly. Your first one-time payment carries a $3 fee; later ones, and any while you have a monthly plan, have none. It's listed separately from your donation on every summary.",
+    title: "No cut, just the card fee",
+    body: "We don't make money on your donation. The only fee is what the card payment costs: 30¢ plus 3.6% of each payment, which is well under a dollar on a typical monthly plan. Paying yearly means one 30¢ charge instead of twelve. It's listed separately from your donation on every summary.",
   },
   {
     title: "No cheap, unverified carbon credits",

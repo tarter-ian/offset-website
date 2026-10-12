@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Store } from "@/components/Store";
 import { WaitlistForm } from "@/components/WaitlistForm";
-import { ANNUAL_FEE_MONTHS, LIFETIME_FEE_USD, MONTHLY_FEE_USD, usd } from "@/lib/pricing";
+import { CARD_RATE } from "@/lib/pricing";
 
 export default function Home() {
   return (
@@ -20,9 +20,9 @@ export default function Home() {
             measured is an option on your footprint summary, at about twelve times the price per tonne.
           </p>
           <p>
-            Our cut is a separate fee: {usd(MONTHLY_FEE_USD)} a month for a monthly plan, however much it covers, or{" "}
-            {usd(LIFETIME_FEE_USD)} on your first one-time payment. Later one-time payments, and any while you have a monthly
-            plan, have no fee. Paying yearly takes {12 - ANNUAL_FEE_MONTHS} months off the fee. Nothing is charged until you approve it.
+            We don&apos;t take a cut. The only fee is what each card payment costs: 30¢ plus{" "}
+            {Math.round(CARD_RATE * 1000) / 10}%, shown separately, so the whole donation arrives. Nothing is charged until you
+            approve it.
           </p>
           <p>
             <Link href="/promises" className="font-semibold text-accent underline underline-offset-4">

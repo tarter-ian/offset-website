@@ -1,12 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { aheadFor, yearlyLine, coverBadge, coverPrice, DEFAULT_CONTEXT as C, defaultAmount, effectiveCover, planTotals, PRODUCTS, productById } from "./store";
 import {
-  ANNUAL_FEE_MONTHS,
   ANNUAL_MIN_DONATION_USD,
   DEFAULT_BILLING,
-  LIFETIME_FEE_USD,
   LIFETIME_MIN_DONATION_USD,
-  MONTHLY_FEE_USD,
+  paymentFee,
   MIN_DONATION_USD,
 } from "./pricing";
 
@@ -110,23 +108,27 @@ describe("planTotals", () => {
       "monthly",
     );
     expect(t.oneTime!.donation).toBeGreaterThanOrEqual(LIFETIME_MIN_DONATION_USD);
-    expect(t.oneTime!.fee).toBe(0);
-    expect(t.oneTime!.total).toBe(t.oneTime!.donation);
-    expect(t.recurring!.fee).toBe(MONTHLY_FEE_USD);
+    expect(t.oneTime!.fee).toBe(paymentFee(t.oneTime!.donation));
+    expect(t.recurring!.fee).toBe(paymentFee(t.recurring!.donation));
     expect(t.recurring!.donation).toBeGreaterThan(MIN_DONATION_USD);
   });
 
-  it("charges the one-time fee on a first purchase only", () => {
-    const line = [{ productId: "ai", amount: 10, cover: { past: true, ahead: "lifetime" as const } }];
-    expect(planTotals(line, C).oneTime!.fee).toBe(LIFETIME_FEE_USD);
-    expect(planTotals(line, C, "monthly", { returning: true }).oneTime!.fee).toBe(0);
+  it("charges only the card fee, so the donation arrives whole", () => {
+    // 30¢ + 3.6% of the whole payment, rounded up to the cent.
+    expect(paymentFee(10)).toBe(0.69);
+    expect(paymentFee(100)).toBe(4.05);
+    for (const d of [1, 7.5, 40, 386]) {
+      const total = d + paymentFee(d);
+      expect(total - (0.3 + 0.036 * total)).toBeGreaterThanOrEqual(d - 1e-9);
+    }
+    expect(paymentFee(0)).toBe(0);
   });
 
-  it("bills ongoing items yearly with two months of fees free", () => {
+  it("bills ongoing items yearly with one card fee a year", () => {
     const line = [{ productId: "car", amount: 200, cover: { past: false, ahead: "monthly" as const } }];
     const month = planTotals(line, C, "monthly").recurring!;
     const year = planTotals(line, C, "annual").recurring!;
-    expect(year.fee).toBe(month.fee * ANNUAL_FEE_MONTHS);
+    expect(year.fee).toBeLessThan(month.fee * 12);
     expect(year.donation).toBeCloseTo(Math.ceil(p("car").cost(200, "monthly", C) * 12), 6);
   });
 

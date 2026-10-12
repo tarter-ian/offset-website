@@ -15,10 +15,8 @@ import type { AiLevel } from "./ai/levels";
 import {
   type Billing,
   DEFAULT_BILLING,
-  MONTHLY_FEE_USD,
   impactCost,
-  LIFETIME_FEE_USD,
-  oneTimeFee,
+  paymentFee,
   LIFETIME_MIN_DONATION_USD,
   type Recurring,
   recurringPrice,
@@ -367,11 +365,12 @@ export interface Cover {
 export function aheadFor(p: Product, amount: number | string, ctx: Context, showLifetimeAnyway = false): Ahead[] {
   if (!p.oneTime) return ["monthly"];
   // Every item can be paid monthly; one-time items can also be paid once for life, unless that's over the cap.
-  const life = p.cost(amount, "lifetime", ctx) + LIFETIME_FEE_USD;
+  const cost = p.cost(amount, "lifetime", ctx);
+  const life = cost + paymentFee(cost);
   return life > LIFETIME_MAX_USD && !showLifetimeAnyway ? ["monthly"] : ["monthly", "lifetime"];
 }
 
-/** Below this a month, an item leads with paying once for life: cents a month reads as trivial, but the $2 monthly fee isn't. */
+/** Below this a month, an item leads with paying once for life: cents a month reads as trivial, but each payment's 30¢ card fee isn't. */
 export const SMALL_MONTHLY_USD = 1;
 /** The featured AI item leads with lifetime only up to this; heavier users see monthly first (Ian, 2026-10-11). */
 export const AI_LIFETIME_FIRST_MAX_USD = 100;
@@ -434,15 +433,10 @@ export interface PlanTotals {
 
 /**
  * Adds up a plan: past use and lifetime items share one payment and minimum;
- * ongoing items share one flat monthly fee, billed yearly or monthly. The
- * one-time fee is waived alongside a monthly plan, or for a returning buyer.
+ * ongoing items share one payment each month or year. Each payment carries
+ * only its own card fee.
  */
-export function planTotals(
-  plan: PlanLine[],
-  ctx: Context,
-  billing: Billing = DEFAULT_BILLING,
-  opts: { returning?: boolean } = {},
-): PlanTotals {
+export function planTotals(plan: PlanLine[], ctx: Context, billing: Billing = DEFAULT_BILLING): PlanTotals {
   const lines = plan.flatMap((l) => {
     const product = productById(l.productId);
     if (!product) return [];
@@ -456,14 +450,13 @@ export function planTotals(
   const oneTime = hasOnce
     ? (() => {
         const donation = Math.max(LIFETIME_MIN_DONATION_USD, Math.ceil(onceSum));
-        const fee = oneTimeFee({ hasMonthly: ongoing.length > 0, returning: opts.returning });
-        return { donation, fee, total: donation + fee };
+        const fee = paymentFee(donation);
+        return { donation, fee, total: Math.round((donation + fee) * 100) / 100 };
       })()
     : null;
   const recurring = ongoing.length
     ? recurringPrice(
         ongoing.reduce((s, l) => s + l.aheadCost, 0),
-        MONTHLY_FEE_USD,
         billing,
       )
     : null;

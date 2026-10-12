@@ -24,9 +24,9 @@ import {
   DEFAULT_CARBON_MODE,
   type CarbonMode,
   BILLING,
+  CARD_RATE,
   type Billing,
   DEFAULT_BILLING,
-  ANNUAL_FEE_MONTHS,
   recurringPrice,
   DEFAULT_WATER_MODE,
   WATER_MODES,
@@ -35,7 +35,6 @@ import {
   LIFETIME_GROWTH_BUFFER,
   LIFETIME_YEARS,
   lifetimeCost,
-  MONTHLY_FEE_USD,
   monthlyCost,
   usd,
 } from "@/lib/pricing";
@@ -128,7 +127,7 @@ export function Results({
   const lifetime = lifetimeCost(cost);
   const rawDonation = cost.byImpact.carbon + cost.byImpact.air + cost.byImpact.water + cost.byImpact.land;
   const billing = billingPick ?? DEFAULT_BILLING;
-  const bill = recurringPrice(rawDonation, cost.fee, billing);
+  const bill = recurringPrice(rawDonation, billing);
   const allImpacts = IMPACT_KEYS.every((k) => impacts.includes(k));
   const everything = allImpacts && CATEGORY_KEYS.every((k) => covered.includes(k));
   const who = answers.scope === "household" ? "Your household's" : "Your";
@@ -375,8 +374,7 @@ export function Results({
                 </div>
                 <div className="flex justify-between gap-4">
                   <dt className="text-muted">
-                    Our fee ({usd(MONTHLY_FEE_USD)} a month
-                    {billing === "annual" && `, ${12 - ANNUAL_FEE_MONTHS} months free`})
+                    Card fee (30¢ + {Math.round(CARD_RATE * 1000) / 10}%, no profit to us)
                   </dt>
                   <dd>{usd(bill.fee)}</dd>
                 </div>

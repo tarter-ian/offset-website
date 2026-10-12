@@ -1,9 +1,8 @@
 import * as F from "./factors";
 import { aiCoolingWater, aiImpacts, coolingWater, dataCenterImpacts, electronicsMaking, gridImpacts, IMPACT_KEYS, MARGINS, type Impacts } from "./footprint";
 import {
-  MONTHLY_FEE_USD,
   impactCost,
-  LIFETIME_FEE_USD,
+  paymentFee,
   LIFETIME_GROWTH_BUFFER,
   LIFETIME_MIN_DONATION_USD,
   MIN_DONATION_USD,
@@ -190,12 +189,12 @@ export function lifetimeOffset(
   const chosen = ITEM_KEYS.filter((k) => items.includes(k));
   const impacts = chosen.reduce((sum, k) => add(sum, parts[k].impacts), zero);
   const raw = chosen.reduce((sum, k) => sum + parts[k].cost, 0);
-  // Monthly works like the monthly plan: a $1 minimum and the flat monthly fee.
+  // Monthly works like the monthly plan: a $1 minimum. Either way the fee is the payment's card cost.
   const donation =
     span === "monthly"
       ? Math.max(MIN_DONATION_USD, Math.ceil(raw * 100) / 100)
       : Math.max(LIFETIME_MIN_DONATION_USD, Math.ceil(raw));
-  const fee = span === "monthly" ? MONTHLY_FEE_USD : LIFETIME_FEE_USD;
+  const fee = paymentFee(donation);
   return {
     span,
     items: chosen,
@@ -206,6 +205,6 @@ export function lifetimeOffset(
     impacts,
     donation,
     fee,
-    total: donation + fee,
+    total: Math.round((donation + fee) * 100) / 100,
   };
 }
