@@ -18,7 +18,7 @@ const STEPS = [
 const RUNNING_COSTS = [
   { what: "Hosting the site (Cloudflare)", cost: "free up to 100,000 visits a day, then $5 a month" },
   { what: "The web address", cost: "about $15 a year" },
-  { what: "Database for saved plans and the waitlist (Turso)", cost: "free at our size for now" },
+  { what: "Database for saved plans and the waitlist (Cloudflare D1)", cost: "free at our size for now" },
   { what: "Listing the browser extension in the Chrome Web Store", cost: "$5, once" },
 ];
 

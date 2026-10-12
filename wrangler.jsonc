@@ -1,5 +1,5 @@
 // Cloudflare Workers settings for running the site with OpenNext.
-// Secrets (TURSO_DATABASE_URL, TURSO_AUTH_TOKEN) go in the Cloudflare dashboard, never here.
+// The waitlist lives in Cloudflare D1, bound as DB. Its ID isn't secret; any secrets go in the dashboard, never here.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "offset-website",
@@ -10,5 +10,8 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "offset", "database_id": "c8712e60-f24e-4e79-a964-7f20b189a18a" }
+  ],
   "observability": { "enabled": true }
 }
