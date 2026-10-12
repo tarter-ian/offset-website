@@ -108,6 +108,10 @@ export const CACHED_INPUT_SHARE = 0.1;
 export const PROMPTS_PER_CHAT = 3;
 export const CLAUDE_WEEKLY_HOURS = { pro: 40, max_5x: 140, max_20x: 240 } as const;
 export const WH_PER_CLAUDE_CODE_HOUR = 120;
+// ChatGPT's agent and Codex tools report tokens, not hours. We price them at
+// the per-token rate behind the Claude Code figure above (mostly cached input,
+// about 53 Wh a million tokens). A stand-in: OpenAI publishes no rate.
+export const WH_PER_MILLION_AGENT_TOKENS = 53;
 // Share of machine learning energy spent training models rather than answering
 // prompts (Patterson et al. 2022, Google: about 2/5 training, 3/5 inference).
 // Each prompt carries its share of training.

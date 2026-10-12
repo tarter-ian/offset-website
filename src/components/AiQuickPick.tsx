@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AI_LEVELS, type AiLevel } from "@/lib/ai/levels";
+import * as F from "@/lib/factors";
 import { claudeLimitWhPerDay, signInUsage, summaryFromSignIn, type SignInUsage } from "@/lib/ai/signin";
 import { CLAUDE_PLANS, usageFromQuickCount, type ClaudePlan, type QuickService } from "@/lib/ai/quickCount";
 import { combineSummaries, type UsageSummary } from "@/lib/ai/exportParser";
@@ -493,9 +494,14 @@ function resultText(u: SignInUsage): string {
     `${u.prompts.toLocaleString("en-US")} prompts${u.images ? ` and ${u.images} images` : ""} in the last ${u.days} days.` +
     (claudeLimitWhPerDay(u) > 0
       ? ` You've also used ${Math.round(u.weeklyLimitUsedPercent!)}% of your plan's weekly limit, which counts Claude Code, so we estimate from that: about ${(claudeLimitWhPerDay(u) / 1000).toFixed(1)} kWh a day.`
+      : "") +
+    (u.agentTokens
+      ? ` ChatGPT's agent and Codex tools used ${millions(u.agentTokens.window)} tokens in that time and ${millions(u.agentTokens.lifetime)} ever, estimated from that token total at about ${F.WH_PER_MILLION_AGENT_TOKENS} Wh a million, a rate from Claude Code studies, since OpenAI publishes none.`
       : "")
   );
 }
+
+const millions = (n: number) => (n >= 1e6 ? `${(n / 1e6).toLocaleString("en-US", { maximumFractionDigits: 1 })} million` : n.toLocaleString("en-US"));
 
 function ExtensionOffer({ name, service }: { name: string; service: QuickService }) {
   return (

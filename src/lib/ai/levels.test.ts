@@ -76,3 +76,22 @@ describe("chat history", async () => {
     expect(all.totalWh).toBeGreaterThan(withHistory.totalWh!);
   });
 });
+
+describe("ChatGPT agent tokens", async () => {
+  const { signInUsage, summaryFromSignIn } = await import("./signin");
+  const F = await import("../factors");
+  it("adds agent and Codex tokens to the daily and lifetime energy", () => {
+    const base = { prompts: 300, reasoningResponses: 0, images: 0, windowDays: 30 };
+    const plain = summaryFromSignIn("chatgpt", signInUsage(base)!);
+    const u = signInUsage({ ...base, agentic: { tokens: 30e6, lifetimeTokens: 429e6, daily: [] } })!;
+    expect(u.agentTokens).toEqual({ window: 30e6, lifetime: 429e6 });
+    const s = summaryFromSignIn("chatgpt", u);
+    expect(s.whPerDay - plain.whPerDay).toBeCloseTo(F.WH_PER_MILLION_AGENT_TOKENS, 6);
+    expect(s.agent?.lifetimeWh).toBeCloseTo(429 * F.WH_PER_MILLION_AGENT_TOKENS, 6);
+    expect(s.totalWh).toBeCloseTo(300 * F.WH_PER_AI_PROMPT + 429 * F.WH_PER_MILLION_AGENT_TOKENS, 6);
+  });
+  it("ignores a missing or empty profile", () => {
+    expect(signInUsage({ prompts: 1, agentic: null })!.agentTokens).toBeUndefined();
+    expect(signInUsage({ prompts: 1, agentic: { tokens: 0, lifetimeTokens: 0 } })!.agentTokens).toBeUndefined();
+  });
+});

@@ -282,6 +282,8 @@ export function Store() {
     if (entered[p.id]) return "you entered";
     if (p.id === "ai" && ctx.aiFromExport && ctx.aiCode)
       return `measured from your account, plus Claude Code, estimated from ${Math.round(ctx.aiCode.limitPercent)}% of your ${ctx.aiCode.plan} weekly limit`;
+    if (p.id === "ai" && ctx.aiFromExport && ctx.aiAgent)
+      return "measured from your account, plus ChatGPT's agent and Codex tools, estimated from your token total";
     if (p.section === "ai" && ctx.aiFromExport) return "measured from your account";
     if (p.id === "ai" && ctx.aiEstimate) return ctx.aiEstimate.from;
     if ((p.id === "ai-media" || p.id === "ai-video") && ctx.aiEstimate?.level) return ctx.aiEstimate.from;
@@ -656,7 +658,7 @@ export function Store() {
             <AiQuickPick
               level={ctx.aiFromExport || entered.ai ? null : (ctx.aiEstimate?.level ?? null)}
               onPick={(level, from) => {
-                setCtx((c) => ({ ...c, aiEstimate: { level, from }, aiFromExport: false, aiWhPerPrompt: undefined, aiPastWh: undefined, aiCode: undefined }));
+                setCtx((c) => ({ ...c, aiEstimate: { level, from }, aiFromExport: false, aiWhPerPrompt: undefined, aiPastWh: undefined, aiCode: undefined, aiAgent: undefined }));
                 // Images and video follow the pick too, unless the person typed their own.
                 setAmounts((a) => ({
                   ...a,
@@ -678,6 +680,7 @@ export function Store() {
                   ...c,
                   aiWhPerPrompt: d.aiWhPerPrompt,
                   aiCode: d.aiCode,
+                  aiAgent: d.aiAgent,
                   aiFromExport: !note,
                   aiPastWh: note ? undefined : d.aiPastWh,
                   aiEstimate: note ? { from: note } : undefined,
@@ -693,7 +696,7 @@ export function Store() {
               <AiExportUpload
                 onResult={(s) => {
                   const d = digitalFromExport(s);
-                  setCtx((c) => ({ ...c, aiWhPerPrompt: d.aiWhPerPrompt, aiCode: d.aiCode, aiFromExport: true, aiPastWh: d.aiPastWh, aiEstimate: undefined }));
+                  setCtx((c) => ({ ...c, aiWhPerPrompt: d.aiWhPerPrompt, aiCode: d.aiCode, aiAgent: d.aiAgent, aiFromExport: true, aiPastWh: d.aiPastWh, aiEstimate: undefined }));
                   setAmounts((a) => ({ ...a, ai: d.aiPromptsPerDay, "ai-media": d.aiMediaPerWeek }));
                   resetAiCover();
                   setEntered((e) => ({ ...e, ai: false, "ai-media": false }));
