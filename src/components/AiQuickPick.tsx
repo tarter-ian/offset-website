@@ -23,7 +23,7 @@ const ERRORS: Record<ExtensionError, (name: string) => string> = {
 };
 
 /** `raw` is exactly what the extension handed over, shown on request so people can check it holds only counts. */
-type Row = { state: "asking" | "counting" | "done" | "incomplete" | "error"; text?: string; error?: ExtensionError; raw?: unknown };
+type Row = { state: "asking" | "counting" | "done" | "incomplete" | "error" | "skipped"; text?: string; error?: ExtensionError; raw?: unknown };
 
 /**
  * Sizing AI use. One click: pick light, medium or heavy. Exact: the Offset
@@ -62,7 +62,8 @@ export function AiQuickPick({
     detectExtension().then(setExt);
   }, []);
 
-  function run(services: ExtensionService[], inFront = false) {
+
+  function run(services: ExtensionService[], inFront = false, then?: () => void) {
     setStatus({ kind: "idle" });
     setOpen(null);
     setRows((r) => ({ ...r, ...Object.fromEntries(services.map((x) => [x, { state: "counting" }])) }));
@@ -80,12 +81,7 @@ export function AiQuickPick({
               ...r,
               [service]: { state: "done", raw: usage, text: `${d.deliveries} deliveries and ${d.pickups} pickups in ${d.days} days` },
             }));
-            setFood((prev) => {
-              const next = { ...prev, [service]: (d.deliveries / d.days) * 7 };
-              const week = Object.values(next).reduce((s, n) => s + (n ?? 0), 0);
-              onDelivery?.(Math.round(week * 10) / 10);
-              return next;
-            });
+            reportFood(service, (d.deliveries / d.days) * 7);
             return;
           }
           if (service === "youtube") {
@@ -124,11 +120,31 @@ export function AiQuickPick({
         onError: (service, error) => setRows((r) => ({ ...r, [service]: { state: "error", error } })),
         onAsking: (asked) => setRows((r) => ({ ...r, ...Object.fromEntries(asked.map((x) => [x, { state: "asking" }])) })),
         onCounting: (allowed) => setRows((r) => ({ ...r, ...Object.fromEntries(allowed.map((x) => [x, { state: "counting" }])) })),
+        onDone: then,
       },
       inFront,
     );
   }
 
+  function reportFood(service: FoodService, perWeek: number) {
+    setFood((prev) => {
+      const next = { ...prev, [service]: perWeek };
+      const week = Object.values(next).reduce((s, n) => s + (n ?? 0), 0);
+      onDelivery?.(Math.round(week * 10) / 10);
+      return next;
+    });
+  }
+
+  /** The extension brings each service's tab to the front to log in, counts once you have, and comes back here. */
+  const logIn = ([first, ...rest]: ExtensionService[]) => first && run([first], true, rest.length ? () => logIn(rest) : undefined);
+
+  /** Someone who doesn't use a service: nothing to count, and for food delivery that's zero orders. */
+  function skip(x: ExtensionService) {
+    setRows((r) => ({ ...r, [x]: { state: "skipped" } }));
+    if (x === "doordash" || x === "ubereats") reportFood(x, 0);
+  }
+
+  const signedOut = EXTENSION_SERVICES.filter((x) => rows[x]?.state === "error" && rows[x]?.error === "signed-out");
   const busy = Object.values(rows).some((r) => r?.state === "counting" || r?.state === "asking");
 
   function connect(service: QuickService) {
@@ -191,6 +207,40 @@ export function AiQuickPick({
               How it works
             </a>
           </p>
+          {signedOut.length > 0 && !busy && (
+            <div className="mt-3 border-2 border-rule p-3 text-sm">
+              <p className="font-semibold">
+                {signedOut.length === 1
+                  ? `Log in to ${EXT_NAMES[signedOut[0]]} to count it`
+                  : `${signedOut.length} to log in to before we can count them`}
+              </p>
+              <p className="mt-1 text-muted">
+                The extension brings each one to the front. Log in there and it counts, then brings you back here. If you don&apos;t use
+                one, say so and we&apos;ll leave it out.
+              </p>
+              <ul className="mt-2 space-y-2">
+                {signedOut.map((x) => (
+                  <li key={x} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <button
+                      type="button"
+                      onClick={() => logIn([x])}
+                      className="min-h-10 rounded-md border-2 border-rule px-3 font-semibold hover:bg-foreground hover:text-background"
+                    >
+                      Log in to {EXT_NAMES[x]}
+                    </button>
+                    <button type="button" onClick={() => skip(x)} className="underline hover:text-muted">
+                      I don&apos;t use {EXT_NAMES[x]}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              {signedOut.length > 1 && (
+                <button type="button" onClick={() => logIn(signedOut)} className="mt-2 underline hover:text-muted">
+                  Log in to all {signedOut.length}, one after another
+                </button>
+              )}
+            </div>
+          )}
           {Object.keys(rows).length > 0 && (
             <dl className="mt-3 border-t-2 border-rule text-sm">
               {EXTENSION_SERVICES.filter((x) => rows[x]).map((x) => {
@@ -202,6 +252,7 @@ export function AiQuickPick({
                       {r.state === "counting" && <span className="text-muted">Counting…</span>}
                       {r.state === "asking" && <span className="text-muted">Waiting for you to allow it in the Offset window…</span>}
                       {r.state === "done" && r.text}
+                      {r.state === "skipped" && <span className="text-muted">Left out: you don&apos;t use it.</span>}
                       {r.state === "incomplete" && (
                         <span>
                           <span className="text-muted">{r.text}</span>{" "}
@@ -218,9 +269,11 @@ export function AiQuickPick({
                               Refresh page
                             </button>
                           ) : (
-                            <button type="button" onClick={() => run([x], r.error === "signed-out")} className="underline hover:text-muted">
-                              {r.error === "signed-out" ? `Log in to ${EXT_NAMES[x]}` : r.error === "denied" ? "Allow and count" : "Try again"}
-                            </button>
+                            r.error !== "signed-out" && (
+                              <button type="button" onClick={() => run([x])} className="underline hover:text-muted">
+                                {r.error === "denied" ? "Allow and count" : "Try again"}
+                              </button>
+                            )
                           )}
                         </span>
                       )}
