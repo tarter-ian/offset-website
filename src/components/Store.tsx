@@ -763,7 +763,7 @@ export function Store() {
         </p>
         {info === p.id && infoPanel(p)}
         {paid?.kind === "life" ? (
-          <p className="mt-auto pt-3 text-sm text-life-ink">Paid off. Nothing more to pay for this, ever.</p>
+          <p className="mt-auto pt-3 text-sm text-life-ink">All done. Nothing more to pay for this, ever.</p>
         ) : !nothing && (
         <div className="mt-auto flex items-center justify-between gap-3 pt-3">
           <span className="leading-tight">
@@ -929,12 +929,12 @@ export function Store() {
         <div>
           <h1 className="font-display text-4xl leading-[1.05] font-extrabold [font-stretch:85%] sm:text-6xl">
             {aiLeadsLifetime(aiAmount, ctx)
-              ? `Your AI habit, paid off for life: about ${once(coverPrice(ai, aiAmount, { past: true, ahead: "lifetime" }, ctx).once)}.`
-              : `Your AI habit, offset: about ${once(coverPrice(ai, aiAmount, { past: false, ahead: "monthly" }, ctx).monthly)} a month.`}
+              ? `Your AI use, covered for life: about ${once(coverPrice(ai, aiAmount, { past: true, ahead: "lifetime" }, ctx).once)}.`
+              : `Your AI use, covered: about ${once(coverPrice(ai, aiAmount, { past: false, ahead: "monthly" }, ctx).monthly)} a month.`}
           </h1>
           <p className="mt-6 max-w-xl text-lg">
-            Every prompt runs on data centers that burn power, pollute the air and use water, much of it in dry places.
-            Your money goes to charities that cut carbon, clean up air and save water.
+            Every prompt runs on data centers that use power and water, much of it in dry places, and add to air pollution.
+            A small gift to charities that cut carbon, clean the air and save water covers it.
           </p>
           <div className="mt-8 max-w-xl">
             <AiQuickPick
@@ -1011,7 +1011,10 @@ export function Store() {
           </dl>
           <p className="mt-1 text-xs text-muted">
             Includes a share of training the models and building the data centers. Future use counts {LIFETIME_GROWTH_BUFFER} times over in
-            case it grows, on a grid that gets cleaner each year.
+            case it grows, on a grid that gets cleaner each year.{" "}
+            <Link href="/method" className="cursor-pointer underline underline-offset-2 hover:text-foreground">
+              Every number&apos;s source
+            </Link>
           </p>
           <div className="mt-4">{coverControls(ai, true)}</div>
           <div className="mt-4 flex items-center justify-between gap-4 border-t-2 border-rule pt-3">
@@ -1380,7 +1383,7 @@ export function Store() {
                       Each charity is paid separately through Every.org, which charges card payments 2.2% + 30¢ and bank payments
                       nothing. Each gift includes its card fee so the whole donation arrives; pay by bank and the charity keeps the fee
                       too. Every.org may also ask for a tip for itself, which is optional. The smallest gift is {usd(MIN_DONATION_USD)}; a
-                      charity&apos;s share under that is rounded up, so each harm&apos;s money stays with its own charity. Every.org emails you a
+                      charity&apos;s share under that is rounded up, so each part&apos;s money stays with its own charity. Every.org emails you a
                       receipt for each gift.
                     </p>
                     {!paymentsOn() && (

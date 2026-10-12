@@ -10,7 +10,7 @@ const body = Public_Sans({ subsets: ["latin"], variable: "--font-body" });
 const figures = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-figures" });
 
 export const metadata: Metadata = {
-  title: "My Offset: pay for the harm your AI use does, and the rest of your life",
+  title: "My Offset: see what your AI use does, and cover it for life",
   description:
     "Link your ChatGPT, Claude or Gemini account, see the carbon, air pollution and water behind it, and fund charities that cancel it out. Then add anything else in your life.",
 };

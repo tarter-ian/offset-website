@@ -186,8 +186,8 @@ export function Results({
 
       <section>
         <h2 className="text-xl font-semibold">What to offset</h2>
-        <p className="mt-1 text-muted">Each kind of harm goes to a different type of charity. Cover any of them.</p>
-        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4" role="group" aria-label="Kinds of harm to offset">
+        <p className="mt-1 text-muted">Each kind of impact goes to a different type of charity. Cover any of them.</p>
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4" role="group" aria-label="Kinds of impact to cover">
           {IMPACT_KEYS.filter((k) => !single || totals[k] > 0).map((k) => {
             const on = impacts.includes(k);
             return (
@@ -373,7 +373,7 @@ export function Results({
         <div className="rounded-xl border border-border bg-card p-6">
           <h3 className="font-semibold">Your {BILLING[billing].label.toLowerCase()} offset</h3>
           {!active ? (
-            <p className="mt-4 text-muted">Pick at least one item and one kind of harm to cover.</p>
+            <p className="mt-4 text-muted">Pick at least one item and one kind of impact to cover.</p>
           ) : (
             <>
               <dl className="mt-4 space-y-2">
@@ -487,8 +487,8 @@ export function Results({
           <p className="mt-4 text-muted">
             You earn a badge for each item or whole area you cover.{" "}
             {everything
-              ? "Covering everything, for all five kinds of harm, earns the complete Fully Offset badge."
-              : "Cover everything for all five kinds of harm to earn the complete Fully Offset badge."}{" "}
+              ? "Covering everything, for all five kinds of impact, earns the complete Fully Offset badge."
+              : "Cover everything for all five kinds of impact to earn the complete Fully Offset badge."}{" "}
             Badges count approved months and build a streak you can share. Each links to{" "}
             <Link href="/method" className="text-accent hover:underline">
               how we calculate
