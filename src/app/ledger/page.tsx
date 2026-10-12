@@ -5,10 +5,15 @@ import { IMPACT_KEYS } from "@/lib/footprint";
 import { IMPACT_INFO } from "@/lib/impacts";
 import { LEDGER } from "@/lib/ledger";
 import { SPONSOR_FEE_LABEL, usd } from "@/lib/pricing";
+import { PAYMENT_MODE } from "@/lib/payments";
 
 export const metadata: Metadata = { title: "Where the money goes | My Offset" };
 
-const STEPS = [
+const STEPS = PAYMENT_MODE === "every" ? [
+  { title: "You give", body: "You give to each charity on your plan through Every.org, one gift per charity. Each gift shows its own card fee at checkout." },
+  { title: "Every.org", body: "Every.org, a nonprofit donation platform, takes the payment, sends you the tax receipt and passes the gift to the charity. We never hold the money ourselves." },
+  { title: "The charities", body: "Each charity gets your gift from Every.org. The card fee goes to the card processor. We keep nothing; tips are separate and pay for running the site." },
+] : [
   { title: "You pay", body: "Your donation, the card fee and the sponsor fee are listed separately at checkout." },
   { title: "Our charity sponsor", body: "A registered charity holds your donation and sends you the tax receipt. My Offset is one of its projects, so we never hold the money ourselves. It keeps the sponsor fee for that work." },
   { title: "The charities", body: "The sponsor pools small donations and pays each charity on your summary once a month. The card fee goes to the card processor. We keep only tips people choose to add, which pay for running the site." },
@@ -86,7 +91,7 @@ export default function LedgerPage() {
       {months.length === 0 ? (
         <p className="mt-4 text-muted">
           Nothing yet: donations open at launch, and the first month&apos;s receipts go up here the month after. The charities above are
-          examples while we choose our donation partner and finish vetting the list.
+          examples while we finish vetting the list.
         </p>
       ) : (
         <>
@@ -109,6 +114,19 @@ export default function LedgerPage() {
         </>
       )}
 
+      {PAYMENT_MODE === "every" ? (
+        <>
+          <h2 id="sponsor" className="mt-12 scroll-mt-6 text-xl font-semibold">How payments work</h2>
+          <p className="mt-2 text-muted">
+            My Offset isn&apos;t a charity of its own, so for now you give to each charity directly through Every.org, a free 501(c)(3)
+            donation platform. Each charity is paid separately through Every.org, which charges card payments 2.2% + 30¢ and bank
+            payments nothing. Every.org sends your tax receipt and pays the charity, and may ask for an optional tip for itself. Later
+            we may move to a fiscal sponsor, a registered charity that would hold donations and pay the charities each month. We&apos;ll
+            say so here before that changes.
+          </p>
+        </>
+      ) : (
+        <>
       <h2 id="sponsor" className="mt-12 scroll-mt-6 text-xl font-semibold">Our charity sponsor</h2>
       <p className="mt-2 text-muted">
         My Offset isn&apos;t a charity of its own, so a registered charity runs it as one of its projects. That&apos;s called fiscal
@@ -116,10 +134,14 @@ export default function LedgerPage() {
         For that it keeps {SPONSOR_FEE_LABEL} of each payment, shown as its own line at checkout. We&apos;ll name the sponsor here once
         the agreement is signed.
       </p>
+        </>
+      )}
 
       <h2 id="tips" className="mt-12 scroll-mt-6 text-xl font-semibold">What tips pay for</h2>
       <p className="mt-2 text-muted">
-        Tips are optional and separate from your donation. They pay only for keeping My Offset running, starting with covering the site&apos;s own footprint; nobody draws a salary from them.
+        Tips are optional and separate from your donation.{" "}
+        {PAYMENT_MODE === "every" && "Every.org only pays charities, so tips go through a page of their own, linked at checkout. "}
+        They pay only for keeping My Offset running, starting with covering the site&apos;s own footprint; nobody draws a salary from them.
       </p>
       <ul className="mt-3 border-t-2 border-rule">
         {RUNNING_COSTS.map((c) => (

@@ -62,17 +62,23 @@ export const EWASTE_USD_PER_KG = 1;
 const cents = (n: number) => Math.round(n * 100) / 100;
 
 /**
- * We make no profit on fees (Ian, 2026-10-12). Each payment carries two, both
- * passed on at cost: the card fee (Every.org's 30¢ + 2.2%) and our fiscal
- * sponsor's share, the charity that holds the money and pays the charities out.
- * Sponsors charge 6.5–8%; we show 8% until the agreement is signed. Both are
- * worked out on the whole payment, so the donation arrives in full.
+ * We make no profit on fees (Ian, 2026-10-12). Card payments go through
+ * Every.org at 30¢ + 2.2%. With a fiscal sponsor ("sponsor" mode), each payment
+ * also carries the sponsor's share, 6.5–8%; we show 8% until an agreement is
+ * signed. Paying through Every.org directly ("every" mode, for now) has no
+ * sponsor, so its rate is 0 and each charity is paid separately, with its own
+ * card fee. Fees are worked out on the whole payment, so the donation arrives in full.
  */
+export type PaymentMode = "every" | "sponsor";
 export const CARD_FIXED_USD = 0.3;
 export const CARD_RATE = 0.022;
 export const SPONSOR_RATE = 0.08;
-export const paymentFee = (donation: number) =>
-  donation > 0 ? Math.ceil(((CARD_FIXED_USD + (CARD_RATE + SPONSOR_RATE) * donation) / (1 - CARD_RATE - SPONSOR_RATE)) * 100) / 100 : 0;
+/** The sponsor's share in each payment mode: none when paying through Every.org directly. */
+export const sponsorRate = (mode: PaymentMode) => (mode === "every" ? 0 : SPONSOR_RATE);
+export const paymentFee = (donation: number, sponsor: number = SPONSOR_RATE) =>
+  donation > 0 ? Math.ceil(((CARD_FIXED_USD + (CARD_RATE + sponsor) * donation) / (1 - CARD_RATE - sponsor)) * 100) / 100 : 0;
+/** The card fee alone on one payment, as on each Every.org donation. */
+export const cardFee = (donation: number) => paymentFee(donation, 0);
 /** The fee split into what the card processor and the sponsor each take. */
 export function feeParts(donation: number): { card: number; sponsor: number } {
   const fee = paymentFee(donation);

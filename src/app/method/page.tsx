@@ -4,6 +4,7 @@ import { CONFIDENCE_LABELS, IMPACT_KEYS, MARGINS, type Confidence } from "@/lib/
 import { STATES } from "@/lib/data/states";
 import { IMPACT_INFO } from "@/lib/impacts";
 import { DEFAULT_CONTEXT, PRODUCTS } from "@/lib/store";
+import { PAYMENT_MODE } from "@/lib/payments";
 import {
   AIR_DAMAGE_SHARE,
   CARBON_MODES,
@@ -266,13 +267,23 @@ export default function MethodPage() {
       </ul>
 
       <h2 className="mt-10 text-xl font-semibold">Fees</h2>
-      <p className="mt-2 text-muted">
+      {PAYMENT_MODE === "every" ? (
+        <p className="mt-2 text-muted">
+          We make nothing on fees. Each charity is paid separately through Every.org, which charges card payments 2.2% + 30¢ and bank
+          payments nothing. The card fee is worked out on the whole gift and added on top, so the donation arrives in full, and checkout
+          shows it for each charity. Paying yearly means one 30¢ fee per charity a year instead of twelve. Gifts under{" "}
+          {usd(MIN_DONATION_USD)} are rounded up, and a charity&apos;s share under {usd(MIN_DONATION_USD)} is added to the largest gift
+          instead, so a 30¢ fee doesn&apos;t eat it.
+        </p>
+      ) : (
+        <p className="mt-2 text-muted">
         We make nothing on fees. Each payment carries two, passed on at cost and worked out on the whole payment so the
         donation arrives in full: the card fee, {CARD_FEE_LABEL}, and our charity sponsor&apos;s {SPONSOR_FEE_LABEL}. The sponsor is the
         registered charity that holds the money, sends tax receipts and pays the charities. Paying yearly means one 30¢ charge a year instead of twelve. Donations
         under {usd(MIN_DONATION_USD)} are rounded up. Small donations are pooled and each charity gets one payment a month, so card
         fees don&apos;t eat them, and all of it goes to the charities.
       </p>
+      )}
 
       <h2 className="mt-10 text-xl font-semibold">Lifetime internet, AI and devices</h2>
       <div className="mt-4" aria-hidden="true">

@@ -17,6 +17,7 @@ import {
   type ImpactKey,
 } from "@/lib/footprint";
 import { IMPACT_INFO } from "@/lib/impacts";
+import { PAYMENT_MODE, perCharityFees } from "@/lib/payments";
 import {
   CARBON_MODES,
   CARBON_POLICY_SHARE,
@@ -124,10 +125,18 @@ export function Results({
   const [billingPick, setBilling] = useState<Billing | null>(null);
   const rows = footprint.categories.filter((c) => show.includes(c.key));
   const cost = monthlyCost(footprint, covered, impacts, carbonMode, waterMode);
-  const lifetime = lifetimeCost(cost);
+  const lifetimeRaw = lifetimeCost(cost);
   const rawDonation = cost.byImpact.carbon + cost.byImpact.air + cost.byImpact.water + cost.byImpact.land + cost.byImpact.ewaste;
   const billing = billingPick ?? DEFAULT_BILLING;
-  const bill = recurringPrice(rawDonation, billing);
+  // Through Every.org each charity is its own payment, so the fee is one card fee per charity.
+  const every = PAYMENT_MODE === "every";
+  const withFees = <T extends { donation: number; fee: number; total: number }>(b: T): T => {
+    if (!every || !(rawDonation > 0)) return b;
+    const fee = perCharityFees(Object.fromEntries(IMPACT_KEYS.map((k) => [k, (cost.byImpact[k] / rawDonation) * b.donation])));
+    return { ...b, fee, total: Math.round((b.donation + fee) * 100) / 100 };
+  };
+  const bill = withFees(recurringPrice(rawDonation, billing));
+  const lifetime = lifetimeRaw && withFees(lifetimeRaw);
   const allImpacts = IMPACT_KEYS.every((k) => impacts.includes(k));
   const everything = allImpacts && CATEGORY_KEYS.every((k) => covered.includes(k));
   const who = answers.scope === "household" ? "Your household's" : "Your";
@@ -374,7 +383,9 @@ export function Results({
                 </div>
                 <div className="flex justify-between gap-4">
                   <dt className="text-muted">
-                    Fees (card {CARD_FEE_LABEL}, charity sponsor {SPONSOR_FEE_LABEL}, no profit to us)
+                    {every
+                      ? "Card fees, one per charity paid through Every.org (2.2% + 30¢ each, no profit to us)"
+                      : `Fees (card ${CARD_FEE_LABEL}, charity sponsor ${SPONSOR_FEE_LABEL}, no profit to us)`}
                   </dt>
                   <dd>{usd(bill.fee)}</dd>
                 </div>

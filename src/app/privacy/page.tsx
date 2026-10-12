@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ContactLink } from "@/components/ContactLink";
+import { PAYMENT_MODE } from "@/lib/payments";
 
 export const metadata: Metadata = { title: "Privacy policy | My Offset" };
 
@@ -51,11 +52,15 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
   },
   {
     title: "When you pay",
-    body: "Payments aren't switched on yet. When they are, a card processor will take your card details, and we will never see or store your card number. We will keep your email, what you gave and when, so we can send receipts and the heads-up before any autopay charge. Your donation goes through a donation partner, which keeps your name and email to issue the tax receipt under its own privacy policy. This section will name both companies before the first payment.",
+    body: PAYMENT_MODE === "every"
+      ? "You pay each charity on Every.org, a nonprofit donation platform, which takes your card or bank details under its own privacy policy; we never see them. For each gift made through our links, Every.org tells us the charity, the amount, how often it repeats, and your email if you share it. We keep that so we can show which gifts arrived. Every.org keeps your name and email to send the tax receipt."
+      : "Payments aren't switched on yet. When they are, a card processor will take your card details, and we will never see or store your card number. We will keep your email, what you gave and when, so we can send receipts and the heads-up before any autopay charge. Your donation goes through a donation partner, which keeps your name and email to issue the tax receipt under its own privacy policy. This section will name both companies before the first payment.",
   },
   {
     title: "Who we share it with",
-    body: "No one, except the companies that make the service run: our host now, and the card processor and donation partner once payments start, each only for its own job. We will never sell your data or share it for advertising.",
+    body: PAYMENT_MODE === "every"
+      ? "No one, except the companies that make the service run: our host, and Every.org for payments, each only for its own job. We will never sell your data or share it for advertising."
+      : "No one, except the companies that make the service run: our host now, and the card processor and donation partner once payments start, each only for its own job. We will never sell your data or share it for advertising.",
   },
   {
     title: "The public list",
@@ -69,8 +74,8 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
         <Link href="/data" className="text-accent hover:underline">
           Your data
         </Link>{" "}
-        has buttons that clear both. Once payments start, you can ask us to delete your payment records too, except what the law or the
-        donation partner requires us to keep for tax receipts.
+        has buttons that clear both. Once payments start, you can ask us to delete your payment records too, except what the law or{" "}
+        {PAYMENT_MODE === "every" ? "Every.org requires" : "the donation partner requires us to keep"} for tax receipts.
       </>
     ),
   },

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { forgetExtensionData } from "@/lib/extension";
 
 // Everything the site keeps in this browser. Add new keys here when the site starts saving more.
-const BROWSER_KEYS = ["offset:plan:v2", "offset:answers"];
+const BROWSER_KEYS = ["offset:plan:v2", "offset:answers", "offset:checkout:v1"];
 
 /** A button to clear what this browser saved. */
 export function DataControls() {
