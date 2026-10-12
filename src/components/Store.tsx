@@ -318,6 +318,24 @@ export function Store() {
   }, [plan.length]);
 
   const toggle = (id: string) => setPlan((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
+  /** Items worth adding in a group: everything with something to cover at its current amount. */
+  const addable = (ps: Product[]) => ps.filter((p) => { const c = coverPrice(p, amountOf(p), coverOf(p), ctx); return c.once + c.monthly > 0; });
+  const addAll = (ps: Product[]) => setPlan((cur) => [...cur, ...addable(ps).map((p) => p.id).filter((id) => !cur.includes(id))]);
+  /** What a group of items costs as they're set: each month, once for life, and once for past use. */
+  const groupParts = (ps: Product[]) =>
+    addable(ps).reduce(
+      (t, p) => {
+        const c = coverPrice(p, amountOf(p), coverOf(p), ctx);
+        const past = coverOf(p).past ? p.cost(amountOf(p), "past", ctx) : 0;
+        return { monthly: t.monthly + c.monthly, life: t.life + c.once - past, past: t.past + past };
+      },
+      { monthly: 0, life: 0, past: 0 },
+    );
+  /** e.g. "$9 a month + $40 once". */
+  const groupPrice = (ps: Product[]) => {
+    const g = groupParts(ps);
+    return [g.monthly > 0 && per(g.monthly, billing), g.life + g.past > 0 && `${once(g.life + g.past)} once`].filter(Boolean).join(" + ");
+  };
   // Meat, dairy and plant foods are three parts of one diet, so they share one answer.
   const FOOD_IDS = PRODUCTS.filter((x) => x.section === "food").map((x) => x.id);
   // A new AI amount goes back to AI's default cover: lifetime up to $100, monthly above (Ian, 2026-10-11).
@@ -930,15 +948,29 @@ export function Store() {
                 </h2>
                 <p className="text-sm text-muted">{s.blurb}</p>
               </div>
-              {items.length > SHELF_SIZE && (
-                <button
-                  type="button"
-                  onClick={() => setExpanded((x) => ({ ...x, [s.key]: !x[s.key] }))}
-                  className="hidden min-h-10 shrink-0 items-center text-sm font-semibold underline underline-offset-4 md:inline-flex"
-                >
-                  {collapsed ? `See all ${items.length}` : "See fewer"}
-                </button>
-              )}
+              <div className="flex shrink-0 items-baseline gap-4">
+                {addable(items).length > 1 &&
+                  (addable(items).every((p) => plan.includes(p.id)) ? (
+                    <span className="text-sm text-muted">All in your plan</span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => addAll(items)}
+                      className="min-h-10 cursor-pointer text-sm font-semibold underline underline-offset-4"
+                    >
+                      Add all {addable(items).length} <span className="figures font-normal text-muted">· {groupPrice(items)}</span>
+                    </button>
+                  ))}
+                {items.length > SHELF_SIZE && (
+                  <button
+                    type="button"
+                    onClick={() => setExpanded((x) => ({ ...x, [s.key]: !x[s.key] }))}
+                    className="hidden min-h-10 items-center text-sm font-semibold underline underline-offset-4 md:inline-flex"
+                  >
+                    {collapsed ? `See all ${items.length}` : "See fewer"}
+                  </button>
+                )}
+              </div>
             </div>
             <ul className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:grid-cols-3 md:overflow-visible md:px-0 md:pb-0">
               {items.map((p, i) => tile(p, i, collapsed))}
@@ -956,6 +988,43 @@ export function Store() {
         );
       })}
       </div>
+
+      {addable(PRODUCTS).length > 0 && (
+        <section aria-labelledby="everything-heading" className="mb-10 border-t-2 border-rule pt-4">
+          <h2 id="everything-heading" className="text-xl font-bold">
+            Cover everything
+          </h2>
+          <p className="mt-1 text-sm text-muted">
+            Every item above at the amounts shown:{" "}
+            <span className="figures text-foreground">
+              {[
+                groupParts(PRODUCTS).monthly > 0 && per(groupParts(PRODUCTS).monthly, billing),
+                groupParts(PRODUCTS).life > 0 && `${once(groupParts(PRODUCTS).life)} once for life`,
+              ]
+                .filter(Boolean)
+                .join(" + ")}
+            </span>
+            {groupParts(PRODUCTS).past > 0 && (
+              <>
+                , plus <span className="figures text-foreground">{once(groupParts(PRODUCTS).past)}</span> for past use, which you can pay
+                all at once or over up to {PAST_YEARS.at(-1)} years
+              </>
+            )}
+            . Covering it all earns the Fully Offset badge.
+          </p>
+          {addable(PRODUCTS).every((p) => plan.includes(p.id)) ? (
+            <p className="mt-3 text-sm font-semibold">Everything is in your plan.</p>
+          ) : (
+            <button
+              type="button"
+              onClick={() => addAll(PRODUCTS)}
+              className="mt-3 min-h-11 cursor-pointer rounded-md bg-foreground px-4 font-semibold text-background hover:opacity-85"
+            >
+              Add everything
+            </button>
+          )}
+        </section>
+      )}
 
       {plan.length > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-30 border-t-2 border-rule bg-background">
