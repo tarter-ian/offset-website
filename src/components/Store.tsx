@@ -175,8 +175,11 @@ export function Store() {
   const toggle = (id: string) => setPlan((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
   // Meat, dairy and plant foods are three parts of one diet, so they share one answer.
   const FOOD_IDS = PRODUCTS.filter((x) => x.section === "food").map((x) => x.id);
+  // A new AI amount goes back to AI's default cover: lifetime up to $100, monthly above (Ian, 2026-10-11).
+  const resetAiCover = () => setPicked((x) => (x.ai?.ahead ? { ...x, ai: { ...x.ai, ahead: undefined } } : x));
   const setAmount = (p: Product, v: number | string) => {
     const ids = p.section === "food" ? FOOD_IDS : [p.id];
+    if (p.id === "ai") resetAiCover();
     setAmounts((a) => ({ ...a, ...Object.fromEntries(ids.map((id) => [id, v])) }));
     setEntered((e) => ({ ...e, ...Object.fromEntries(ids.map((id) => [id, true])) }));
   };
@@ -565,6 +568,7 @@ export function Store() {
               onPick={(level, from) => {
                 setCtx((c) => ({ ...c, aiEstimate: { level, from }, aiFromExport: false, aiWhPerPrompt: undefined, aiPastWh: undefined }));
                 setAmounts((a) => ({ ...a, ai: AI_LEVELS[level].promptsPerDay }));
+                resetAiCover();
                 setEntered((e) => ({ ...e, ai: false }));
               }}
               onExact={() => setMeasuring(true)}
@@ -578,6 +582,7 @@ export function Store() {
                   aiEstimate: note ? { from: note } : undefined,
                 }));
                 setAmounts((a) => ({ ...a, ai: d.aiPromptsPerDay, "ai-media": d.aiMediaPerWeek }));
+                resetAiCover();
                 setEntered((e) => ({ ...e, ai: false, "ai-media": false }));
               }}
             />
@@ -589,6 +594,7 @@ export function Store() {
                   const d = digitalFromExport(s);
                   setCtx((c) => ({ ...c, aiWhPerPrompt: d.aiWhPerPrompt, aiFromExport: true, aiPastWh: d.aiPastWh, aiEstimate: undefined }));
                   setAmounts((a) => ({ ...a, ai: d.aiPromptsPerDay, "ai-media": d.aiMediaPerWeek }));
+                  resetAiCover();
                   setEntered((e) => ({ ...e, ai: false, "ai-media": false }));
                 }}
               />
@@ -647,6 +653,7 @@ export function Store() {
             <ActivityUpload
               onResult={(found, from) => {
                 setAmounts((a) => ({ ...a, ...found }));
+                if ("ai" in found) resetAiCover();
                 setEntered((e) => ({ ...e, ...Object.fromEntries(Object.keys(found).map((k) => [k, false])) }));
                 setLinkedFrom((l) => ({ ...l, ...from }));
               }}
