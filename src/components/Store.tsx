@@ -226,6 +226,7 @@ export function Store() {
     if (src !== "activity") return `Link your ${providerName(src).toLowerCase()}`;
     if (p.id === "music") return "Add your Spotify or YouTube history";
     if (p.id === "video") return "Add your YouTube or Netflix history";
+    if (p.section === "home") return "Add your utility's Green Button download";
     return "Add your Google Maps Timeline";
   };
 

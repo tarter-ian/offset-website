@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { activityAmounts, parseActivityJson, parseNetflix, YOUTUBE_MIN_PER_SHORT, YOUTUBE_MIN_PER_VIDEO, youtubeDays } from "./activity";
+import { GAS_PRICE_PER_THERM } from "./factors";
+import { activityAmounts, parseActivityJson, parseGreenButtonCsv, parseGreenButtonXml, parseNetflix, YOUTUBE_MIN_PER_SHORT, YOUTUBE_MIN_PER_VIDEO, youtubeDays } from "./activity";
 
 const DAY = 86_400_000;
 const END = Date.UTC(2026, 9, 1);
@@ -93,5 +94,44 @@ describe("activity exports", () => {
     expect(old).toEqual([{ target: "video", time: Date.parse("2026-10-01"), amount: (10 * YOUTUBE_MIN_PER_VIDEO + 120 * YOUTUBE_MIN_PER_SHORT) / 60 }]);
     const now = youtubeDays({ watchedHours: 2.5, daily: [{ date: "2026-10-01", videos: 10, shorts: 120, hours: 2.5 }] });
     expect(now).toEqual([{ target: "video", time: Date.parse("2026-10-01"), amount: 2.5 }]);
+  });
+});
+
+describe("Green Button", () => {
+  const T0 = Date.UTC(2026, 0, 1) / 1000;
+  it("reads ESPI XML, matching each block to its reading type", () => {
+    const reading = (i: number, v: number) =>
+      `<espi:IntervalReading><espi:timePeriod><espi:duration>86400</espi:duration><espi:start>${T0 + i * 86400}</espi:start></espi:timePeriod><espi:value>${v}</espi:value></espi:IntervalReading>`;
+    const xml = `<feed xmlns="http://www.w3.org/2005/Atom" xmlns:espi="http://naesb.org/espi">
+<entry><link rel="self" href="/RetailCustomer/1/UsagePoint/1/MeterReading/1"/><link rel="related" href="/ReadingType/1"/><content><espi:MeterReading/></content></entry>
+<entry><link rel="self" href="/ReadingType/1"/><content><espi:ReadingType><espi:powerOfTenMultiplier>0</espi:powerOfTenMultiplier><espi:uom>72</espi:uom></espi:ReadingType></content></entry>
+<entry><link rel="self" href="/RetailCustomer/1/UsagePoint/2/MeterReading/1"/><link rel="related" href="/ReadingType/2"/><content><espi:MeterReading/></content></entry>
+<entry><link rel="self" href="/ReadingType/2"/><content><espi:ReadingType><espi:powerOfTenMultiplier>-3</espi:powerOfTenMultiplier><espi:uom>169</espi:uom></espi:ReadingType></content></entry>
+<entry><link rel="up" href="/RetailCustomer/1/UsagePoint/1/MeterReading/1/IntervalBlock"/><content><espi:IntervalBlock>${Array.from({ length: 60 }, (_, i) => reading(i, 10_000)).join("")}</espi:IntervalBlock></content></entry>
+<entry><link rel="up" href="/RetailCustomer/1/UsagePoint/2/MeterReading/1/IntervalBlock"/><content><espi:IntervalBlock>${Array.from({ length: 60 }, (_, i) => reading(i, 2_000)).join("")}</espi:IntervalBlock></content></entry>
+</feed>`;
+    const events = parseGreenButtonXml(xml)!;
+    expect(events.filter((e) => e.target === "electricity")).toHaveLength(60);
+    expect(events.find((e) => e.target === "electricity")!.amount).toBe(10);
+    expect(events.find((e) => e.target === "heating")!.amount).toBe(2);
+    const a = activityAmounts(events, Date.UTC(2026, 6, 1))!.amounts;
+    // 10 kWh a day; the span runs from the first reading's start to the last one's, a day short of 60.
+    expect(a.electricity).toBeCloseTo(10 * (365.25 / 12) * (60 / 59), -1);
+    expect(a.heating).toBeCloseTo(2 * (365.25 / 12) * (60 / 59) * GAS_PRICE_PER_THERM, -1);
+  });
+
+  it("reads utility CSVs with a units column or the unit in the header", () => {
+    const pge = [
+      "Name,Ian",
+      "Address,1 Main St",
+      "",
+      "TYPE,DATE,START TIME,END TIME,USAGE,UNITS,COST,NOTES",
+      "Electric usage,2026-01-01,00:00,23:59,12.5,kWh,$3.00,",
+      "Electric usage,2026-01-02,00:00,23:59,11.5,kWh,$3.00,",
+    ].join("\n");
+    expect(parseGreenButtonCsv(pge)!.map((e) => e.amount)).toEqual([12.5, 11.5]);
+    const gas = "Date,Usage (therms)\n01/01/2026,2\n01/02/2026,3\n";
+    expect(parseGreenButtonCsv(gas)!.every((e) => e.target === "heating")).toBe(true);
+    expect(parseGreenButtonCsv("Title,Date\nx,1/1/26")).toBeNull();
   });
 });
