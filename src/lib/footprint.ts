@@ -20,24 +20,32 @@ export const CONFIDENCE_LABELS: Record<Confidence, string> = {
 };
 
 /**
- * The four kinds of harm we track.
+ * The five kinds of harm we track.
  * carbon: kg CO2e. air: dollars of health damage from air pollution.
  * water: liters of fresh water consumed, weighted by how scarce water is where it's used. land: square meters occupied for a year.
+ * ewaste: kg of electronics thrown away.
  */
-export type ImpactKey = "carbon" | "air" | "water" | "land";
+export type ImpactKey = "carbon" | "air" | "water" | "land" | "ewaste";
 export type Impacts = Record<ImpactKey, number>;
-export const IMPACT_KEYS: ImpactKey[] = ["carbon", "air", "water", "land"];
+export const IMPACT_KEYS: ImpactKey[] = ["carbon", "air", "water", "land", "ewaste"];
 
-const zero = (): Impacts => ({ carbon: 0, air: 0, water: 0, land: 0 });
+const zero = (): Impacts => ({ carbon: 0, air: 0, water: 0, land: 0, ewaste: 0 });
 const scale = (i: Impacts, k: number): Impacts => ({
   carbon: i.carbon * k,
   air: i.air * k,
   water: i.water * k,
   land: i.land * k,
+  ewaste: i.ewaste * k,
 });
 export const sumImpacts = (list: Impacts[]): Impacts =>
   list.reduce(
-    (s, i) => ({ carbon: s.carbon + i.carbon, air: s.air + i.air, water: s.water + i.water, land: s.land + i.land }),
+    (s, i) => ({
+      carbon: s.carbon + i.carbon,
+      air: s.air + i.air,
+      water: s.water + i.water,
+      land: s.land + i.land,
+      ewaste: s.ewaste + i.ewaste,
+    }),
     zero(),
   );
 
@@ -218,6 +226,7 @@ export function aiImpacts(answerKwh: number): Impacts {
     air: g.air * F.AI_LOCAL_AIR_WEIGHT,
     water: g.water + coolingWater(kwh),
     land: g.land + kwh * F.DATACENTER_M2_YEARS_PER_KWH,
+    ewaste: 0,
   };
 }
 
@@ -238,6 +247,7 @@ export function gridImpacts(kwh: number, state?: StateCode): Impacts {
     air: kwh * gridAirUsdPerKwh(s?.noxLbPerMwh ?? US_NOX_LB_PER_MWH, s?.so2LbPerMwh ?? US_SO2_LB_PER_MWH),
     water: kwh * F.GRID_L_PER_KWH * F.scarcityWeight("grid"),
     land: kwh * F.GRID_M2_YEARS_PER_KWH,
+    ewaste: 0,
   };
 }
 
@@ -249,7 +259,10 @@ const fuelWater = (kgCo2: number) => kgCo2 * F.FUEL_WATER_L_PER_KG_CO2 * F.scarc
 export const FLIGHT_AIR_USD_PER_KG_CO2 =
   (F.FLIGHT_AIR_DEATHS_PER_YEAR * F.VSL_USD) / (F.JET_FUEL_TONNES_PER_YEAR * 1000 * F.KG_CO2_PER_KG_JET_FUEL);
 
-/** Water, land and air pollution of making electronics with this much manufacturing CO2e. */
+/**
+ * Water, land and air pollution of making electronics with this much manufacturing CO2e.
+ * E-waste (kg) is left to the caller, which knows what the devices weigh.
+ */
 export const electronicsMaking = (kgCo2: number) => ({
   air: (kgCo2 * F.ELECTRONICS_PM25_PER_KG_CO2 * 1000 * F.GOODS_USD_PER_TON_PM25) / F.G_PER_SHORT_TON,
   water: kgCo2 * F.ELECTRONICS_L_PER_KG_CO2 * F.scarcityWeight("grid"),
@@ -392,6 +405,7 @@ export function computeFootprint(a: Answers): Footprint {
     air: 0,
     water: F.DIET_L_PER_DAY[a.diet] * F.DAYS_PER_MONTH * F.scarcityWeight("food") * personCount,
     land: (F.DIET_M2_PER_YEAR[a.diet] / 12) * personCount,
+    ewaste: 0,
   };
   const shares = F.FOOD_SHARES[a.diet];
   const food = (["meat", "dairy", "plants"] as const).map((k) =>
@@ -403,7 +417,8 @@ export function computeFootprint(a: Answers): Footprint {
   const shopping = (["clothing", "electronics", "household", "services"] as const).map((k) => {
     const carbon = shopTotal * F.SHOPPING_SHARES[k];
     // Electronics get the water and land of making them; the rest use EPA's supply-chain ratios.
-    if (k === "electronics") return category(k, { carbon, ...electronicsMaking(carbon) }, "estimated", undefined);
+    if (k === "electronics")
+      return category(k, { carbon, ...electronicsMaking(carbon), ewaste: carbon * F.EWASTE_KG_PER_KG_CO2 }, "estimated", undefined);
     const g = F.GOODS_PER_KG_CO2[k];
     return category(
       k,

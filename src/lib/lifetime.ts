@@ -95,11 +95,11 @@ export interface LifetimeOffset {
 
 const add = (a: Impacts, b: Impacts, k = 1): Impacts =>
   Object.fromEntries(IMPACT_KEYS.map((x) => [x, a[x] + b[x] * k])) as Impacts;
-const zero: Impacts = { carbon: 0, air: 0, water: 0, land: 0 };
+const zero: Impacts = { carbon: 0, air: 0, water: 0, land: 0, ewaste: 0 };
 const nonNeg = (n: number) => (Number.isFinite(n) && n > 0 ? n : 0);
 const part = (impacts: Impacts): LifetimePart => {
   const c = impactCost(impacts, "expected");
-  return { impacts, cost: c.carbon + c.air + c.water + c.land };
+  return { impacts, cost: c.carbon + c.air + c.water + c.land + c.ewaste };
 };
 
 /** Parses a `cover` value such as "ai" or "internet,devices"; anything else means all items. */
@@ -146,6 +146,7 @@ export function lifetimeOffset(
     air: perYear.air * air,
     water: (perYear.water - cooling) * power + cooling * ahead,
     land: perYear.land * ahead,
+    ewaste: perYear.ewaste * ahead,
   });
 
   // Internet: hours a day for each activity, with a wider margin on the rough ones.
@@ -190,7 +191,8 @@ export function lifetimeOffset(
     const d = F.DEVICES[k];
     const count = nonNeg(input.devices[k]);
     const madeKg = (count * d.kgToMake * (plain(pastInternet) + ahead)) / d.yearsKept;
-    const made = { ...zero, carbon: madeKg, ...electronicsMaking(madeKg) };
+    const thrownKg = (count * d.kgWeight * (plain(pastInternet) + ahead)) / d.yearsKept;
+    const made = { ...zero, carbon: madeKg, ...electronicsMaking(madeKg), ewaste: thrownKg };
     const running = gridImpacts(count * d.kwhPerYear);
     const used = add(add(made, running, plain(pastInternet)), future(running));
     devices = add(devices, used, 1 + MARGINS.estimated);

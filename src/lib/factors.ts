@@ -59,10 +59,13 @@ export const WH_PER_AI_MEDIA = 10;
 // models aren't published; this is the only measured figure.
 export const WH_PER_AI_VIDEO = 944;
 // AI built into other products: search answers (Google's AI Overviews), email and
-// document summaries, assistants in apps. Americans run about 3 to 4 searches a
-// day and many now carry an AI answer, so we count it as 2 typical prompts a day
-// for everyone, from mid-2024 when AI search answers rolled out. Rough.
-export const AI_BUILT_IN_PROMPTS_PER_DAY = 2;
+// document summaries, assistants in apps. A US Google user averages 4.2 searches
+// a day (median 1.8; SparkToro via Exploding Topics, 2026) and 43% of US searches
+// showed an AI Overview in May 2026 (Similarweb), about 1.8 AI answers a day.
+// With email and document summaries and assistants in other apps on top, we
+// count 4 typical prompts a day for everyone (Ian, 2026-10-12, matching the US
+// search average), from mid-2024 when AI search answers rolled out. Rough.
+export const AI_BUILT_IN_PROMPTS_PER_DAY = 4;
 export const AI_BUILT_IN_START_YEAR = 2024.4;
 export const AI_VIDEO_START_YEAR = 2024.9;
 // Measuring a data export: energy scales with tokens. Epoch AI puts a short
@@ -277,6 +280,9 @@ export const ELECTRONICS_M2_PER_KG_CO2 = 18 / 70;
 // screen factories run largely on coal power in East Asia, so this likely
 // understates it. Approximate.
 export const ELECTRONICS_PM25_PER_KG_CO2 = 3.8e-4;
+// E-waste from the electronics you buy, per kg of making CO2e: from about 0.003
+// (a phone) to 0.04 (a TV) in the device table below; we take 0.01 for a mix.
+export const EWASTE_KG_PER_KG_CO2 = 0.01;
 
 // Clothing, home goods and services, per kg CO2e, from EPA USEEIO v2.0.1
 // supply-chain intensities, weighted by US household spending (2012). Land is
@@ -326,13 +332,14 @@ export const ONLINE_FROM_AGE = 12;
 export const LIFETIME_TO_AGE = 85;
 
 // Devices: carbon to make one (manufacturer life-cycle reports, rounded and
-// rough), typical years before it's replaced, and the electricity it uses a
-// year. Making devices is often the largest part of a digital footprint.
+// rough), typical years before it's replaced, the electricity it uses a year,
+// and what it weighs when thrown away (typical models; a desktop includes its
+// monitor). Making devices is often the largest part of a digital footprint.
 export const DEVICES = {
-  phone: { kgToMake: 70, yearsKept: 3, kwhPerYear: 5 },
-  laptop: { kgToMake: 250, yearsKept: 5, kwhPerYear: 50 },
-  tablet: { kgToMake: 100, yearsKept: 4, kwhPerYear: 15 },
-  desktop: { kgToMake: 500, yearsKept: 6, kwhPerYear: 200 },
-  tv: { kgToMake: 400, yearsKept: 8, kwhPerYear: 100 },
-  console: { kgToMake: 150, yearsKept: 7, kwhPerYear: 100 },
+  phone: { kgToMake: 70, yearsKept: 3, kwhPerYear: 5, kgWeight: 0.2 },
+  laptop: { kgToMake: 250, yearsKept: 5, kwhPerYear: 50, kgWeight: 2 },
+  tablet: { kgToMake: 100, yearsKept: 4, kwhPerYear: 15, kgWeight: 0.5 },
+  desktop: { kgToMake: 500, yearsKept: 6, kwhPerYear: 200, kgWeight: 12 },
+  tv: { kgToMake: 400, yearsKept: 8, kwhPerYear: 100, kgWeight: 15 },
+  console: { kgToMake: 150, yearsKept: 7, kwhPerYear: 100, kgWeight: 4 },
 } as const;

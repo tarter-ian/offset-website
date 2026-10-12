@@ -135,3 +135,13 @@ describe("AI video and built-in AI", () => {
     expect(ai({})).toBe(0);
   });
 });
+
+describe("e-waste", () => {
+  it("counts the weight of every device you'll throw away and prices it", () => {
+    const now = new Date(2026, 9, 12);
+    const tv = lifetimeOffset({ ...DEFAULT_LIFETIME_INPUT, devices: { phone: 0, laptop: 0, tablet: 0, desktop: 0, tv: 1, console: 0 } }, ["devices"], now);
+    const phone = lifetimeOffset({ ...DEFAULT_LIFETIME_INPUT, devices: { phone: 1, laptop: 0, tablet: 0, desktop: 0, tv: 0, console: 0 } }, ["devices"], now);
+    expect(tv.parts.devices.impacts.ewaste).toBeGreaterThan(phone.parts.devices.impacts.ewaste);
+    expect(phone.parts.devices.impacts.ewaste).toBeGreaterThan(0);
+  });
+});

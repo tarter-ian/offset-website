@@ -50,6 +50,15 @@ const LITERS_PER_1000_GAL = 3785.41;
  * says protecting an acre of rainforest costs about $10. */
 export const LAND_USD_PER_M2 = 10 / M2_PER_ACRE;
 
+/**
+ * E-waste: pay for every kilogram of the electronics you'll throw away to be
+ * reused or recycled properly. US recyclers charge roughly $0.25 to $0.50 a pound
+ * for screens and take much else free, so $1 a kg covers collection and the
+ * hard items. Only about a fifth of the world's e-waste is recycled properly
+ * (Global E-waste Monitor 2024). Approximate.
+ */
+export const EWASTE_USD_PER_KG = 1;
+
 const cents = (n: number) => Math.round(n * 100) / 100;
 
 /**
@@ -116,6 +125,7 @@ export function impactCost(
     air: i.air * AIR_DAMAGE_SHARE,
     water: (i.water / LITERS_PER_1000_GAL) * WATER_MODES[waterMode].per1000Gal,
     land: i.land * LAND_USD_PER_M2,
+    ewaste: i.ewaste * EWASTE_USD_PER_KG,
   };
 }
 
@@ -128,9 +138,9 @@ export function monthlyCost(
 ): MonthlyCost {
   const chosen = footprint.categories.filter((c) => covered.includes(c.key));
   const all = impactCost(sumImpacts(chosen.map((c) => c.offset)), carbonMode, waterMode);
-  const byImpact: Impacts = { carbon: 0, air: 0, water: 0, land: 0 };
+  const byImpact: Impacts = { carbon: 0, air: 0, water: 0, land: 0, ewaste: 0 };
   for (const k of impacts) byImpact[k] = all[k];
-  const raw = byImpact.carbon + byImpact.air + byImpact.water + byImpact.land;
+  const raw = byImpact.carbon + byImpact.air + byImpact.water + byImpact.land + byImpact.ewaste;
   const active = chosen.length > 0 && impacts.length > 0;
   const minimumApplied = active && raw < MIN_DONATION_USD;
   const donation = active ? cents(Math.max(raw, MIN_DONATION_USD)) : 0;
@@ -161,7 +171,7 @@ export interface LifetimeCost {
 /** Offered only when the monthly donation would be raised to the minimum. */
 export function lifetimeCost(monthly: MonthlyCost): LifetimeCost | null {
   if (!monthly.minimumApplied) return null;
-  const raw = monthly.byImpact.carbon + monthly.byImpact.air + monthly.byImpact.water + monthly.byImpact.land;
+  const raw = monthly.byImpact.carbon + monthly.byImpact.air + monthly.byImpact.water + monthly.byImpact.land + monthly.byImpact.ewaste;
   const donation = Math.max(LIFETIME_MIN_DONATION_USD, Math.ceil(raw * 12 * LIFETIME_YEARS * LIFETIME_GROWTH_BUFFER));
   const fee = paymentFee(donation);
   return { donation, fee, total: cents(donation + fee) };

@@ -34,4 +34,9 @@ export const IMPACT_INFO: Record<ImpactKey, { label: string; short: string; form
     format: (m2) =>
       m2 >= 10 ? `${Math.round(m2).toLocaleString("en-US")} m² land` : m2 >= 0.1 ? `${m2.toFixed(1)} m² land` : "under 0.1 m² land",
   },
+  ewaste: {
+    label: "E-waste",
+    short: "e-waste",
+    format: (kg) => `${kg >= 10 ? Math.round(kg).toLocaleString("en-US") : kg >= 0.1 ? kg.toFixed(1) : "under 0.1"} kg e-waste`,
+  },
 };

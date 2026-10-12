@@ -30,6 +30,11 @@ export const CHARITIES: Record<ImpactKey, Charity> = {
     url: "https://www.rainforesttrust.org/",
     focus: "Buys and protects threatened tropical forest",
   },
+  ewaste: {
+    name: "Human-I-T",
+    url: "https://www.human-i-t.org/",
+    focus: "Refurbishes donated devices for low-income families and recycles the rest responsibly",
+  },
 };
 
 /** Where the measured-removal part of a climate donation goes. */

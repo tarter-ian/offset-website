@@ -86,7 +86,7 @@ function tilePrice(price: { once: number; monthly: number }, cover: Cover, billi
   return { big: once(price.once), note: cover.past ? "once, for life" : "once, for all future use" };
 }
 /** Every kind of harm covered, skipping ones too small to show, e.g. "181 kg CO₂e · 7.7 min of life · 947 L water". */
-const MIN_SHOWN: Impacts = { carbon: 0.005, air: 0.0005, water: 0.05, land: 0.001 };
+const MIN_SHOWN: Impacts = { carbon: 0.005, air: 0.0005, water: 0.05, land: 0.001, ewaste: 0.01 };
 const coversText = (i: Impacts) =>
   IMPACT_KEYS.filter((k) => i[k] >= MIN_SHOWN[k])
     .map((k) => IMPACT_INFO[k].format(i[k]))
@@ -405,7 +405,13 @@ export function Store() {
       const k = billing === "annual" ? 12 : 1;
       lines.push([
         billing === "annual" ? "Covers each year" : "Covers each month",
-        coversText({ carbon: c.monthly.carbon * k, air: c.monthly.air * k, water: c.monthly.water * k, land: c.monthly.land * k }),
+        coversText({
+          carbon: c.monthly.carbon * k,
+          air: c.monthly.air * k,
+          water: c.monthly.water * k,
+          land: c.monthly.land * k,
+          ewaste: c.monthly.ewaste * k,
+        }),
       ]);
     }
     return lines;
@@ -761,7 +767,7 @@ export function Store() {
                 {s.key === "online"
                   ? "Video and music can be measured from your YouTube, Netflix or Spotify history; the rest start from typical use."
                   : "No account can measure this yet, so it starts from typical use."}
-                {s.key === "devices" && " Not counted yet: e-waste."}
+                {s.key === "devices" && " Includes paying to reuse or recycle each one when you replace it."}
               </p>
             )}
           </section>

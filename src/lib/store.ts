@@ -95,7 +95,7 @@ const num = (v: number | string) => (typeof v === "number" && Number.isFinite(v)
 
 const costOf = (i: Impacts) => {
   const c = impactCost(i);
-  return c.carbon + c.air + c.water + c.land;
+  return c.carbon + c.air + c.water + c.land + c.ewaste;
 };
 
 function onlineItem(id: InternetActivity, name: string, blurb: string, hours: number): Product {
@@ -433,7 +433,7 @@ export function coverPrice(p: Product, amount: number | string, cover: Cover, ct
 
 /** Everything an item covers under a cover: the one-time part and each month of the ongoing part. */
 export function coverImpacts(p: Product, amount: number | string, cover: Cover, ctx: Context) {
-  const zero: Impacts = { carbon: 0, air: 0, water: 0, land: 0 };
+  const zero: Impacts = { carbon: 0, air: 0, water: 0, land: 0, ewaste: 0 };
   const once = sumImpacts([
     cover.past ? p.impacts(amount, "past", ctx) : zero,
     cover.ahead === "lifetime" ? p.impacts(amount, "future", ctx) : zero,
