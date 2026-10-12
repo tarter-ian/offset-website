@@ -22,8 +22,14 @@ export const DEFAULT_CARBON_MODE: CarbonMode = "expected";
 export const CARBON_POLICY_SHARE: Record<CarbonMode, number> = { expected: 1, blend: 9 / 49, verified: 0 };
 export const DONATION_PER_TONNE_USD = CARBON_MODES[DEFAULT_CARBON_MODE].perTonne;
 
-/** Air: share of the estimated health damage donated to clean-air work. */
-export const AIR_DAMAGE_SHARE = 0.1;
+/**
+ * Air: share of the estimated health damage donated to clean-air work. EPA's
+ * planning cost for the next ton of PM2.5 controls is about $15,000 (2012 PM
+ * standard RIA; its range runs about $1,000 to $90,000), against about $113,000
+ * of health damage per ton from power plants (EPA benefit-per-ton, 2025). The
+ * middle is about 13% of the damage.
+ */
+export const AIR_DAMAGE_SHARE = 0.13;
 
 /**
  * Water: how a (scarcity-weighted) gallon is covered. Expected impact goes to
@@ -48,9 +54,12 @@ export const WATER_MODES: Record<WaterMode, { label: string; per1000Gal: number;
 export const DEFAULT_WATER_MODE: WaterMode = "expected";
 const LITERS_PER_1000_GAL = 3785.41;
 
-/** Nature: protect an area equal to the land used that month. Rainforest Trust
- * says protecting an acre of rainforest costs about $10. */
-export const LAND_USD_PER_M2 = 10 / M2_PER_ACRE;
+/** Nature: protect an area equal to the land used that month, through Rainforest
+ * Trust. Across 17 of its projects, cost per acre runs from $1 (legal
+ * protection) to $1,178 (land purchase); the dollar-weighted average is $1.94,
+ * so we use $2. */
+export const LAND_USD_PER_ACRE = 2;
+export const LAND_USD_PER_M2 = LAND_USD_PER_ACRE / M2_PER_ACRE;
 
 /**
  * E-waste: pay for every kilogram of the electronics you'll throw away to be

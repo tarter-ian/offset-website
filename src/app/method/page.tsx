@@ -95,7 +95,7 @@ const IMPACTS = [
     priceShort: `${Math.round(AIR_DAMAGE_SHARE * 100)}% of the health damage, to clean-air work`,
     measure:
       `The harm to health from the NOx, SO₂ and fine particles released by power plants, cars, home furnaces, jet engines and farms (mostly ammonia from manure and fertilizer), using EPA's per-ton estimates and published death counts for flights and farms. Almost all of it is early deaths, so we show it as healthy life lost, shared across everyone who breathes the pollution: EPA values a statistical life at about $${(F.VSL_USD / 1e6).toFixed(0)} million, and each early death from fine particles costs about ${F.LIFE_YEARS_PER_AIR_DEATH} years of life, so $1 of damage is about ${F.MINUTES_OF_LIFE_PER_DAMAGE_USD.toFixed(2)} minutes.`,
-    price: `We donate ${Math.round(AIR_DAMAGE_SHARE * 100)}% of that damage to clean-air work.`,
+    price: `We donate ${Math.round(AIR_DAMAGE_SHARE * 100)}% of that damage to clean-air work: the middle of what US pollution controls cost per ton of fine particles (EPA puts the next ton at about $15,000, against about $113,000 of health damage).`,
   },
   {
     name: "Water",
@@ -109,9 +109,9 @@ const IMPACTS = [
   {
     name: "Nature",
     unit: "square meters of land, for a year",
-    priceShort: "About $10 an acre, to protect threatened forest",
+    priceShort: "About $2 an acre, to protect threatened forest",
     measure: "Land used to grow your food, to mine and make your electronics, and for the power plants and data centers behind your electricity and online use, in square meters. Power and data centers are a sliver of it: about 0.005 m² a year per kWh for power plants and their fuel (Lovering et al. 2022, weighted by the US mix) and 0.0005 for data centers.",
-    price: "We fund permanently protecting the same area of threatened forest, at about $10 an acre.",
+    price: "We fund protecting the same area of threatened forest through Rainforest Trust. Its projects cost $1 to $1,178 an acre, mostly legal protection at the low end and land purchases at the high end; across its projects it averages about $2 an acre.",
   },
   {
     name: "E-waste",
