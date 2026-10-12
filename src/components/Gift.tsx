@@ -85,8 +85,7 @@ export function GiftMaker() {
   const [busy, setBusy] = useState(false);
   useEffect(() => setStarted(loadGift()), []);
 
-  if (!paymentsOn()) return <p className="mt-6 font-semibold">Gifts open when payments do.</p>;
-  if (started) {
+  if (started && paymentsOn()) {
     return (
       <div className="mt-6">
         <p>
@@ -141,7 +140,7 @@ export function GiftMaker() {
       className="mt-6 space-y-6"
       onSubmit={(e) => {
         e.preventDefault();
-        start();
+        if (paymentsOn()) start();
       }}
     >
       <fieldset>
@@ -259,13 +258,19 @@ export function GiftMaker() {
           {error}
         </p>
       )}
-      <button
-        type="submit"
-        disabled={busy || !rows.length}
-        className="min-h-11 cursor-pointer rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-strong disabled:opacity-60"
-      >
-        {rows.length ? `Pay for this gift (${usd(sumTotal(rows))}, fees included)` : "Pick something to cover"}
-      </button>
+      {paymentsOn() ? (
+        <button
+          type="submit"
+          disabled={busy || !rows.length}
+          className="min-h-11 cursor-pointer rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-strong disabled:opacity-60"
+        >
+          {rows.length ? `Pay for this gift (${usd(sumTotal(rows))}, fees included)` : "Pick something to cover"}
+        </button>
+      ) : (
+        <p className="font-semibold">
+          {rows.length ? `This gift comes to ${usd(sumTotal(rows))}, fees included. ` : ""}Payments open soon, and gifts with them.
+        </p>
+      )}
     </form>
   );
 }

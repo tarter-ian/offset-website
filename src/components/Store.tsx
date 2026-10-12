@@ -1158,13 +1158,11 @@ export function Store() {
               Add everything
             </button>
           )}
-          {paymentsOn() && (
-            <p className="mt-3 text-sm">
-              <Link href="/gift" className="cursor-pointer font-semibold underline underline-offset-4 hover:text-muted">
-                Give an offset to someone else
-              </Link>
-            </p>
-          )}
+          <p className="mt-3 text-sm">
+            <Link href="/gift" className="cursor-pointer font-semibold underline underline-offset-4 hover:text-muted">
+              Give an offset to someone else
+            </Link>
+          </p>
         </section>
       )}
 
