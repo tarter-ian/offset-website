@@ -503,7 +503,7 @@ export function Store() {
     const amount = amountOf(p);
     const cover = coverOf(p);
     const options = aheadFor(p, amount, ctx, anyway[p.id]);
-    const hiddenLifetime = p.oneTime && !options.includes("lifetime") && !anyway[p.id];
+    const hiddenLifetime = !options.includes("lifetime") && !anyway[p.id];
     const pastPrice = p.cost(amount, "past", ctx);
     return (
       <div className="space-y-1 text-sm">

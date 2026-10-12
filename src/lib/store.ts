@@ -160,6 +160,30 @@ function monthly(key: CategoryKey | CategoryKey[], answers: Answers): Impacts {
   );
 }
 
+/**
+ * An everyday item's impacts over a span, from one month at today's habits.
+ * Past use repeats that month back to the start year; the years ahead repeat it
+ * to age 85, with home power on a grid getting cleaner as online items assume.
+ * Lifetime for everyday items is a guess about habits decades out, so it's only
+ * shown when asked for (Ian, 2026-10-12).
+ */
+function everydaySpan(m: Impacts, span: Span, ctx: Context, keys: CategoryKey | CategoryKey[], now = new Date()): Impacts {
+  if (span === "monthly") return m;
+  const pastMonths = span === "past" || span === "lifetime" ? everydayPastMonths(ctx, now) : 0;
+  const year = now.getFullYear() + now.getMonth() / 12;
+  const ahead = span === "future" || span === "lifetime" ? Math.max(0, ctx.birthYear + F.LIFETIME_TO_AGE - year) : 0;
+  const grid = (Array.isArray(keys) ? keys : [keys]).includes("electricity");
+  const power = grid ? F.gridYears(year, ahead) : ahead;
+  const air = grid ? F.gridYears(year, ahead, F.GRID_AIR_CLEANER_PER_YEAR) : ahead;
+  return {
+    carbon: m.carbon * (pastMonths + 12 * power),
+    air: m.air * (pastMonths + 12 * air),
+    water: m.water * (pastMonths + 12 * power),
+    land: m.land * (pastMonths + 12 * ahead),
+    ewaste: m.ewaste * (pastMonths + 12 * ahead),
+  };
+}
+
 function lifeItem(
   id: string,
   section: SectionKey,
@@ -176,14 +200,8 @@ function lifeItem(
     blurb,
     amount,
     oneTime: false,
-    cost: (a, span, ctx) =>
-      costOf(monthly(keys, { ...DEFAULT_ANSWERS, state: ctx.state, ...answers(a, ctx) })) * (span === "past" ? everydayPastMonths(ctx) : 1),
-    impacts: (a, span, ctx) => {
-      const m = monthly(keys, { ...DEFAULT_ANSWERS, state: ctx.state, ...answers(a, ctx) });
-      if (span !== "past") return m;
-      const n = everydayPastMonths(ctx);
-      return { carbon: m.carbon * n, air: m.air * n, water: m.water * n, land: m.land * n, ewaste: m.ewaste * n };
-    },
+    cost: (a, span, ctx) => costOf(everydaySpan(monthly(keys, { ...DEFAULT_ANSWERS, state: ctx.state, ...answers(a, ctx) }), span, ctx, keys)),
+    impacts: (a, span, ctx) => everydaySpan(monthly(keys, { ...DEFAULT_ANSWERS, state: ctx.state, ...answers(a, ctx) }), span, ctx, keys),
     kgPerYear: (a, ctx) => {
       const ks = Array.isArray(keys) ? keys : [keys];
       const f = computeFootprint({ ...DEFAULT_ANSWERS, state: ctx.state, ...answers(a, ctx) });
@@ -431,7 +449,7 @@ export interface Cover {
 
 /** Ways to cover an item going forward. Light items are lifetime only; lifetime hides above the cap unless asked for. */
 export function aheadFor(p: Product, amount: number | string, ctx: Context, showLifetimeAnyway = false): Ahead[] {
-  if (!p.oneTime) return ["monthly"];
+  if (!p.oneTime) return showLifetimeAnyway ? ["monthly", "lifetime"] : ["monthly"];
   // Every item can be paid monthly; one-time items can also be paid once for life, unless that's over the cap.
   const cost = p.cost(amount, "lifetime", ctx);
   const life = cost + paymentFee(cost);
