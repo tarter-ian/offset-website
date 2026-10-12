@@ -296,7 +296,7 @@ export default function MethodPage() {
           <strong className="font-medium text-foreground">AI</strong> adds each prompt&apos;s share of training the models: about{" "}
           {Math.round(F.AI_TRAINING_SHARE * 100)}% of machine learning energy goes to training. On top of that, making the chips and servers
           and building the data centers adds about {Math.round(F.AI_HARDWARE_SHARE * 100)}% of AI&apos;s carbon. Some data centers run their own gas power, so
-          their air pollution counts {F.AI_LOCAL_AIR_WEIGHT} times. AI built into other products, like search answers, and AI video aren&apos;t measured yet.
+          their air pollution counts {F.AI_LOCAL_AIR_WEIGHT} times. AI built into other products, like search answers, counts as {F.AI_BUILT_IN_PROMPTS_PER_DAY} typical prompts a day for everyone. A short AI video counts about {F.WH_PER_AI_VIDEO} Wh, the one published measurement.
         </li>
         <li>
           <strong className="font-medium text-foreground">Devices</strong> counts the carbon to make each phone, laptop, tablet, computer, TV and
@@ -315,8 +315,7 @@ export default function MethodPage() {
 
       <h2 className="mt-10 text-xl font-semibold">What we don&apos;t count yet</h2>
       <p className="mt-2 text-muted">
-        Air pollution from oil and propane heating;
-        air pollution from making devices; e-waste; building data centers for anything but AI; AI built into other products; and AI video. Your summary marks each gap.
+        E-waste: the harm from phones, laptops and TVs that are thrown away or recycled badly. Your summary marks the gap.
       </p>
 
       <h2 className="mt-10 text-xl font-semibold">Sources</h2>

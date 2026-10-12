@@ -95,7 +95,7 @@ const coversText = (i: Impacts) =>
 const amountText = (p: Product, amount: number | string) =>
   p.amount.kind === "number"
     ? `${p.amount.prefix ?? ""}${typeof amount === "number" ? amount.toLocaleString("en-US") : amount} ${
-        amount === 1 ? p.amount.unit.replace("images or videos", "image or video").replace(/^(hour|mile|prompt)s/, "$1").replace("round trips", "round trip") : p.amount.unit
+        amount === 1 ? p.amount.unit.replace(/^(image|video)s/, "$1").replace(/^(hour|mile|prompt)s/, "$1").replace("round trips", "round trip") : p.amount.unit
       }`
     : (p.amount.options.find((o) => o.value === amount)?.label ?? String(amount));
 const providerName = (id: ProviderId) => PROVIDERS.find((x) => x.id === id)?.name ?? id;
@@ -761,12 +761,7 @@ export function Store() {
                 {s.key === "online"
                   ? "Video and music can be measured from your YouTube, Netflix or Spotify history; the rest start from typical use."
                   : "No account can measure this yet, so it starts from typical use."}
-                {s.key === "devices" && " Not counted: air pollution from making devices, and e-waste."}
-              </p>
-            )}
-            {s.key === "shopping" && (
-              <p className="mt-2 text-xs text-muted">
-                Clothing, home goods and services count greenhouse gases only for now. Their water, land and air pollution aren&apos;t counted yet.
+                {s.key === "devices" && " Not counted yet: e-waste."}
               </p>
             )}
           </section>

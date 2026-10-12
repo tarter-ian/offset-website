@@ -192,7 +192,8 @@ export function dataCenterImpacts(kwh: number): Impacts {
   const g = gridImpacts(kwh);
   return {
     ...g,
-    carbon: kwh * (F.KG_PER_STREAMING_HOUR / F.STREAMING_KWH_PER_HOUR),
+    // Running it, plus its share of building the servers and buildings.
+    carbon: (kwh * (F.KG_PER_STREAMING_HOUR / F.STREAMING_KWH_PER_HOUR)) / (1 - F.DATACENTER_BUILD_SHARE),
     water: g.water + coolingWater(kwh),
     land: g.land + kwh * F.DATACENTER_M2_YEARS_PER_KWH,
   };
@@ -248,8 +249,9 @@ const fuelWater = (kgCo2: number) => kgCo2 * F.FUEL_WATER_L_PER_KG_CO2 * F.scarc
 export const FLIGHT_AIR_USD_PER_KG_CO2 =
   (F.FLIGHT_AIR_DEATHS_PER_YEAR * F.VSL_USD) / (F.JET_FUEL_TONNES_PER_YEAR * 1000 * F.KG_CO2_PER_KG_JET_FUEL);
 
-/** Water and land of making electronics with this much manufacturing CO2e. */
+/** Water, land and air pollution of making electronics with this much manufacturing CO2e. */
 export const electronicsMaking = (kgCo2: number) => ({
+  air: (kgCo2 * F.ELECTRONICS_PM25_PER_KG_CO2 * 1000 * F.GOODS_USD_PER_TON_PM25) / F.G_PER_SHORT_TON,
   water: kgCo2 * F.ELECTRONICS_L_PER_KG_CO2 * F.scarcityWeight("grid"),
   land: kgCo2 * F.ELECTRONICS_M2_PER_KG_CO2,
 });
@@ -308,10 +310,12 @@ export function computeFootprint(a: Answers): Footprint {
   } else if (fuel === "oil") {
     const gal = bill > 0 ? bill / F.OIL_PRICE_PER_GAL : F.AVG_OIL_GAL_PER_MONTH;
     heat.carbon = gal * F.KG_CO2_PER_GAL_HEATING_OIL;
+    heat.air = groundAirUsd(gal * F.OIL_G_NOX_PER_GAL, gal * F.OIL_G_PM25_PER_GAL);
     heatNote = `${Math.round(gal)} gallons of heating oil a month`;
   } else if (fuel === "propane") {
     const gal = bill > 0 ? bill / F.PROPANE_PRICE_PER_GAL : F.AVG_PROPANE_GAL_PER_MONTH;
     heat.carbon = gal * F.KG_CO2_PER_GAL_PROPANE;
+    heat.air = groundAirUsd(gal * F.PROPANE_G_NOX_PER_GAL, gal * F.PROPANE_G_PM25_PER_GAL);
     heatNote = `${Math.round(gal)} gallons of propane a month`;
   } else if (fuel === "electric") {
     heatNote = "Included in home electricity";
@@ -323,7 +327,6 @@ export function computeFootprint(a: Answers): Footprint {
     scale({ ...zero(), ...heat }, homeShare),
     bill > 0 ? "entered" : "estimated",
     heatNote,
-    fuel === "oil" || fuel === "propane" ? ["air"] : [],
   );
 
   // Car
@@ -400,7 +403,7 @@ export function computeFootprint(a: Answers): Footprint {
   const shopping = (["clothing", "electronics", "household", "services"] as const).map((k) => {
     const carbon = shopTotal * F.SHOPPING_SHARES[k];
     // Electronics get the water and land of making them; the rest use EPA's supply-chain ratios.
-    if (k === "electronics") return category(k, { carbon, ...electronicsMaking(carbon) }, "estimated", undefined, ["air"]);
+    if (k === "electronics") return category(k, { carbon, ...electronicsMaking(carbon) }, "estimated", undefined);
     const g = F.GOODS_PER_KG_CO2[k];
     return category(
       k,
@@ -422,9 +425,10 @@ export function computeFootprint(a: Answers): Footprint {
   const media = nonNeg(d.aiMediaPerWeek) * F.WEEKS_PER_MONTH;
   const ai = category(
     "ai",
-    aiFor((prompts * (d.aiWhPerPrompt ?? F.WH_PER_AI_PROMPT) + media * F.WH_PER_AI_MEDIA) / 1000),
+    // Plus the AI built into search and other apps, which everyone uses.
+    aiFor((prompts * (d.aiWhPerPrompt ?? F.WH_PER_AI_PROMPT) + media * F.WH_PER_AI_MEDIA + F.AI_BUILT_IN_PROMPTS_PER_DAY * F.DAYS_PER_MONTH * F.WH_PER_AI_PROMPT) / 1000),
     d.aiFromExport ? "measured" : "estimated",
-    `About ${Math.round(prompts)} prompts${media ? ` and ${Math.round(media)} images or videos` : ""} a month${
+    `About ${Math.round(prompts)} prompts${media ? ` and ${Math.round(media)} images` : ""} a month${
       d.aiFromExport ? ", prompts from your data export" : ""
     }`,
   );

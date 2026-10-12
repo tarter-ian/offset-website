@@ -11,14 +11,14 @@ import type { Product } from "./store";
 const g = (kg: number) => `${Math.round(kg * 1000)} g`;
 
 const ONLINE_NOTE =
-  "Hours a day times the energy of the data centers and networks behind it, on the US grid, plus the water to cool them. Your own device's power is counted under Devices. These figures are rough, so we add a wider margin.";
+  `Hours a day times the energy of the data centers and networks behind it, on the US grid, plus the water to cool them and a share of building the servers and buildings (+${Math.round(F.DATACENTER_BUILD_SHARE * 100)}% carbon). Your own device's power is counted under Devices. These figures are rough, so we add a wider margin.`;
 
 const DEVICE_NOTE = (id: keyof typeof F.DEVICES) => {
   const d = F.DEVICES[id];
   return [
     `Making one takes about ${d.kgToMake} kg of CO₂e, and we assume you replace it every ${d.yearsKept} years.`,
     `Running it uses about ${d.kwhPerYear} kWh a year on the US grid.`,
-    "Water consumed and land used to mine and make it are scaled from studies of smartphones by the carbon to make each device.",
+    "Water consumed and land used to mine and make it are scaled from studies of smartphones by the carbon to make each device. Air pollution from the factories uses the EPA's supply-chain rate for manufactured goods, likely an underestimate.",
     `Lifetime covers every one you'll go through until age ${F.LIFETIME_TO_AGE}, with their power on a grid getting cleaner each year to ${F.GRID_CLEANER_UNTIL}.`,
   ];
 };
@@ -39,11 +39,16 @@ export const HOW_ESTIMATED: Record<string, string[]> = {
     `About ${F.WH_PER_AI_PROMPT} Wh a prompt, or each prompt measured from your ChatGPT, Claude or Gemini export if you link it.`,
     `How many prompts: the light (${AI_LEVELS.light.promptsPerDay} a day), medium (${AI_LEVELS.medium.promptsPerDay}) or heavy (${AI_LEVELS.heavy.promptsPerDay}) you pick, the real count from the Offset extension or your export, or your own count of chats (${F.PROMPTS_PER_CHAT} prompts a chat, the middle of published chatbot logs). Light is the average ChatGPT user and medium the average daily user, from OpenAI's prompt and user counts; heavy is our estimate for people who use it for hours a day.`,
     `For Claude we also use how much of your plan's weekly limit you've used, which includes Claude Code. We turn that into hours of use from Anthropic's published limits, at about ${F.WH_PER_CLAUDE_CODE_HOUR} Wh an hour, and use it when it's more than your chats.`,
+    `Also counts the AI built into search and other apps, such as Google's AI answers and email summaries, as ${F.AI_BUILT_IN_PROMPTS_PER_DAY} typical prompts a day since mid-2024.`,
     `Adds each prompt's share of training the models (${Math.round(F.AI_TRAINING_SHARE * 100)}% of AI energy) and of making the chips and buildings (+${Math.round(F.AI_HARDWARE_SHARE * 100)}% carbon).`,
     "Power is on the US grid; water is the power plants' plus data center cooling.",
     `Lifetime assumes use until age ${F.LIFETIME_TO_AGE}, allows for it to grow, and counts the grid getting cleaner each year to ${F.GRID_CLEANER_UNTIL} (cooling water isn't discounted).`,
   ],
-  "ai-media": [`About ${F.WH_PER_AI_MEDIA} Wh per picture or short clip, with the same training, hardware and water as chat.`],
+  "ai-media": [`About ${F.WH_PER_AI_MEDIA} Wh a picture, with the same training, hardware and water as chat.`],
+  "ai-video": [
+    `About ${F.WH_PER_AI_VIDEO} Wh for a 5-second clip, the one published measurement (an open model, measured for MIT Technology Review in 2025). Commercial video models don't publish theirs.`,
+    "Same training, hardware and water as chat. Past use counts from late 2024, when video tools opened to the public.",
+  ],
   video: [`About ${F.STREAMING_KWH_PER_HOUR} kWh and ${g(F.KG_PER_STREAMING_HOUR)} of CO₂ an hour, from the IEA.`, ONLINE_NOTE],
   social: [ONLINE_NOTE],
   gaming: [ONLINE_NOTE],
@@ -61,8 +66,8 @@ export const HOW_ESTIMATED: Record<string, string[]> = {
     "Times your state's grid rates for greenhouse gases, NOx, SO₂ and the water power plants consume.",
   ],
   heating: [
-    `Your gas bill divided by about $${F.GAS_PRICE_PER_THERM} a therm, at ${F.KG_CO2_PER_THERM_GAS} kg CO₂ a therm.`,
-    "Plus the NOx and fine particles from burning it at home.",
+    `Your gas bill divided by about $${F.GAS_PRICE_PER_THERM} a therm, at ${F.KG_CO2_PER_THERM_GAS} kg CO₂ a therm, or your oil or propane bill by its price a gallon.`,
+    "Plus the NOx and fine particles from burning it at home, from the EPA's furnace emission factors for each fuel.",
   ],
   car: [
     `Miles divided by ${F.DEFAULT_MPG} mpg, at ${F.KG_CO2_PER_GAL_GASOLINE} kg CO₂ a gallon.`,
@@ -86,7 +91,7 @@ export const HOW_ESTIMATED: Record<string, string[]> = {
   ],
   electronics: [
     ...SHOPPING_NOTE("electronics", F.SHOPPING_SHARES.electronics),
-    "Water consumed and land used to mine and make them are scaled from studies of smartphones.",
+    "Water consumed and land used to mine and make them are scaled from studies of smartphones. Air pollution from the factories uses the EPA's supply-chain rate for manufactured goods.",
   ],
   household: [...SHOPPING_NOTE("home goods", F.SHOPPING_SHARES.household), GOODS_NOTE],
   services: [...SHOPPING_NOTE("services", F.SHOPPING_SHARES.services), GOODS_NOTE],

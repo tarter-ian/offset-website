@@ -50,10 +50,21 @@ export const SHOPPING_KG_PER_YEAR = {
 
 // Digital use. Data center and network share only; the device's own power is
 // already in the home electricity bill.
-// Text prompt: ~0.3 Wh (Epoch AI). Image or video generation: rough placeholder.
+// Text prompt: ~0.3 Wh (Epoch AI). Image generation: rough placeholder.
 // Streaming: ~36 g CO2 per hour (IEA).
 export const WH_PER_AI_PROMPT = 0.3;
 export const WH_PER_AI_MEDIA = 10;
+// A 5-second AI video: ~3.4 MJ, about 944 Wh, measured on an open model
+// (CogVideoX) for MIT Technology Review with Hugging Face (May 2025). Commercial
+// models aren't published; this is the only measured figure.
+export const WH_PER_AI_VIDEO = 944;
+// AI built into other products: search answers (Google's AI Overviews), email and
+// document summaries, assistants in apps. Americans run about 3 to 4 searches a
+// day and many now carry an AI answer, so we count it as 2 typical prompts a day
+// for everyone, from mid-2024 when AI search answers rolled out. Rough.
+export const AI_BUILT_IN_PROMPTS_PER_DAY = 2;
+export const AI_BUILT_IN_START_YEAR = 2024.4;
+export const AI_VIDEO_START_YEAR = 2024.9;
 // Measuring a data export: energy scales with tokens. Epoch AI puts a short
 // reply (~500 tokens out) at ~0.3 Wh and a 10k-token input at ~2.5 Wh. Each turn
 // of a chat re-reads the whole conversation so far, so long chats cost more.
@@ -87,6 +98,10 @@ export const AI_TRAINING_SHARE = 0.4;
 // AI's total carbon (rough; life-cycle studies of AI hardware put manufacturing
 // at roughly a fifth to a third).
 export const AI_HARDWARE_SHARE = 0.25;
+// Building ordinary data centers and their servers. Embodied emissions are a
+// fifth to a third of a data center's life-cycle carbon (Gupta et al. 2021,
+// "Chasing Carbon"; Microsoft and Meta disclosures); we use the same quarter as AI.
+export const DATACENTER_BUILD_SHARE = 0.25;
 // Some data centers run on-site gas turbines and diesel backup, which pollute
 // more locally than the grid average (rough).
 export const AI_LOCAL_AIR_WEIGHT = 1.2;
@@ -163,6 +178,14 @@ export const CAR_G_PM25_PER_MILE = 0.0041;
 // Natural gas furnace, EPA AP-42 section 1.4.
 export const GAS_G_NOX_PER_THERM = 4.2;
 export const GAS_G_PM25_PER_THERM = 0.34;
+// Heating oil furnace, AP-42 section 1.3 (residential, No. 2 oil): NOx 18 lb and
+// particles 0.4 lb filterable + 1.3 lb condensable per 1,000 gallons. Today's
+// ultra-low-sulfur heating oil makes SO2 negligible.
+export const OIL_G_NOX_PER_GAL = 18 * 0.4536;
+export const OIL_G_PM25_PER_GAL = 1.7 * 0.4536;
+// Propane, AP-42 section 1.5: NOx 13 lb and particles 0.7 lb per 1,000 gallons.
+export const PROPANE_G_NOX_PER_GAL = 13 * 0.4536;
+export const PROPANE_G_PM25_PER_GAL = 0.7 * 0.4536;
 
 // ---------------------------------------------------------------------------
 // Water consumed, in liters.
@@ -249,6 +272,11 @@ export const KG_CO2_PER_KG_JET_FUEL = 3.16;
 // Land is a smartphone's ~18 m² against ~70 kg CO2e (Friends of the Earth 2015).
 export const ELECTRONICS_L_PER_KG_CO2 = 223 / 32.7;
 export const ELECTRONICS_M2_PER_KG_CO2 = 18 / 70;
+// Air pollution from making electronics: EPA USEEIO's PM2.5 for manufactured
+// household goods per kg CO2e, priced like other supply chains below. Chip and
+// screen factories run largely on coal power in East Asia, so this likely
+// understates it. Approximate.
+export const ELECTRONICS_PM25_PER_KG_CO2 = 3.8e-4;
 
 // Clothing, home goods and services, per kg CO2e, from EPA USEEIO v2.0.1
 // supply-chain intensities, weighted by US household spending (2012). Land is

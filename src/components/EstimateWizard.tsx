@@ -281,9 +281,9 @@ export function EstimateWizard() {
                 onChange={(n) => set("digital", { ...answers.digital, aiPromptsPerDay: n ?? 0, aiFromExport: false, aiWhPerPrompt: undefined })}
               />
             </Field>
-            <Field label="AI images or videos made a week">
+            <Field label="AI images made a week">
               <NumberInput
-                label="AI images or videos a week"
+                label="AI images a week"
                 suffix="a week"
                 value={answers.digital.aiMediaPerWeek}
                 onChange={(n) => set("digital", { ...answers.digital, aiMediaPerWeek: n ?? 0 })}
