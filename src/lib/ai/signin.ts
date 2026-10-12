@@ -22,6 +22,8 @@ export interface SignInUsage {
   conversations?: number;
   /** ChatGPT and Claude: every chat the account still has, by when it was started. */
   history?: ChatHistory;
+  /** ChatGPT's agent and Codex tools: tokens in the window and ever, from the profile page. */
+  agentTokens?: { window: number; lifetime: number };
 }
 
 /** From the extension's chat list: no chat opened, so chats are counted, not prompts. */
@@ -67,6 +69,8 @@ export function signInUsage(data: unknown): SignInUsage | null {
   const days = count(r.windowDays) || 30;
   const weekly = Number(r.weeklyLimitUsedPercent);
   const history = chatHistory(r.history);
+  const agentic = typeof r.agentic === "object" && r.agentic !== null ? (r.agentic as Record<string, unknown>) : null;
+  const agentTokens = agentic ? { window: count(agentic.tokens), lifetime: count(agentic.lifetimeTokens) } : null;
   return {
     prompts: count(r.prompts),
     reasoningResponses: count(r.reasoningResponses),
@@ -76,6 +80,7 @@ export function signInUsage(data: unknown): SignInUsage | null {
     ...(Number.isFinite(weekly) && weekly > 0 ? { weeklyLimitUsedPercent: Math.min(weekly, 100) } : {}),
     ...("conversations" in r ? { conversations: count(r.conversations) } : {}),
     ...(history ? { history } : {}),
+    ...(agentTokens && (agentTokens.window || agentTokens.lifetime) ? { agentTokens } : {}),
     ...(count(r.failedConversations) > 0 ? { missedChats: count(r.failedConversations) } : r.truncated === true ? { missedChats: -1 } : {}),
   };
 }
@@ -90,18 +95,28 @@ export function summaryFromSignIn(provider: AiProvider, u: SignInUsage): UsageSu
   const wh = (u.prompts - reasoning) * F.WH_PER_AI_PROMPT + reasoning * F.WH_PER_AI_PROMPT * F.REASONING_OUTPUT_MULTIPLIER;
   // Claude Code use only shows in the weekly limit, so use whichever is larger.
   const fromLimit = claudeLimitWhPerDay(u);
+  // ChatGPT's agent and Codex tools, which chat counts don't see.
+  const agentWh = (tokens: number) => (tokens / 1e6) * F.WH_PER_MILLION_AGENT_TOKENS;
+  const agentPerDay = u.agentTokens ? agentWh(u.agentTokens.window) / u.days : 0;
   return {
     providers: [provider],
     totalPrompts: u.prompts,
     promptsPerDay: u.prompts / u.days,
-    whPerDay: Math.max(wh / u.days, fromLimit),
+    whPerDay: Math.max(wh / u.days, fromLimit) + agentPerDay,
+    ...(u.agentTokens ? { agent: { whPerDay: agentPerDay, lifetimeWh: agentWh(u.agentTokens.lifetime), lifetimeTokens: u.agentTokens.lifetime } } : {}),
     ...(fromLimit > wh / u.days
       ? { code: { whPerDay: fromLimit - wh / u.days, limitPercent: u.weeklyLimitUsedPercent ?? 0, plan: claudePlanName(u.planType) } }
       : {}),
     imagesPerWeek: (u.images / u.days) * 7,
     reasoningShare: u.prompts ? reasoning / u.prompts : 0,
     windowDays: u.days,
-    ...(u.history ? { totalWh: pastWhFromHistory(u, Math.max(wh, fromLimit * u.days)) } : {}),
+    ...(u.history || u.agentTokens
+      ? {
+          totalWh:
+            (u.history ? pastWhFromHistory(u, Math.max(wh, fromLimit * u.days)) : Math.max(wh, fromLimit * u.days)) +
+            (u.agentTokens ? agentWh(u.agentTokens.lifetime) : 0),
+        }
+      : {}),
   };
 }
 

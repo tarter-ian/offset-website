@@ -12,7 +12,7 @@ import {
 } from "./lifetime";
 import type { ProviderId } from "./providers";
 import type { AiLevel } from "./ai/levels";
-import type { CodeEstimate } from "./ai/exportParser";
+import type { CodeEstimate, UsageSummary } from "./ai/exportParser";
 import {
   type Billing,
   DEFAULT_BILLING,
@@ -52,6 +52,8 @@ export interface Context {
   aiPastWh?: number;
   /** Claude Code energy estimated from a Claude plan's weekly limit, which the prompt count leaves out. */
   aiCode?: CodeEstimate;
+  /** ChatGPT's agent and Codex tools, from their token totals. */
+  aiAgent?: UsageSummary["agent"];
   /** The year the person says they started using AI. */
   aiStartYear?: number;
   /** A quick AI estimate: a picked level, or the plan from a sign-in. */

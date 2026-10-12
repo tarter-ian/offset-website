@@ -45,6 +45,8 @@ export interface UsageSummary {
   totalWh?: number;
   /** Claude Code, estimated from the share of a Claude plan's weekly limit used: the daily energy beyond the counted chats. */
   code?: CodeEstimate;
+  /** ChatGPT's agent and Codex tools, from their token counts: already in `whPerDay` and `totalWh`. */
+  agent?: { whPerDay: number; lifetimeWh: number; lifetimeTokens: number };
 }
 
 type Part = string | { content_type?: string; text?: string } | null;
@@ -252,6 +254,7 @@ export function combineSummaries(summaries: UsageSummary[]): UsageSummary | null
     reasoningShare: prompts ? summaries.reduce((s, x) => s + x.reasoningShare * x.promptsPerDay, 0) / prompts : 0,
     windowDays: Math.max(...summaries.map((s) => s.windowDays)),
     code: summaries.find((s) => s.code)?.code,
+    agent: summaries.find((s) => s.agent)?.agent,
     // Known when any linked source has its history; the others grow steadily since ChatGPT's launch.
     totalWh: summaries.some((s) => s.totalWh !== undefined)
       ? summaries.reduce((s, x) => s + (x.totalWh ?? estimatedPastWh(x.whPerDay)), 0)
@@ -269,5 +272,6 @@ export function digitalFromExport(s: UsageSummary) {
     aiFromExport: true,
     aiPastWh: s.totalWh,
     aiCode: s.code,
+    aiAgent: s.agent,
   };
 }

@@ -3,7 +3,7 @@
 // more, this text has to change first.
 
 export const SIGN_IN_READS = {
-  chatgpt: "How many prompts, reasoning answers and images you made each day for the last 30 days, and your plan. Never your chats.",
+  chatgpt: "How many prompts, reasoning answers and images you made each day for the last 30 days, your plan, and the token totals your profile shows for ChatGPT's agent and Codex tools. Never your chats.",
   claude: "How many prompts you sent each day for the last 30 days, your plan, and how much of its weekly limit you've used. Never your chats.",
   gemini: "How many prompts you sent each day for the last 30 days. Never your chats.",
   youtube: "How many videos and Shorts you watched each day for the last 30 days, and roughly how long. Never which videos.",
