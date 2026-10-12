@@ -55,7 +55,8 @@ describe("covers", () => {
   });
 
   it("hides lifetime above $1,000 unless asked", () => {
-    expect(aheadFor(p("desktop"), 1, C)).toEqual(["monthly", "lifetime"]);
+    expect(aheadFor(p("phone"), 1, C)).toEqual(["monthly", "lifetime"]);
+    expect(aheadFor(p("desktop"), 1, C)).toEqual(["monthly"]);
     expect(aheadFor(p("ai"), 20000, C)).toEqual(["monthly"]);
     expect(aheadFor(p("ai"), 20000, C, true)).toEqual(["monthly", "lifetime"]);
     expect(effectiveCover(p("ai"), 20000, C, { ahead: "lifetime" }).ahead).toBe("monthly");

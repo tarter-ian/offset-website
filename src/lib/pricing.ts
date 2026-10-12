@@ -52,12 +52,14 @@ export const LAND_USD_PER_M2 = 10 / M2_PER_ACRE;
 
 /**
  * E-waste: pay for every kilogram of the electronics you'll throw away to be
- * reused or recycled properly. US recyclers charge roughly $0.25 to $0.50 a pound
- * for screens and take much else free, so $1 a kg covers collection and the
- * hard items. Only about a fifth of the world's e-waste is recycled properly
- * (Global E-waste Monitor 2024). Approximate.
+ * reused or recycled properly. Nonprofit refurbishers spend about $8 to $14 per
+ * kg they handle (total spending over pounds reported: PCs for People 2024
+ * ~$8.50, Free Geek FY25 ~$9.40, Human-I-T 2025 ~$14). That overstates one more
+ * kg, since it includes internet and skills programs and ignores device sales,
+ * so we take the low end. Only about a fifth of the world's e-waste is recycled
+ * properly (Global E-waste Monitor 2024). Approximate.
  */
-export const EWASTE_USD_PER_KG = 1;
+export const EWASTE_USD_PER_KG = 8;
 
 const cents = (n: number) => Math.round(n * 100) / 100;
 
