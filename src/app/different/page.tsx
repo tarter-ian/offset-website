@@ -27,7 +27,7 @@ const ROWS = [
     topic: "How much reaches charity",
     usual: "A share is kept to run the company. One well-known subscription app reports sending about 80% to projects.",
     source: { href: "https://blog.wren.co/posts/wren-financial-report-year-two", text: "Wren, year two report" },
-    ours: "All of it. The only fee is what the card payment costs, shown on its own line. The site runs on optional tips.",
+    ours: "All of it. The only fees are the card payment and our charity sponsor's share, each on its own line. The site runs on optional tips.",
     link: { href: "/ledger", text: "Where the money goes" },
   },
   {
