@@ -21,9 +21,9 @@ const POLL_MS = 5000;
 const POLLS = 24;
 
 /** The green button that opens Every.org for one gift. Never opened for the person: browsers block pop-ups, and it should be their tap. */
-export function GiveButton({ planId, row, onGo }: { planId: string; row: PayRow; onGo?: () => void }) {
+export function GiveButton({ planId, row, onGo, returnPath }: { planId: string; row: PayRow; onGo?: () => void; returnPath?: string }) {
   const [href, setHref] = useState<string | null>(null);
-  useEffect(() => setHref(payLink(planId, row, window.location.origin)), [planId, row]);
+  useEffect(() => setHref(payLink(planId, row, window.location.origin, undefined, returnPath)), [planId, row, returnPath]);
   if (!href) return null;
   return (
     <a
@@ -75,18 +75,21 @@ export function CheckoutSteps({
   onChange,
   onGo,
   saved = true,
+  save = saveCheckout,
 }: {
   checkout: Checkout;
   onChange: (c: Checkout) => void;
+  /** Where progress is kept: the plan's checkout by default, or a gift's. */
+  save?: (c: Checkout) => void;
   /** Called as the person taps Give, before Every.org opens. */
   onGo?: () => void;
   /** False for a list not yet started, which has nothing to look up. */
   saved?: boolean;
 }) {
   const waiting = checkout.rows.some((r) => checkout.done[r.key] && !checkout.confirmed[r.key]);
-  const latest = useRef({ checkout, onChange });
+  const latest = useRef({ checkout, onChange, save });
   useEffect(() => {
-    latest.current = { checkout, onChange };
+    latest.current = { checkout, onChange, save };
   });
   // Look once when the list opens, then keep looking while a gift waits for confirmation.
   useEffect(() => {
@@ -101,7 +104,7 @@ export function CheckoutSteps({
       const fresh = paid.filter((k) => !c.confirmed[k] && c.rows.some((r) => r.key === k));
       if (fresh.length) {
         const next = { ...c, confirmed: { ...c.confirmed, ...Object.fromEntries(fresh.map((k) => [k, true as const])) } };
-        saveCheckout(next);
+        latest.current.save(next);
         change(next);
       } else if (waiting && ++polls < POLLS) timer = setTimeout(check, POLL_MS);
     };
@@ -124,7 +127,7 @@ export function CheckoutSteps({
               key={r.key}
               row={r}
               status={status}
-              action={status === "next" ? <GiveButton planId={checkout.id} row={r} onGo={onGo} /> : undefined}
+              action={status === "next" ? <GiveButton planId={checkout.id} row={r} onGo={onGo} returnPath={checkout.returnPath} /> : undefined}
             />
           );
         })}

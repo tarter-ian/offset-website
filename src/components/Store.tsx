@@ -2,6 +2,7 @@
 
 import { AGENT_TOOL_NAMES } from "@/lib/ai/signin";
 import Link from "next/link";
+import { type Covered, STORAGE_KEY } from "@/lib/covered";
 import { useEffect, useState } from "react";
 import { ActivityUpload } from "./ActivityUpload";
 import { CheckoutSteps } from "./Checkout";
@@ -71,9 +72,6 @@ import {
   type Product,
 } from "@/lib/store";
 
-// v2: covers replaced spans, so older saved plans are ignored.
-const STORAGE_KEY = "offset:plan:v2";
-
 interface Saved {
   ctx: Context;
   amounts: Record<string, number | string>;
@@ -87,12 +85,6 @@ interface Saved {
   linkedFrom?: Record<string, ActivitySource[]>;
   covered?: Record<string, Covered>;
 }
-
-/**
- * An item already paid for: for life, or until a date for a month or year. Set once payments go through.
- * pastPending: its future is paid for life but its past use is still being paid off in instalments.
- */
-type Covered = { kind: "life"; pastPending?: boolean } | { kind: "period"; until: string };
 
 /** `?preview=covered` shows how paid items look, without saving anything. */
 function previewCovered(): Record<string, Covered> | null {
@@ -319,7 +311,12 @@ export function Store() {
 
   const toggle = (id: string) => setPlan((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
   /** Items worth adding in a group: everything with something to cover at its current amount. */
-  const addable = (ps: Product[]) => ps.filter((p) => { const c = coverPrice(p, amountOf(p), coverOf(p), ctx); return c.once + c.monthly > 0; });
+  const addable = (ps: Product[]) =>
+    ps.filter((p) => {
+      if (paidCover(covered[p.id])) return false;
+      const c = coverPrice(p, amountOf(p), coverOf(p), ctx);
+      return c.once + c.monthly > 0;
+    });
   const addAll = (ps: Product[]) => setPlan((cur) => [...cur, ...addable(ps).map((p) => p.id).filter((id) => !cur.includes(id))]);
   /** What a group of items costs as they're set: each month, once for life, and once for past use. */
   const groupParts = (ps: Product[]) =>
@@ -668,6 +665,7 @@ export function Store() {
                     ? "Covered from now on, past use being paid off"
                     : "Covered for life"
                   : `Covered through ${shortDate(paid.until)}`}
+                {paid.giftFrom && `, a gift from ${paid.giftFrom}`}
               </p>
             )}
           </div>
@@ -1023,6 +1021,13 @@ export function Store() {
               Add everything
             </button>
           )}
+          {paymentsOn() && (
+            <p className="mt-3 text-sm">
+              <Link href="/gift" className="cursor-pointer font-semibold underline underline-offset-4 hover:text-muted">
+                Give an offset to someone else
+              </Link>
+            </p>
+          )}
         </section>
       )}
 
@@ -1235,7 +1240,7 @@ export function Store() {
                       Each charity is paid separately through Every.org, which charges card payments 2.2% + 30¢ and bank payments
                       nothing. Each gift includes its card fee so the whole donation arrives; pay by bank and the charity keeps the fee
                       too. Every.org may also ask for a tip for itself, which is optional. The smallest gift is {usd(MIN_DONATION_USD)}; a
-                      charity&apos;s share under that is added to the largest gift, so a 30¢ fee doesn&apos;t eat it. Every.org emails you a
+                      charity&apos;s share under that is rounded up, so each harm&apos;s money stays with its own charity. Every.org emails you a
                       receipt for each gift.
                     </p>
                     {!paymentsOn() && (

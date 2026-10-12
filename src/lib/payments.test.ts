@@ -122,11 +122,12 @@ describe("payment rows", () => {
     expect(payRows(split({ air: [4, 0] }), "monthly", false)[0].charity).toBe("carbon");
   });
 
-  it("adds a share under the minimum to the largest gift instead of paying a fee on it", () => {
+  it("pays a small share to its own charity, rounded up, never to another harm's charity", () => {
     const rows = payRows(split({ carbon: [10, 0], land: [0.4, 0] }), "monthly", false);
-    expect(rows).toHaveLength(1);
-    expect(rows[0].harms).toEqual(["carbon", "land"]);
-    expect(rows[0].donation).toBeCloseTo(10.4, 6);
+    expect(rows.map((r) => [r.charity, r.harms, r.donation])).toEqual([
+      ["carbon", ["carbon"], 10],
+      ["land", ["land"], 1],
+    ]);
   });
 
   it("rounds each gift up to the cent and to at least a dollar", () => {
