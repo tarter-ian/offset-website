@@ -1,5 +1,6 @@
 "use client";
 
+import { AGENT_TOOL_NAMES } from "@/lib/ai/signin";
 import { useEffect, useState } from "react";
 import { ActivityUpload } from "./ActivityUpload";
 import { AiExportUpload } from "./AiExportUpload";
@@ -309,7 +310,7 @@ export function Store() {
     if (p.id === "ai" && ctx.aiFromExport && ctx.aiCode)
       return `measured from your account, plus Claude Code, estimated from ${Math.round(ctx.aiCode.limitPercent)}% of your ${ctx.aiCode.plan} weekly limit`;
     if (p.id === "ai" && ctx.aiFromExport && ctx.aiAgent)
-      return "measured from your account, plus ChatGPT's agent and Codex tools, estimated from your token total";
+      return `measured from your account, plus ${AGENT_TOOL_NAMES[ctx.aiAgent.tool ?? "both"]}, estimated from its token total`;
     if (p.section === "ai" && ctx.aiFromExport) return "measured from your account";
     if (p.id === "ai" && ctx.aiEstimate) return ctx.aiEstimate.from;
     if ((p.id === "ai-media" || p.id === "ai-video") && ctx.aiEstimate?.level) return ctx.aiEstimate.from;

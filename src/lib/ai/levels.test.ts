@@ -84,11 +84,18 @@ describe("ChatGPT agent tokens", async () => {
     const base = { prompts: 300, reasoningResponses: 0, images: 0, windowDays: 30 };
     const plain = summaryFromSignIn("chatgpt", signInUsage(base)!);
     const u = signInUsage({ ...base, agentic: { tokens: 30e6, lifetimeTokens: 429e6, daily: [] } })!;
-    expect(u.agentTokens).toEqual({ window: 30e6, lifetime: 429e6 });
+    expect(u.agentTokens).toEqual({ window: 30e6, lifetime: 429e6, tool: "both" });
     const s = summaryFromSignIn("chatgpt", u);
     expect(s.whPerDay - plain.whPerDay).toBeCloseTo(F.WH_PER_MILLION_AGENT_TOKENS, 6);
     expect(s.agent?.lifetimeWh).toBeCloseTo(429 * F.WH_PER_MILLION_AGENT_TOKENS, 6);
     expect(s.totalWh).toBeCloseTo(300 * F.WH_PER_AI_PROMPT + 429 * F.WH_PER_MILLION_AGENT_TOKENS, 6);
+  });
+  it("names the tool from the agent and Codex split", () => {
+    const tool = (agentTokens: number, codexTokens: number) =>
+      signInUsage({ prompts: 1, agentic: { tokens: 1, lifetimeTokens: 10, agentTokens, codexTokens } })!.agentTokens!.tool;
+    expect(tool(429e6, 0)).toBe("agent");
+    expect(tool(0, 5e6)).toBe("codex");
+    expect(tool(3e6, 5e6)).toBe("both");
   });
   it("ignores a missing or empty profile", () => {
     expect(signInUsage({ prompts: 1, agentic: null })!.agentTokens).toBeUndefined();

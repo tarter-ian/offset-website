@@ -46,7 +46,7 @@ export interface UsageSummary {
   /** Claude Code, estimated from the share of a Claude plan's weekly limit used: the daily energy beyond the counted chats. */
   code?: CodeEstimate;
   /** ChatGPT's agent and Codex tools, from their token counts: already in `whPerDay` and `totalWh`. */
-  agent?: { whPerDay: number; lifetimeWh: number; lifetimeTokens: number };
+  agent?: { whPerDay: number; lifetimeWh: number; lifetimeTokens: number; tool?: "agent" | "codex" | "both" };
 }
 
 type Part = string | { content_type?: string; text?: string } | null;
