@@ -18,6 +18,7 @@ import {
   type GiftSpan,
   giftUntil,
   SPAN_LABEL,
+  spanMonths,
 } from "@/lib/gifts";
 import { allConfirmed, type Checkout, newPlanId, paymentsOn, PLAN_ID, sumTotal } from "@/lib/payments";
 import { usd } from "@/lib/pricing";
@@ -70,7 +71,7 @@ function itemPrice(p: Product, span: GiftSpan, birthYear: number) {
   const ctx = giftContext(birthYear);
   const amount = defaultAmount(p, ctx);
   if (span === "life") return p.cost(amount, "future", ctx);
-  return p.cost(amount, "monthly", ctx) * 12 * { year: 1, "5years": 5, "10years": 10 }[span];
+  return p.cost(amount, "monthly", ctx) * (spanMonths(span) ?? 0);
 }
 
 /** Choosing a gift and paying for it, at /gift. */
@@ -153,13 +154,16 @@ export function GiftMaker() {
           >
             Choose everything
           </button>
-          <button
-            type="button"
-            onClick={() => setPicks(Object.fromEntries(GIFTABLE.map((p) => [p.id, "life" as const])))}
-            className="min-h-10 cursor-pointer font-semibold underline underline-offset-4 hover:text-muted"
-          >
-            Everything, for life
-          </button>
+          {(["month", "year", "life"] as const).map((sp) => (
+            <button
+              key={sp}
+              type="button"
+              onClick={() => setPicks(Object.fromEntries(GIFTABLE.map((p) => [p.id, sp])))}
+              className="min-h-10 cursor-pointer font-semibold underline underline-offset-4 hover:text-muted"
+            >
+              Everything, {SPAN_LABEL[sp]}
+            </button>
+          ))}
           {items.length > 0 && (
             <button type="button" onClick={() => setPicks({})} className="min-h-10 cursor-pointer text-muted underline underline-offset-4 hover:text-foreground">
               Clear

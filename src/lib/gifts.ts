@@ -6,10 +6,18 @@ import { DEFAULT_CONTEXT, defaultAmount, harmSplit, type HarmSplit, planTotals, 
 // as a parent covering a graduate's online life for good. The giver gets a link
 // to send; the person who opens it can mark the items as covered.
 
-export type GiftSpan = "year" | "5years" | "10years" | "life";
-export const GIFT_SPANS: GiftSpan[] = ["year", "5years", "10years", "life"];
-const SPAN_YEARS: Record<Exclude<GiftSpan, "life">, number> = { year: 1, "5years": 5, "10years": 10 };
-export const SPAN_LABEL: Record<GiftSpan, string> = { year: "for a year", "5years": "for 5 years", "10years": "for 10 years", life: "for life" };
+export type GiftSpan = "month" | "year" | "5years" | "10years" | "life";
+export const GIFT_SPANS: GiftSpan[] = ["month", "year", "5years", "10years", "life"];
+const SPAN_MONTHS: Record<Exclude<GiftSpan, "life">, number> = { month: 1, year: 12, "5years": 60, "10years": 120 };
+export const SPAN_LABEL: Record<GiftSpan, string> = {
+  month: "for a month",
+  year: "for a year",
+  "5years": "for 5 years",
+  "10years": "for 10 years",
+  life: "for life",
+};
+/** Months a span covers, or null for life. */
+export const spanMonths = (span: GiftSpan): number | null => (span === "life" ? null : SPAN_MONTHS[span]);
 
 export interface GiftItem {
   productId: string;
@@ -60,7 +68,7 @@ export function giftRows(items: GiftItem[], birthYear: number = DEFAULT_CONTEXT.
     const amount = defaultAmount(p, ctx);
     const span = item.span;
     const split = harmSplit(planTotals([{ productId: p.id, amount, cover: { past: false, ahead: span === "life" ? "lifetime" : "monthly" } }], ctx, "monthly"), ctx, "monthly");
-    const months = span === "life" ? 0 : 12 * SPAN_YEARS[span];
+    const months = spanMonths(span) ?? 0;
     for (const k of Object.keys(total) as (keyof HarmSplit)[]) total[k].once += split[k].once + split[k].perPeriod * months;
   }
   return payRows(total, "monthly", false);
@@ -129,6 +137,6 @@ export function giftSentence(items: GiftItem[]): string {
 export function giftUntil(item: GiftItem, createdAt: string): string | null {
   if (item.span === "life") return null;
   const until = new Date(createdAt);
-  until.setFullYear(until.getFullYear() + SPAN_YEARS[item.span]);
+  until.setMonth(until.getMonth() + SPAN_MONTHS[item.span]);
   return until.toISOString();
 }

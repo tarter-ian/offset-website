@@ -60,5 +60,8 @@ describe("gifts", () => {
     expect(giftSentence(GIFTABLE.map((p) => ({ productId: p.id, span: "life" as const })))).toMatch(/^your whole footprint for life/);
     expect(giftUntil({ productId: "car", span: "5years" }, "2026-10-12T00:00:00.000Z")).toBe("2031-10-12T00:00:00.000Z");
     expect(giftUntil({ productId: "ai", span: "life" }, "2026-10-12T00:00:00.000Z")).toBeNull();
+    expect(giftUntil({ productId: "car", span: "month" }, "2026-10-12T00:00:00.000Z")).toBe("2026-11-12T00:00:00.000Z");
+    const sum = (rows: ReturnType<typeof giftRows>) => rows.reduce((s, r) => s + r.donation, 0);
+    expect(sum(giftRows([{ productId: "car", span: "month" }]))).toBeLessThan(sum(giftRows([{ productId: "car", span: "year" }])));
   });
 });
