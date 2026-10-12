@@ -577,7 +577,7 @@ export interface PlanLine {
  * offered (Ian, 2026-10-12). Each instalment is the past total divided by the
  * months, with nothing added or taken off.
  */
-export const PAST_YEARS = [0, 1, 2, 3, 5] as const;
+export const PAST_YEARS = [0, 1, 2, 3, 5, 10] as const;
 export type PastYears = (typeof PAST_YEARS)[number];
 
 /** The most a past-use instalment should add to a month by default. */

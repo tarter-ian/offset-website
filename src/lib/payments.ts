@@ -101,7 +101,7 @@ export const repeatRows = (split: HarmSplit, billing: Billing, mode: PaymentMode
 
 /**
  * The default spread for past use: of the spreads that keep it at or under the
- * monthly cap, the one that costs least in total over five years once every
+ * monthly cap, the one that costs least in total over the longest spread once every
  * charity's gift is rounded up to the smallest donation and given its fee
  * (Ian, 2026-10-12). Spreading a little can lift small monthly gifts to $1 that
  * would otherwise be rounded up for nothing; ties go to the shortest spread.

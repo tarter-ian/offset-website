@@ -85,7 +85,8 @@ describe("covers", () => {
     expect(defaultPastYears(100)).toBe(1);
     expect(defaultPastYears(233)).toBe(2);
     expect(defaultPastYears(300)).toBe(3);
-    expect(defaultPastYears(5000)).toBe(5);
+    expect(defaultPastYears(600)).toBe(5);
+    expect(defaultPastYears(5000)).toBe(10);
   });
 
   it("splits lifetime into past use plus the years to come", () => {
