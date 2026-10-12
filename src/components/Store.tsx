@@ -5,7 +5,6 @@ import { ActivityUpload } from "./ActivityUpload";
 import { AiExportUpload } from "./AiExportUpload";
 import { AiQuickPick } from "./AiQuickPick";
 import { AI_LEVELS } from "@/lib/ai/levels";
-import { Badge } from "./Badge";
 import { NumberInput, Select } from "./fields";
 import { WaitlistForm } from "./WaitlistForm";
 import { STATE_OPTIONS, STATES, type StateCode } from "@/lib/data/states";
@@ -132,6 +131,7 @@ export function Store() {
   const [checkout, setCheckout] = useState(false);
   // An optional tip toward running the site, added once to the next payment. Off unless chosen.
   const [tip, setTip] = useState(0);
+  const [adjusting, setAdjusting] = useState(false);
   const [measuring, setMeasuring] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
   // Which downloaded histories filled in each tile's amount.
@@ -190,6 +190,8 @@ export function Store() {
   });
   const billing = billingPick ?? DEFAULT_BILLING;
   const totals = planTotals(lines, ctx, billing);
+  // Everything charged today: the one-time payment, the first ongoing payment and any tip.
+  const dueToday = (totals.oneTime?.total ?? 0) + (totals.recurring?.total ?? 0) + tip;
   // Room below the footer for the plan bar, so it never covers the last lines of the page.
   useEffect(() => {
     document.body.style.paddingBottom = plan.length ? "5rem" : "";
@@ -803,7 +805,16 @@ export function Store() {
                     </li>
                   ))}
                 </ul>
-                <div className="mt-3 flex flex-wrap items-end gap-x-6 gap-y-3 border-t border-border pt-3 text-sm">
+                <button
+                  type="button"
+                  onClick={() => setAdjusting((a) => !a)}
+                  aria-expanded={adjusting}
+                  className="mt-2 min-h-10 text-sm text-muted underline hover:text-foreground"
+                >
+                  {adjusting ? "Done adjusting" : "Adjust past use, age and state"}
+                </button>
+                {adjusting && (
+                <div className="mt-2 flex flex-wrap items-end gap-x-6 gap-y-3 text-sm">
                   <label className="inline-flex min-h-10 cursor-pointer items-center gap-2">
                     <input
                       type="checkbox"
@@ -856,30 +867,56 @@ export function Store() {
                     {ctx.aiPastWh === undefined && " Linking an AI account replaces the start year with your real history."}
                   </p>
                 </div>
+                )}
+                <div className="mt-3 flex border-t border-border pt-3 flex-wrap items-center gap-2 text-sm" role="radiogroup" aria-label="Optional tip">
+                  <span className="text-muted">Add a tip to help keep Offset running?</span>
+                  {TIPS.map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      role="radio"
+                      aria-checked={tip === t}
+                      onClick={() => setTip(t)}
+                      className={`figures min-h-10 rounded-md border px-3 ${
+                        tip === t ? "border-rule bg-foreground text-background" : "border-border hover:border-rule"
+                      }`}
+                    >
+                      {t ? usd(t).replace(".00", "") : "No tip"}
+                    </button>
+                  ))}
+                </div>
                 <dl className="figures mt-3 space-y-1 border-t border-border pt-3 text-sm">
                   {totals.oneTime && (
                     <div className="flex justify-between gap-4">
-                      <dt className="font-sans text-muted">
-                        One payment: {usd(totals.oneTime.donation)} to charities
-                        {totals.oneTime.fee ? ` + ${usd(totals.oneTime.fee)} card fee` : ""}
-                      </dt>
-                      <dd className="font-medium">{usd(totals.oneTime.total)}</dd>
-                    </div>
-                  )}
-                  {tip > 0 && (
-                    <div className="flex justify-between gap-4">
-                      <dt className="font-sans text-muted">Tip to keep Offset running, once</dt>
-                      <dd className="font-medium">{usd(tip)}</dd>
+                      <dt className="font-sans text-muted">Donation, one time</dt>
+                      <dd>{usd(totals.oneTime.donation)}</dd>
                     </div>
                   )}
                   {totals.recurring && (
                     <div className="flex justify-between gap-4">
-                      <dt className="font-sans text-muted">
-                        {billing === "annual" ? "Each year" : "Each month"}: {usd(totals.recurring.donation)} to charities +{" "}
-                        {usd(totals.recurring.fee)} card fee
-                      </dt>
-                      <dd className="font-medium">{usd(totals.recurring.total)}</dd>
+                      <dt className="font-sans text-muted">Donation, first {billing === "annual" ? "year" : "month"}</dt>
+                      <dd>{usd(totals.recurring.donation)}</dd>
                     </div>
+                  )}
+                  <div className="flex justify-between gap-4">
+                    <dt className="font-sans text-muted">Card fee (30¢ + 3.6%, none of it to us)</dt>
+                    <dd>{usd((totals.oneTime?.fee ?? 0) + (totals.recurring?.fee ?? 0))}</dd>
+                  </div>
+                  {tip > 0 && (
+                    <div className="flex justify-between gap-4">
+                      <dt className="font-sans text-muted">Tip to keep Offset running</dt>
+                      <dd>{usd(tip)}</dd>
+                    </div>
+                  )}
+                  <div className="flex justify-between gap-4 border-t border-border pt-1.5 text-base font-semibold">
+                    <dt className="font-sans">Total today</dt>
+                    <dd>{usd(dueToday)}</dd>
+                  </div>
+                  {totals.recurring && (
+                    <p className="font-sans text-muted">
+                      Then {usd(totals.recurring.total)} {BILLING[billing].per} ({usd(totals.recurring.donation)} donation +{" "}
+                      {usd(totals.recurring.fee)} card fee). Cancel anytime.
+                    </p>
                   )}
                 </dl>
                 {totals.recurring && (
@@ -901,32 +938,10 @@ export function Store() {
                     ))}
                   </div>
                 )}
-                <div className="mt-3 flex flex-wrap items-center gap-2 text-sm" role="radiogroup" aria-label="Optional tip">
-                  <span className="text-muted">Add a tip to help keep Offset running?</span>
-                  {TIPS.map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      role="radio"
-                      aria-checked={tip === t}
-                      onClick={() => setTip(t)}
-                      className={`figures min-h-10 rounded-md border px-3 ${
-                        tip === t ? "border-rule bg-foreground text-background" : "border-border hover:border-rule"
-                      }`}
-                    >
-                      {t ? usd(t).replace(".00", "") : "No tip"}
-                    </button>
-                  ))}
-                </div>
                 <p className="mt-2 text-xs text-muted">
                   The smallest donation is {usd(MIN_DONATION_USD)}. We pool small donations and send each charity one payment a
                   month, so none is lost to card fees. You approve every payment yourself; nothing is charged automatically.
                 </p>
-                <div className="mt-4 flex flex-wrap gap-3">
-                  {totals.lines.map((l) => (
-                    <Badge key={l.productId} area={l.product.name} detail={coverBadge(l.cover, billing)} size="sm" />
-                  ))}
-                </div>
                 {checkout && (
                   <div className="mt-4">
                     <p className="mb-2 text-sm text-muted">Payments open at launch. Leave your email and we&apos;ll save your plan.</p>
@@ -947,11 +962,11 @@ export function Store() {
                 </span>
                 <span className="figures text-muted">
                   {[
-                    (totals.oneTime || tip > 0) && `${usd((totals.oneTime?.total ?? 0) + tip)} once`,
-                    totals.recurring && `${usd(totals.recurring.total)}${billing === "annual" ? "/yr" : "/mo"}`,
+                    `${usd(dueToday)} today`,
+                    totals.recurring && `then ${usd(totals.recurring.total)}${billing === "annual" ? "/yr" : "/mo"}`,
                   ]
                     .filter(Boolean)
-                    .join(" + ")}
+                    .join(", ")}
                 </span>
               </button>
               <button
