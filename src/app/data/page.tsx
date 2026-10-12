@@ -19,7 +19,7 @@ const KEPT = [
     where: "In the extension",
     what: "If you use it: how many prompts and images each ChatGPT chat had per day, so next time it only reads chats that changed. Never titles or text, and never sent to us. Clearing below deletes it, and so does removing the extension.",
   },
-  { where: "Nowhere else", what: "The counts the extension hands this page, and any file you add. We turn them into amounts on the page and keep none of it. API keys are used once and never saved or logged." },
+  { where: "Nowhere else", what: "The counts the extension hands this page, and any file you add. We turn them into amounts on the page and keep none of it. API keys are used once and never saved or logged. Your state starts as a guess from your connection's location, which our host reads on each visit; we don't save it, and picking a state replaces the guess." },
 ];
 
 export default function DataPage() {

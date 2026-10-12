@@ -139,6 +139,16 @@ export function Store() {
 
   useEffect(() => {
     const s = load();
+    // Until someone picks a state, start from the one their connection is in.
+    if (!s?.ctx?.statePicked) {
+      fetch("/api/region")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { state?: StateCode | null } | null) => {
+          const state = d?.state;
+          if (state && state in STATES) setCtx((c) => (c.statePicked ? c : { ...c, state }));
+        })
+        .catch(() => {});
+    }
     if (!s) return;
     setCtx({ ...DEFAULT_CONTEXT, ...s.ctx });
     setAmounts(s.amounts ?? {});
@@ -831,7 +841,7 @@ export function Store() {
                       <Select
                         label="State"
                         value={ctx.state}
-                        onChange={(v) => setCtx((c) => ({ ...c, state: v as StateCode }))}
+                        onChange={(v) => setCtx((c) => ({ ...c, state: v as StateCode, statePicked: true }))}
                         options={STATE_OPTIONS.map((s) => ({ value: s.code, label: s.name }))}
                       />
                     </span>

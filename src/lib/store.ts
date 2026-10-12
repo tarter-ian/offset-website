@@ -42,6 +42,8 @@ export const SECTIONS: { key: SectionKey; title: string; blurb: string }[] = [
 export interface Context {
   birthYear: number;
   state: StateCode;
+  /** Set once the person picks a state, so a guess from their location never overrides it. */
+  statePicked?: boolean;
   /** Measured from a linked AI account. */
   aiWhPerPrompt?: number;
   aiFromExport?: boolean;
