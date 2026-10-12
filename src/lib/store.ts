@@ -12,6 +12,7 @@ import {
 } from "./lifetime";
 import type { ProviderId } from "./providers";
 import type { AiLevel } from "./ai/levels";
+import type { CodeEstimate } from "./ai/exportParser";
 import {
   type Billing,
   DEFAULT_BILLING,
@@ -49,6 +50,8 @@ export interface Context {
   aiFromExport?: boolean;
   /** All-time AI chat energy from linked exports or chat history, in Wh. */
   aiPastWh?: number;
+  /** Claude Code energy estimated from a Claude plan's weekly limit, which the prompt count leaves out. */
+  aiCode?: CodeEstimate;
   /** The year the person says they started using AI. */
   aiStartYear?: number;
   /** A quick AI estimate: a picked level, or the plan from a sign-in. */

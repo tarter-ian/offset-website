@@ -95,6 +95,9 @@ export function summaryFromSignIn(provider: AiProvider, u: SignInUsage): UsageSu
     totalPrompts: u.prompts,
     promptsPerDay: u.prompts / u.days,
     whPerDay: Math.max(wh / u.days, fromLimit),
+    ...(fromLimit > wh / u.days
+      ? { code: { whPerDay: fromLimit - wh / u.days, limitPercent: u.weeklyLimitUsedPercent ?? 0, plan: claudePlanName(u.planType) } }
+      : {}),
     imagesPerWeek: (u.images / u.days) * 7,
     reasoningShare: u.prompts ? reasoning / u.prompts : 0,
     windowDays: u.days,
@@ -120,6 +123,14 @@ export function claudeWeeklyHours(tier: string | undefined): number {
   if (/5x|max/.test(t)) return F.CLAUDE_WEEKLY_HOURS.max_5x;
   if (/pro|claude_ai|team/.test(t)) return F.CLAUDE_WEEKLY_HOURS.pro;
   return 0;
+}
+
+/** A Claude plan's name as people know it, from its rate-limit tier. */
+export function claudePlanName(tier: string | undefined): string {
+  const t = (tier ?? "").toLowerCase();
+  if (/20x/.test(t)) return "Max 20x";
+  if (/5x|max/.test(t)) return "Max 5x";
+  return "Pro";
 }
 
 /** Daily energy implied by the share of a Claude plan's weekly limit used. */

@@ -14,6 +14,7 @@ import { howEstimated, whereItGoes } from "@/lib/methods";
 import { PROVIDERS, type ProviderId } from "@/lib/providers";
 import { digitalFromExport } from "@/lib/ai/exportParser";
 import { SOURCE_NAMES, type ActivitySource } from "@/lib/activity";
+import * as F from "@/lib/factors";
 import { ONLINE_FROM_AGE } from "@/lib/factors";
 import {
   LIFETIME_GROWTH_BUFFER,
@@ -231,6 +232,8 @@ export function Store() {
 
   const sourceNote = (p: Product) => {
     if (entered[p.id]) return "you entered";
+    if (p.id === "ai" && ctx.aiFromExport && ctx.aiCode)
+      return `measured from your account, plus Claude Code, estimated from ${Math.round(ctx.aiCode.limitPercent)}% of your ${ctx.aiCode.plan} weekly limit`;
     if (p.section === "ai" && ctx.aiFromExport) return "measured from your account";
     if (p.id === "ai" && ctx.aiEstimate) return ctx.aiEstimate.from;
     if (linkedFrom[p.id]) return `from your ${linkedFrom[p.id].map((s) => SOURCE_NAMES[s]).join(" and ")} history`;
@@ -597,7 +600,7 @@ export function Store() {
             <AiQuickPick
               level={ctx.aiFromExport || entered.ai ? null : (ctx.aiEstimate?.level ?? null)}
               onPick={(level, from) => {
-                setCtx((c) => ({ ...c, aiEstimate: { level, from }, aiFromExport: false, aiWhPerPrompt: undefined, aiPastWh: undefined }));
+                setCtx((c) => ({ ...c, aiEstimate: { level, from }, aiFromExport: false, aiWhPerPrompt: undefined, aiPastWh: undefined, aiCode: undefined }));
                 setAmounts((a) => ({ ...a, ai: AI_LEVELS[level].promptsPerDay }));
                 resetAiCover();
                 setEntered((e) => ({ ...e, ai: false }));
@@ -608,6 +611,7 @@ export function Store() {
                 setCtx((c) => ({
                   ...c,
                   aiWhPerPrompt: d.aiWhPerPrompt,
+                  aiCode: d.aiCode,
                   aiFromExport: !note,
                   aiPastWh: note ? undefined : d.aiPastWh,
                   aiEstimate: note ? { from: note } : undefined,
@@ -623,7 +627,7 @@ export function Store() {
               <AiExportUpload
                 onResult={(s) => {
                   const d = digitalFromExport(s);
-                  setCtx((c) => ({ ...c, aiWhPerPrompt: d.aiWhPerPrompt, aiFromExport: true, aiPastWh: d.aiPastWh, aiEstimate: undefined }));
+                  setCtx((c) => ({ ...c, aiWhPerPrompt: d.aiWhPerPrompt, aiCode: d.aiCode, aiFromExport: true, aiPastWh: d.aiPastWh, aiEstimate: undefined }));
                   setAmounts((a) => ({ ...a, ai: d.aiPromptsPerDay, "ai-media": d.aiMediaPerWeek }));
                   resetAiCover();
                   setEntered((e) => ({ ...e, ai: false, "ai-media": false }));
@@ -638,7 +642,17 @@ export function Store() {
             <h2 className="text-xl font-bold">AI chat</h2>
             <span className="text-sm text-muted">ChatGPT, Claude, Gemini and the rest</span>
           </div>
-          <div className="mt-3 border-b border-border pb-3">{amountLine(ai)}</div>
+          <div className="mt-3 border-b border-border pb-3">
+            {amountLine(ai)}
+            {ctx.aiFromExport && ctx.aiCode && (
+              <p className="mt-1 text-sm text-muted">
+                Claude Code is about{" "}
+                {Math.round((ctx.aiCode.whPerDay / ((ctx.aiWhPerPrompt ?? F.WH_PER_AI_PROMPT) * Number(amountOf(ai)) || 1)) * 100)}% of the energy, or{" "}
+                {Math.round(ctx.aiCode.whPerDay / F.WH_PER_AI_PROMPT).toLocaleString("en-US")} typical prompts a day. Chat apps don&apos;t count it, so
+                we estimate it from your weekly limit at {F.WH_PER_CLAUDE_CODE_HOUR} Wh an hour, {F.CLAUDE_WEEKLY_HOURS[ctx.aiCode.plan === "Max 20x" ? "max_20x" : ctx.aiCode.plan === "Max 5x" ? "max_5x" : "pro"]} hours in a full {ctx.aiCode.plan} week.
+              </p>
+            )}
+          </div>
           <dl className="figures divide-y divide-border text-sm">
             {[
               ["Covers", covers],

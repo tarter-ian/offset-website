@@ -34,6 +34,9 @@ describe("Claude usage limit", async () => {
     const u = signInUsage({ prompts: 73, reasoningResponses: 0, images: 0, windowDays: 30, rateLimitTier: "default_claude_max_5x", weeklyLimitUsedPercent: 63 })!;
     expect(claudeLimitWhPerDay(u)).toBeCloseTo((0.63 * 140 * 120) / 7, 6);
     expect(summaryFromSignIn("claude", u).whPerDay).toBeCloseTo(claudeLimitWhPerDay(u), 6);
+    const code = summaryFromSignIn("claude", u).code!;
+    expect(code).toMatchObject({ limitPercent: 63, plan: "Max 5x" });
+    expect(code.whPerDay).toBeCloseTo(claudeLimitWhPerDay(u) - (73 * 0.3) / 30, 6);
   });
 });
 

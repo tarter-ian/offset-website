@@ -25,6 +25,12 @@ export interface ExportUsage {
   images: number[];
 }
 
+export interface CodeEstimate {
+  whPerDay: number;
+  limitPercent: number;
+  plan: string;
+}
+
 export interface UsageSummary {
   providers: AiProvider[];
   totalPrompts: number;
@@ -37,6 +43,8 @@ export interface UsageSummary {
   windowDays: number;
   /** All-time energy of every prompt in the export, in Wh. Missing for API usage, which only covers recent months. */
   totalWh?: number;
+  /** Claude Code, estimated from the share of a Claude plan's weekly limit used: the daily energy beyond the counted chats. */
+  code?: CodeEstimate;
 }
 
 type Part = string | { content_type?: string; text?: string } | null;
@@ -243,6 +251,7 @@ export function combineSummaries(summaries: UsageSummary[]): UsageSummary | null
     imagesPerWeek: sum("imagesPerWeek"),
     reasoningShare: prompts ? summaries.reduce((s, x) => s + x.reasoningShare * x.promptsPerDay, 0) / prompts : 0,
     windowDays: Math.max(...summaries.map((s) => s.windowDays)),
+    code: summaries.find((s) => s.code)?.code,
     // Known when any linked source has its history; the others grow steadily since ChatGPT's launch.
     totalWh: summaries.some((s) => s.totalWh !== undefined)
       ? summaries.reduce((s, x) => s + (x.totalWh ?? estimatedPastWh(x.whPerDay)), 0)
@@ -259,5 +268,6 @@ export function digitalFromExport(s: UsageSummary) {
     aiMediaPerWeek: Math.round(s.imagesPerWeek * 10) / 10,
     aiFromExport: true,
     aiPastWh: s.totalWh,
+    aiCode: s.code,
   };
 }
