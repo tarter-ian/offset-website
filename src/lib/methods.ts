@@ -52,6 +52,11 @@ export const HOW_ESTIMATED: Record<string, string[]> = {
     `About ${F.WH_PER_AI_VIDEO} Wh for a 5-second clip, the one published measurement (an open model, measured for MIT Technology Review in 2025). Commercial video models don't publish theirs.`,
     "Same training, hardware and water as chat. Past use counts from late 2024, when video tools opened to the public.",
   ],
+  "ai-coding": [
+    `About ${F.WH_PER_CLAUDE_CODE_HOUR} Wh an hour of a coding agent working (published estimates run ${F.WH_PER_CLAUDE_CODE_HOUR_RANGE[0]} to ${F.WH_PER_CLAUDE_CODE_HOUR_RANGE[1]} Wh). Using a Claude plan's whole weekly limit is about ${F.CLAUDE_WEEKLY_HOURS.pro} hours a week on Pro and ${F.CLAUDE_WEEKLY_HOURS.max_5x} on Max 5x.`,
+    "If you link Claude or ChatGPT, coding is measured from your account and counted with AI chat instead, so this card adds nothing.",
+    "Same training, hardware and water as chat. Past use counts from 2025, when coding agents took off.",
+  ],
   video: [`About ${F.STREAMING_KWH_PER_HOUR} kWh and ${g(F.KG_PER_STREAMING_HOUR)} of CO₂ an hour, from the IEA.`, ONLINE_NOTE],
   social: [ONLINE_NOTE],
   gaming: [ONLINE_NOTE],

@@ -42,14 +42,15 @@ export function shareQuery(t: ShareTotals): string {
 /**
  * A month of AI use, best estimate without our margin: prompts at the person's
  * measured energy (which includes Claude Code and agents when linked), images,
- * video, and the AI built into search and other apps.
+ * video, hours of coding agents entered by hand, and the AI built into search and other apps.
  */
-export function aiMonthTotals(amounts: { prompts: number; images: number; videos: number }, ctx: Pick<Context, "aiWhPerPrompt">): ShareTotals {
+export function aiMonthTotals(amounts: { prompts: number; images: number; videos: number; codingHours?: number }, ctx: Pick<Context, "aiWhPerPrompt">): ShareTotals {
   const n = (v: number) => (Number.isFinite(v) && v > 0 ? v : 0);
   const wh =
     n(amounts.prompts) * F.DAYS_PER_MONTH * (ctx.aiWhPerPrompt ?? F.WH_PER_AI_PROMPT) +
     n(amounts.images) * F.WEEKS_PER_MONTH * F.WH_PER_AI_MEDIA +
     n(amounts.videos) * F.WEEKS_PER_MONTH * F.WH_PER_AI_VIDEO +
+    n(amounts.codingHours ?? 0) * F.WEEKS_PER_MONTH * F.WH_PER_CLAUDE_CODE_HOUR +
     F.AI_BUILT_IN_PROMPTS_PER_DAY * F.DAYS_PER_MONTH * F.WH_PER_AI_PROMPT;
   const i = aiImpacts(wh / 1000);
   return { carbon: i.carbon, lifeMinutes: i.air * F.MINUTES_OF_LIFE_PER_DAMAGE_USD };
