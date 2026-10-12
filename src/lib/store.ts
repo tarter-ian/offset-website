@@ -58,6 +58,8 @@ export interface Context {
   aiStartYear?: number;
   /** A quick AI estimate: a picked level, or the plan from a sign-in. */
   aiEstimate?: { level?: AiLevel; from: string };
+  /** Video hours watched to date, from YouTube and Netflix whole history. */
+  videoPast?: { hours: number; since: string };
   /** The year everyday items' past use counts from, when the person picks one. */
   pastSinceYear?: number;
 }
@@ -100,6 +102,7 @@ const base = (ctx: Context): LifetimeInput => ({
   ...DEFAULT_LIFETIME_INPUT,
   birthYear: ctx.birthYear,
   aiStartYear: ctx.aiStartYear,
+  videoPast: ctx.videoPast,
   internetHoursPerDay: NO_ONLINE,
   aiPromptsPerDay: 0,
   aiMediaPerWeek: 0,

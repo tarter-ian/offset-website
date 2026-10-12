@@ -52,7 +52,11 @@ export const HOW_ESTIMATED: Record<string, string[]> = {
     `About ${F.WH_PER_AI_VIDEO} Wh for a 5-second clip, the one published measurement (an open model, measured for MIT Technology Review in 2025). Commercial video models don't publish theirs.`,
     "Same training, hardware and water as chat. Past use counts from late 2024, when video tools opened to the public.",
   ],
-  video: [`About ${F.STREAMING_KWH_PER_HOUR} kWh and ${g(F.KG_PER_STREAMING_HOUR)} of CO₂ an hour, from the IEA.`, ONLINE_NOTE],
+  video: [
+    `About ${F.STREAMING_KWH_PER_HOUR} kWh and ${g(F.KG_PER_STREAMING_HOUR)} of CO₂ an hour, from the IEA.`,
+    "If the extension counts your whole history, past watching is measured from YouTube's hours and Netflix's titles (about 40 minutes each), and only the years before that history starts are estimated.",
+    ONLINE_NOTE,
+  ],
   social: [ONLINE_NOTE],
   gaming: [ONLINE_NOTE],
   calls: [ONLINE_NOTE],

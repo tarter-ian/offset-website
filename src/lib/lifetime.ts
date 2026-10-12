@@ -1,4 +1,5 @@
 import * as F from "./factors";
+import { monthAsYear } from "./history";
 import { aiCoolingWater, aiImpacts, coolingWater, dataCenterImpacts, electronicsMaking, gridImpacts, IMPACT_KEYS, MARGINS, type Impacts } from "./footprint";
 import {
   impactCost,
@@ -51,6 +52,8 @@ export interface LifetimeInput {
   aiMediaPerWeek: number;
   /** Short AI videos made a week. */
   aiVideoPerWeek?: number;
+  /** Video hours actually watched to date, from YouTube and Netflix history, and the month that history starts ("YYYY-MM"). */
+  videoPast?: { hours: number; since: string };
   /** AI built into other products (search answers, summaries), in typical prompts a day. */
   aiBuiltInPerDay?: number;
   aiFromExport?: boolean;
@@ -156,7 +159,15 @@ export function lifetimeOffset(
     const kwhPerYear = nonNeg(input.internetHoursPerDay[k]) * 365 * F.INTERNET_KWH_PER_HOUR[k];
     const margin = MARGINS.estimated + (k === "video" ? 0 : F.INTERNET_ROUGH_MARGIN);
     const perYear = dataCenterImpacts(kwhPerYear);
-    const used = add(add(zero, perYear, plain(pastInternet)), future(perYear, coolingWater(kwhPerYear)));
+    // Measured video history replaces the estimate of past watching; years before the history starts are estimated at today's hours.
+    const measured = k === "video" && input.videoPast && (span === "past" || span === "lifetime") ? input.videoPast : undefined;
+    const past = measured
+      ? dataCenterImpacts(
+          (nonNeg(measured.hours) + nonNeg(input.internetHoursPerDay.video) * 365 * Math.max(0, (monthAsYear(measured.since) || year) - onlineSince)) *
+            F.INTERNET_KWH_PER_HOUR.video,
+        )
+      : zero;
+    const used = add(add(past, perYear, measured ? 0 : plain(pastInternet)), future(perYear, coolingWater(kwhPerYear)));
     const impacts = add(zero, used, 1 + margin);
     internetByActivity[k] = part(impacts).cost;
     internet = add(internet, impacts);

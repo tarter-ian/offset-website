@@ -1,5 +1,6 @@
 import * as F from "../factors";
 import type { AiProvider, UsageSummary } from "./exportParser";
+import { historyTotal } from "../history";
 
 /**
  * What our ChatGPT and Claude sign-ins report: counts over the last 30 days,
@@ -22,6 +23,8 @@ export interface SignInUsage {
   conversations?: number;
   /** ChatGPT and Claude: every chat the account still has, by when it was started. */
   history?: ChatHistory;
+  /** Gemini with a whole-history count: every prompt the activity log still has, and the month it starts. */
+  promptsEver?: { total: number; since: string };
   /** ChatGPT's agent and Codex tools: tokens in the window and ever, from the profile page, and which tools they came from. */
   agentTokens?: { window: number; lifetime: number; tool: AgentTool };
 }
@@ -87,6 +90,7 @@ export function signInUsage(data: unknown): SignInUsage | null {
   const days = count(r.windowDays) || 30;
   const weekly = Number(r.weeklyLimitUsedPercent);
   const history = chatHistory(r.history);
+  const ever = history ? null : historyTotal(r, "prompts");
   const agentic = typeof r.agentic === "object" && r.agentic !== null ? (r.agentic as Record<string, unknown>) : null;
   const agentTokens = agentic ? { window: count(agentic.tokens), lifetime: count(agentic.lifetimeTokens), tool: agentToolOf(agentic) } : null;
   return {
@@ -98,6 +102,7 @@ export function signInUsage(data: unknown): SignInUsage | null {
     ...(Number.isFinite(weekly) && weekly > 0 ? { weeklyLimitUsedPercent: Math.min(weekly, 100) } : {}),
     ...("conversations" in r ? { conversations: count(r.conversations) } : {}),
     ...(history ? { history } : {}),
+    ...(ever ? { promptsEver: { total: Math.max(ever.total, count(r.prompts)), since: ever.firstMonth } } : {}),
     ...(agentTokens && (agentTokens.window || agentTokens.lifetime) ? { agentTokens } : {}),
     ...(count(r.failedConversations) > 0 ? { missedChats: count(r.failedConversations) } : r.truncated === true ? { missedChats: -1 } : {}),
   };
@@ -128,10 +133,14 @@ export function summaryFromSignIn(provider: AiProvider, u: SignInUsage): UsageSu
     imagesPerWeek: (u.images / u.days) * 7,
     reasoningShare: u.prompts ? reasoning / u.prompts : 0,
     windowDays: u.days,
-    ...(u.history || u.agentTokens
+    ...(u.history || u.agentTokens || u.promptsEver
       ? {
           totalWh:
-            (u.history ? pastWhFromHistory(u, Math.max(wh, fromLimit * u.days)) : Math.max(wh, fromLimit * u.days)) +
+            (u.history
+              ? pastWhFromHistory(u, Math.max(wh, fromLimit * u.days))
+              : u.promptsEver
+                ? (u.prompts ? wh / u.prompts : F.WH_PER_AI_PROMPT) * u.promptsEver.total
+                : Math.max(wh, fromLimit * u.days)) +
             (u.agentTokens ? agentWh(u.agentTokens.lifetime) : 0),
         }
       : {}),

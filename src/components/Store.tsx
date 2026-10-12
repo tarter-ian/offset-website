@@ -825,6 +825,7 @@ export function Store() {
               }}
               onExact={() => setMeasuring(true)}
               onVideo={(h, from) => measuredAmount("video", h, from)}
+              onVideoPast={(videoPast) => setCtx((c) => ({ ...c, videoPast }))}
               onRides={(n) => measuredAmount("rideshare", n, ["uber"])}
               onDelivery={(n) => measuredAmount("delivery", n, ["doordash", "ubereats"])}
               onShopping={amazonShopping}

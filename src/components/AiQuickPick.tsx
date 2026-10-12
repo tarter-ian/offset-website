@@ -9,6 +9,7 @@ import { combineSummaries, type UsageSummary } from "@/lib/ai/exportParser";
 import { activityAmounts, amazonShopping, NETFLIX_MIN_PER_TITLE, youtubeDays } from "@/lib/activity";
 import { canInstallExtension, detectExtension, EXTENSION_SERVICES, EXTENSION_URL, measure, measuredAtOf, savedResults, type ExtensionError, type ExtensionService, type SavedResult } from "@/lib/extension";
 import { SIGN_IN_READS } from "@/lib/signinReads";
+import { combineVideoPast, monthName, videoHistoryHours, type HistoryTotal, type VideoPast } from "@/lib/history";
 
 const AI_NAMES: Record<QuickService, string> = { chatgpt: "ChatGPT", claude: "Claude", gemini: "Gemini" };
 const SERVICES = Object.keys(AI_NAMES) as QuickService[];
@@ -51,6 +52,7 @@ export function AiQuickPick({
   onMeasured,
   onVideo,
   onDelivery,
+  onVideoPast,
   onRides,
   onShopping,
 }: {
@@ -67,12 +69,17 @@ export function AiQuickPick({
   onShopping?: (usdPerMonth: ReturnType<typeof amazonShopping>) => void;
   /** Deliveries a week, measured from DoorDash and Uber Eats together. */
   onDelivery?: (perWeek: number) => void;
+  /** Video hours watched to date, from YouTube and Netflix whole history. */
+  onVideoPast?: (past: VideoPast | undefined) => void;
 }) {
   const [ext, setExt] = useState<string | null>(null);
   const [rows, setRows] = useState<Partial<Record<ExtensionService, Row>>>({});
   /** When each service's shown result was measured, from the extension's saved results or a fresh count. */
   const [measuredAt, setMeasuredAt] = useState<Partial<Record<ExtensionService, string>>>({});
   const [, setVideo] = useState<Partial<Record<"youtube" | "netflix", number>>>({});
+  const [, setVideoPast] = useState<Partial<Record<"youtube" | "netflix", HistoryTotal | null>>>({});
+  /** Read each account's whole history, not just 30 days. Slower, so off unless asked for. */
+  const [whole, setWhole] = useState(false);
   const [, setFood] = useState<Partial<Record<FoodService, number>>>({});
   const [aiSummaries, setAiSummaries] = useState<Partial<Record<QuickService, UsageSummary>>>({});
   const [installable, setInstallable] = useState(false);
@@ -119,13 +126,19 @@ export function AiQuickPick({
       const days = youtubeDays(usage);
       const video = activityAmounts(days)?.amounts.video;
       const totals = youtubeTotals(usage);
+      const ever = videoHistoryHours("youtube", usage);
       setRows((r) => ({
         ...r,
         youtube: video
-          ? { state: "done", raw: usage, text: `${totals.videos.toLocaleString("en-US")} videos and ${totals.shorts.toLocaleString("en-US")} Shorts in 30 days, about ${video} hours a day` }
+          ? {
+              state: "done",
+              raw: usage,
+              text: `${totals.videos.toLocaleString("en-US")} videos and ${totals.shorts.toLocaleString("en-US")} Shorts in 30 days, about ${video} hours a day${everText(ever)}`,
+            }
           : { state: "error", error: "unavailable", raw: usage },
       }));
       if (video) reportVideo("youtube", video);
+      reportVideoPast("youtube", ever);
       return;
     }
     if (service === "netflix") {
@@ -135,11 +148,13 @@ export function AiQuickPick({
         return;
       }
       const hours = (n.total / n.days) * (NETFLIX_MIN_PER_TITLE / 60);
+      const ever = videoHistoryHours("netflix", usage);
       setRows((r) => ({
         ...r,
-        netflix: { state: "done", raw: usage, text: `${n.total} episodes and films in ${n.days} days, about ${hours.toFixed(1)} hours a day` },
+        netflix: { state: "done", raw: usage, text: `${n.total} episodes and films in ${n.days} days, about ${hours.toFixed(1)} hours a day${everText(ever)}` },
       }));
       reportVideo("netflix", hours);
+      reportVideoPast("netflix", ever);
       return;
     }
     if (service === "uber") {
@@ -208,6 +223,7 @@ export function AiQuickPick({
       },
       inFront,
       maxAgeHours,
+      whole,
     );
   }
 
@@ -217,6 +233,15 @@ export function AiQuickPick({
       const next = { ...prev, [service]: hoursPerDay };
       const total = Object.values(next).reduce((s, n) => s + (n ?? 0), 0);
       onVideo?.(Math.round(total * 20) / 20, Object.keys(next) as ("youtube" | "netflix")[]);
+      return next;
+    });
+  }
+
+  /** Whole-history video hours from YouTube and Netflix add up as the video card's past use. */
+  function reportVideoPast(service: "youtube" | "netflix", ever: HistoryTotal | null) {
+    setVideoPast((prev) => {
+      const next = { ...prev, [service]: ever };
+      onVideoPast?.(combineVideoPast(Object.values(next)));
       return next;
     });
   }
@@ -296,6 +321,16 @@ export function AiQuickPick({
               </button>
             ))}
           </div>
+          <label className="mt-3 flex cursor-pointer items-start gap-2 text-sm">
+            <input type="checkbox" className="mt-1" checked={whole} onChange={(e) => setWhole(e.target.checked)} disabled={busy} />
+            <span>
+              <span className="font-semibold">Count my whole history</span>{" "}
+              <span className="text-muted">
+                (slower). YouTube, Netflix and Gemini read back as far as your account goes, so your past use is measured instead of estimated. A long
+                YouTube history can take 10 minutes or more. ChatGPT, Claude and the delivery apps always send their history.
+              </span>
+            </span>
+          </label>
           <p className="mt-2 text-sm text-muted">
             The My Offset extension checks ChatGPT, Claude, Gemini, YouTube, Netflix, DoorDash, Uber Eats, Amazon and Uber in the background, where you&apos;re already logged in, and
             brings back your last 30 days. Only counts come back, never your chats or orders.{" "}
@@ -528,9 +563,14 @@ function youtubeTotals(usage: unknown): { videos: number; shorts: number } {
   );
 }
 
+/** ", and 4,434 hours since March 2022" after a whole-history count. */
+const everText = (ever: HistoryTotal | null) =>
+  ever ? `, and ${Math.round(ever.total).toLocaleString("en-US")} hours ${ever.whole ? "since" : "back to at least"} ${monthName(ever.firstMonth)}` : "";
+
 function resultText(u: SignInUsage): string {
   return (
-    `${u.prompts.toLocaleString("en-US")} prompts${u.images ? ` and ${u.images} images` : ""} in the last ${u.days} days.` +
+    `${u.prompts.toLocaleString("en-US")} prompts${u.images ? ` and ${u.images} images` : ""} in the last ${u.days} days` +
+    (u.promptsEver ? `, and ${u.promptsEver.total.toLocaleString("en-US")} since ${monthName(u.promptsEver.since)}.` : ".") +
     (claudeLimitWhPerDay(u) > 0
       ? ` You've also used ${Math.round(u.weeklyLimitUsedPercent!)}% of your plan's weekly limit, which counts Claude Code, so we estimate from that: about ${(claudeLimitWhPerDay(u) / 1000).toFixed(1)} kWh a day.`
       : "") +
