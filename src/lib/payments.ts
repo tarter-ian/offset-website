@@ -23,7 +23,7 @@ export const feeFor = (donation: number, mode: PaymentMode = PAYMENT_MODE) => pa
  */
 export const EVERY_SLUGS: Partial<Record<ImpactKey, string>> = {
   carbon: "cleanaircatf", // Clean Air Task Force, EIN 04-3512550
-  air: "lung", // American Lung Association
+  air: "cleanaircatf", // Clean Air Task Force too: one gift covers carbon and air
   water: "colorado-water-trust", // Colorado Water Trust, EIN 84-1606567
   land: "rainforest-trust", // Rainforest Trust, EIN 13-3500609
   ewaste: "pcs-for-people", // PCs for People, EIN 26-2066045
@@ -48,26 +48,44 @@ export interface PayRow {
 
 const upToCent = (n: number) => Math.ceil(n * 100 - 1e-6) / 100;
 
+/** The first harm paid to the same Every.org charity as k, so harms sharing a charity share one gift. */
+const payee = (k: ImpactKey) => HARM_ORDER.find((h) => EVERY_SLUGS[h] === EVERY_SLUGS[k]) ?? k;
+
+/** Adds up per-harm amounts by the charity that receives them, keeping which harms each covers. */
+function byPayee(amounts: Partial<Record<ImpactKey, number>>) {
+  const groups = new Map<ImpactKey, { amount: number; harms: ImpactKey[] }>();
+  for (const k of HARM_ORDER) {
+    const a = amounts[k] ?? 0;
+    if (!EVERY_SLUGS[k] || a < 0.005) continue;
+    const g = groups.get(payee(k)) ?? { amount: 0, harms: [] };
+    g.amount += a;
+    g.harms.push(k);
+    groups.set(payee(k), g);
+  }
+  return groups;
+}
+
 /**
  * Turns a plan's per-harm amounts into one payment per charity. Harms worth
- * nothing are skipped. One worth less than the smallest donation is added to the
- * largest gift instead, since its own 30¢ card fee would eat most of it.
+ * nothing are skipped, and harms paid to the same charity go in one gift. A
+ * gift worth less than the smallest donation is added to the largest gift
+ * instead, since its own 30¢ card fee would eat most of it.
  */
 function rowsFor(amounts: Record<ImpactKey, number>, frequency: Frequency, suffix: string, mode: PaymentMode): PayRow[] {
-  const live = HARM_ORDER.filter((k) => EVERY_SLUGS[k] && amounts[k] >= 0.005);
-  if (!live.length) return [];
-  const largest = live.reduce((a, b) => (amounts[b] > amounts[a] ? b : a));
-  const small = live.filter((k) => k !== largest && amounts[k] < MIN_DONATION_USD);
-  return live
-    .filter((k) => !small.includes(k))
-    .map((k) => {
-      const raw = amounts[k] + (k === largest ? small.reduce((s, x) => s + amounts[x], 0) : 0);
+  const groups = [...byPayee(amounts)];
+  if (!groups.length) return [];
+  const [largest] = groups.reduce((a, b) => (b[1].amount > a[1].amount ? b : a));
+  const small = groups.filter(([k, g]) => k !== largest && g.amount < MIN_DONATION_USD);
+  return groups
+    .filter((g) => !small.includes(g))
+    .map(([k, g]) => {
+      const raw = g.amount + (k === largest ? small.reduce((s, [, x]) => s + x.amount, 0) : 0);
       const donation = Math.max(MIN_DONATION_USD, upToCent(raw));
       const fee = feeFor(donation, mode);
       return {
         key: `${k}${suffix}`,
         charity: k,
-        harms: k === largest ? [k, ...small] : [k],
+        harms: k === largest ? [...g.harms, ...small.flatMap(([, x]) => x.harms)] : g.harms,
         donation,
         fee,
         total: Math.round((donation + fee) * 100) / 100,
@@ -99,7 +117,7 @@ export const sumTotal = (rows: PayRow[]) => Math.round(rows.reduce((s, r) => s +
 
 /** The card fees for giving these amounts to the charities one payment each, as Every.org charges them. */
 export function perCharityFees(amounts: Partial<Record<ImpactKey, number>>): number {
-  return Math.round(HARM_ORDER.reduce((s, k) => s + ((amounts[k] ?? 0) >= 0.005 ? cardFee(amounts[k]!) : 0), 0) * 100) / 100;
+  return Math.round([...byPayee(amounts).values()].reduce((s, g) => s + cardFee(g.amount), 0) * 100) / 100;
 }
 
 /** "carbon and air pollution", for a row's covers line. */
