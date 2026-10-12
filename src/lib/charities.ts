@@ -21,9 +21,9 @@ export const CHARITIES: Record<ImpactKey, Charity> = {
     focus: "Campaigns for cleaner air and healthier lungs",
   },
   water: {
-    name: "Bonneville Environmental Foundation",
-    url: "https://www.b-e-f.org/",
-    focus: "Restores water to rivers and streams",
+    name: "Colorado Water Trust",
+    url: "https://coloradowatertrust.org/",
+    focus: "Leases and buys water rights to put water back in dry rivers",
   },
   land: {
     name: "Rainforest Trust",
@@ -31,9 +31,9 @@ export const CHARITIES: Record<ImpactKey, Charity> = {
     focus: "Buys and protects threatened tropical forest",
   },
   ewaste: {
-    name: "Human-I-T",
-    url: "https://www.human-i-t.org/",
-    focus: "Refurbishes donated devices for low-income families and recycles the rest responsibly",
+    name: "PCs for People",
+    url: "https://www.pcsforpeople.org/",
+    focus: "Refurbishes donated computers for low-income households and recycles the rest responsibly",
   },
 };
 
