@@ -28,6 +28,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               <Link href="/method" className="hidden text-muted hover:text-foreground sm:inline">
                 How we calculate
               </Link>
+              <Link href="/different" className="hidden text-muted hover:text-foreground sm:inline">
+                What&apos;s different
+              </Link>
               <Link href="/promises" className="text-muted hover:text-foreground">
                 Our promises
               </Link>
@@ -48,6 +51,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               .
             </span>
             <span className="flex flex-wrap gap-x-4 gap-y-1">
+              <Link href="/different" className="underline hover:text-foreground">
+                What&apos;s different
+              </Link>
               <Link href="/ledger" className="underline hover:text-foreground">
                 Where the money goes
               </Link>
