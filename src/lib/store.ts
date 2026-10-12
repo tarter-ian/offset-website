@@ -358,6 +358,7 @@ export function sourcesFor(p: Product): ProviderId[] {
   if (p.id === "transit") return ["activity"];
   if (p.id === "flights") return ["activity", "bank"];
   if (p.id === "video" || p.id === "music") return ["activity"];
+  if (p.id === "electricity" || p.id === "heating") return ["activity", "utility"];
   return SOURCES[p.section];
 }
 

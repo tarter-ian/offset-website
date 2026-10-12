@@ -1,17 +1,19 @@
 import { strFromU8, unzipSync } from "fflate";
+import { GAS_PRICE_PER_THERM } from "./factors";
 
 // Reads the data downloads people can get from Spotify, YouTube (Google
-// Takeout), Netflix and Google Maps Timeline, in the browser, and turns them
-// into the amounts on the store's tiles. Nothing is uploaded.
+// Takeout), Netflix, Google Maps Timeline and their utility (Green Button), in
+// the browser, and turns them into the amounts on the store's tiles. Nothing is
+// uploaded.
 
-export type ActivitySource = "spotify" | "youtube" | "netflix" | "timeline" | "uber";
-type Target = "music" | "video" | "car" | "transit" | "flights";
+export type ActivitySource = "spotify" | "youtube" | "netflix" | "timeline" | "uber" | "greenbutton";
+type Target = "music" | "video" | "car" | "transit" | "flights" | "electricity" | "heating";
 
 /** One thing that happened: hours of listening or watching, miles travelled, or a flight leg. */
 export interface ActivityEvent {
   target: Target;
   time: number;
-  /** Hours for music and video, miles for car and transit, legs for flights. */
+  /** Hours for music and video, miles for car and transit, legs for flights, kWh for electricity, therms of gas for heating. */
   amount: number;
   /** A short recent sample (like Spotify's last 50 songs), averaged over its own span rather than at least a month. */
   sample?: boolean;
@@ -28,6 +30,7 @@ export const SOURCE_NAMES: Record<ActivitySource, string> = {
   netflix: "Netflix",
   timeline: "Google Maps",
   uber: "Uber",
+  greenbutton: "utility",
 };
 
 /**
@@ -198,6 +201,92 @@ export function parseNetflix(csv: string): ActivityEvent[] | null {
   return null;
 }
 
+const KWH_UOM = 72; // Wh
+const THERM_UOM = 169;
+const tag = (xml: string, name: string): string | undefined => xml.match(new RegExp(`<(?:\\w+:)?${name}>\\s*([^<]*?)\\s*</(?:\\w+:)?${name}>`))?.[1];
+const links = (xml: string) =>
+  [...xml.matchAll(/<(?:\w+:)?link\b([^>]*)>/g)].map((m) => ({
+    rel: m[1].match(/rel="([^"]*)"/)?.[1] ?? "",
+    href: m[1].match(/href="([^"]*)"/)?.[1] ?? "",
+  }));
+
+/**
+ * Green Button "Download My Data" in its XML form (the ESPI standard most US
+ * utilities use). Each interval block is matched to its reading type (watt
+ * hours for power, therms for gas) through the feed's links; readings in other
+ * units, like demand in watts, are skipped.
+ */
+export function parseGreenButtonXml(xml: string): ActivityEvent[] | null {
+  if (!/IntervalReading/.test(xml)) return null;
+  const entries = [...xml.matchAll(/<(?:\w+:)?entry\b[\s\S]*?<\/(?:\w+:)?entry>/g)].map((m) => m[0]);
+  const types = new Map<string, { uom: number; mult: number }>();
+  const meterType = new Map<string, string>();
+  for (const e of entries) {
+    const l = links(e);
+    const self = l.find((x) => x.rel === "self")?.href ?? "";
+    if (/<(?:\w+:)?ReadingType\b/.test(e)) types.set(self, { uom: Number(tag(e, "uom")), mult: Number(tag(e, "powerOfTenMultiplier") ?? 0) || 0 });
+    if (/<(?:\w+:)?MeterReading\b/.test(e)) {
+      const rt = l.find((x) => x.rel === "related" && /ReadingType/.test(x.href))?.href;
+      if (rt) meterType.set(self, rt);
+    }
+  }
+  const only = types.size === 1 ? [...types.values()][0] : undefined;
+  const typeFor = (e: string) => {
+    const up = links(e).find((x) => x.rel === "up")?.href.replace(/\/IntervalBlock\/?$/, "");
+    const rt = up ? meterType.get(up) : undefined;
+    return (rt ? types.get(rt) : undefined) ?? only;
+  };
+  const events: ActivityEvent[] = [];
+  for (const e of entries.filter((x) => /<(?:\w+:)?IntervalBlock\b/.test(x))) {
+    const t = typeFor(e);
+    if (!t || (t.uom !== KWH_UOM && t.uom !== THERM_UOM)) continue;
+    for (const r of e.matchAll(/<(?:\w+:)?IntervalReading>[\s\S]*?<\/(?:\w+:)?IntervalReading>/g)) {
+      const start = Number(tag(r[0], "start"));
+      const value = Number(tag(r[0], "value")) * 10 ** t.mult;
+      if (!Number.isFinite(start) || !(value > 0)) continue;
+      events.push(
+        t.uom === KWH_UOM ? { target: "electricity", time: start * 1000, amount: value / 1000 } : { target: "heating", time: start * 1000, amount: value },
+      );
+    }
+  }
+  return events.length ? events : null;
+}
+
+/**
+ * Green Button in its CSV form. Layouts differ by utility, so this looks for a
+ * header row with a date and a usage column, and reads the unit from a units
+ * column or the usage header, like "Usage (kWh)" or "USAGE, UNITS: therms".
+ */
+export function parseGreenButtonCsv(csv: string): ActivityEvent[] | null {
+  const lines = csv.replace(/^\uFEFF/, "").split(/\r?\n/).filter((l) => l.trim());
+  const at = lines.findIndex((l) => {
+    const h = csvRow(l).map((c) => c.trim().toLowerCase());
+    return h.some((c) => /usage|consumption/.test(c)) && h.some((c) => /date|start/.test(c));
+  });
+  if (at < 0) return null;
+  const head = csvRow(lines[at]).map((c) => c.trim().toLowerCase());
+  const usage = head.findIndex((c) => /usage|consumption/.test(c));
+  const date = head.findIndex((c) => /date/.test(c));
+  const startCol = head.findIndex((c) => /start/.test(c));
+  const units = head.findIndex((c) => /^units?$/.test(c));
+  const headUnit = head[usage];
+  const events: ActivityEvent[] = [];
+  for (const line of lines.slice(at + 1)) {
+    const r = csvRow(line).map((c) => c.trim());
+    const unit = (units >= 0 ? r[units] : headUnit)?.toLowerCase() ?? "";
+    const when = date >= 0 && startCol >= 0 && startCol !== date ? `${r[date]} ${r[startCol]}` : r[date >= 0 ? date : startCol];
+    const t = Date.parse(when ?? "");
+    const v = Number((r[usage] ?? "").replace(/,/g, ""));
+    if (!Number.isFinite(t) || !(v > 0)) continue;
+    if (/kwh/.test(unit)) events.push({ target: "electricity", time: t, amount: v });
+    else if (/therm/.test(unit)) events.push({ target: "heating", time: t, amount: v });
+    else if (/ccf/.test(unit)) events.push({ target: "heating", time: t, amount: v * CCF_THERMS });
+  }
+  return events.length ? events : null;
+}
+/** A hundred cubic feet of natural gas is about 1.037 therms (EIA). */
+const CCF_THERMS = 1.037;
+
 /** Works out which service a JSON file came from and reads it. */
 export function parseActivityJson(data: unknown): ActivityFile | null {
   if (Array.isArray(data)) {
@@ -210,7 +299,8 @@ export function parseActivityJson(data: unknown): ActivityFile | null {
   return t ? { source: "timeline", events: t } : null;
 }
 
-const WANTED = /(streaming_?history[^/]*\.json|watch-history\.json|viewingactivity\.csv|netflixviewinghistory\.csv|timeline\.json|semantic location history\/.*\.json)$/i;
+const WANTED =
+  /(streaming_?history[^/]*\.json|watch-history\.json|viewingactivity\.csv|netflixviewinghistory\.csv|timeline\.json|semantic location history\/.*\.json|\.xml|(usage|interval|electric|gas|green)[^/]*\.csv)$/i;
 
 /** Reads one downloaded file (.zip, .json or .csv) into one or more sources' events. */
 export async function readActivityFile(file: File): Promise<ActivityFile[]> {
@@ -222,9 +312,16 @@ export async function readActivityFile(file: File): Promise<ActivityFile[]> {
     : [[file.name, strFromU8(bytes)]];
   const found: ActivityFile[] = [];
   for (const [name, text] of texts) {
+    if (name.toLowerCase().endsWith(".xml")) {
+      const g = parseGreenButtonXml(text);
+      if (g) found.push({ source: "greenbutton", events: g });
+      continue;
+    }
     if (name.toLowerCase().endsWith(".csv")) {
       const n = parseNetflix(text);
+      const g = n ? null : parseGreenButtonCsv(text);
       if (n) found.push({ source: "netflix", events: n });
+      if (g) found.push({ source: "greenbutton", events: g });
       continue;
     }
     try {
@@ -241,17 +338,19 @@ export async function readActivityFile(file: File): Promise<ActivityFile[]> {
 }
 
 const DAY_MS = 86_400_000;
+const MONTH_DAYS = 365.25 / 12;
 
 export interface ActivityAmounts {
   /** Tile amounts by product id, in each tile's own unit. */
-  amounts: Partial<Record<"music" | "video" | "car" | "transit" | "flights", number>>;
+  amounts: Partial<Record<Target, number>>;
   /** Days of history the averages cover. */
   days: number;
 }
 
 /**
  * Averages the last year of events (or the whole history, if shorter) into
- * hours a day, miles a week and round trips a year. The year ends at the
+ * hours a day, miles a week, round trips a year, kWh a month and a gas bill a
+ * month (therms at the average gas price, so the footprint gets the therms back). The year ends at the
  * newest event, so an old download still gives a typical year.
  */
 export function activityAmounts(events: ActivityEvent[], now = Date.now()): ActivityAmounts | null {
@@ -262,8 +361,8 @@ export function activityAmounts(events: ActivityEvent[], now = Date.now()): Acti
   const round = (n: number, step: number) => Math.round(n / step) * step;
   // Listening and watching each get their own year, so a Spotify file doesn't stretch a short
   // Netflix one. Travel shares one, since a year of Timeline with two flights is two flights a year.
-  const group = (t: Target): Target[] => (t === "music" || t === "video" ? [t] : ["car", "transit", "flights"]);
-  for (const t of ["music", "video", "car", "transit", "flights"] as const) {
+  const group = (t: Target): Target[] => (["car", "transit", "flights"].includes(t) ? ["car", "transit", "flights"] : [t]);
+  for (const t of ["music", "video", "car", "transit", "flights", "electricity", "heating"] as const) {
     if (!past.some((e) => e.target === t)) continue;
     const span = past.filter((e) => group(t).includes(e.target));
     const end = Math.max(...span.map((e) => e.time));
@@ -275,6 +374,8 @@ export function activityAmounts(events: ActivityEvent[], now = Date.now()): Acti
     const sum = past.filter((e) => e.target === t && e.time > from).reduce((s, e) => s + e.amount, 0);
     if (t === "music" || t === "video") amounts[t] = round(sum / days, 0.05);
     else if (t === "flights") amounts[t] = round(((sum / 2) * 365) / days, 0.5);
+    else if (t === "electricity") amounts[t] = round((sum / days) * MONTH_DAYS, 10);
+    else if (t === "heating") amounts[t] = Math.round((sum / days) * MONTH_DAYS * GAS_PRICE_PER_THERM);
     else amounts[t] = Math.round((sum / days) * 7);
   }
   return { amounts, days: Math.round(longest) };
