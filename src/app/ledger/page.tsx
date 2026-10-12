@@ -1,13 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CARBON_REMOVAL, CHARITIES } from "@/lib/charities";
-import { IMPACT_KEYS } from "@/lib/footprint";
 import { IMPACT_INFO } from "@/lib/impacts";
 import { LEDGER } from "@/lib/ledger";
+import { confirmedTotals, everyCharities } from "@/lib/ledgerLive";
 import { SPONSOR_FEE_LABEL, usd } from "@/lib/pricing";
 import { PAYMENT_MODE } from "@/lib/payments";
 
 export const metadata: Metadata = { title: "Where the money goes | My Offset" };
+
+// Totals come from the database, so the page is built on each visit.
+export const dynamic = "force-dynamic";
+
+const monthName = (m: string) => new Date(`${m}-15T00:00:00Z`).toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
 
 const STEPS = PAYMENT_MODE === "every" ? [
   { title: "You give", body: "You give to each charity on your plan through Every.org, one gift per charity. Each gift shows its own card fee at checkout." },
@@ -31,20 +36,20 @@ const RUNNING_COSTS = [
   { what: "Listing the browser extension in the Chrome Web Store", cost: "$5, once" },
 ];
 
-export default function LedgerPage() {
-  const causes = [
-    ...IMPACT_KEYS.map((k) => ({ key: k as string, label: IMPACT_INFO[k].label, charity: CHARITIES[k] })),
-    { key: "removal", label: "Carbon removal", charity: CARBON_REMOVAL },
-  ];
-  const given = (cause: string) => LEDGER.filter((e) => e.cause === cause).reduce((sum, e) => sum + e.usd, 0);
-  const total = LEDGER.reduce((sum, e) => sum + e.usd, 0);
-  const months = [...new Set(LEDGER.map((e) => e.month))].sort().reverse();
+export default async function LedgerPage() {
+  const live = PAYMENT_MODE === "every" ? await confirmedTotals() : [];
+  const charities = everyCharities();
+  const givenTo = (slug: string) => live.filter((t) => t.slug === slug).reduce((sum, t) => sum + t.usd, 0);
+  const removal = LEDGER.filter((e) => e.cause === "removal").reduce((sum, e) => sum + e.usd, 0);
+  const total = live.reduce((sum, t) => sum + t.usd, 0) + removal;
+  const months = [...new Set(live.map((t) => t.month))];
+  const nameOf = (slug: string) => charities.find((c) => c.slug === slug)?.name ?? slug;
 
   return (
     <article className="mx-auto max-w-4xl px-4 py-12">
       <h1 className="text-4xl font-extrabold [font-stretch:85%]">Where the money goes</h1>
       <p className="mt-4 text-lg text-muted">
-        Every dollar given through this site, to every charity, with the receipt. Updated each month.
+        Every dollar given through this site, to every charity, as Every.org confirms it. Updated as gifts arrive.
       </p>
 
       <ol className="mt-8 grid gap-4 sm:grid-cols-3">
@@ -67,18 +72,29 @@ export default function LedgerPage() {
           </tr>
         </thead>
         <tbody>
-          {causes.map((c) => (
-            <tr key={c.key} className="border-b border-border align-top">
-              <td className="py-3 pr-4">{c.label}</td>
+          {charities.map((c) => (
+            <tr key={c.slug} className="border-b border-border align-top">
+              <td className="py-3 pr-4">{c.harms.map((k) => IMPACT_INFO[k].label).join(" and ")}</td>
               <td className="py-3 pr-4">
-                <a href={c.charity.url} target="_blank" rel="noreferrer" className="underline hover:text-muted">
-                  {c.charity.name}
+                <a href={c.url} target="_blank" rel="noreferrer" className="underline hover:text-muted">
+                  {c.name}
                 </a>
-                <span className="block text-sm text-muted">{c.charity.focus}</span>
+                <span className="block text-sm text-muted">{CHARITIES[c.harms[0]].focus}</span>
               </td>
-              <td className="py-3 text-right font-mono">{usd(given(c.key))}</td>
+              <td className="py-3 text-right font-mono">{usd(givenTo(c.slug))}</td>
             </tr>
           ))}
+          {removal > 0 && (
+            <tr className="border-b border-border align-top">
+              <td className="py-3 pr-4">Carbon removal</td>
+              <td className="py-3 pr-4">
+                <a href={CARBON_REMOVAL.url} target="_blank" rel="noreferrer" className="underline hover:text-muted">
+                  {CARBON_REMOVAL.name}
+                </a>
+              </td>
+              <td className="py-3 text-right font-mono">{usd(removal)}</td>
+            </tr>
+          )}
           <tr className="border-b-2 border-rule font-semibold">
             <td className="py-3" colSpan={2}>
               Total
@@ -87,27 +103,32 @@ export default function LedgerPage() {
           </tr>
         </tbody>
       </table>
+      <p className="mt-2 text-sm text-muted">
+        Amounts are what people paid on Every.org, card fees included, as its webhook reports each gift. Nothing about who gave is shown.
+      </p>
 
       {months.length === 0 ? (
-        <p className="mt-4 text-muted">
-          Nothing yet: donations open at launch, and the first month&apos;s receipts go up here the month after. The charities above are
-          examples while we finish vetting the list.
-        </p>
+        <p className="mt-4 text-muted">Nothing yet: the first confirmed gifts show up here by month as soon as they arrive.</p>
       ) : (
         <>
-          <h2 className="mt-12 text-xl font-semibold">Receipts by month</h2>
+          <h2 className="mt-12 text-xl font-semibold">By month</h2>
           {months.map((m) => (
             <div key={m} className="mt-4">
-              <p className="font-display font-bold">{m}</p>
+              <p className="font-display font-bold">{monthName(m)}</p>
               <ul className="mt-1 space-y-1">
-                {LEDGER.filter((e) => e.month === m).map((e) => (
-                  <li key={`${e.month}-${e.charity}`} className="flex justify-between gap-4 border-b border-border py-1">
-                    <a href={e.receipt} target="_blank" rel="noreferrer" className="underline hover:text-muted">
-                      {e.charity}
-                    </a>
-                    <span className="font-mono">{usd(e.usd)}</span>
-                  </li>
-                ))}
+                {live
+                  .filter((t) => t.month === m)
+                  .map((t) => (
+                    <li key={`${m}-${t.slug}`} className="flex justify-between gap-4 border-b border-border py-1">
+                      <span>
+                        {nameOf(t.slug)}{" "}
+                        <span className="text-sm text-muted">
+                          · {t.gifts} gift{t.gifts === 1 ? "" : "s"}
+                        </span>
+                      </span>
+                      <span className="font-mono">{usd(t.usd)}</span>
+                    </li>
+                  ))}
               </ul>
             </div>
           ))}
