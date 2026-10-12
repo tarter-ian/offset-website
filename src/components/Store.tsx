@@ -85,7 +85,7 @@ function tilePrice(price: { once: number; monthly: number }, cover: Cover, billi
   return { big: once(price.once), note: cover.past ? "once, for life" : "once, for all future use" };
 }
 /** Every kind of harm covered, skipping ones too small to show, e.g. "181 kg CO₂e · 7.7 min of life · 947 L water". */
-const MIN_SHOWN: Impacts = { carbon: 0.005, air: 0.0005, water: 0.05, land: 0.5 };
+const MIN_SHOWN: Impacts = { carbon: 0.005, air: 0.0005, water: 0.05, land: 0.001 };
 const coversText = (i: Impacts) =>
   IMPACT_KEYS.filter((k) => i[k] >= MIN_SHOWN[k])
     .map((k) => IMPACT_INFO[k].format(i[k]))
@@ -642,7 +642,7 @@ export function Store() {
           <dl className="figures divide-y divide-border text-sm">
             {[
               ["Covers", covers],
-              ...(["carbon", "air", "water"] as const).map((k) => [IMPACT_INFO[k].label, IMPACT_INFO[k].format(ab.impacts[k])]),
+              ...(["carbon", "air", "water", "land"] as const).map((k) => [IMPACT_INFO[k].label, IMPACT_INFO[k].format(ab.impacts[k])]),
             ].map(([k, v]) => (
               <div key={k} className="flex justify-between gap-4 py-2">
                 <dt className="font-sans text-muted">{k}</dt>

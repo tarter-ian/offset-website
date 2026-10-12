@@ -1,9 +1,15 @@
 import type { Metadata } from "next";
 import * as F from "@/lib/factors";
-import { CONFIDENCE_LABELS, MARGINS, type Confidence } from "@/lib/footprint";
+import { CONFIDENCE_LABELS, IMPACT_KEYS, MARGINS, type Confidence } from "@/lib/footprint";
+import { STATES } from "@/lib/data/states";
+import { IMPACT_INFO } from "@/lib/impacts";
+import { DEFAULT_CONTEXT, PRODUCTS } from "@/lib/store";
 import {
   AIR_DAMAGE_SHARE,
   CARBON_MODES,
+  DEFAULT_CARBON_MODE,
+  DEFAULT_WATER_MODE,
+  impactCost,
   type CarbonMode,
   WATER_MODES,
   type WaterMode,
@@ -70,6 +76,8 @@ const SOURCES = [
 const IMPACTS = [
   {
     name: "Climate",
+    unit: "kg of greenhouse gases",
+    priceShort: `${usd(CARBON_MODES[DEFAULT_CARBON_MODE].perTonne)} a tonne, to climate policy charities`,
     measure: "Greenhouse gases in kg of CO₂e, which counts methane and nitrous oxide as well as CO₂.",
     price: `You choose how: ${(Object.keys(CARBON_MODES) as CarbonMode[])
       .map((m) => `${CARBON_MODES[m].label.toLowerCase()} at ${usd(CARBON_MODES[m].perTonne)} a tonne`)
@@ -77,12 +85,16 @@ const IMPACTS = [
   },
   {
     name: "Air pollution",
+    unit: "minutes of healthy life lost",
+    priceShort: `${Math.round(AIR_DAMAGE_SHARE * 100)}% of the health damage, to clean-air work`,
     measure:
       `The harm to health from the NOx, SO₂ and fine particles released by power plants, cars, home furnaces, jet engines and farms (mostly ammonia from manure and fertilizer), using EPA's per-ton estimates and published death counts for flights and farms. Almost all of it is early deaths, so we show it as healthy life lost, shared across everyone who breathes the pollution: EPA values a statistical life at about $${(F.VSL_USD / 1e6).toFixed(0)} million, and each early death from fine particles costs about ${F.LIFE_YEARS_PER_AIR_DEATH} years of life, so $1 of damage is about ${F.MINUTES_OF_LIFE_PER_DAMAGE_USD.toFixed(2)} minutes.`,
     price: `We donate ${Math.round(AIR_DAMAGE_SHARE * 100)}% of that damage to clean-air work.`,
   },
   {
     name: "Water",
+    unit: "liters used up, weighted by scarcity",
+    priceShort: `${usd(WATER_MODES[DEFAULT_WATER_MODE].per1000Gal)} per 1,000 gallons, to water saving in dry places`,
     measure: `Fresh water consumed, in liters, to generate your electricity, cool data centers, grow your food, refine your fuel and make your electronics, weighted by scarcity: a liter from a water-stressed area counts in full and a liter from a well-watered one counts ${F.UNSTRESSED_WATER_WEIGHT * 100}%. We assume ${Math.round(F.STRESSED_WATER_SHARE.food * 100)}% of food water, ${Math.round(F.STRESSED_WATER_SHARE.datacenter * 100)}% of data center water and ${Math.round(F.STRESSED_WATER_SHARE.grid * 100)}% of power plant water come from stressed areas.`,
     price: `You choose how: ${(Object.keys(WATER_MODES) as WaterMode[])
       .map((m) => `${WATER_MODES[m].label.toLowerCase()} at ${usd(WATER_MODES[m].per1000Gal)} per 1,000 gallons`)
@@ -90,6 +102,8 @@ const IMPACTS = [
   },
   {
     name: "Nature",
+    unit: "square meters of land, for a year",
+    priceShort: "About $10 an acre, to protect threatened forest",
     measure: "Land used to grow your food, to mine and make your electronics, and for the power plants and data centers behind your electricity and online use, in square meters. Power and data centers are a sliver of it: about 0.005 m² a year per kWh for power plants and their fuel (Lovering et al. 2022, weighted by the US mix) and 0.0005 for data centers.",
     price: "We fund permanently protecting the same area of threatened forest, at about $10 an acre.",
   },
@@ -137,6 +151,23 @@ const ROWS = [
   },
 ];
 
+// One worked example: a typical month of home electricity, start to finish.
+const EX_STATE = DEFAULT_CONTEXT.state;
+const EX_PRODUCT = PRODUCTS.find((p) => p.id === "electricity")!;
+const EX_IMPACTS = EX_PRODUCT.impacts(0, "monthly", DEFAULT_CONTEXT);
+const EX_DOLLARS = impactCost(EX_IMPACTS);
+const EX_TOTAL = IMPACT_KEYS.reduce((s, k) => s + EX_DOLLARS[k], 0);
+
+function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
+  return (
+    <div className="border-t-4 border-rule pt-3">
+      <p className="text-sm text-muted">Step {n}</p>
+      <h3 className="mt-1 font-semibold">{title}</h3>
+      <div className="mt-3 text-sm">{children}</div>
+    </div>
+  );
+}
+
 export default function MethodPage() {
   return (
     <article className="mx-auto max-w-3xl px-4 py-12">
@@ -146,27 +177,69 @@ export default function MethodPage() {
         and turn the result into donations to charities that work on each kind.
       </p>
 
-      <h2 className="mt-10 text-xl font-semibold">What we measure and how we price it</h2>
-      <dl className="mt-4 divide-y divide-border rounded-xl border border-border bg-card">
-        {IMPACTS.map((i) => (
-          <div key={i.name} className="grid gap-1 p-4 sm:grid-cols-3">
-            <dt className="font-medium">{i.name}</dt>
-            <dd className="text-muted sm:col-span-2">
-              {i.measure} {i.price}
-            </dd>
-          </div>
-        ))}
-      </dl>
+      <h2 className="mt-10 text-xl font-semibold">One example, start to finish</h2>
+      <p className="mt-2 text-muted">A typical month of home electricity in {STATES[EX_STATE].name}.</p>
+      <div className="mt-4 grid gap-6 sm:grid-cols-3">
+        <Step n={1} title="What you use">
+          <p className="figures text-2xl font-semibold">{STATES[EX_STATE].avgKwhPerMonth.toLocaleString("en-US")} kWh</p>
+          <p className="mt-1 text-muted">From your bill, or your state&apos;s average when nothing is linked.</p>
+        </Step>
+        <Step n={2} title="The harm it does">
+          <ul className="figures space-y-1">
+            {IMPACT_KEYS.map((k) => (
+              <li key={k}>{IMPACT_INFO[k].format(EX_IMPACTS[k])}</li>
+            ))}
+          </ul>
+          <p className="mt-2 text-muted">Your state&apos;s grid rates, plus a safety margin.</p>
+        </Step>
+        <Step n={3} title="What covers it">
+          <ul className="figures space-y-1">
+            {IMPACT_KEYS.map((k) => (
+              <li key={k} className="flex justify-between gap-3">
+                <span className="font-sans text-muted">{IMPACT_INFO[k].label}</span>
+                <span>{usd(EX_DOLLARS[k])}</span>
+              </li>
+            ))}
+            <li className="flex justify-between gap-3 border-t border-rule pt-1 font-semibold">
+              <span className="font-sans">To charities</span>
+              <span>{usd(EX_TOTAL)} a month</span>
+            </li>
+          </ul>
+        </Step>
+      </div>
 
-      <h2 className="mt-10 text-xl font-semibold">Categories</h2>
-      <dl className="mt-4 divide-y divide-border rounded-xl border border-border bg-card">
-        {ROWS.map((r) => (
-          <div key={r.category} className="grid gap-1 p-4 sm:grid-cols-3">
-            <dt className="font-medium">{r.category}</dt>
-            <dd className="text-muted sm:col-span-2">{r.method}</dd>
+      <h2 className="mt-12 text-xl font-semibold">The four kinds of harm</h2>
+      <div className="mt-4 grid gap-6 sm:grid-cols-2">
+        {IMPACTS.map((i) => (
+          <div key={i.name} className="border-t-4 border-rule pt-3">
+            <h3 className="font-semibold">{i.name}</h3>
+            <p className="mt-1 text-sm">
+              <span className="text-muted">Counted in</span> {i.unit}
+            </p>
+            <p className="text-sm">
+              <span className="text-muted">Paid at</span> {i.priceShort}
+            </p>
+            <details className="mt-2 text-sm text-muted">
+              <summary className="cursor-pointer underline">The detail</summary>
+              <p className="mt-2">
+                {i.measure} {i.price}
+              </p>
+            </details>
           </div>
         ))}
-      </dl>
+      </div>
+
+      <h2 className="mt-12 text-xl font-semibold">Each part of your life</h2>
+      <ul className="mt-4 divide-y divide-border border-y border-rule">
+        {ROWS.map((r) => (
+          <li key={r.category}>
+            <details className="py-3">
+              <summary className="cursor-pointer font-medium">{r.category}</summary>
+              <p className="mt-2 text-sm text-muted">{r.method}</p>
+            </details>
+          </li>
+        ))}
+      </ul>
 
       <h2 className="mt-10 text-xl font-semibold">Margins</h2>
       <p className="mt-2 text-muted">Linking an account replaces an estimate with measured data and shrinks its margin.</p>
@@ -189,7 +262,19 @@ export default function MethodPage() {
       </p>
 
       <h2 className="mt-10 text-xl font-semibold">Lifetime internet, AI and devices</h2>
-      <p className="mt-2 text-muted">
+      <div className="mt-4" aria-hidden="true">
+        <div className="flex h-8 overflow-hidden text-xs font-medium">
+          <div className="flex w-[30%] items-center bg-card px-2">Past use</div>
+          <div className="w-0.5 bg-foreground" />
+          <div className="flex flex-1 items-center bg-accent/15 px-2">Every year ahead, on a grid getting cleaner</div>
+        </div>
+        <div className="mt-1 flex justify-between text-xs text-muted">
+          <span>Age {F.ONLINE_FROM_AGE} (AI: when you started)</span>
+          <span>Today</span>
+          <span>Age {F.LIFETIME_TO_AGE}</span>
+        </div>
+      </div>
+      <p className="mt-4 text-muted">
         The one-time lifetime offsets count from age {F.ONLINE_FROM_AGE} (or {F.INTERNET_START_YEAR}, whichever is later), and from late 2022 for AI (or when you started),
         through age {F.LIFETIME_TO_AGE}. Past years count at today&apos;s rates, except AI, which most people took up gradually: unless your
         chat history is linked, its past use grows steadily to today&apos;s rate. Future years count at today&apos;s amount of use, since networks
@@ -199,7 +284,7 @@ export default function MethodPage() {
         coal is its main source and retires first (in 2023 sulfur dioxide fell 24% and NOx 15%, against 7% for carbon), so we take{" "}
         {Math.round(F.GRID_AIR_CLEANER_PER_YEAR * 100)}% a year for air. Data center cooling water and making devices, mostly overseas, aren&apos;t
         discounted. Future AI use counts {LIFETIME_GROWTH_BUFFER} times over in case it keeps growing. Prices use
-        expected-impact climate pricing, plus the one-time fee.
+        expected-impact climate pricing, plus the card fee.
       </p>
       <ul className="mt-3 list-disc space-y-1 pl-5 text-muted">
         <li>
