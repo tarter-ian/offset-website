@@ -4,8 +4,8 @@ import { EXTENSION_URL } from "@/lib/extension";
 import { SIGN_IN_READS, type SignInService } from "@/lib/signinReads";
 
 export const metadata: Metadata = {
-  title: "The extension | Offset",
-  description: "What the free Offset extension for Chrome and Edge does, what it reads, and how to remove it.",
+  title: "The extension | My Offset",
+  description: "What the free My Offset extension for Chrome and Edge does, what it reads, and how to remove it.",
 };
 
 const NAMES: Record<SignInService, string> = {
@@ -24,7 +24,7 @@ const STEPS = [
   { title: "You press Measure", body: "Nothing happens until you do. It never runs on its own or in the background." },
   {
     title: "The first time, it asks",
-    body: "A small Offset window lists the sites it needs and what it reads there. You can allow all of them, pick some, or say not now.",
+    body: "A small My Offset window lists the sites it needs and what it reads there. You can allow all of them, pick some, or say not now.",
   },
   {
     title: "It counts, out of your way",
@@ -40,7 +40,7 @@ const QUESTIONS = [
   },
   {
     q: "Why does Chrome say it can “read and change your data”?",
-    a: "That's the wording Chrome uses for any extension that opens a site for you, whatever it does there. Offset only counts. It never posts, deletes or changes anything on your accounts.",
+    a: "That's the wording Chrome uses for any extension that opens a site for you, whatever it does there. My Offset only counts. It never posts, deletes or changes anything on your accounts.",
   },
   {
     q: "Does it send my data to you?",
@@ -56,14 +56,14 @@ const QUESTIONS = [
   },
   {
     q: "How do I take it back or remove it?",
-    a: "To take back a site's access, open chrome://extensions, click Details on Offset, and turn the site off. To remove it, click Remove on the same page. Nothing is left behind.",
+    a: "To take back a site's access, open chrome://extensions, click Details on My Offset, and turn the site off. To remove it, click Remove on the same page. Nothing is left behind.",
   },
 ];
 
 export default function ExtensionPage() {
   return (
     <article className="mx-auto max-w-4xl px-4 py-12">
-      <h1 className="text-4xl font-extrabold [font-stretch:85%]">The Offset extension</h1>
+      <h1 className="text-4xl font-extrabold [font-stretch:85%]">The My Offset extension</h1>
       <p className="mt-4 text-lg text-muted">
         A free add-on for Chrome and Edge that counts how much you use ChatGPT, Claude, Gemini, YouTube, Netflix, DoorDash, Uber Eats, Amazon and Uber, so your offset is sized from
         your real use instead of a guess.

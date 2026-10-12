@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-export const metadata: Metadata = { title: "What's different | Offset" };
+export const metadata: Metadata = { title: "What's different | My Offset" };
 
 // Each row: what offset apps usually do, and what we do instead. Keep claims about others general and sourced.
 const ROWS = [

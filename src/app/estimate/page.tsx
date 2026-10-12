@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { EstimateWizard } from "@/components/EstimateWizard";
 
-export const metadata: Metadata = { title: "Your footprint estimate | Offset" };
+export const metadata: Metadata = { title: "Your footprint estimate | My Offset" };
 
 export default function EstimatePage() {
   return (

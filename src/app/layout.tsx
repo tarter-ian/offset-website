@@ -10,7 +10,7 @@ const body = Public_Sans({ subsets: ["latin"], variable: "--font-body" });
 const figures = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-figures" });
 
 export const metadata: Metadata = {
-  title: "Offset: pay for the harm your AI use does, and the rest of your life",
+  title: "My Offset: pay for the harm your AI use does, and the rest of your life",
   description:
     "Link your ChatGPT, Claude or Gemini account, see the carbon, air pollution and water behind it, and fund charities that cancel it out. Then add anything else in your life.",
 };
@@ -22,7 +22,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <header className="border-b-2 border-rule">
           <nav className="mx-auto flex max-w-5xl items-baseline justify-between px-4 py-3">
             <Link href="/" className="font-display text-xl font-extrabold tracking-tight [font-stretch:80%]">
-              Offset
+              My Offset
             </Link>
             <div className="flex gap-5 text-sm">
               <Link href="/method" className="hidden text-muted hover:text-foreground sm:inline">

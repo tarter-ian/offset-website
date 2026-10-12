@@ -20,7 +20,7 @@ import {
   usd,
 } from "@/lib/pricing";
 
-export const metadata: Metadata = { title: "How we calculate | Offset" };
+export const metadata: Metadata = { title: "How we calculate | My Offset" };
 
 const SOURCES = [
   { name: "EPA USEEIO v2.0 supply-chain model (clothing, home goods, services)", url: "https://www.epa.gov/land-research/us-environmentally-extended-input-output-useeio-models" },

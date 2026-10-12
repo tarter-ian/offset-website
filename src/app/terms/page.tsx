@@ -2,14 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ContactLink } from "@/components/ContactLink";
 
-export const metadata: Metadata = { title: "Terms | Offset" };
+export const metadata: Metadata = { title: "Terms | My Offset" };
 
 const UPDATED = "October 12, 2026";
 
 const SECTIONS: { title: string; body: React.ReactNode }[] = [
   {
     title: "The deal",
-    body: "By using this site you agree to these terms. Offset is run by Ian Tarter. It estimates the harm from things you use and lets you donate to charities working on that harm. It's for people in the United States, and you must be 18 or older to pay.",
+    body: "By using this site you agree to these terms. My Offset is run by Ian Tarter. It estimates the harm from things you use and lets you donate to charities working on that harm. It's for people in the United States, and you must be 18 or older to pay.",
   },
   {
     title: "Estimates are estimates",

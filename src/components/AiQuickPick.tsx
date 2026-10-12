@@ -297,7 +297,7 @@ export function AiQuickPick({
             ))}
           </div>
           <p className="mt-2 text-sm text-muted">
-            The Offset extension checks ChatGPT, Claude, Gemini, YouTube, Netflix, DoorDash, Uber Eats, Amazon and Uber in the background, where you&apos;re already logged in, and
+            The My Offset extension checks ChatGPT, Claude, Gemini, YouTube, Netflix, DoorDash, Uber Eats, Amazon and Uber in the background, where you&apos;re already logged in, and
             brings back your last 30 days. Only counts come back, never your chats or orders.{" "}
             <a href="/extension" className="underline hover:text-foreground">
               How it works
@@ -346,7 +346,7 @@ export function AiQuickPick({
                     <dt className="font-semibold">{EXT_NAMES[x]}</dt>
                     <dd>
                       {r.state === "counting" && <span className="text-muted">{r.text ?? "Counting…"}</span>}
-                      {r.state === "asking" && <span className="text-muted">Waiting for you to allow it in the Offset window…</span>}
+                      {r.state === "asking" && <span className="text-muted">Waiting for you to allow it in the My Offset window…</span>}
                       {r.state === "done" && (
                         <>
                           {r.text}
@@ -547,12 +547,12 @@ function ExtensionOffer({ name, service }: { name: string; service: QuickService
     <div className="mb-4 border-b border-border pb-4">
       <p className="font-display text-lg font-bold">Exact numbers in one click</p>
       <p className="mt-1 text-sm">
-        Add the free Offset extension to Chrome or Edge. Then Connect {name} counts your last 30 days in a few seconds, in a tab where
+        Add the free My Offset extension to Chrome or Edge. Then Connect {name} counts your last 30 days in a few seconds, in a tab where
         you&apos;re already logged in. It reads: {SIGN_IN_READS[service]}
       </p>
       <p className="mt-2 text-sm text-muted">
         It installs with no access to any site. The first time you measure {name}, it asks, and Chrome adds its standard line that it can
-        &ldquo;read and change your data&rdquo; there. Offset only counts, changes nothing, and runs only when you press the button. After
+        &ldquo;read and change your data&rdquo; there. My Offset only counts, changes nothing, and runs only when you press the button. After
         each run you can see exactly what it sent.{" "}
         <a href="/extension" className="underline hover:text-foreground">
           How it works

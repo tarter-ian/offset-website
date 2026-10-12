@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ContactLink } from "@/components/ContactLink";
 
-export const metadata: Metadata = { title: "Privacy policy | Offset" };
+export const metadata: Metadata = { title: "Privacy policy | My Offset" };
 
 const UPDATED = "October 12, 2026";
 
@@ -12,7 +12,7 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
     title: "Who we are",
     body: (
       <>
-        Offset is run by Ian Tarter, one person, not a company. Questions about your data go to <ContactLink />.
+        My Offset is run by Ian Tarter, one person, not a company. Questions about your data go to <ContactLink />.
       </>
     ),
   },

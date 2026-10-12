@@ -24,7 +24,7 @@ const DEVICE_NOTE = (id: keyof typeof F.DEVICES) => {
 };
 
 const GOODS_USD_NOTE = (k: keyof typeof F.GOODS_KG_CO2_PER_USD) =>
-  `About ${F.GOODS_KG_CO2_PER_USD[k]} kg CO₂e for each dollar spent, from the EPA's supply-chain model. The default, $${F.GOODS_USD_PER_MONTH[k]} a month, is a typical American's spending (BLS, 2024). If the Offset extension finds you spend more than that on Amazon alone, we use your Amazon figure instead. Amazon splits an order's cost evenly over its items, so a mixed order is rough.`;
+  `About ${F.GOODS_KG_CO2_PER_USD[k]} kg CO₂e for each dollar spent, from the EPA's supply-chain model. The default, $${F.GOODS_USD_PER_MONTH[k]} a month, is a typical American's spending (BLS, 2024). If the My Offset extension finds you spend more than that on Amazon alone, we use your Amazon figure instead. Amazon splits an order's cost evenly over its items, so a mixed order is rough.`;
 
 const FOOD_NOTE = (what: string) => [
   `Yearly per-person carbon, water and land for your type of diet, with ${what} taking its typical share.`,
@@ -40,7 +40,7 @@ const GOODS_NOTE = "Water, land and air pollution scale with the carbon, using t
 export const HOW_ESTIMATED: Record<string, string[]> = {
   ai: [
     `About ${F.WH_PER_AI_PROMPT} Wh a prompt, or each prompt measured from your ChatGPT, Claude or Gemini export if you link it.`,
-    `How many prompts: the light (${AI_LEVELS.light.promptsPerDay} a day), medium (${AI_LEVELS.medium.promptsPerDay}) or heavy (${AI_LEVELS.heavy.promptsPerDay}) you pick, the real count from the Offset extension or your export, or your own count of chats (${F.PROMPTS_PER_CHAT} prompts a chat, the middle of published chatbot logs). Light is the average ChatGPT user and medium the average daily user, from OpenAI's prompt and user counts; heavy is our estimate for people who use it for hours a day.`,
+    `How many prompts: the light (${AI_LEVELS.light.promptsPerDay} a day), medium (${AI_LEVELS.medium.promptsPerDay}) or heavy (${AI_LEVELS.heavy.promptsPerDay}) you pick, the real count from the My Offset extension or your export, or your own count of chats (${F.PROMPTS_PER_CHAT} prompts a chat, the middle of published chatbot logs). Light is the average ChatGPT user and medium the average daily user, from OpenAI's prompt and user counts; heavy is our estimate for people who use it for hours a day.`,
     `For Claude we also use how much of your plan's weekly limit you've used, which includes Claude Code. We turn that into hours of use from Anthropic's published limits, at about ${F.WH_PER_CLAUDE_CODE_HOUR} Wh an hour, and use it when it's more than your chats.`,
     `Also counts the AI built into search and other apps, such as Google's AI answers and email summaries, as ${F.AI_BUILT_IN_PROMPTS_PER_DAY} typical prompts a day since mid-2024.`,
     `Adds each prompt's share of training the models (${Math.round(F.AI_TRAINING_SHARE * 100)}% of AI energy) and of making the chips and buildings (+${Math.round(F.AI_HARDWARE_SHARE * 100)}% carbon).`,
@@ -90,11 +90,11 @@ export const HOW_ESTIMATED: Record<string, string[]> = {
   plants: FOOD_NOTE("plant foods"),
   rideshare: [
     `Each ride mile counts as ${F.RIDESHARE_EMPTY_MILES} miles in an average gas car, adding the driving between fares and to pick you up (California Air Resources Board).`,
-    "Measured from your Uber trips by the Offset extension.",
+    "Measured from your Uber trips by the My Offset extension.",
   ],
   delivery: [
     `Each delivery counts as about ${F.MILES_PER_DELIVERY} miles in an average gas car: the courier's drive to the restaurant and on to you. The food itself is under your diet; packaging isn't counted yet.`,
-    "Measured from your DoorDash and Uber Eats orders by the Offset extension; pickups don't count.",
+    "Measured from your DoorDash and Uber Eats orders by the My Offset extension; pickups don't count.",
   ],
   clothing: [
     GOODS_USD_NOTE("clothing"),

@@ -992,7 +992,7 @@ export function Store() {
                 )}
                 <div className="mt-3 flex border-t border-border pt-3 flex-wrap items-center gap-2 text-sm" role="radiogroup" aria-label="Optional tip">
                   <span className="text-muted">
-                    Add a tip to help keep Offset running?{" "}
+                    Add a tip to help keep My Offset running?{" "}
                     <a href="/ledger#tips" target="_blank" className="underline hover:text-foreground">
                       What tips pay for
                     </a>
@@ -1031,7 +1031,7 @@ export function Store() {
                   </div>
                   {tip > 0 && (
                     <div className="flex justify-between gap-4">
-                      <dt className="font-sans text-muted">Tip to keep Offset running</dt>
+                      <dt className="font-sans text-muted">Tip to keep My Offset running</dt>
                       <dd>{usd(tip)}</dd>
                     </div>
                   )}

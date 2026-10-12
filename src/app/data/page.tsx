@@ -3,7 +3,7 @@ import Link from "next/link";
 import { DataControls } from "@/components/DataControls";
 import { SIGN_IN_READS, type SignInService } from "@/lib/signinReads";
 
-export const metadata: Metadata = { title: "Your data | Offset" };
+export const metadata: Metadata = { title: "Your data | My Offset" };
 
 const NAMES: Record<SignInService, string> = {
   chatgpt: "ChatGPT",
@@ -45,7 +45,7 @@ export default function DataPage() {
 
       <h2 id="extension" className="mt-10 scroll-mt-24 text-xl font-semibold">What the extension reads</h2>
       <p className="mt-2 text-muted">
-        On a computer, the free Offset extension for Chrome and Edge gets your real numbers. When you press Measure, it opens each service
+        On a computer, the free My Offset extension for Chrome and Edge gets your real numbers. When you press Measure, it opens each service
         in a small window behind yours, where you&apos;re already logged in, counts in your browser, closes the window and hands this page
         only the counts below. It never sees your password and never reads or sends your chats or what you watched. It only runs when you
         press Measure. It has no analytics, and the only places it contacts are the services it&apos;s counting.{" "}

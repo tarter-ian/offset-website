@@ -6,7 +6,7 @@ import { IMPACT_INFO } from "@/lib/impacts";
 import { LEDGER } from "@/lib/ledger";
 import { usd } from "@/lib/pricing";
 
-export const metadata: Metadata = { title: "Where the money goes | Offset" };
+export const metadata: Metadata = { title: "Where the money goes | My Offset" };
 
 const STEPS = [
   { title: "You pay", body: "Your donation and the card fee are listed separately at checkout." },
@@ -107,7 +107,7 @@ export default function LedgerPage() {
 
       <h2 id="tips" className="mt-12 scroll-mt-6 text-xl font-semibold">What tips pay for</h2>
       <p className="mt-2 text-muted">
-        Tips are optional and separate from your donation. They pay only for keeping Offset running; nobody draws a salary from them.
+        Tips are optional and separate from your donation. They pay only for keeping My Offset running; nobody draws a salary from them.
       </p>
       <ul className="mt-3 border-t-2 border-rule">
         {RUNNING_COSTS.map((c) => (
