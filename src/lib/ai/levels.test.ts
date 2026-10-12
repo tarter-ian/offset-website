@@ -80,7 +80,7 @@ describe("chat history", async () => {
 describe("ChatGPT agent tokens", async () => {
   const { signInUsage, summaryFromSignIn } = await import("./signin");
   const F = await import("../factors");
-  it("adds agent and Codex tokens to the daily and lifetime energy", () => {
+  it("adds agent and Codex tokens to the daily and lifetime energy", async () => {
     const base = { prompts: 300, reasoningResponses: 0, images: 0, windowDays: 30 };
     const plain = summaryFromSignIn("chatgpt", signInUsage(base)!);
     const u = signInUsage({ ...base, agentic: { tokens: 30e6, lifetimeTokens: 429e6, daily: [] } })!;
@@ -88,7 +88,13 @@ describe("ChatGPT agent tokens", async () => {
     const s = summaryFromSignIn("chatgpt", u);
     expect(s.whPerDay - plain.whPerDay).toBeCloseTo(F.WH_PER_MILLION_AGENT_TOKENS, 6);
     expect(s.agent?.lifetimeWh).toBeCloseTo(429 * F.WH_PER_MILLION_AGENT_TOKENS, 6);
-    expect(s.totalWh).toBeCloseTo(300 * F.WH_PER_AI_PROMPT + 429 * F.WH_PER_MILLION_AGENT_TOKENS, 6);
+    // Chat's own history isn't known here; agent tokens go on the coding card, not into chat.
+    expect(s.totalWh).toBeUndefined();
+    const { digitalFromExport } = await import("./exportParser");
+    const d = digitalFromExport(s);
+    expect(d.aiWhPerPrompt).toBeCloseTo(plain.whPerDay / plain.promptsPerDay, 6);
+    expect(d.aiCodingHoursPerWeek).toBeCloseTo(Math.round(((F.WH_PER_MILLION_AGENT_TOKENS * 7) / F.WH_PER_CLAUDE_CODE_HOUR) * 2) / 2, 6);
+    expect(d.aiCodingPastWh).toBeCloseTo(429 * F.WH_PER_MILLION_AGENT_TOKENS, 6);
   });
   it("names the tool from the agent and Codex split", () => {
     const tool = (agentTokens: number, codexTokens: number) =>

@@ -56,6 +56,8 @@ export interface LifetimeInput {
   videoPast?: { hours: number; since: string };
   /** Hours a week with a coding agent such as Claude Code, Codex or Cursor. */
   aiCodingHoursPerWeek?: number;
+  /** Coding energy to date measured from linked accounts, in Wh. Replaces the estimate of past coding. */
+  aiCodingPastWh?: number;
   /** AI built into other products (search answers, summaries), in typical prompts a day. */
   aiBuiltInPerDay?: number;
   aiFromExport?: boolean;
@@ -193,7 +195,9 @@ export function lifetimeOffset(
         ((nonNeg(input.aiMediaPerWeek) * 52 * F.WH_PER_AI_MEDIA) / 1000) * (1 + MARGINS.estimated) * pastAi * F.AI_PAST_RAMP
       : aiKwhPerYear * pastAi * F.AI_PAST_RAMP) +
     videoKwhPerYear * yearsSince(Math.max(F.AI_VIDEO_START_YEAR, input.aiStartYear ?? 0)) * F.AI_PAST_RAMP +
-    codingKwhPerYear * yearsSince(Math.max(F.AI_CODING_START_YEAR, input.aiStartYear ?? 0)) * F.AI_PAST_RAMP +
+    (input.aiCodingPastWh !== undefined
+      ? (input.aiCodingPastWh / 1000) * (1 + MARGINS.measured)
+      : codingKwhPerYear * yearsSince(Math.max(F.AI_CODING_START_YEAR, input.aiStartYear ?? 0)) * F.AI_PAST_RAMP) +
     builtInKwhPerYear * yearsSince(F.AI_BUILT_IN_START_YEAR);
   const aiYearKwh = aiKwhPerYear + videoKwhPerYear + codingKwhPerYear + builtInKwhPerYear;
   const aiPlainKwh = span === "monthly" ? aiYearKwh / 12 : span === "future" ? 0 : aiPastKwh;

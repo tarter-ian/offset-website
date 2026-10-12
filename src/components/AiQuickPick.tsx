@@ -572,10 +572,10 @@ function resultText(u: SignInUsage): string {
     `${u.prompts.toLocaleString("en-US")} prompts${u.images ? ` and ${u.images} images` : ""} in the last ${u.days} days` +
     (u.promptsEver ? `, and ${u.promptsEver.total.toLocaleString("en-US")} since ${monthName(u.promptsEver.since)}.` : ".") +
     (claudeLimitWhPerDay(u) > 0
-      ? ` You've also used ${Math.round(u.weeklyLimitUsedPercent!)}% of your plan's weekly limit, which counts Claude Code, so we estimate from that: about ${(claudeLimitWhPerDay(u) / 1000).toFixed(1)} kWh a day.`
+      ? ` You've also used ${Math.round(u.weeklyLimitUsedPercent!)}% of your plan's weekly limit, which counts Claude Code. The part beyond your chats, about ${(claudeLimitWhPerDay(u) / 1000).toFixed(1)} kWh a day in all, goes on the Coding with AI card.`
       : "") +
     (u.agentTokens
-      ? ` ${AGENT_TOOL_NAMES[u.agentTokens.tool]} used ${millions(u.agentTokens.window)} tokens in that time and ${millions(u.agentTokens.lifetime)} ever, estimated from that token total at about ${F.WH_PER_MILLION_AGENT_TOKENS} Wh a million, a rate from Claude Code studies, since OpenAI publishes none.`
+      ? ` ${AGENT_TOOL_NAMES[u.agentTokens.tool]} used ${millions(u.agentTokens.window)} tokens in that time and ${millions(u.agentTokens.lifetime)} ever, estimated from that token total at about ${F.WH_PER_MILLION_AGENT_TOKENS} Wh a million, a rate from Claude Code studies, since OpenAI publishes none. That goes on the Coding with AI card.`
       : "")
   );
 }

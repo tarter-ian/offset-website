@@ -229,8 +229,9 @@ describe("coding with AI", () => {
     const tenPrompts = productById("ai")!.cost(10, "monthly", C);
     expect(tenHours).toBeGreaterThan(tenPrompts);
   });
-  it("adds nothing once a linked account measured coding with chat", () => {
-    const linked = { ...C, aiFromExport: true, aiAgent: { tool: "codex" } } as unknown as typeof C;
-    expect(coding.cost(20, "monthly", linked)).toBe(0);
+  it("uses measured coding to date for past use instead of the estimate", () => {
+    const measured = coding.cost(20, "past", { ...C, aiCodingPastWh: 1_000_000 });
+    expect(measured).toBeGreaterThan(coding.cost(20, "past", C));
+    expect(coding.cost(20, "monthly", { ...C, aiCodingPastWh: 1_000_000 })).toBeCloseTo(coding.cost(20, "monthly", C), 6);
   });
 });

@@ -133,16 +133,9 @@ export function summaryFromSignIn(provider: AiProvider, u: SignInUsage): UsageSu
     imagesPerWeek: (u.images / u.days) * 7,
     reasoningShare: u.prompts ? reasoning / u.prompts : 0,
     windowDays: u.days,
-    ...(u.history || u.agentTokens || u.promptsEver
-      ? {
-          totalWh:
-            (u.history
-              ? pastWhFromHistory(u, Math.max(wh, fromLimit * u.days))
-              : u.promptsEver
-                ? (u.prompts ? wh / u.prompts : F.WH_PER_AI_PROMPT) * u.promptsEver.total
-                : Math.max(wh, fromLimit * u.days)) +
-            (u.agentTokens ? agentWh(u.agentTokens.lifetime) : 0),
-        }
+    // Chat only: coding to date is in `code` and `agent`, and goes on the coding card.
+    ...(u.history || u.promptsEver
+      ? { totalWh: u.history ? pastWhFromHistory(u, wh) : (u.prompts ? wh / u.prompts : F.WH_PER_AI_PROMPT) * u.promptsEver!.total }
       : {}),
   };
 }

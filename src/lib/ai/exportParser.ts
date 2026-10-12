@@ -263,11 +263,19 @@ export function combineSummaries(summaries: UsageSummary[]): UsageSummary | null
 }
 
 /** The digital answers an export or linked account fills in. */
-export function digitalFromExport(s: UsageSummary) {
+export function digitalFromExport(s: UsageSummary, now = new Date()) {
   const promptsPerDay = Math.round(s.promptsPerDay * 10) / 10;
+  // Coding (Claude Code through Claude's weekly limit, ChatGPT's agent and Codex) goes on its own card, not into each prompt.
+  const codingWhPerDay = (s.code?.whPerDay ?? 0) + (s.agent?.whPerDay ?? 0);
+  const chatWhPerDay = Math.max(0, s.whPerDay - codingWhPerDay);
+  const codingSince = Math.max(0, now.getFullYear() + now.getMonth() / 12 - F.AI_CODING_START_YEAR);
   return {
     aiPromptsPerDay: promptsPerDay,
-    aiWhPerPrompt: s.promptsPerDay > 0 ? s.whPerDay / s.promptsPerDay : undefined,
+    aiWhPerPrompt: s.promptsPerDay > 0 ? chatWhPerDay / s.promptsPerDay : undefined,
+    aiCodingHoursPerWeek: Math.round(((codingWhPerDay * 7) / F.WH_PER_CLAUDE_CODE_HOUR) * 2) / 2,
+    // ChatGPT's token total covers every agent and Codex run; Claude Code's past grows steadily from 2025 to today's rate.
+    aiCodingPastWh:
+      s.code || s.agent ? (s.agent?.lifetimeWh ?? 0) + (s.code ? s.code.whPerDay * 365 * codingSince * F.AI_PAST_RAMP : 0) : undefined,
     aiMediaPerWeek: Math.round(s.imagesPerWeek * 10) / 10,
     aiFromExport: true,
     aiPastWh: s.totalWh,
