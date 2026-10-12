@@ -17,8 +17,8 @@ const STEPS = [
 // What tips pay for. Rough monthly costs of keeping the site up; amounts are list prices.
 const RUNNING_COSTS = [
   {
-    what: "Covering this site's own footprint: hosting, every page load, and the AI used to build it, worked out the same way as yours",
-    cost: "first, each month; a few dollars so far",
+    what: "Covering this site's own footprint: hosting and every page load, worked out the same way as yours (Ian covers the AI used to build it himself)",
+    cost: "first, each month; pennies at our size",
   },
   { what: "Hosting the site (Cloudflare)", cost: "free up to 100,000 visits a day, then $5 a month" },
   { what: "The web address", cost: "about $15 a year" },
