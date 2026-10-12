@@ -474,19 +474,30 @@ export interface PlanLine {
   cover: Cover;
 }
 
+/**
+ * Past use can be paid all at once (0) or spread over this many years, always
+ * offered (Ian, 2026-10-12). Each instalment is the past total divided by the
+ * months, with nothing added or taken off.
+ */
+export const PAST_YEARS = [0, 1, 2, 3, 5] as const;
+export type PastYears = (typeof PAST_YEARS)[number];
+
 export interface PlanTotals {
   lines: (PlanLine & { product: Product; pastCost: number; aheadCost: number })[];
   oneTime: { donation: number; fee: number; total: number } | null;
-  /** Ongoing items, charged each billing period. */
+  /** Ongoing items, plus any past-use instalment, charged each billing period. */
   recurring: Recurring | null;
+  /** Past use paid in instalments, when spread over years. */
+  pastSpread: { total: number; years: Exclude<PastYears, 0>; perMonth: number } | null;
 }
 
 /**
  * Adds up a plan: past use and lifetime items share one payment and minimum;
- * ongoing items share one payment each month or year. Each payment carries
- * only its own card fee.
+ * ongoing items share one payment each month or year. Past use spread over
+ * years moves into the ongoing payment instead. Each payment carries only its
+ * own card fee.
  */
-export function planTotals(plan: PlanLine[], ctx: Context, billing: Billing = DEFAULT_BILLING): PlanTotals {
+export function planTotals(plan: PlanLine[], ctx: Context, billing: Billing = DEFAULT_BILLING, pastYears: PastYears = 0): PlanTotals {
   const lines = plan.flatMap((l) => {
     const product = productById(l.productId);
     if (!product) return [];
@@ -494,9 +505,11 @@ export function planTotals(plan: PlanLine[], ctx: Context, billing: Billing = DE
     const aheadCost = product.cost(l.amount, l.cover.ahead === "lifetime" ? "future" : "monthly", ctx);
     return [{ ...l, product, pastCost, aheadCost }];
   });
-  const onceSum = lines.reduce((s, l) => s + l.pastCost + (l.cover.ahead === "lifetime" ? l.aheadCost : 0), 0);
+  const pastSum = lines.reduce((s, l) => s + l.pastCost, 0);
+  const pastSpread = pastYears > 0 && pastSum > 0 ? { total: pastSum, years: pastYears as Exclude<PastYears, 0>, perMonth: pastSum / (pastYears * 12) } : null;
+  const onceSum = lines.reduce((s, l) => s + (pastSpread ? 0 : l.pastCost) + (l.cover.ahead === "lifetime" ? l.aheadCost : 0), 0);
   const ongoing = lines.filter((l) => l.cover.ahead === "monthly");
-  const hasOnce = lines.some((l) => l.cover.past || l.cover.ahead === "lifetime");
+  const hasOnce = lines.some((l) => (l.cover.past && !pastSpread) || l.cover.ahead === "lifetime");
   const oneTime = hasOnce
     ? (() => {
         const donation = Math.max(LIFETIME_MIN_DONATION_USD, Math.ceil(onceSum));
@@ -504,13 +517,11 @@ export function planTotals(plan: PlanLine[], ctx: Context, billing: Billing = DE
         return { donation, fee, total: Math.round((donation + fee) * 100) / 100 };
       })()
     : null;
-  const recurring = ongoing.length
-    ? recurringPrice(
-        ongoing.reduce((s, l) => s + l.aheadCost, 0),
-        billing,
-      )
-    : null;
-  return { lines, oneTime, recurring };
+  const recurring =
+    ongoing.length || pastSpread
+      ? recurringPrice(ongoing.reduce((s, l) => s + l.aheadCost, 0) + (pastSpread?.perMonth ?? 0), billing)
+      : null;
+  return { lines, oneTime, recurring, pastSpread };
 }
 
 export type HarmSplit = Record<"carbon" | "air" | "water" | "land" | "ewaste", { once: number; perPeriod: number }>;
@@ -535,7 +546,9 @@ export function harmSplit(totals: PlanTotals, ctx: Context, billing: Billing = D
     for (const k of Object.keys(out) as (keyof HarmSplit)[]) out[k][field] += (cost * c[k]) / sum;
   };
   for (const l of totals.lines) {
-    if (l.pastCost) add(l.pastCost, l.product.impacts(l.amount, "past", ctx), "once");
+    const months = totals.pastSpread ? totals.pastSpread.years * 12 : 0;
+    if (l.pastCost && months) add((l.pastCost / months) * (billing === "annual" ? 12 : 1), l.product.impacts(l.amount, "past", ctx), "perPeriod");
+    else if (l.pastCost) add(l.pastCost, l.product.impacts(l.amount, "past", ctx), "once");
     const lifetime = l.cover.ahead === "lifetime";
     const ahead = l.product.impacts(l.amount, lifetime ? "future" : "monthly", ctx);
     add(lifetime ? l.aheadCost : l.aheadCost * (billing === "annual" ? 12 : 1), ahead, lifetime ? "once" : "perPeriod");

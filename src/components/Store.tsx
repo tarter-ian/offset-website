@@ -65,7 +65,9 @@ import {
   sourcesFor,
   productById,
   yearlyLine,
+  PAST_YEARS,
   type Context,
+  type PastYears,
   type Product,
 } from "@/lib/store";
 
@@ -81,12 +83,16 @@ interface Saved {
   billing?: Billing | null;
   entered?: Record<string, boolean>;
   pastAll?: boolean;
+  pastYears?: PastYears;
   linkedFrom?: Record<string, ActivitySource[]>;
   covered?: Record<string, Covered>;
 }
 
-/** An item already paid for: for life, or until a date for a month or year. Set once payments go through. */
-type Covered = { kind: "life" } | { kind: "period"; until: string };
+/**
+ * An item already paid for: for life, or until a date for a month or year. Set once payments go through.
+ * pastPending: its future is paid for life but its past use is still being paid off in instalments.
+ */
+type Covered = { kind: "life"; pastPending?: boolean } | { kind: "period"; until: string };
 
 /** `?preview=covered` shows how paid items look, without saving anything. */
 function previewCovered(): Record<string, Covered> | null {
@@ -195,6 +201,7 @@ export function Store() {
   const [amazonBelow, setAmazonBelow] = useState<Record<string, number>>({});
   // Past use is one switch for the whole plan; an item can still be changed on its own.
   const [pastAll, setPastAllState] = useState(true);
+  const [pastYears, setPastYears] = useState<PastYears>(0);
   const [details, setDetails] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -228,6 +235,7 @@ export function Store() {
     setPlan(s.plan ?? []);
     setBilling(s.billing ?? null);
     setPastAllState(s.pastAll ?? true);
+    setPastYears(PAST_YEARS.includes(s.pastYears ?? 0) ? (s.pastYears ?? 0) : 0);
     setLinkedFrom(s.linkedFrom ?? {});
     setCovered(s.covered ?? {});
   }, []);
@@ -244,7 +252,10 @@ export function Store() {
     setCovered((c) => ({
       ...c,
       ...Object.fromEntries(
-        payState.lines.map((l): [string, Covered] => [l.productId, l.lifetime ? { kind: "life" } : { kind: "period", until: until.toISOString() }]),
+        payState.lines.map((l): [string, Covered] => [
+          l.productId,
+          l.lifetime ? { kind: "life", ...(l.pastSpread ? { pastPending: true } : {}) } : { kind: "period", until: until.toISOString() },
+        ]),
       ),
     }));
     const applied = { ...payState, applied: true };
@@ -264,12 +275,12 @@ export function Store() {
     try {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ ctx, amounts, entered, picked, anyway, plan, billing: billingPick, pastAll, linkedFrom, ...(previewing ? {} : { covered }) } satisfies Saved),
+        JSON.stringify({ ctx, amounts, entered, picked, anyway, plan, billing: billingPick, pastAll, pastYears, linkedFrom, ...(previewing ? {} : { covered }) } satisfies Saved),
       );
     } catch {
       // Storage can be unavailable (private mode); the page still works.
     }
-  }, [ctx, amounts, entered, picked, anyway, plan, billingPick, pastAll, linkedFrom, covered, previewing]);
+  }, [ctx, amounts, entered, picked, anyway, plan, billingPick, pastAll, pastYears, linkedFrom, covered, previewing]);
 
   const amountOf = (p: Product) => amounts[p.id] ?? defaultAmount(p, ctx);
   const coverOf = (p: Product) => effectiveCover(p, amountOf(p), ctx, { past: pastAll, ...picked[p.id] }, anyway[p.id]);
@@ -283,7 +294,12 @@ export function Store() {
     return { productId: id, amount: amountOf(p), cover: coverOf(p) };
   });
   const billing = billingPick ?? DEFAULT_BILLING;
-  const totals = planTotals(lines, ctx, billing);
+  const totals = planTotals(lines, ctx, billing, pastYears);
+  const pastTotal = totals.lines.reduce((sum, l) => sum + l.pastCost, 0);
+  // When the last past-use instalment is due, for the autopay note.
+  const pastEnds = totals.pastSpread
+    ? new Date(new Date().setMonth(new Date().getMonth() + totals.pastSpread.years * 12)).toLocaleDateString("en-US", { month: "long", year: "numeric" })
+    : null;
   // Through Every.org, each charity is its own payment with its own card fee.
   const every = PAYMENT_MODE === "every";
   const split = harmSplit(totals, ctx, billing);
@@ -618,7 +634,7 @@ export function Store() {
       <li
         key={p.id}
         className={`flex w-[78%] shrink-0 snap-start flex-col rounded-md p-4 md:w-auto ${
-          paid?.kind === "life" ? "bg-life" : paid ? "bg-period" : "bg-card"
+          paid?.kind === "life" && !paid.pastPending ? "bg-life" : paid ? "bg-period" : "bg-card"
         } ${
           collapsed && index >= SHELF_SIZE ? "md:hidden" : ""
         } ${isOpen ? "outline-2 outline-rule" : ""}`}
@@ -627,8 +643,13 @@ export function Store() {
           <div>
             <h3 className="text-lg font-bold leading-snug">{p.name}</h3>
             {paid && (
-              <p className={`text-sm font-semibold ${paid.kind === "life" ? "text-life-ink" : "text-period-ink"}`}>
-                ✓ {paid.kind === "life" ? "Covered for life" : `Covered through ${shortDate(paid.until)}`}
+              <p className={`text-sm font-semibold ${paid.kind === "life" && !paid.pastPending ? "text-life-ink" : "text-period-ink"}`}>
+                ✓{" "}
+                {paid.kind === "life"
+                  ? paid.pastPending
+                    ? "Covered from now on, past use being paid off"
+                    : "Covered for life"
+                  : `Covered through ${shortDate(paid.until)}`}
               </p>
             )}
           </div>
@@ -981,6 +1002,38 @@ export function Store() {
                     </li>
                   ))}
                 </ul>
+                {pastTotal > 0 && (
+                  <div className="mt-2 border-t border-border pt-2 text-sm">
+                    <div className="flex flex-wrap items-center gap-2" role="radiogroup" aria-label="When to pay for past use">
+                      <span className="text-muted">
+                        Pay past use (<span className="figures">{usd(pastTotal)}</span>)
+                      </span>
+                      {PAST_YEARS.map((y) => (
+                        <button
+                          key={y}
+                          type="button"
+                          role="radio"
+                          aria-checked={pastYears === y}
+                          onClick={() => setPastYears(y)}
+                          className={`min-h-10 cursor-pointer rounded-md border px-3 ${
+                            pastYears === y ? "border-rule bg-foreground text-background" : "border-border hover:border-rule"
+                          }`}
+                        >
+                          {y === 0 ? "All now" : `Over ${y} year${y > 1 ? "s" : ""}`}
+                        </button>
+                      ))}
+                    </div>
+                    {totals.pastSpread && (
+                      <p className="mt-1 text-xs text-muted">
+                        <span className="figures">
+                          {usd(totals.pastSpread.perMonth * (billing === "annual" ? 12 : 1))} {BILLING[billing].per}
+                        </span>{" "}
+                        for {totals.pastSpread.years} year{totals.pastSpread.years > 1 ? "s" : ""}, added to your {billing === "annual" ? "yearly" : "monthly"}{" "}
+                        gifts. Nothing is added or taken off. Items show as covered for life once their past use is paid off.
+                      </p>
+                    )}
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={() => setAdjusting((a) => !a)}
@@ -1078,6 +1131,10 @@ export function Store() {
                         <p className="font-sans text-muted">
                           Then {usd(repeatTotal)} {BILLING[billing].per}, one gift to each charity with its own card fee.{" "}
                           {autopay ? "Every.org charges it until you stop it." : "Nothing repeats on its own: you come back and give again."}
+                          {totals.pastSpread &&
+                            ` It includes ${usd(totals.pastSpread.perMonth * (billing === "annual" ? 12 : 1))} toward past use until ${pastEnds}${
+                              autopay ? "; Every.org can't stop that part on its own, so lower the gift in your Every.org account then." : "."
+                            }`}
                         </p>
                       )}
                     </dl>
@@ -1113,7 +1170,7 @@ export function Store() {
                     {paymentsOn() && checkout && (
                       <PaySection
                         rows={giftRows}
-                        lines={totals.lines.map((l) => ({ productId: l.productId, lifetime: l.cover.ahead === "lifetime" }))}
+                        lines={totals.lines.map((l) => ({ productId: l.productId, lifetime: l.cover.ahead === "lifetime", pastSpread: !!totals.pastSpread && l.pastCost > 0 }))}
                         billing={billing}
                         hasRepeat={repeatTotal > 0}
                         autopay={autopay}
@@ -1187,6 +1244,7 @@ export function Store() {
                       <p className="font-sans text-muted">
                         Then {usd(totals.recurring.total)} {BILLING[billing].per} ({usd(totals.recurring.donation)} donation +{" "}
                         {usd(totals.recurring.fee)} fees). Cancel anytime.
+                        {totals.pastSpread && ` Includes past use until ${pastEnds}.`}
                       </p>
                     )}
                   </dl>
