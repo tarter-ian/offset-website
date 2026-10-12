@@ -1,9 +1,9 @@
 @import "tailwindcss";
 
 /*
-  Look: a utility bill or receipt, since the site itemizes what your life costs.
-  White paper, near-black ink, thin rules instead of boxed cards, and one green
-  used only for actions and for what you've covered.
+  Look: plain white paper, near-black ink and thin rules instead of boxed cards.
+  Green is for actions and for what you've covered, including tiles in your plan.
+  Monospaced figures are kept for checkout, the one place that is a receipt.
 */
 :root {
   --background: #ffffff;
@@ -91,6 +91,11 @@ h2 {
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* Prices on the storefront: the body font with even-width digits. Mono stays for checkout, where a receipt belongs. */
+.amount {
+  font-variant-numeric: tabular-nums;
 }
 
 /* Money and quantities line up in columns. */

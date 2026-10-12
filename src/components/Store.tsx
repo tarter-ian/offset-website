@@ -47,6 +47,7 @@ import {
   CARD_FEE_LABEL,
   SPONSOR_FEE_LABEL,
   feeParts,
+  impactCost,
   usd,
 } from "@/lib/pricing";
 import {
@@ -149,6 +150,32 @@ const coversText = (i: Impacts) =>
   IMPACT_KEYS.filter((k) => i[k] >= MIN_SHOWN[k])
     .map((k) => (k === "air" ? `air ${airShort(i[k])}` : IMPACT_INFO[k].format(i[k])))
     .join(" · ");
+
+/**
+ * One plain outcome for a tile, led by the harm (other than air) that takes most of the money, e.g.
+ * "Keeps 151 kg of CO₂ out of the air, plus clean air, water and nature". The full
+ * figures are in the tile's (i) (Ian, 2026-10-12).
+ */
+const OUTCOME: Record<keyof Impacts, (i: Impacts) => string> = {
+  carbon: (i) => `Keeps ${IMPACT_INFO.carbon.format(i.carbon).replace(" CO₂e", "")} of CO₂ out of the air`,
+  air: () => "Pays for cleaner air where the pollution lands",
+  water: (i) => `Puts ${IMPACT_INFO.water.format(i.water).replace(" L water", " L")} of water back in dry rivers`,
+  land: (i) => `Protects ${IMPACT_INFO.land.format(i.land).replace(" land", "")} of forest`,
+  ewaste: (i) => `Recycles ${IMPACT_INFO.ewaste.format(i.ewaste).replace(" e-waste", "")} of old electronics`,
+};
+const OUTCOME_SHORT: Record<keyof Impacts, string> = { carbon: "climate", air: "clean air", water: "water", land: "nature", ewaste: "e-waste" };
+const outcomeText = (i: Impacts) => {
+  const cost = impactCost(i);
+  const shown = IMPACT_KEYS.filter((k) => i[k] >= MIN_SHOWN[k]);
+  if (!shown.length) return "";
+  // Air pollution has no concrete thing to point to, so it never leads; climate does unless another harm costs more.
+  const leads = shown.filter((k) => k !== "air");
+  if (!leads.length) return `${OUTCOME.air(i)}`;
+  const lead = leads.reduce((a, b) => (cost[b] > cost[a] ? b : a));
+  const rest = shown.filter((k) => k !== lead).map((k) => OUTCOME_SHORT[k]);
+  const tail = rest.length > 1 ? `${rest.slice(0, -1).join(", ")} and ${rest.at(-1)}` : rest[0];
+  return OUTCOME[lead](i) + (tail ? `, plus ${tail}` : "");
+};
 
 const amountText = (p: Product, amount: number | string) =>
   p.amount.kind === "number"
@@ -553,7 +580,7 @@ export function Store() {
             className="h-4 w-4 accent-[var(--accent)]"
           />
           <span>
-            Include past use <span className="figures text-muted">({once(pastPrice)})</span>
+            Include past use <span className="amount text-muted">({once(pastPrice)})</span>
             <span className="text-muted"> · {pastNote(p)}</span>
           </span>
         </label>
@@ -640,6 +667,15 @@ export function Store() {
     return lines;
   };
 
+  /** What a tile's big price covers: everything for life, or one month or year. */
+  const tileImpacts = (p: Product): Impacts => {
+    const cover = coverOf(p);
+    const c = coverImpacts(p, amountOf(p), cover, ctx);
+    if (cover.ahead === "lifetime") return c.once;
+    const k = billing === "annual" ? 12 : 1;
+    return { carbon: c.monthly.carbon * k, air: c.monthly.air * k, water: c.monthly.water * k, land: c.monthly.land * k, ewaste: c.monthly.ewaste * k };
+  };
+
   /** The (i) panel over a tile: how the item is estimated and who gets the money. */
   const infoPanel = (p: Product) => {
     const c = coverImpacts(p, amountOf(p), coverOf(p), ctx);
@@ -652,6 +688,16 @@ export function Store() {
         className="mt-3 border-t-2 border-rule pt-3 text-sm"
       >
         <p className="mb-2">{p.blurb}</p>
+        <h4 className="font-bold">What it covers</h4>
+        <ul className="mt-1 mb-3 space-y-1 text-muted">
+          {coversLines(p)
+            .filter((l) => l[1])
+            .map(([label, text]) => (
+              <li key={label}>
+                {label}: {text.replace(/(\d) (min|sec|hr|days)\b/, "$1 $2 of healthy life")}
+              </li>
+            ))}
+        </ul>
         <h4 className="font-bold">How we estimate it</h4>
         <ul className="mt-1 list-disc space-y-1 pl-4 text-muted">
           {howEstimated(p).map((line) => (
@@ -673,7 +719,7 @@ export function Store() {
           ))}
         </ul>
         <p className="mt-2 text-xs text-muted">
-          Example charities until our donation partner is set. <a href="/method" className="underline">Full method and sources</a>
+          <a href="/method" className="underline">Full method and sources</a>
         </p>
       </div>
     );
@@ -714,7 +760,7 @@ export function Store() {
       <li
         key={p.id}
         className={`flex w-[78%] shrink-0 snap-start flex-col rounded-md p-4 md:w-auto ${
-          paid?.kind === "life" || lifestyle ? "bg-life" : paid ? "bg-period" : "bg-card"
+          paid?.kind === "life" || lifestyle ? "bg-life" : paid ? "bg-period" : plan.includes(p.id) ? "bg-accent-soft" : "bg-card"
         } ${
           collapsed && index >= SHELF_SIZE ? "md:hidden" : ""
         } ${isOpen ? "outline-2 outline-rule" : ""}`}
@@ -772,7 +818,7 @@ export function Store() {
               : p.section === "food"
               ? `Nothing to offset on a ${amountText(p, amount).toLowerCase()} diet.`
               : "Nothing to offset at this amount."
-            : `Covers ${(coversLines(p).filter((l) => l[1]).at(-1) ?? ["", ""])[1]}`}
+            : outcomeText(tileImpacts(p))}
         </p>
         {info === p.id && infoPanel(p)}
         {paid?.kind === "life" ? (
@@ -780,7 +826,7 @@ export function Store() {
         ) : !nothing && (
         <div className="mt-auto flex items-center justify-between gap-3 pt-3">
           <span className="leading-tight">
-            <span className="figures block text-lg font-medium">{tp.big}</span>
+            <span className="amount block text-lg font-semibold">{tp.big}</span>
             <span className="block text-xs text-muted">{tp.note}</span>
           </span>
           {addButton(p, true)}
@@ -1003,7 +1049,7 @@ export function Store() {
           )}
         </div>
 
-        <aside id="ai-chat" aria-label="AI chat, itemized" className="self-start border-t-4 border-rule pt-4">
+        <aside id="ai-chat" aria-label="AI chat, itemized" className="self-start border-t-2 border-rule pt-4">
           <div className="flex items-baseline justify-between">
             <h2 className="text-xl font-bold">AI chat</h2>
             <span className="text-sm text-muted">ChatGPT, Claude, Gemini and the rest</span>
@@ -1011,13 +1057,13 @@ export function Store() {
           <div className="mt-3 border-b border-border pb-3">
             {amountLine(ai)}
           </div>
-          <dl className="figures divide-y divide-border text-sm">
+          <dl className="amount divide-y divide-border text-sm">
             {[
               ["Covers", covers],
               ...(["carbon", "air", "water", "land"] as const).map((k) => [IMPACT_INFO[k].label, k === "air" ? airShort(ab.impacts[k]) : IMPACT_INFO[k].format(ab.impacts[k])]),
             ].map(([k, v]) => (
               <div key={k} className="flex justify-between gap-4 py-2">
-                <dt className="font-sans text-muted">{k}</dt>
+                <dt className="text-muted">{k}</dt>
                 <dd className="text-right">{v}</dd>
               </div>
             ))}
@@ -1030,8 +1076,8 @@ export function Store() {
             </Link>
           </p>
           <div className="mt-4">{coverControls(ai, true)}</div>
-          <div className="mt-4 flex items-center justify-between gap-4 border-t-2 border-rule pt-3">
-            <span className="figures text-2xl font-medium">{priceText(aiPrice, aiCover, billing)}</span>
+          <div className="mt-4 flex items-center justify-between gap-4 border-t border-border pt-3">
+            <span className="amount text-2xl font-semibold">{priceText(aiPrice, aiCover, billing)}</span>
             {addButton(ai)}
           </div>
         </aside>
@@ -1118,7 +1164,7 @@ export function Store() {
                       onClick={() => addAll(items)}
                       className="min-h-10 cursor-pointer text-sm font-semibold underline underline-offset-4"
                     >
-                      Add all {addable(items).length} <span className="figures font-normal text-muted">· {groupPrice(items)}</span>
+                      Add all {addable(items).length} <span className="amount font-normal text-muted">· {groupPrice(items)}</span>
                     </button>
                   ))}
                 {items.length > SHELF_SIZE && (
@@ -1158,16 +1204,16 @@ export function Store() {
             Every item above at the amounts shown:{" "}
             {Math.abs(everything.today - everything.then) > 0.01 && (
               <>
-                <span className="figures text-foreground">{usd(everything.today)}</span> today, then{" "}
+                <span className="amount font-semibold text-foreground">{usd(everything.today)}</span> today, then{" "}
               </>
             )}
-            <span className="figures text-foreground">
+            <span className="amount font-semibold text-foreground">
               {usd(everything.then)} {BILLING[billing].per}
             </span>
             , card fees included
             {everything.spread && (
               <>
-                , with <span className="figures text-foreground">{usd(everything.spread.perMonth * (billing === "annual" ? 12 : 1))}</span> of
+                , with <span className="amount font-semibold text-foreground">{usd(everything.spread.perMonth * (billing === "annual" ? 12 : 1))}</span> of
                 it toward past use for {everything.spread.years} years
               </>
             )}
