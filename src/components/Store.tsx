@@ -100,6 +100,15 @@ const amountText = (p: Product, amount: number | string) =>
     : (p.amount.options.find((o) => o.value === amount)?.label ?? String(amount));
 const providerName = (id: ProviderId) => PROVIDERS.find((x) => x.id === id)?.name ?? id;
 const SHELF_SIZE = 3;
+/**
+ * What a new visitor sees first in each aisle: the things most people have,
+ * at friendly prices. Cards measured from an account move ahead of these.
+ */
+const COMMON_FIRST: Partial<Record<string, string[]>> = {
+  online: ["video", "social", "music"],
+  devices: ["phone", "laptop", "tv"],
+  travel: ["car", "flights", "rideshare"],
+};
 const LIVE_LINKS = new Set<ProviderId>(["chatgpt", "claude", "gemini", "openai-api", "anthropic-api", "activity"]);
 const LINK_ROW: { id: ProviderId; label: string }[] = [
   { id: "chatgpt", label: "ChatGPT, Claude or Gemini" },
@@ -785,7 +794,12 @@ export function Store() {
       </nav>
 
       {SECTIONS.map((s) => {
-        const items = PRODUCTS.filter((p) => p.section === s.key);
+        const common = COMMON_FIRST[s.key] ?? [];
+        const rank = (p: Product, i: number) => (linkedFrom[p.id] ? 0 : 1000) + (common.includes(p.id) ? common.indexOf(p.id) : 100 + i);
+        const items = PRODUCTS.filter((p) => p.section === s.key)
+          .map((p, i) => ({ p, r: rank(p, i) }))
+          .sort((a, b) => a.r - b.r)
+          .map(({ p }) => p);
         if (!items.length) return null;
         const collapsed = !expanded[s.key];
         // Keep an open item's details visible even if the shelf is collapsed.
