@@ -1,0 +1,14 @@
+// Cloudflare Workers settings for running the site with OpenNext.
+// Secrets (TURSO_DATABASE_URL, TURSO_AUTH_TOKEN) go in the Cloudflare dashboard, never here.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "offset-website",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": { "enabled": true }
+}

@@ -16,7 +16,7 @@ const STEPS = [
 
 // What tips pay for. Rough monthly costs of keeping the site up; amounts are list prices.
 const RUNNING_COSTS = [
-  { what: "Hosting the site (Vercel Pro)", cost: "$20 a month" },
+  { what: "Hosting the site (Cloudflare)", cost: "free up to 100,000 visits a day, then $5 a month" },
   { what: "The web address", cost: "about $15 a year" },
   { what: "Database for saved plans and the waitlist (Turso)", cost: "free at our size for now" },
   { what: "Listing the browser extension in the Chrome Web Store", cost: "$5, once" },
