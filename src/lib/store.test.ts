@@ -235,3 +235,24 @@ describe("coding with AI", () => {
     expect(coding.cost(20, "monthly", { ...C, aiCodingPastWh: 1_000_000 })).toBeCloseTo(coding.cost(20, "monthly", C), 6);
   });
 });
+
+describe("lifestyle choices", async () => {
+  const { lifestyleBadge } = await import("./store");
+  const meat = productById("meat")!;
+  it("badges cards a choice covers", () => {
+    expect(lifestyleBadge(meat, "vegan")).toBe("Covered by eating vegan");
+    expect(lifestyleBadge(meat, "average")).toBeNull();
+    expect(lifestyleBadge(productById("car")!, 0)).toBe("Covered by not driving");
+    expect(meat.cost("vegan", "monthly", C)).toBeLessThan(0.005);
+  });
+  it("prices past use at the old diet until the year it changed", () => {
+    const year = new Date().getFullYear();
+    expect(meat.cost("vegan", "past", C)).toBeLessThan(0.01);
+    const switched = { ...C, before: { meat: { amount: "meat-heavy", until: year - 2 } } };
+    const allMeat = meat.cost("meat-heavy", "past", C);
+    const twoYearsVegan = meat.cost("vegan", "past", switched);
+    expect(twoYearsVegan).toBeGreaterThan(0);
+    expect(twoYearsVegan).toBeLessThan(allMeat);
+    expect(meat.cost("vegan", "monthly", switched)).toBeLessThan(0.005);
+  });
+});
