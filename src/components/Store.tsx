@@ -966,7 +966,7 @@ export function Store() {
                 )}
                 <p className="mt-2 text-xs text-muted">
                   The smallest donation is {usd(MIN_DONATION_USD)}. We pool small donations and send each charity one payment a
-                  month, so none is lost to card fees. You approve every payment yourself; nothing is charged automatically.
+                  month, so none is lost to card fees. You approve each payment yourself, unless you choose autopay, and even then we email you before every charge.
                 </p>
                 {checkout && (
                   <p className="mt-4 text-sm text-muted">Payments aren&apos;t switched on yet. Your plan stays saved in this browser until they are.</p>
