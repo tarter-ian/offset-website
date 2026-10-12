@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ContactLink } from "@/components/ContactLink";
 
 export const metadata: Metadata = { title: "Our promises | Offset" };
 
@@ -84,6 +85,9 @@ export default function PromisesPage() {
             <a href="https://iantarter.com" target="_blank" rel="noreferrer" className="text-accent hover:underline">
               iantarter.com
             </a>
+          </p>
+          <p className="mt-2">
+            Questions, problems or a charge you didn&apos;t expect: <ContactLink />.
           </p>
         </div>
       </section>
