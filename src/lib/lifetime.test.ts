@@ -110,3 +110,12 @@ describe("gridYears", () => {
     expect(F.gridYears(2026, 50, F.GRID_AIR_CLEANER_PER_YEAR)).toBeLessThan(F.gridYears(2026, 50));
   });
 });
+
+describe("past AI use", () => {
+  it("grows steadily to today's rate, and counts from the year you started", () => {
+    const flat = lifetimeOffset({ ...typical, aiPromptsPerDay: 50 }, ["ai"], now, "past");
+    const later = lifetimeOffset({ ...typical, aiPromptsPerDay: 50, aiStartYear: 2025 }, ["ai"], now, "past");
+    expect(later.pastYears.ai).toBeCloseTo(1, 6);
+    expect(later.parts.ai.cost).toBeLessThan(flat.parts.ai.cost);
+  });
+});

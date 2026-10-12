@@ -277,6 +277,11 @@ export const INTERNET_ROUGH_MARGIN = 0.5;
 // Years we count back to: mainstream home internet and ChatGPT's launch.
 export const INTERNET_START_YEAR = 1995;
 export const AI_START_YEAR = 2022.9;
+// Unmeasured past AI use grows steadily from zero to today's rate, so on
+// average it's half of today's rate (Ian, 2026-10-12).
+export const AI_PAST_RAMP = 0.5;
+// A chat with no measured prompts counts as three (WildChat 2.5, ShareGPT 3.5).
+export const AI_PROMPTS_PER_CHAT = 3;
 export const ONLINE_FROM_AGE = 12;
 export const LIFETIME_TO_AGE = 85;
 

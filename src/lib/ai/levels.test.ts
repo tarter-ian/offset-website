@@ -51,3 +51,25 @@ describe("Gemini sign-in", async () => {
     expect(signInUsage({ prompts: 1611, failedConversations: 0, truncated: false })!.missedChats).toBeUndefined();
   });
 });
+
+describe("chat history", async () => {
+  const { signInUsage, summaryFromSignIn } = await import("./signin");
+  const { combineSummaries } = await import("./exportParser");
+  const F = await import("../factors");
+  const usage = { prompts: 300, reasoningResponses: 0, images: 0, conversations: 30, windowDays: 30 };
+
+  it("prices each older chat at the window's energy per chat", () => {
+    const u = signInUsage({ ...usage, history: { chats: 130, chatsBeforeWindow: 100, complete: true, months: {} } })!;
+    const s = summaryFromSignIn("chatgpt", u);
+    const windowWh = 300 * F.WH_PER_AI_PROMPT;
+    expect(s.totalWh).toBeCloseTo(windowWh + 100 * (windowWh / 30), 6);
+  });
+
+  it("has no total without history, and estimates the unlinked part when combined", () => {
+    const plain = summaryFromSignIn("gemini", signInUsage(usage)!);
+    expect(plain.totalWh).toBeUndefined();
+    const withHistory = summaryFromSignIn("chatgpt", signInUsage({ ...usage, history: { chats: 30, chatsBeforeWindow: 0, complete: true } })!);
+    const all = combineSummaries([withHistory, plain])!;
+    expect(all.totalWh).toBeGreaterThan(withHistory.totalWh!);
+  });
+});

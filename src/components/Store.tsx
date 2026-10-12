@@ -111,6 +111,12 @@ const LINK_ROW: { id: ProviderId; label: string }[] = [
   { id: "car", label: "Car" },
 ];
 
+// When someone started using AI, for past use when no history is linked. ChatGPT launched in late 2022.
+const AI_START_OPTIONS = Array.from({ length: new Date().getFullYear() - 2021 }, (_, i) => {
+  const y = 2022 + i;
+  return { value: String(y), label: y === 2022 ? "Late 2022" : String(y) };
+});
+
 /** The storefront: link accounts to fill in your amounts, then pick the parts of your life to offset. */
 export function Store() {
   const [ctx, setCtx] = useState<Context>(DEFAULT_CONTEXT);
@@ -273,7 +279,10 @@ export function Store() {
   /** Where the past-use figure comes from. */
   const pastNote = (p: Product) => {
     if (p.id === "ai" && ctx.aiPastWh !== undefined) return "your real history";
-    if (p.section === "ai") return "today's rate since ChatGPT launched in late 2022";
+    if (p.section === "ai")
+      return ctx.aiStartYear && ctx.aiStartYear > 2022
+        ? `growing steadily to today's rate since you started in ${ctx.aiStartYear}`
+        : "growing steadily to today's rate since ChatGPT launched in late 2022";
     return `today's rate since you were ${ONLINE_FROM_AGE}, or 1995`;
   };
 
@@ -578,7 +587,7 @@ export function Store() {
                   ...c,
                   aiWhPerPrompt: d.aiWhPerPrompt,
                   aiFromExport: !note,
-                  aiPastWh: undefined,
+                  aiPastWh: note ? undefined : d.aiPastWh,
                   aiEstimate: note ? { from: note } : undefined,
                 }));
                 setAmounts((a) => ({ ...a, ai: d.aiPromptsPerDay, "ai-media": d.aiMediaPerWeek }));
@@ -795,6 +804,19 @@ export function Store() {
                       />
                     </span>
                   </label>
+                  {ctx.aiPastWh === undefined && (
+                    <label className="block w-36">
+                      <span className="block text-muted">Using AI since</span>
+                      <span className="mt-1 block">
+                        <Select
+                          label="Using AI since"
+                          value={String(ctx.aiStartYear ?? 2022)}
+                          onChange={(v) => setCtx((c) => ({ ...c, aiStartYear: Number(v) === 2022 ? undefined : Number(v) }))}
+                          options={AI_START_OPTIONS}
+                        />
+                      </span>
+                    </label>
+                  )}
                   <label className="block w-48">
                     <span className="block text-muted">State</span>
                     <span className="mt-1 block">
@@ -806,7 +828,10 @@ export function Store() {
                       />
                     </span>
                   </label>
-                  <p className="max-w-56 text-xs text-muted">Age sets how many years lifetime covers; state sets how clean your power is.</p>
+                  <p className="max-w-56 text-xs text-muted">
+                    Age sets how many years lifetime covers; state sets how clean your power is.
+                    {ctx.aiPastWh === undefined && " Linking an AI account replaces the start year with your real history."}
+                  </p>
                 </div>
                 <dl className="figures mt-3 space-y-1 border-t border-border pt-3 text-sm">
                   {totals.oneTime && (

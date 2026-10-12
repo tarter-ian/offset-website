@@ -18,6 +18,32 @@ export interface SignInUsage {
    * or -1 when it stopped early without saying how many. Set means the count is too low.
    */
   missedChats?: number;
+  /** Chats with prompts in the window. */
+  conversations?: number;
+  /** ChatGPT and Claude: every chat the account still has, by when it was started. */
+  history?: ChatHistory;
+}
+
+/** From the extension's chat list: no chat opened, so chats are counted, not prompts. */
+export interface ChatHistory {
+  firstChat?: string;
+  chats: number;
+  /** Chats started before the 30-day window. */
+  chatsBeforeWindow: number;
+  /** False when the list was too long to read to the end. */
+  complete: boolean;
+}
+
+function chatHistory(v: unknown): ChatHistory | undefined {
+  if (typeof v !== "object" || v === null) return undefined;
+  const h = v as Record<string, unknown>;
+  if (!Number.isFinite(Number(h.chatsBeforeWindow))) return undefined;
+  return {
+    ...(typeof h.firstChat === "string" ? { firstChat: h.firstChat } : {}),
+    chats: count(h.chats),
+    chatsBeforeWindow: count(h.chatsBeforeWindow),
+    complete: h.complete === true,
+  };
 }
 
 const count = (v: unknown) => {
@@ -40,6 +66,7 @@ export function signInUsage(data: unknown): SignInUsage | null {
   const plan = [r.planType, r.rateLimitTier].find((v) => typeof v === "string") as string | undefined;
   const days = count(r.windowDays) || 30;
   const weekly = Number(r.weeklyLimitUsedPercent);
+  const history = chatHistory(r.history);
   return {
     prompts: count(r.prompts),
     reasoningResponses: count(r.reasoningResponses),
@@ -47,6 +74,8 @@ export function signInUsage(data: unknown): SignInUsage | null {
     days,
     planType: plan,
     ...(Number.isFinite(weekly) && weekly > 0 ? { weeklyLimitUsedPercent: Math.min(weekly, 100) } : {}),
+    ...("conversations" in r ? { conversations: count(r.conversations) } : {}),
+    ...(history ? { history } : {}),
     ...(count(r.failedConversations) > 0 ? { missedChats: count(r.failedConversations) } : r.truncated === true ? { missedChats: -1 } : {}),
   };
 }
@@ -69,7 +98,19 @@ export function summaryFromSignIn(provider: AiProvider, u: SignInUsage): UsageSu
     imagesPerWeek: (u.images / u.days) * 7,
     reasoningShare: u.prompts ? reasoning / u.prompts : 0,
     windowDays: u.days,
+    ...(u.history ? { totalWh: pastWhFromHistory(u, Math.max(wh, fromLimit * u.days)) } : {}),
   };
+}
+
+/**
+ * All-time energy from chat history: the window as measured, plus each older
+ * chat at the window's energy per chat (three typical prompts when the window
+ * has none). This follows when the person actually used it, chat by chat.
+ */
+export function pastWhFromHistory(u: SignInUsage, windowWh: number): number {
+  const older = u.history?.chatsBeforeWindow ?? 0;
+  const perChat = u.conversations ? windowWh / u.conversations : F.AI_PROMPTS_PER_CHAT * F.WH_PER_AI_PROMPT;
+  return windowWh + older * perChat;
 }
 
 /** Weekly hours of use a Claude plan allows, from its rate-limit tier like "default_claude_max_5x". */

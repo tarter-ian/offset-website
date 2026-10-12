@@ -224,6 +224,12 @@ export function summarize(usage: ExportUsage[], now = Date.now(), windowDays = 9
   };
 }
 
+/** Past energy for a source without history: steady growth from ChatGPT's launch to today's rate. */
+export function estimatedPastWh(whPerDay: number, now = new Date()): number {
+  const year = now.getUTCFullYear() + now.getUTCMonth() / 12;
+  return whPerDay * 365 * Math.max(0, year - F.AI_START_YEAR) * F.AI_PAST_RAMP;
+}
+
 /** Adds up use across several linked accounts. */
 export function combineSummaries(summaries: UsageSummary[]): UsageSummary | null {
   if (!summaries.length) return null;
@@ -237,8 +243,10 @@ export function combineSummaries(summaries: UsageSummary[]): UsageSummary | null
     imagesPerWeek: sum("imagesPerWeek"),
     reasoningShare: prompts ? summaries.reduce((s, x) => s + x.reasoningShare * x.promptsPerDay, 0) / prompts : 0,
     windowDays: Math.max(...summaries.map((s) => s.windowDays)),
-    // Only known when every linked source has its full history.
-    totalWh: summaries.every((s) => s.totalWh !== undefined) ? summaries.reduce((s, x) => s + x.totalWh!, 0) : undefined,
+    // Known when any linked source has its history; the others grow steadily since ChatGPT's launch.
+    totalWh: summaries.some((s) => s.totalWh !== undefined)
+      ? summaries.reduce((s, x) => s + (x.totalWh ?? estimatedPastWh(x.whPerDay)), 0)
+      : undefined,
   };
 }
 

@@ -132,7 +132,7 @@ const ROWS = [
   },
   {
     category: "AI",
-    method: `About ${F.WH_PER_AI_PROMPT} Wh a chatbot prompt, plus its share of training the model, on the US grid, plus data center cooling water. If you add your ChatGPT, Claude or Gemini data export, we measure each prompt instead (longer conversations, reasoning models and images all use more), and your past use is your real history rather than today's rate since late 2022. Gemini's export lists prompts without their conversations, so long Gemini chats count as if each prompt started fresh.`,
+    method: `About ${F.WH_PER_AI_PROMPT} Wh a chatbot prompt, plus its share of training the model, on the US grid, plus data center cooling water. If you add your ChatGPT, Claude or Gemini data export, we measure each prompt instead (longer conversations, reasoning models and images all use more), and your past use is your real history. The extension does the same from your ChatGPT and Claude chat list: each chat you've started since your first counts at the energy your recent chats use. With nothing linked, past use grows steadily from when you say you started (late 2022 at the earliest) to today's rate, which works out to half of today's rate over that time. Gemini's export lists prompts without their conversations, so long Gemini chats count as if each prompt started fresh.`,
   },
   {
     category: "Video streaming",
@@ -190,8 +190,9 @@ export default function MethodPage() {
 
       <h2 className="mt-10 text-xl font-semibold">Lifetime internet, AI and devices</h2>
       <p className="mt-2 text-muted">
-        The one-time lifetime offsets count from age {F.ONLINE_FROM_AGE} (or {F.INTERNET_START_YEAR}, whichever is later), and from late 2022 for AI,
-        through age {F.LIFETIME_TO_AGE}. Past years count at today&apos;s rates. Future years count at today&apos;s amount of use, since networks
+        The one-time lifetime offsets count from age {F.ONLINE_FROM_AGE} (or {F.INTERNET_START_YEAR}, whichever is later), and from late 2022 for AI (or when you started),
+        through age {F.LIFETIME_TO_AGE}. Past years count at today&apos;s rates, except AI, which most people took up gradually: unless your
+        chat history is linked, its past use grows steadily to today&apos;s rate. Future years count at today&apos;s amount of use, since networks
         get more efficient about as fast as use grows, but the power for it gets cleaner. We assume the US grid&apos;s carbon and power plant water
         per kWh fall {Math.round(F.GRID_CLEANER_PER_YEAR * 100)}% a year until {F.GRID_CLEANER_UNTIL}, then hold steady. That&apos;s a cautious pace;
         the EIA&apos;s outlooks range from about 2% to 6% a year depending on clean-power policy. Power plant air pollution falls faster, since

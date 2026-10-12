@@ -47,8 +47,10 @@ export interface Context {
   /** Measured from a linked AI account. */
   aiWhPerPrompt?: number;
   aiFromExport?: boolean;
-  /** All-time AI chat energy from linked exports, in Wh. */
+  /** All-time AI chat energy from linked exports or chat history, in Wh. */
   aiPastWh?: number;
+  /** The year the person says they started using AI. */
+  aiStartYear?: number;
   /** A quick AI estimate: a picked level, or the plan from a sign-in. */
   aiEstimate?: { level?: AiLevel; from: string };
 }
@@ -80,6 +82,7 @@ const NO_DEVICES: Record<Device, number> = { phone: 0, laptop: 0, tablet: 0, des
 const base = (ctx: Context): LifetimeInput => ({
   ...DEFAULT_LIFETIME_INPUT,
   birthYear: ctx.birthYear,
+  aiStartYear: ctx.aiStartYear,
   internetHoursPerDay: NO_ONLINE,
   aiPromptsPerDay: 0,
   aiMediaPerWeek: 0,

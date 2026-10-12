@@ -53,8 +53,10 @@ export interface LifetimeInput {
   aiFromExport?: boolean;
   /** Average energy per prompt measured from an export, in Wh. */
   aiWhPerPrompt?: number;
-  /** Your actual AI use to date, measured from exports, in Wh. Replaces the estimate of past use. */
+  /** Your actual AI use to date, measured from exports or chat history, in Wh. Replaces the estimate of past use. */
   aiPastWh?: number;
+  /** When you started using AI, if you said. Unmeasured past use counts from here (never before ChatGPT's launch). */
+  aiStartYear?: number;
   /** How many of each device you use at a time. */
   devices: Record<Device, number>;
 }
@@ -128,7 +130,7 @@ export function lifetimeOffset(
   const birth = Math.min(Math.max(input.birthYear || 1990, 1900), year);
   const onlineSince = Math.max(birth + F.ONLINE_FROM_AGE, F.INTERNET_START_YEAR);
   const pastInternet = Math.max(0, year - onlineSince);
-  const pastAi = Math.max(0, year - Math.max(F.AI_START_YEAR, onlineSince));
+  const pastAi = Math.max(0, year - Math.max(F.AI_START_YEAR, input.aiStartYear ?? 0, onlineSince));
   const futureYears = Math.max(0, birth + F.LIFETIME_TO_AGE - year);
   // Years counted at today's rates (past use, or a month of ongoing use) and years still to come.
   const plain = (past: number) => (span === "monthly" ? 1 / 12 : span === "future" ? 0 : past);
@@ -161,13 +163,13 @@ export function lifetimeOffset(
     ((nonNeg(input.aiPromptsPerDay) * 365 * (input.aiWhPerPrompt ?? F.WH_PER_AI_PROMPT) + nonNeg(input.aiMediaPerWeek) * 52 * F.WH_PER_AI_MEDIA) /
       1000) *
     (1 + (input.aiFromExport ? MARGINS.measured : MARGINS.estimated));
-  // Past AI use is measured when an export covers it; otherwise it's today's rate since ChatGPT launched.
-  // Only chat is measured, so images stay estimated at today's rate.
+  // Past AI use is measured when an export or chat history covers it; otherwise it grows
+  // steadily from when you started to today's rate. Only chat is measured, so images are estimated.
   const aiPastKwh =
     input.aiPastWh !== undefined
       ? (input.aiPastWh / 1000) * (1 + MARGINS.measured) +
-        ((nonNeg(input.aiMediaPerWeek) * 52 * F.WH_PER_AI_MEDIA) / 1000) * (1 + MARGINS.estimated) * pastAi
-      : aiKwhPerYear * pastAi;
+        ((nonNeg(input.aiMediaPerWeek) * 52 * F.WH_PER_AI_MEDIA) / 1000) * (1 + MARGINS.estimated) * pastAi * F.AI_PAST_RAMP
+      : aiKwhPerYear * pastAi * F.AI_PAST_RAMP;
   const aiPlainKwh = span === "monthly" ? aiKwhPerYear / 12 : span === "future" ? 0 : aiPastKwh;
   const ai = add(aiImpacts(aiPlainKwh), future(aiImpacts(aiKwhPerYear), aiCoolingWater(aiKwhPerYear)), LIFETIME_GROWTH_BUFFER);
 
