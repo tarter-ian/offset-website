@@ -7,7 +7,6 @@ This first version has:
 - a two-minute questionnaire that estimates a monthly footprint in seven categories,
 - a results page showing each category's estimate, its uncertainty margin and the monthly donation,
 - a page explaining the method and sources,
-- a waitlist for when account linking and payments open.
 
 ## Run it
 
@@ -17,7 +16,7 @@ npm run dev      # http://localhost:3000
 npm test         # calculator tests
 ```
 
-The waitlist writes to `./local.db` by default. In production, set `DATABASE_URL` and `DATABASE_AUTH_TOKEN` to a hosted libSQL database such as Turso (see `.env.example`).
+Nothing uses the database yet; it's there for accounts. On Cloudflare it's the D1 database bound as `DB` in `wrangler.jsonc`. Locally it falls back to `./local.db`.
 
 ## Where things live
 

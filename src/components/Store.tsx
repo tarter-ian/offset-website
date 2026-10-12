@@ -6,7 +6,6 @@ import { AiExportUpload } from "./AiExportUpload";
 import { AiQuickPick } from "./AiQuickPick";
 import { AI_LEVELS } from "@/lib/ai/levels";
 import { NumberInput, Select } from "./fields";
-import { WaitlistForm } from "./WaitlistForm";
 import { STATE_OPTIONS, STATES, type StateCode } from "@/lib/data/states";
 import { IMPACT_INFO } from "@/lib/impacts";
 import { IMPACT_KEYS, sumImpacts, type Impacts } from "@/lib/footprint";
@@ -962,10 +961,7 @@ export function Store() {
                   month, so none is lost to card fees. You approve every payment yourself; nothing is charged automatically.
                 </p>
                 {checkout && (
-                  <div className="mt-4">
-                    <p className="mb-2 text-sm text-muted">Payments open at launch. Leave your email and we&apos;ll save your plan.</p>
-                    <WaitlistForm />
-                  </div>
+                  <p className="mt-4 text-sm text-muted">Payments aren&apos;t switched on yet. Your plan stays saved in this browser until they are.</p>
                 )}
               </div>
             )}

@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Badge } from "./Badge";
-import { WaitlistForm } from "./WaitlistForm";
 import { CARBON_REMOVAL, CHARITIES, type Charity } from "@/lib/charities";
 import {
   AREAS,
@@ -500,12 +499,6 @@ export function Results({
           </ul>
         </section>
       )}
-
-      <section className="rounded-xl border border-border bg-card p-6">
-        <h3 className="font-semibold">Accounts open soon</h3>
-        <p className="mb-4 mt-1 text-muted">Join the waitlist to link your accounts and start offsetting.</p>
-        <WaitlistForm />
-      </section>
 
       <button type="button" onClick={onEdit} className="font-medium text-accent hover:text-accent-strong">
         ← Change my answers
