@@ -119,7 +119,7 @@ const IMPACTS = [
     priceShort: `${usd(EWASTE_USD_PER_KG)} a kg, to reuse and proper recycling`,
     measure:
       "What your phones, laptops, tablets, computers, TVs and consoles weigh when you replace them, plus the electronics you buy. Only about a fifth of the world's e-waste is recycled properly (Global E-waste Monitor 2024); the rest is dumped or burned, leaking lead, mercury and flame retardants.",
-    price: `We pay ${usd(EWASTE_USD_PER_KG)} a kg to a charity that refurbishes devices and recycles the rest responsibly, roughly what US recyclers charge for the hardest items.`,
+    price: `We pay ${usd(EWASTE_USD_PER_KG)} a kg to a charity that refurbishes devices and recycles the rest responsibly. Nonprofit refurbishers spend about $8 to $14 for each kg they handle, so we take the low end.`,
   },
 ];
 

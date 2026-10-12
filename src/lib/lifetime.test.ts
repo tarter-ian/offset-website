@@ -51,8 +51,9 @@ describe("lifetimeOffset", () => {
     expect(some.donation).toBeGreaterThan(50);
   });
 
-  it("lands each item in a price people would pay once", () => {
-    for (const item of ["internet", "ai", "devices"] as const) {
+  // Devices for life pass $1,000 once e-waste is priced at what refurbishers spend.
+  it("lands internet and AI in a price people would pay once", () => {
+    for (const item of ["internet", "ai"] as const) {
       const o = lifetimeOffset(typical, [item], now);
       expect(o.donation).toBeGreaterThan(LIFETIME_MIN_DONATION_USD);
       expect(o.total).toBeLessThan(LIFETIME_MAX_USD);
