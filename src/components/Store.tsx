@@ -235,6 +235,7 @@ export function Store() {
       return `measured from your account, plus Claude Code, estimated from ${Math.round(ctx.aiCode.limitPercent)}% of your ${ctx.aiCode.plan} weekly limit`;
     if (p.section === "ai" && ctx.aiFromExport) return "measured from your account";
     if (p.id === "ai" && ctx.aiEstimate) return ctx.aiEstimate.from;
+    if ((p.id === "ai-media" || p.id === "ai-video") && ctx.aiEstimate?.level) return ctx.aiEstimate.from;
     if (linkedFrom[p.id]) return `from your ${linkedFrom[p.id].map((s) => SOURCE_NAMES[s]).join(" and ")} history`;
     if (p.id === "electricity") return `typical for ${STATES[ctx.state].name}`;
     return "typical";
@@ -606,7 +607,13 @@ export function Store() {
               level={ctx.aiFromExport || entered.ai ? null : (ctx.aiEstimate?.level ?? null)}
               onPick={(level, from) => {
                 setCtx((c) => ({ ...c, aiEstimate: { level, from }, aiFromExport: false, aiWhPerPrompt: undefined, aiPastWh: undefined, aiCode: undefined }));
-                setAmounts((a) => ({ ...a, ai: AI_LEVELS[level].promptsPerDay }));
+                // Images and video follow the pick too, unless the person typed their own.
+                setAmounts((a) => ({
+                  ...a,
+                  ai: AI_LEVELS[level].promptsPerDay,
+                  ...(entered["ai-media"] ? {} : { "ai-media": AI_LEVELS[level].imagesPerWeek }),
+                  ...(entered["ai-video"] ? {} : { "ai-video": AI_LEVELS[level].videosPerWeek }),
+                }));
                 resetAiCover();
                 setEntered((e) => ({ ...e, ai: false }));
               }}

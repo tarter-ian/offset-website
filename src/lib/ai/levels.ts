@@ -12,11 +12,17 @@ export type AiLevel = "light" | "medium" | "heavy";
  * our estimate for people who use it for hours a day; Pew (2026) found 8% of
  * chatbot users use one almost constantly and Menlo Ventures (2026) found 10%
  * spend over two hours a day.
+ *
+ * Images and videos a week. Google reported 50 billion Nano Banana images by
+ * May 2026, up from 5 billion in mid-October 2025: about 1.5 a week for each of
+ * Gemini's 900 million monthly users, an average pulled up by heavy users, so
+ * most people make none. Medium sits just above that average; heavy is our
+ * estimate. AI video is still rare, so only heavy includes it.
  */
-export const AI_LEVELS: Record<AiLevel, { label: string; promptsPerDay: number; who: string }> = {
-  light: { label: "Light", promptsPerDay: 3, who: "a few questions a day, like most people" },
-  medium: { label: "Medium", promptsPerDay: 10, who: "every day, for work or school" },
-  heavy: { label: "Heavy", promptsPerDay: 40, who: "hours a day, long chats" },
+export const AI_LEVELS: Record<AiLevel, { label: string; promptsPerDay: number; imagesPerWeek: number; videosPerWeek: number; who: string }> = {
+  light: { label: "Light", promptsPerDay: 3, imagesPerWeek: 0, videosPerWeek: 0, who: "a few questions a day, like most people" },
+  medium: { label: "Medium", promptsPerDay: 10, imagesPerWeek: 2, videosPerWeek: 0, who: "every day, for work or school" },
+  heavy: { label: "Heavy", promptsPerDay: 40, imagesPerWeek: 10, videosPerWeek: 1, who: "hours a day, long chats" },
 };
 
 /** Maps a subscription name like "ChatGPT Plus", "pro", "max_5x" or "free" to a usage level. */
