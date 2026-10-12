@@ -5,13 +5,21 @@ import { AI_LEVELS, type AiLevel } from "@/lib/ai/levels";
 import { claudeLimitWhPerDay, signInUsage, summaryFromSignIn, type SignInUsage } from "@/lib/ai/signin";
 import { CLAUDE_PLANS, usageFromQuickCount, type ClaudePlan, type QuickService } from "@/lib/ai/quickCount";
 import { combineSummaries, type UsageSummary } from "@/lib/ai/exportParser";
-import { activityAmounts, youtubeDays } from "@/lib/activity";
+import { activityAmounts, NETFLIX_MIN_PER_TITLE, youtubeDays } from "@/lib/activity";
 import { canInstallExtension, detectExtension, EXTENSION_SERVICES, EXTENSION_URL, measure, type ExtensionError, type ExtensionService } from "@/lib/extension";
 import { SIGN_IN_READS } from "@/lib/signinReads";
 
 const AI_NAMES: Record<QuickService, string> = { chatgpt: "ChatGPT", claude: "Claude", gemini: "Gemini" };
 const SERVICES = Object.keys(AI_NAMES) as QuickService[];
-const EXT_NAMES: Record<ExtensionService, string> = { ...AI_NAMES, youtube: "YouTube", doordash: "DoorDash", ubereats: "Uber Eats" };
+const EXT_NAMES: Record<ExtensionService, string> = {
+  ...AI_NAMES,
+  youtube: "YouTube",
+  netflix: "Netflix",
+  doordash: "DoorDash",
+  ubereats: "Uber Eats",
+  amazon: "Amazon",
+  uber: "Uber",
+};
 type FoodService = "doordash" | "ubereats";
 const ERRORS: Record<ExtensionError, (name: string) => string> = {
   "signed-out": (n) => `You're not logged in to ${n} in this browser.`,
@@ -23,7 +31,7 @@ const ERRORS: Record<ExtensionError, (name: string) => string> = {
 };
 
 /** `raw` is exactly what the extension handed over, shown on request so people can check it holds only counts. */
-type Row = { state: "asking" | "counting" | "done" | "incomplete" | "error"; text?: string; error?: ExtensionError; raw?: unknown };
+type Row = { state: "asking" | "counting" | "done" | "incomplete" | "error" | "skipped"; text?: string; error?: ExtensionError; raw?: unknown };
 
 /**
  * Sizing AI use. One click: pick light, medium or heavy. Exact: the Offset
@@ -38,6 +46,7 @@ export function AiQuickPick({
   onMeasured,
   onVideo,
   onDelivery,
+  onRides,
 }: {
   level: AiLevel | null;
   onPick: (level: AiLevel, from: string) => void;
@@ -45,12 +54,15 @@ export function AiQuickPick({
   /** A summary of real use. `note` is set when it's the person's own count rather than a measurement. */
   onMeasured: (s: UsageSummary, note?: string) => void;
   /** Hours a day of video, measured from YouTube by the extension. */
-  onVideo?: (hoursPerDay: number) => void;
+  onVideo?: (hoursPerDay: number, from: ("youtube" | "netflix")[]) => void;
+  /** Ride-hailing miles a week, measured from Uber. */
+  onRides?: (milesPerWeek: number) => void;
   /** Deliveries a week, measured from DoorDash and Uber Eats together. */
   onDelivery?: (perWeek: number) => void;
 }) {
   const [ext, setExt] = useState<string | null>(null);
   const [rows, setRows] = useState<Partial<Record<ExtensionService, Row>>>({});
+  const [, setVideo] = useState<Partial<Record<"youtube" | "netflix", number>>>({});
   const [, setFood] = useState<Partial<Record<FoodService, number>>>({});
   const [aiSummaries, setAiSummaries] = useState<Partial<Record<QuickService, UsageSummary>>>({});
   const [installable, setInstallable] = useState(false);
@@ -62,7 +74,8 @@ export function AiQuickPick({
     detectExtension().then(setExt);
   }, []);
 
-  function run(services: ExtensionService[], inFront = false) {
+
+  function run(services: ExtensionService[], inFront = false, then?: () => void) {
     setStatus({ kind: "idle" });
     setOpen(null);
     setRows((r) => ({ ...r, ...Object.fromEntries(services.map((x) => [x, { state: "counting" }])) }));
@@ -80,12 +93,7 @@ export function AiQuickPick({
               ...r,
               [service]: { state: "done", raw: usage, text: `${d.deliveries} deliveries and ${d.pickups} pickups in ${d.days} days` },
             }));
-            setFood((prev) => {
-              const next = { ...prev, [service]: (d.deliveries / d.days) * 7 };
-              const week = Object.values(next).reduce((s, n) => s + (n ?? 0), 0);
-              onDelivery?.(Math.round(week * 10) / 10);
-              return next;
-            });
+            reportFood(service, (d.deliveries / d.days) * 7);
             return;
           }
           if (service === "youtube") {
@@ -98,7 +106,43 @@ export function AiQuickPick({
                 ? { state: "done", raw: usage, text: `${totals.videos.toLocaleString("en-US")} videos and ${totals.shorts.toLocaleString("en-US")} Shorts in 30 days, about ${video} hours a day` }
                 : { state: "error", error: "unavailable", raw: usage },
             }));
-            if (video) onVideo?.(video);
+            if (video) reportVideo("youtube", video);
+            return;
+          }
+          if (service === "netflix") {
+            const n = countOver(usage, "titles");
+            if (!n) {
+              setRows((r) => ({ ...r, netflix: { state: "error", error: "unavailable", raw: usage } }));
+              return;
+            }
+            const hours = (n.total / n.days) * (NETFLIX_MIN_PER_TITLE / 60);
+            setRows((r) => ({
+              ...r,
+              netflix: { state: "done", raw: usage, text: `${n.total} episodes and films in ${n.days} days, about ${hours.toFixed(1)} hours a day` },
+            }));
+            reportVideo("netflix", hours);
+            return;
+          }
+          if (service === "uber") {
+            const m = countOver(usage, "miles");
+            const rides = Number((usage as Record<string, unknown>)?.rides) || 0;
+            if (!m) {
+              setRows((r) => ({ ...r, uber: { state: "error", error: "unavailable", raw: usage } }));
+              return;
+            }
+            setRows((r) => ({ ...r, uber: { state: "done", raw: usage, text: `${rides} rides, ${Math.round(m.total)} miles in ${m.days} days` } }));
+            onRides?.(Math.round((m.total / m.days) * 7));
+            return;
+          }
+          if (service === "amazon") {
+            const o = countOver(usage, "orders");
+            const items = Number((usage as Record<string, unknown>)?.items) || 0;
+            setRows((r) => ({
+              ...r,
+              amazon: o
+                ? { state: "done", raw: usage, text: `${o.total} orders, ${items} items in ${o.days} days. Spending by category comes with the next extension update.` }
+                : { state: "error", error: "unavailable", raw: usage },
+            }));
             return;
           }
           const u = signInUsage(usage);
@@ -124,11 +168,42 @@ export function AiQuickPick({
         onError: (service, error) => setRows((r) => ({ ...r, [service]: { state: "error", error } })),
         onAsking: (asked) => setRows((r) => ({ ...r, ...Object.fromEntries(asked.map((x) => [x, { state: "asking" }])) })),
         onCounting: (allowed) => setRows((r) => ({ ...r, ...Object.fromEntries(allowed.map((x) => [x, { state: "counting" }])) })),
+        onDone: then,
       },
       inFront,
     );
   }
 
+  /** Video hours from YouTube and Netflix add up on the one video card. */
+  function reportVideo(service: "youtube" | "netflix", hoursPerDay: number) {
+    setVideo((prev) => {
+      const next = { ...prev, [service]: hoursPerDay };
+      const total = Object.values(next).reduce((s, n) => s + (n ?? 0), 0);
+      onVideo?.(Math.round(total * 20) / 20, Object.keys(next) as ("youtube" | "netflix")[]);
+      return next;
+    });
+  }
+
+  function reportFood(service: FoodService, perWeek: number) {
+    setFood((prev) => {
+      const next = { ...prev, [service]: perWeek };
+      const week = Object.values(next).reduce((s, n) => s + (n ?? 0), 0);
+      onDelivery?.(Math.round(week * 10) / 10);
+      return next;
+    });
+  }
+
+  /** The extension brings each service's tab to the front to log in, counts once you have, and comes back here. */
+  const logIn = ([first, ...rest]: ExtensionService[]) => first && run([first], true, rest.length ? () => logIn(rest) : undefined);
+
+  /** Someone who doesn't use a service: nothing to count, and for food delivery that's zero orders. */
+  function skip(x: ExtensionService) {
+    setRows((r) => ({ ...r, [x]: { state: "skipped" } }));
+    if (x === "doordash" || x === "ubereats") reportFood(x, 0);
+    if (x === "uber") onRides?.(0);
+  }
+
+  const signedOut = EXTENSION_SERVICES.filter((x) => rows[x]?.state === "error" && rows[x]?.error === "signed-out");
   const busy = Object.values(rows).some((r) => r?.state === "counting" || r?.state === "asking");
 
   function connect(service: QuickService) {
@@ -185,12 +260,46 @@ export function AiQuickPick({
             ))}
           </div>
           <p className="mt-2 text-sm text-muted">
-            The Offset extension checks ChatGPT, Claude, Gemini, YouTube, DoorDash and Uber Eats in the background, where you&apos;re already logged in, and
+            The Offset extension checks ChatGPT, Claude, Gemini, YouTube, Netflix, DoorDash, Uber Eats, Amazon and Uber in the background, where you&apos;re already logged in, and
             brings back your last 30 days. Only counts come back, never your chats or orders.{" "}
             <a href="/extension" className="underline hover:text-foreground">
               How it works
             </a>
           </p>
+          {signedOut.length > 0 && !busy && (
+            <div className="mt-3 border-2 border-rule p-3 text-sm">
+              <p className="font-semibold">
+                {signedOut.length === 1
+                  ? `Log in to ${EXT_NAMES[signedOut[0]]} to count it`
+                  : `${signedOut.length} to log in to before we can count them`}
+              </p>
+              <p className="mt-1 text-muted">
+                The extension brings each one to the front. Log in there and it counts, then brings you back here. If you don&apos;t use
+                one, say so and we&apos;ll leave it out.
+              </p>
+              <ul className="mt-2 space-y-2">
+                {signedOut.map((x) => (
+                  <li key={x} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <button
+                      type="button"
+                      onClick={() => logIn([x])}
+                      className="min-h-10 rounded-md border-2 border-rule px-3 font-semibold hover:bg-foreground hover:text-background"
+                    >
+                      Log in to {EXT_NAMES[x]}
+                    </button>
+                    <button type="button" onClick={() => skip(x)} className="underline hover:text-muted">
+                      I don&apos;t use {EXT_NAMES[x]}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              {signedOut.length > 1 && (
+                <button type="button" onClick={() => logIn(signedOut)} className="mt-2 underline hover:text-muted">
+                  Log in to all {signedOut.length}, one after another
+                </button>
+              )}
+            </div>
+          )}
           {Object.keys(rows).length > 0 && (
             <dl className="mt-3 border-t-2 border-rule text-sm">
               {EXTENSION_SERVICES.filter((x) => rows[x]).map((x) => {
@@ -202,6 +311,7 @@ export function AiQuickPick({
                       {r.state === "counting" && <span className="text-muted">Counting…</span>}
                       {r.state === "asking" && <span className="text-muted">Waiting for you to allow it in the Offset window…</span>}
                       {r.state === "done" && r.text}
+                      {r.state === "skipped" && <span className="text-muted">Left out: you don&apos;t use it.</span>}
                       {r.state === "incomplete" && (
                         <span>
                           <span className="text-muted">{r.text}</span>{" "}
@@ -218,9 +328,11 @@ export function AiQuickPick({
                               Refresh page
                             </button>
                           ) : (
-                            <button type="button" onClick={() => run([x], r.error === "signed-out")} className="underline hover:text-muted">
-                              {r.error === "signed-out" ? `Log in to ${EXT_NAMES[x]}` : r.error === "denied" ? "Allow and count" : "Try again"}
-                            </button>
+                            r.error !== "signed-out" && (
+                              <button type="button" onClick={() => run([x])} className="underline hover:text-muted">
+                                {r.error === "denied" ? "Allow and count" : "Try again"}
+                              </button>
+                            )
                           )}
                         </span>
                       )}
@@ -327,6 +439,14 @@ export function AiQuickPick({
       {status.kind === "error" && <p className="mt-2 text-sm text-red-700">{status.text}</p>}
     </div>
   );
+}
+
+/** A total from the extension (like `miles` or `titles`) and the days it covers. */
+function countOver(usage: unknown, key: string): { total: number; days: number } | null {
+  if (typeof usage !== "object" || !usage) return null;
+  const u = usage as Record<string, unknown>;
+  const total = Number(u[key]);
+  return Number.isFinite(total) ? { total, days: Number(u.windowDays) || 30 } : null;
 }
 
 /** DoorDash or Uber Eats counts from the extension: deliveries and pickups over its window. */

@@ -22,6 +22,13 @@ export const AVG_PROPANE_GAL_PER_MONTH = 60;
  * plus the drive to pick up). Packaging isn't counted.
  */
 export const MILES_PER_DELIVERY = 6;
+/**
+ * Ride-hailing drives about 40% more miles than the rides themselves, between
+ * fares and on the way to pickups (California Air Resources Board, SB 1014
+ * baseline, 2019). Default: our estimate, about one short ride a week.
+ */
+export const RIDESHARE_EMPTY_MILES = 1.4;
+export const RIDESHARE_MILES_PER_WEEK = 5;
 /** DoorDash handled 2.6 billion orders in 2024 for 42 million monthly users: about 1.2 a week each (DoorDash 2024 annual report). */
 export const DELIVERIES_PER_WEEK = 1;
 export const GAS_PRICE_PER_THERM = 1.5;
@@ -309,6 +316,17 @@ export const GOODS_PER_KG_CO2 = {
 // roughly the middle of EPA's benefit-per-ton figures for industrial sectors
 // (2018 technical support document, $140k to $470k). Approximate.
 export const GOODS_USD_PER_TON_PM25 = 250_000;
+
+// Goods priced by the dollar, for the Shopping cards. Supply-chain kg CO2e per
+// dollar at purchaser prices, approximate, from EPA USEEIO v2.0.1 (apparel,
+// computers and electronics, furniture and household goods, and other
+// manufactured goods such as toys, books and personal care).
+export const GOODS_KG_CO2_PER_USD = { clothing: 0.4, electronics: 0.3, household: 0.45 } as const;
+// Default dollars a month per person: BLS Consumer Expenditure Survey 2024
+// ($2,001 a year on apparel, about $2,550 on household furnishings and
+// equipment, about $700 on electronics and computers, about $1,200 on toys,
+// pets, reading and personal care products, per household of 2.5 people).
+export const GOODS_USD_PER_MONTH = { clothing: 67, electronics: 25, household: 85, other: 40 } as const;
 
 // How goods and services split.
 export const SHOPPING_SHARES = { clothing: 0.15, electronics: 0.15, household: 0.15, services: 0.55 } as const;

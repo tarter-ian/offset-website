@@ -184,6 +184,7 @@ const LEVELS: { value: Shopping; label: string }[] = [
   { value: "high", label: "More than most" },
 ];
 const level = (label: string): Amount => ({ kind: "choice", label, default: "average", options: LEVELS });
+const dollars = (def: number): Amount => ({ kind: "number", label: "Spent a month", unit: "a month", prefix: "$", default: def, step: 5 });
 
 const aiChat = (a: number | string, span: Span, ctx: Context) =>
   lifetimeOffset(
@@ -277,6 +278,15 @@ export const PRODUCTS: Product[] = [
     "car",
   ),
   lifeItem(
+    "rideshare",
+    "travel",
+    "Uber and Lyft",
+    "Your rides, plus the driving between fares.",
+    { kind: "number", label: "Ride miles a week", unit: "ride miles a week", default: F.RIDESHARE_MILES_PER_WEEK, step: 5 },
+    (a) => ({ car: { type: "gas", milesPerWeek: num(a) * F.RIDESHARE_EMPTY_MILES } }),
+    "car",
+  ),
+  lifeItem(
     "flights",
     "travel",
     "Flights",
@@ -330,9 +340,11 @@ export const PRODUCTS: Product[] = [
     (a) => ({ car: { type: "gas", milesPerWeek: num(a) * F.MILES_PER_DELIVERY } }),
     "car",
   ),
-  lifeItem("clothing", "shopping", "Clothing", "Making the clothes you buy.", level("How much you buy"), (a) => ({ shopping: a as Shopping }), "clothing"),
-  lifeItem("electronics", "shopping", "Electronics", "Gadgets beyond your main devices.", level("How much you buy"), (a) => ({ shopping: a as Shopping }), "electronics"),
-  lifeItem("household", "shopping", "Home goods", "Furniture and things for the house.", level("How much you buy"), (a) => ({ shopping: a as Shopping }), "household"),
+  lifeItem("clothing", "shopping", "Clothing", "Making the clothes and shoes you buy.", dollars(F.GOODS_USD_PER_MONTH.clothing), (a) => ({ shoppingUsd: { clothing: num(a) } }), "clothing"),
+  lifeItem("electronics", "shopping", "Electronics", "Gadgets beyond your main devices.", dollars(F.GOODS_USD_PER_MONTH.electronics), (a) => ({ shoppingUsd: { electronics: num(a) } }), "electronics"),
+  lifeItem("household", "shopping", "Home goods", "Furniture, kitchen and things for the house.", dollars(F.GOODS_USD_PER_MONTH.household), (a) => ({ shoppingUsd: { household: num(a) } }), "household"),
+  // Toys, books, beauty, pets and the rest: priced like home goods, the closest of the EPA's groups.
+  lifeItem("othergoods", "shopping", "Everything else", "Books, toys, beauty, pet supplies and the rest.", dollars(F.GOODS_USD_PER_MONTH.other), (a) => ({ shoppingUsd: { household: num(a) } }), "household"),
   lifeItem("services", "shopping", "Services", "Eating out, subscriptions and other services.", level("How much you buy"), (a) => ({ shopping: a as Shopping }), "services"),
 ];
 

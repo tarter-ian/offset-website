@@ -23,6 +23,9 @@ const DEVICE_NOTE = (id: keyof typeof F.DEVICES) => {
   ];
 };
 
+const GOODS_USD_NOTE = (k: keyof typeof F.GOODS_KG_CO2_PER_USD) =>
+  `About ${F.GOODS_KG_CO2_PER_USD[k]} kg CO₂e for each dollar spent, from the EPA's supply-chain model. The default, $${F.GOODS_USD_PER_MONTH[k]} a month, is a typical American's spending (BLS, 2024). Linking Amazon fills in what you spend there; add what you buy in shops.`;
+
 const FOOD_NOTE = (what: string) => [
   `Yearly per-person carbon, water and land for your type of diet, with ${what} taking its typical share.`,
   "Air pollution is your share of the farm pollution deaths in the US each year, mostly from ammonia off manure and fertilizer, scaled by your diet.",
@@ -85,19 +88,27 @@ export const HOW_ESTIMATED: Record<string, string[]> = {
   meat: FOOD_NOTE("meat and fish"),
   dairy: FOOD_NOTE("dairy and eggs"),
   plants: FOOD_NOTE("plant foods"),
+  rideshare: [
+    `Each ride mile counts as ${F.RIDESHARE_EMPTY_MILES} miles in an average gas car, adding the driving between fares and to pick you up (California Air Resources Board).`,
+    "Measured from your Uber trips by the Offset extension.",
+  ],
   delivery: [
     `Each delivery counts as about ${F.MILES_PER_DELIVERY} miles in an average gas car: the courier's drive to the restaurant and on to you. The food itself is under your diet; packaging isn't counted yet.`,
     "Measured from your DoorDash and Uber Eats orders by the Offset extension; pickups don't count.",
   ],
   clothing: [
-    ...SHOPPING_NOTE("clothing", F.SHOPPING_SHARES.clothing),
+    GOODS_USD_NOTE("clothing"),
     "Water, land and air pollution scale with the carbon, using the EPA's supply-chain model of US spending. Water is raised for cotton grown abroad, from Levi's study of a pair of jeans.",
   ],
   electronics: [
-    ...SHOPPING_NOTE("electronics", F.SHOPPING_SHARES.electronics),
+    GOODS_USD_NOTE("electronics"),
     "Water consumed and land used to mine and make them are scaled from studies of smartphones. Air pollution from the factories uses the EPA's supply-chain rate for manufactured goods.",
   ],
-  household: [...SHOPPING_NOTE("home goods", F.SHOPPING_SHARES.household), GOODS_NOTE],
+  household: [GOODS_USD_NOTE("household"), GOODS_NOTE],
+  othergoods: [
+    `About ${F.GOODS_KG_CO2_PER_USD.household} kg CO₂e a dollar, the EPA's rate for household goods, the closest of its groups. The default, $${F.GOODS_USD_PER_MONTH.other} a month, is a typical American's spending on toys, books, pets and personal care.`,
+    GOODS_NOTE,
+  ],
   services: [...SHOPPING_NOTE("services", F.SHOPPING_SHARES.services), GOODS_NOTE],
 };
 

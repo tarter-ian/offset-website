@@ -10,6 +10,7 @@ import {
   type Answers,
 } from "./footprint";
 import { STATES } from "./data/states";
+import * as F from "./factors";
 import {
   lifetimeCost,
   LIFETIME_GROWTH_BUFFER,
@@ -240,5 +241,14 @@ describe("gaps closed 2026-10-12", () => {
   it("adds the AI built into other apps even with no chatbot use", () => {
     const f = computeFootprint({ ...DEFAULT_ANSWERS, digital: { ...DEFAULT_ANSWERS.digital, aiPromptsPerDay: 0, aiMediaPerWeek: 0 } });
     expect(cat(f, "ai").impacts.carbon).toBeGreaterThan(0);
+  });
+});
+
+describe("shopping by the dollar", () => {
+  it("prices goods by dollars spent when given, leaving services on the level", () => {
+    const f = computeFootprint({ ...DEFAULT_ANSWERS, shoppingUsd: { clothing: 100 } });
+    expect(f.categories.find((c) => c.key === "clothing")!.impacts.carbon).toBeCloseTo(100 * F.GOODS_KG_CO2_PER_USD.clothing, 6);
+    const plain = computeFootprint(DEFAULT_ANSWERS);
+    expect(f.categories.find((c) => c.key === "services")!.impacts.carbon).toBeCloseTo(plain.categories.find((c) => c.key === "services")!.impacts.carbon, 6);
   });
 });
