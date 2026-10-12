@@ -219,3 +219,18 @@ describe("giving to each charity directly", async () => {
     );
   });
 });
+
+describe("coding with AI", () => {
+  const coding = productById("ai-coding")!;
+  it("starts at zero and prices an hour of agent work well above a day of chat", () => {
+    expect(defaultAmount(coding, C)).toBe(0);
+    expect(coding.cost(0, "monthly", C)).toBe(0);
+    const tenHours = coding.cost(10, "monthly", C);
+    const tenPrompts = productById("ai")!.cost(10, "monthly", C);
+    expect(tenHours).toBeGreaterThan(tenPrompts);
+  });
+  it("adds nothing once a linked account measured coding with chat", () => {
+    const linked = { ...C, aiFromExport: true, aiAgent: { tool: "codex" } } as unknown as typeof C;
+    expect(coding.cost(20, "monthly", linked)).toBe(0);
+  });
+});
