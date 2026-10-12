@@ -153,6 +153,13 @@ export function GiftMaker() {
           >
             Choose everything
           </button>
+          <button
+            type="button"
+            onClick={() => setPicks(Object.fromEntries(GIFTABLE.map((p) => [p.id, "life" as const])))}
+            className="min-h-10 cursor-pointer font-semibold underline underline-offset-4 hover:text-muted"
+          >
+            Everything, for life
+          </button>
           {items.length > 0 && (
             <button type="button" onClick={() => setPicks({})} className="min-h-10 cursor-pointer text-muted underline underline-offset-4 hover:text-foreground">
               Clear

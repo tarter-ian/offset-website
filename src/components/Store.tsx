@@ -6,6 +6,7 @@ import { type Covered, STORAGE_KEY } from "@/lib/covered";
 import { useEffect, useState } from "react";
 import { ActivityUpload } from "./ActivityUpload";
 import { CheckoutSteps } from "./Checkout";
+import { LIFETIME_TO_AGE } from "@/lib/factors";
 import { AiExportUpload } from "./AiExportUpload";
 import { AiQuickPick } from "./AiQuickPick";
 import { AI_LEVELS } from "@/lib/ai/levels";
@@ -827,6 +828,52 @@ export function Store() {
     );
   };
 
+  /**
+   * Pay once for life, beside monthly and yearly (Ian, 2026-10-12): every item switches to
+   * lifetime, past the usual cap and everyday items too, at today's habits to age 85.
+   */
+  const allLife = lines.length > 0 && lines.every((l) => l.cover.ahead === "lifetime");
+  const setAllAhead = (ahead: Cover["ahead"]) => {
+    setPicked((x) => ({ ...x, ...Object.fromEntries(lines.map((l) => [l.productId, { ...x[l.productId], ahead }])) }));
+    if (ahead === "lifetime") setAnyway((x) => ({ ...x, ...Object.fromEntries(lines.map((l) => [l.productId, true])) }));
+  };
+  /** Monthly, yearly or once for life, for the whole plan. Picking monthly or yearly brings lifetime items back to ongoing. */
+  const payChoices = (annualNote: string) =>
+    lines.length > 0 && (
+      <div className="mt-3 flex flex-wrap gap-2 text-sm" role="radiogroup" aria-label="How to pay">
+        {(["monthly", "annual"] as Billing[]).map((b) => (
+          <button
+            key={b}
+            type="button"
+            role="radio"
+            aria-checked={!allLife && billing === b}
+            onClick={() => {
+              setBilling(b);
+              if (allLife) setAllAhead("monthly");
+            }}
+            className={`min-h-10 cursor-pointer rounded-md border px-3 ${
+              !allLife && billing === b ? "border-rule bg-foreground text-background" : "border-border hover:border-rule"
+            }`}
+          >
+            Pay {BILLING[b].label.toLowerCase()}
+            {b === "annual" && annualNote}
+          </button>
+        ))}
+        <button
+          type="button"
+          role="radio"
+          aria-checked={allLife}
+          onClick={() => setAllAhead("lifetime")}
+          className={`min-h-10 cursor-pointer rounded-md border px-3 ${allLife ? "border-rule bg-foreground text-background" : "border-border hover:border-rule"}`}
+        >
+          Pay once for life
+        </button>
+        {allLife && lines.some((l) => !productById(l.productId)?.oneTime) && (
+          <span className="basis-full text-xs text-muted">Home, travel, food and shopping are priced at today&apos;s habits until age {LIFETIME_TO_AGE}.</span>
+        )}
+      </div>
+    );
+
   const detailPanel = (p: Product) => (
     <div className="mt-3 border-y-2 border-rule py-4">
       <div className="flex items-start justify-between gap-4">
@@ -1335,25 +1382,7 @@ export function Store() {
                         </p>
                       )}
                     </dl>
-                    {totals.recurring && (
-                      <div className="mt-3 flex flex-wrap gap-2 text-sm" role="radiogroup" aria-label="How often to pay">
-                        {(["monthly", "annual"] as Billing[]).map((b) => (
-                          <button
-                            key={b}
-                            type="button"
-                            role="radio"
-                            aria-checked={billing === b}
-                            onClick={() => setBilling(b)}
-                            className={`min-h-10 cursor-pointer rounded-md border px-3 ${
-                              billing === b ? "border-rule bg-foreground text-background" : "border-border hover:border-rule"
-                            }`}
-                          >
-                            Pay {BILLING[b].label.toLowerCase()}
-                            {b === "annual" && " (one 30¢ fee per charity a year)"}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                    {payChoices(" (one 30¢ fee per charity a year)")}
                     <p className="mt-2 text-xs text-muted">
                       Each charity is paid separately through Every.org, which charges card payments 2.2% + 30¢ and bank payments
                       nothing. Each gift includes its card fee so the whole donation arrives; pay by bank and the charity keeps the fee
@@ -1445,25 +1474,7 @@ export function Store() {
                       </p>
                     )}
                   </dl>
-                  {totals.recurring && (
-                    <div className="mt-3 flex flex-wrap gap-2 text-sm" role="radiogroup" aria-label="How often to pay">
-                      {(["monthly", "annual"] as Billing[]).map((b) => (
-                        <button
-                          key={b}
-                          type="button"
-                          role="radio"
-                          aria-checked={billing === b}
-                          onClick={() => setBilling(b)}
-                          className={`min-h-10 rounded-md border px-3 ${
-                            billing === b ? "border-rule bg-foreground text-background" : "border-border hover:border-rule"
-                          }`}
-                        >
-                          Pay {BILLING[b].label.toLowerCase()}
-                          {b === "annual" && " (one 30¢ charge a year)"}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  {payChoices(" (one 30¢ charge a year)")}
                   <p className="mt-2 text-xs text-muted">
                     The smallest donation is {usd(MIN_DONATION_USD)}. We pool small donations and send each charity one payment a
                     month, so none is lost to extra card fees. You approve each payment yourself, unless you choose autopay, and even then we email you before every charge.

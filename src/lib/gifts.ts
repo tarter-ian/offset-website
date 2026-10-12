@@ -111,6 +111,8 @@ const list = (names: string[]) => (names.length < 2 ? (names[0] ?? "") : `${name
 
 /** "your AI chat and TV for life, and your driving for 5 years", for the gift card. Long lists are shortened. */
 export function giftSentence(items: GiftItem[]): string {
+  // Everything there is to cover, for life: the whole footprint (Ian, 2026-10-12).
+  if (GIFTABLE.every((p) => items.some((i) => i.productId === p.id && i.span === "life"))) return "your whole footprint for life: every harm, from AI to food to flights";
   const groups = GIFT_SPANS.slice()
     .reverse()
     .map((span) => ({ span, names: items.filter((i) => i.span === span).map((i) => lowerName(productById(i.productId)?.name ?? "")) }))
