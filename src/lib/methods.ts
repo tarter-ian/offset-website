@@ -24,7 +24,7 @@ const DEVICE_NOTE = (id: keyof typeof F.DEVICES) => {
 };
 
 const GOODS_USD_NOTE = (k: keyof typeof F.GOODS_KG_CO2_PER_USD) =>
-  `About ${F.GOODS_KG_CO2_PER_USD[k]} kg CO₂e for each dollar spent, from the EPA's supply-chain model. The default, $${F.GOODS_USD_PER_MONTH[k]} a month, is a typical American's spending (BLS, 2024). Linking Amazon fills in what you spend there; add what you buy in shops.`;
+  `About ${F.GOODS_KG_CO2_PER_USD[k]} kg CO₂e for each dollar spent, from the EPA's supply-chain model. The default, $${F.GOODS_USD_PER_MONTH[k]} a month, is a typical American's spending (BLS, 2024). If the Offset extension finds you spend more than that on Amazon alone, we use your Amazon figure instead. Amazon splits an order's cost evenly over its items, so a mixed order is rough.`;
 
 const FOOD_NOTE = (what: string) => [
   `Yearly per-person carbon, water and land for your type of diet, with ${what} taking its typical share.`,

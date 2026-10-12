@@ -5,7 +5,7 @@ import { AI_LEVELS, type AiLevel } from "@/lib/ai/levels";
 import { claudeLimitWhPerDay, signInUsage, summaryFromSignIn, type SignInUsage } from "@/lib/ai/signin";
 import { CLAUDE_PLANS, usageFromQuickCount, type ClaudePlan, type QuickService } from "@/lib/ai/quickCount";
 import { combineSummaries, type UsageSummary } from "@/lib/ai/exportParser";
-import { activityAmounts, NETFLIX_MIN_PER_TITLE, youtubeDays } from "@/lib/activity";
+import { activityAmounts, amazonShopping, NETFLIX_MIN_PER_TITLE, youtubeDays } from "@/lib/activity";
 import { canInstallExtension, detectExtension, EXTENSION_SERVICES, EXTENSION_URL, measure, type ExtensionError, type ExtensionService } from "@/lib/extension";
 import { SIGN_IN_READS } from "@/lib/signinReads";
 
@@ -47,6 +47,7 @@ export function AiQuickPick({
   onVideo,
   onDelivery,
   onRides,
+  onShopping,
 }: {
   level: AiLevel | null;
   onPick: (level: AiLevel, from: string) => void;
@@ -57,6 +58,8 @@ export function AiQuickPick({
   onVideo?: (hoursPerDay: number, from: ("youtube" | "netflix")[]) => void;
   /** Ride-hailing miles a week, measured from Uber. */
   onRides?: (milesPerWeek: number) => void;
+  /** Dollars a month per shopping card, from Amazon spending by kind. */
+  onShopping?: (usdPerMonth: ReturnType<typeof amazonShopping>) => void;
   /** Deliveries a week, measured from DoorDash and Uber Eats together. */
   onDelivery?: (perWeek: number) => void;
 }) {
@@ -136,13 +139,17 @@ export function AiQuickPick({
           }
           if (service === "amazon") {
             const o = countOver(usage, "orders");
-            const items = Number((usage as Record<string, unknown>)?.items) || 0;
+            const u = (usage ?? {}) as Record<string, unknown>;
+            const items = Number(u.items) || 0;
+            const spend = Number(u.spend);
+            const spent = Number.isFinite(spend) ? `, $${Math.round(spend).toLocaleString("en-US")}` : "";
             setRows((r) => ({
               ...r,
               amazon: o
-                ? { state: "done", raw: usage, text: `${o.total} orders, ${items} items in ${o.days} days. Spending by category comes with the next extension update.` }
+                ? { state: "done", raw: usage, text: `${o.total} orders, ${items} items${spent} in ${o.days} days` }
                 : { state: "error", error: "unavailable", raw: usage },
             }));
+            if (o && u.spendByKind) onShopping?.(amazonShopping(u.spendByKind, o.days));
             return;
           }
           const u = signInUsage(usage);
