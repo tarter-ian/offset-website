@@ -43,8 +43,17 @@ describe("computeFootprint", () => {
   it("prices power plant air pollution from the state's NOx and SO2 rates", () => {
     const wv = cat({ ...base, state: "WV", electricity: { mode: "kwh", amount: 1000 } }, "electricity");
     const ca = cat({ ...base, state: "CA", electricity: { mode: "kwh", amount: 1000 } }, "electricity");
-    expect(wv.impacts.air).toBeCloseTo(1000 * gridAirUsdPerKwh(1.1, 1.498), 6);
+    expect(wv.impacts.air).toBeCloseTo((1000 / (1 - F.GRID_LINE_LOSS)) * gridAirUsdPerKwh(1.1, 1.498), 6);
     expect(wv.impacts.air).toBeGreaterThan(ca.impacts.air * 3);
+  });
+
+  it("adds fuel supply and line losses to the smokestack rate, and prices AI at new-demand plants", async () => {
+    const { aiImpacts, gridImpacts } = await import("./footprint");
+    const stack = (STATES.TX.gridLbPerMwh * F.KG_PER_LB) / 1000;
+    expect(gridKgPerKwh("TX")).toBeCloseTo((stack * (1 + F.GRID_UPSTREAM_SHARE)) / (1 - F.GRID_LINE_LOSS), 9);
+    const kwh = 1 - F.AI_TRAINING_SHARE;
+    const grid = gridImpacts(1).carbon;
+    expect(aiImpacts(kwh).carbon).toBeCloseTo((grid * (F.AI_NEW_POWER_LB_PER_MWH / F.US_GRID_LB_PER_MWH)) / (1 - F.AI_HARDWARE_SHARE), 9);
   });
 
   it("splits home energy across the household for an individual", () => {
