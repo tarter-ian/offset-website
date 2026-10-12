@@ -13,5 +13,9 @@
   "d1_databases": [
     { "binding": "DB", "database_name": "offset", "database_id": "c8712e60-f24e-4e79-a964-7f20b189a18a" }
   ],
+  // Preview builds of pull requests share the same waitlist table; it only holds emails people chose to leave.
+  "previews": {
+    "d1_databases": [{ "binding": "DB", "database_id": "c8712e60-f24e-4e79-a964-7f20b189a18a" }]
+  },
   "observability": { "enabled": true }
 }
