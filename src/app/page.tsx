@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Store } from "@/components/Store";
-import { CARD_RATE } from "@/lib/pricing";
+import { CARD_FEE_LABEL, SPONSOR_FEE_LABEL } from "@/lib/pricing";
 
 export default function Home() {
   return (
@@ -13,14 +13,14 @@ export default function Home() {
         </h2>
         <div className="max-w-2xl space-y-4">
           <p>
-            Your donation goes through our donation partner straight to the charities listed on your plan, and the
-            receipt comes from them. We never hold it. Most of it funds groups that push for cleaner power and protect
+            Your donation is held by our charity sponsor, a registered charity, which pays the charities listed on your
+            plan and sends you the tax receipt. We never hold it ourselves. Most of it funds groups that push for cleaner power and protect
             water in dry regions, because that does the most per dollar. Paying only for carbon removal that someone
             measured is an option on your footprint summary, at about twelve times the price per tonne.
           </p>
           <p>
-            We don&apos;t take a cut. The only fee is what each card payment costs: 30¢ plus{" "}
-            {Math.round(CARD_RATE * 1000) / 10}%, shown separately, so the whole donation arrives. Nothing is charged until you
+            We don&apos;t take a cut. The only fees are the card payment ({CARD_FEE_LABEL}) and our charity sponsor&apos;s{" "}
+            {SPONSOR_FEE_LABEL}, each shown separately, so the whole donation arrives. Nothing is charged until you
             approve it.
           </p>
           <p>

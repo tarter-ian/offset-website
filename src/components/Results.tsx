@@ -23,7 +23,8 @@ import {
   DEFAULT_CARBON_MODE,
   type CarbonMode,
   BILLING,
-  CARD_RATE,
+  CARD_FEE_LABEL,
+  SPONSOR_FEE_LABEL,
   type Billing,
   DEFAULT_BILLING,
   recurringPrice,
@@ -373,7 +374,7 @@ export function Results({
                 </div>
                 <div className="flex justify-between gap-4">
                   <dt className="text-muted">
-                    Card fee (30¢ + {Math.round(CARD_RATE * 1000) / 10}%, no profit to us)
+                    Fees (card {CARD_FEE_LABEL}, charity sponsor {SPONSOR_FEE_LABEL}, no profit to us)
                   </dt>
                   <dd>{usd(bill.fee)}</dd>
                 </div>
