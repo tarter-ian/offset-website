@@ -16,9 +16,9 @@ export const CHARITIES: Record<ImpactKey, Charity> = {
     focus: "Policy and technology to cut emissions at scale",
   },
   air: {
-    name: "American Lung Association",
-    url: "https://www.lung.org/",
-    focus: "Campaigns for cleaner air and healthier lungs",
+    name: "Clean Air Task Force",
+    url: "https://www.catf.us/",
+    focus: "Pushed the rules that cut soot from US power plants and diesel engines",
   },
   water: {
     name: "Colorado Water Trust",

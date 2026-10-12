@@ -93,13 +93,13 @@ describe("fees in Every.org mode", () => {
   });
 
   it("charges one card fee per charity", () => {
-    const rows = payRows(split({ carbon: [10, 0], air: [5, 0], water: [3, 0], land: [2, 0] }), "monthly", false);
+    const rows = payRows(split({ carbon: [10, 0], water: [3, 0], land: [2, 0], ewaste: [4, 0] }), "monthly", false);
     expect(rows).toHaveLength(4);
     for (const r of rows) expect(r.fee).toBe(cardFee(r.donation));
     // Four charities, four 30¢ fixed fees.
     expect(rows.reduce((s, r) => s + r.fee, 0)).toBeGreaterThan(4 * 0.3);
     expect(sumTotal(rows)).toBeCloseTo(rows.reduce((s, r) => s + r.donation + r.fee, 0), 6);
-    expect(perCharityFees({ carbon: 10, air: 5, water: 3, land: 2 })).toBeCloseTo(rows.reduce((s, r) => s + r.fee, 0), 6);
+    expect(perCharityFees({ carbon: 10, water: 3, land: 2, ewaste: 4 })).toBeCloseTo(rows.reduce((s, r) => s + r.fee, 0), 6);
   });
 });
 
@@ -108,6 +108,18 @@ describe("payment rows", () => {
     const rows = payRows(split({ carbon: [10, 0], water: [0, 0], ewaste: [0.001, 0] }), "monthly", false);
     expect(rows.map((r) => r.charity)).toEqual(["carbon"]);
     expect(payRows(split({}), "monthly", false)).toEqual([]);
+  });
+
+  it("pays harms that share a charity in one gift with one fee", () => {
+    expect(EVERY_SLUGS.air).toBe(EVERY_SLUGS.carbon);
+    const rows = payRows(split({ carbon: [10, 0], air: [5, 0], water: [3, 0] }), "monthly", false);
+    expect(rows.map((r) => [r.charity, r.harms, r.donation])).toEqual([
+      ["carbon", ["carbon", "air"], 15],
+      ["water", ["water"], 3],
+    ]);
+    expect(perCharityFees({ carbon: 10, air: 5, water: 3 })).toBeCloseTo(cardFee(15) + cardFee(3), 6);
+    // Air alone still goes to the shared charity's gift.
+    expect(payRows(split({ air: [4, 0] }), "monthly", false)[0].charity).toBe("carbon");
   });
 
   it("adds a share under the minimum to the largest gift instead of paying a fee on it", () => {
@@ -125,17 +137,17 @@ describe("payment rows", () => {
   });
 
   it("puts everything due now in one gift each without autopay, and splits off the repeating part with it", () => {
-    const s = split({ carbon: [20, 5], air: [0, 3] });
+    const s = split({ carbon: [20, 5], water: [0, 3] });
     const once = payRows(s, "monthly", false);
     expect(once.map((r) => [r.key, r.frequency, r.donation])).toEqual([
       ["carbon", "ONCE", 25],
-      ["air", "ONCE", 3],
+      ["water", "ONCE", 3],
     ]);
     const auto = payRows(s, "monthly", true);
     expect(auto.map((r) => [r.key, r.frequency])).toEqual([
       ["carbon", "ONCE"],
       ["carbon-repeat", "MONTHLY"],
-      ["air-repeat", "MONTHLY"],
+      ["water-repeat", "MONTHLY"],
     ]);
     expect(repeatRows(s, "annual").every((r) => r.frequency === "YEARLY")).toBe(true);
   });
