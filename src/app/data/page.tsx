@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AccountDelete } from "@/components/Account";
 import { DataControls } from "@/components/DataControls";
+import { accountsOn } from "@/lib/account";
 import { SIGN_IN_READS, type SignInService } from "@/lib/signinReads";
 
 export const metadata: Metadata = { title: "Your data | My Offset" };
@@ -19,7 +21,12 @@ const NAMES: Record<SignInService, string> = {
 
 const KEPT = [
   { where: "In your browser", what: "The plan you build and the amounts you enter, so they're still there when you come back. It never leaves your device." },
-  { where: "On our server", what: "Nothing. There are no accounts yet, so we keep no email or name. When accounts arrive, this line will say exactly what they store." },
+  accountsOn()
+    ? {
+        where: "On our server",
+        what: "If you sign in or pay: your email, what you've covered with its start and end dates, and each gift's charity, amount and date from Every.org, linked to your account. Never how much you use anything: those counts stay on your computer. Deleting your account below removes your email and covers; gifts stay on the ledger without your name.",
+      }
+    : { where: "On our server", what: "Nothing. There are no accounts yet, so we keep no email or name. When accounts arrive, this line will say exactly what they store." },
   {
     where: "In the extension",
     what: "If you use it: the last result for each service and a day-by-day record of those totals (up to about two years), so this page fills in straight away and monthly measuring builds a fuller history. Also how many prompts and images each ChatGPT chat had per day, so next time it only reads chats that changed. Only counts, dates and Amazon order totals. Never titles, text, products or addresses, and never sent to us except to this page when you open it. Clearing below deletes all of it, and so does removing the extension.",
@@ -69,7 +76,10 @@ export default function DataPage() {
 
       <h2 className="mt-10 text-xl font-semibold">Delete it</h2>
       <div className="mt-3">
-        <DataControls />
+        <div className="grid gap-6 sm:max-w-md">
+          <DataControls />
+          <AccountDelete />
+        </div>
       </div>
       <p className="mt-6 text-muted">
         See <Link href="/promises" className="text-accent hover:underline">our promises</Link> and{" "}

@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { accountsOn, normalizeEmail } from "@/lib/account";
+import { accountFor } from "@/lib/accountStore";
 import { db, NoDatabaseError } from "@/lib/db";
 import { offeredSecret, parseEveryWebhook, safeEqual } from "@/lib/everyWebhook";
 
@@ -26,11 +28,23 @@ export async function POST(req: Request) {
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
   const d = parsed.donation;
   try {
-    await (await db()).execute({
-      sql: `INSERT OR IGNORE INTO donations (charge_id, partner_donation_id, nonprofit, amount, net_amount, frequency, email, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [d.chargeId, d.partnerDonationId, d.nonprofit, d.amount, d.netAmount, d.frequency, d.email, d.createdAt],
-    });
+    // With accounts on, the payer's email becomes (or finds) their account, and the
+    // payment points at it instead of keeping its own copy of the address.
+    const email = accountsOn() ? normalizeEmail(d.email) : null;
+    const account = email ? await accountFor(email) : null;
+    await (await db()).execute(
+      account
+        ? {
+            sql: `INSERT OR IGNORE INTO donations (charge_id, partner_donation_id, nonprofit, amount, net_amount, frequency, email, account_id, created_at)
+                  VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?)`,
+            args: [d.chargeId, d.partnerDonationId, d.nonprofit, d.amount, d.netAmount, d.frequency, account.id, d.createdAt],
+          }
+        : {
+            sql: `INSERT OR IGNORE INTO donations (charge_id, partner_donation_id, nonprofit, amount, net_amount, frequency, email, created_at)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: [d.chargeId, d.partnerDonationId, d.nonprofit, d.amount, d.netAmount, d.frequency, d.email, d.createdAt],
+          },
+    );
   } catch (e) {
     // A 5xx asks Every.org to try again later.
     console.error("every-webhook: couldn't store donation", e instanceof NoDatabaseError ? "no database" : e);
