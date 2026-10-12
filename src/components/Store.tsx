@@ -10,6 +10,7 @@ import { AI_LEVELS } from "@/lib/ai/levels";
 import { NumberInput, Select } from "./fields";
 import { STATE_OPTIONS, STATES, type StateCode } from "@/lib/data/states";
 import { IMPACT_INFO } from "@/lib/impacts";
+import { CHARITIES } from "@/lib/charities";
 import { IMPACT_KEYS, sumImpacts, type Impacts } from "@/lib/footprint";
 import { howEstimated, whereItGoes } from "@/lib/methods";
 import { PROVIDERS, type ProviderId } from "@/lib/providers";
@@ -41,6 +42,7 @@ import {
   effectiveCover,
   PRODUCTS,
   planTotals,
+  harmSplit,
   SECTIONS,
   coverImpacts,
   sourcesFor,
@@ -1082,6 +1084,7 @@ export function Store() {
                   The smallest donation is {usd(MIN_DONATION_USD)}. We pool small donations and send each charity one payment a
                   month, so none is lost to extra card fees. You approve each payment yourself, unless you choose autopay, and even then we email you before every charge.
                 </p>
+                <GiveDirectly totals={totals} ctx={ctx} billing={billing} />
                 {checkout && (
                   <p className="mt-4 text-sm text-muted">Payments aren&apos;t switched on yet. Your plan stays saved in this browser until they are.</p>
                 )}
@@ -1121,5 +1124,45 @@ export function Store() {
         </div>
       )}
     </div>
+  );
+}
+
+const HARM_ORDER = ["carbon", "air", "water", "land", "ewaste"] as const;
+
+/** For people who'd rather skip our fees and give to each charity on their own. */
+function GiveDirectly({ totals, ctx, billing }: { totals: ReturnType<typeof planTotals>; ctx: Context; billing: Billing }) {
+  const split = harmSplit(totals, ctx, billing);
+  const rows = HARM_ORDER.filter((k) => split[k].once >= 0.01 || split[k].perPeriod >= 0.01);
+  if (!rows.length) return null;
+  return (
+    <details className="mt-4 text-sm">
+      <summary className="cursor-pointer text-muted underline underline-offset-2 hover:text-foreground">
+        Prefer to give to the charities yourself?
+      </summary>
+      <p className="mt-2 text-muted">
+        You can skip our fees by giving these amounts on each charity&apos;s own site. We can&apos;t see those gifts, so they won&apos;t
+        count toward your Fully Offset badge or mark items as covered here, and some charities have a minimum gift.
+      </p>
+      <dl className="figures mt-2 space-y-1 border-t border-border pt-2">
+        {rows.map((k) => {
+          const c = CHARITIES[k];
+          const parts = [
+            split[k].once >= 0.01 && `${usd(split[k].once)} once`,
+            split[k].perPeriod >= 0.01 && `${usd(split[k].perPeriod)} ${BILLING[billing].per}`,
+          ].filter(Boolean);
+          return (
+            <div key={k} className="flex justify-between gap-4">
+              <dt className="font-sans">
+                <a href={c.url} target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-foreground">
+                  {c.name}
+                </a>{" "}
+                <span className="text-muted">({IMPACT_INFO[k].label.toLowerCase()})</span>
+              </dt>
+              <dd className="text-right">{parts.join(" + ")}</dd>
+            </div>
+          );
+        })}
+      </dl>
+    </details>
   );
 }

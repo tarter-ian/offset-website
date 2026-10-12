@@ -142,3 +142,25 @@ describe("planTotals", () => {
     expect(planTotals([{ productId: "transit", amount: 1, cover: { past: false, ahead: "monthly" } }], C, "annual").recurring!.donation).toBe(ANNUAL_MIN_DONATION_USD);
   });
 });
+
+describe("giving to each charity directly", async () => {
+  const { harmSplit } = await import("./store");
+  it("splits the plan's donation across the five harms without losing any", () => {
+    const lines = [
+      { productId: "car", amount: 200, cover: { past: false, ahead: "monthly" as const } },
+      { productId: "video", amount: 2, cover: { past: true, ahead: "lifetime" as const } },
+    ];
+    const t = planTotals(lines, C, "monthly");
+    const s = harmSplit(t, C, "monthly");
+    const sum = (f: "once" | "perPeriod") => Object.values(s).reduce((a, v) => a + v[f], 0);
+    const ongoing = t.lines.filter((l) => l.cover.ahead === "monthly").reduce((a, l) => a + l.aheadCost, 0);
+    const once = t.lines.reduce((a, l) => a + l.pastCost + (l.cover.ahead === "lifetime" ? l.aheadCost : 0), 0);
+    expect(sum("perPeriod")).toBeCloseTo(ongoing, 6);
+    expect(sum("once")).toBeCloseTo(once, 6);
+    expect(s.carbon.perPeriod).toBeGreaterThan(0);
+    expect(harmSplit(planTotals(lines.slice(0, 1), C, "annual"), C, "annual").carbon.perPeriod).toBeCloseTo(
+      harmSplit(planTotals(lines.slice(0, 1), C, "monthly"), C, "monthly").carbon.perPeriod * 12,
+      6,
+    );
+  });
+});
