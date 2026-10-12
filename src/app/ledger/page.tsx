@@ -52,15 +52,14 @@ export default async function LedgerPage() {
         Every dollar given through this site, to every charity, as Every.org confirms it. Updated as gifts arrive.
       </p>
 
-      <ol className="mt-8 grid gap-4 sm:grid-cols-3">
-        {STEPS.map((s, i) => (
-          <li key={s.title} className="border-t-2 border-rule pt-3">
-            <p className="font-mono text-sm text-muted">{i + 1}</p>
-            <p className="font-display text-lg font-bold">{s.title}</p>
-            <p className="mt-1">{s.body}</p>
-          </li>
+      <dl className="mt-8 border-t-2 border-rule">
+        {STEPS.map((s) => (
+          <div key={s.title} className="grid gap-1 border-b border-border py-3 sm:grid-cols-[12rem_1fr] sm:gap-6">
+            <dt className="font-semibold">{s.title}</dt>
+            <dd>{s.body}</dd>
+          </div>
         ))}
-      </ol>
+      </dl>
 
       <h2 className="mt-12 text-xl font-semibold">Given so far</h2>
       <table className="mt-3 w-full border-t-2 border-rule text-left">
