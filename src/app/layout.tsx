@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Archivo, IBM_Plex_Mono, Public_Sans } from "next/font/google";
 import Link from "next/link";
+import { AccountNav } from "@/components/Account";
 import "./globals.css";
 
 // Archivo's narrow, heavy cuts for headings, Public Sans (made for US government
@@ -34,6 +35,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               <Link href="/promises" className="text-muted hover:text-foreground">
                 Our promises
               </Link>
+              <AccountNav />
               <Link href="/start" className="font-semibold text-accent underline underline-offset-4 hover:text-accent-strong">
                 Link accounts
               </Link>

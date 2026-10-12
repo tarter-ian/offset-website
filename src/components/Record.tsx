@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { type Covered, STORAGE_KEY } from "@/lib/covered";
+import { AccountBar } from "./Account";
+import { pullCovered, pushCovered } from "@/lib/accountClient";
 import { savedResults } from "@/lib/extension";
 import { AI_CHAT_SERVICES, type AiChatService, inForce, monthlyUse, monthTotal, type MonthUse, recordStatus } from "@/lib/record";
 import { productById } from "@/lib/store";
@@ -35,6 +37,13 @@ export function Record() {
 
   useEffect(() => {
     setCovered(loadCovered());
+    // Signed in: bring in what the account covers (from another device), then send up anything this browser adds.
+    pullCovered().then((merged) => {
+      if (merged) {
+        setCovered(merged);
+        void pushCovered(merged);
+      }
+    });
     savedResults().then((r) => setUse(monthlyUse(Object.fromEntries(AI_CHAT_SERVICES.map((s) => [s, r[s]?.record])))));
   }, []);
 
@@ -129,6 +138,7 @@ export function Record() {
           ))}
         </ul>
       </section>
+      <AccountBar />
     </div>
   );
 }

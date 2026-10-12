@@ -4,6 +4,7 @@ import { AGENT_TOOL_NAMES } from "@/lib/ai/signin";
 import Link from "next/link";
 import { type Covered, STORAGE_KEY } from "@/lib/covered";
 import { recordStatus } from "@/lib/record";
+import { pullCovered, pushCovered } from "@/lib/accountClient";
 import { useEffect, useState } from "react";
 import { ActivityUpload } from "./ActivityUpload";
 import { CheckoutSteps } from "./Checkout";
@@ -300,6 +301,19 @@ export function Store() {
   }, []);
 
   useEffect(() => setPayState(loadCheckout()), []);
+
+  // Signed in: what the account covers (from another device) shows here too, and new covers go up to it.
+  const [signedIn, setSignedIn] = useState(false);
+  useEffect(() => {
+    pullCovered().then((merged) => {
+      if (!merged) return;
+      setSignedIn(true);
+      setCovered(merged);
+    });
+  }, []);
+  useEffect(() => {
+    if (signedIn && !previewing) void pushCovered(covered);
+  }, [signedIn, covered, previewing]);
 
   // Once Every.org has confirmed every gift of a checkout, mark what it paid for as covered.
   useEffect(() => {
