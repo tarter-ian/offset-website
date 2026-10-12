@@ -44,3 +44,10 @@ export async function db(): Promise<Db> {
   if (!client) throw new NoDatabaseError("No database is connected.");
   return client;
 }
+
+/** The rows a SELECT returned: D1 puts them in `results`, libSQL in `rows`. */
+export function rowsOf(result: unknown): Record<string, unknown>[] {
+  const r = result as { results?: unknown; rows?: unknown } | null;
+  const rows = r?.results ?? r?.rows;
+  return Array.isArray(rows) ? (rows as Record<string, unknown>[]) : [];
+}

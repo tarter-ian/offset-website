@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ContactLink } from "@/components/ContactLink";
+import { PAYMENT_MODE } from "@/lib/payments";
 
 export const metadata: Metadata = { title: "Our promises | My Offset" };
 
@@ -8,16 +9,22 @@ export const metadata: Metadata = { title: "Our promises | My Offset" };
 const PROMISES = [
   {
     title: "Never charged without your say-so",
-    body: "By default you approve each payment yourself, once a year or each month. Autopay is off unless you switch it on. If you do, we email you a few days before every charge with the amount and a one-click skip or stop, and a month that comes out more than $5 or 25% higher than the last, whichever is smaller, waits for your approval instead. The email shows the exact limit in dollars.",
+    body: PAYMENT_MODE === "every"
+      ? "You approve each gift yourself, on Every.org, one charity at a time. Nothing repeats unless you tick autopay at checkout. If you do, Every.org charges the same gifts each month or year until you cancel them in your Every.org account. We can't email you before those charges or hold one back, so leave autopay off if you want to approve each one."
+      : "By default you approve each payment yourself, once a year or each month. Autopay is off unless you switch it on. If you do, we email you a few days before every charge with the amount and a one-click skip or stop, and a month that comes out more than $5 or 25% higher than the last, whichever is smaller, waits for your approval instead. The email shows the exact limit in dollars.",
   },
   {
     title: "Your donation goes straight to charities",
-    body: "Your donation is held by our charity sponsor, a registered charity, which sends you the tax receipt and pays the charities on your summary each month. We never hold the money ourselves. Every month's totals and receipts are public.",
+    body: PAYMENT_MODE === "every"
+      ? "Each gift goes from you to the charity through Every.org, a nonprofit donation platform that sends you the tax receipt. We never hold the money ourselves. Every month's totals are public."
+      : "Your donation is held by our charity sponsor, a registered charity, which sends you the tax receipt and pays the charities on your summary each month. We never hold the money ourselves. Every month's totals and receipts are public.",
     link: { href: "/ledger", text: "Where the money goes" },
   },
   {
     title: "No cut, just costs passed on",
-    body: "We don't make money on your donation. Two fees are passed on at cost, each on its own line: the card payment (30¢ plus 2.2%) and our charity sponsor's 8%, which pays for holding the money, sending tax receipts and paying the charities. Paying yearly means one 30¢ charge instead of twelve. At checkout you can add a tip toward running the site; it's off unless you pick it.",
+    body: PAYMENT_MODE === "every"
+      ? "We don't make money on your donation. Each charity is paid separately through Every.org, which charges card payments 2.2% + 30¢ and bank payments nothing; the fee is shown for each charity. Paying yearly means one 30¢ fee per charity instead of twelve. Tips toward running the site are separate and off unless you choose to give one."
+      : "We don't make money on your donation. Two fees are passed on at cost, each on its own line: the card payment (30¢ plus 2.2%) and our charity sponsor's 8%, which pays for holding the money, sending tax receipts and paying the charities. Paying yearly means one 30¢ charge instead of twelve. At checkout you can add a tip toward running the site; it's off unless you pick it.",
   },
   {
     title: "No cheap, unverified carbon credits",

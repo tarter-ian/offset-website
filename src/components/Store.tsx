@@ -4,6 +4,7 @@ import { AGENT_TOOL_NAMES } from "@/lib/ai/signin";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ActivityUpload } from "./ActivityUpload";
+import { CheckoutSteps } from "./Checkout";
 import { AiExportUpload } from "./AiExportUpload";
 import { AiQuickPick } from "./AiQuickPick";
 import { AI_LEVELS } from "@/lib/ai/levels";
@@ -14,6 +15,21 @@ import { CHARITIES } from "@/lib/charities";
 import { IMPACT_KEYS, sumImpacts, type Impacts } from "@/lib/footprint";
 import { howEstimated, whereItGoes } from "@/lib/methods";
 import { PROVIDERS, type ProviderId } from "@/lib/providers";
+import {
+  allConfirmed,
+  charityName,
+  type Checkout,
+  harmsText,
+  loadCheckout,
+  newPlanId,
+  type PayRow,
+  PAYMENT_MODE,
+  paymentsOn,
+  payRows,
+  repeatRows,
+  saveCheckout,
+  sumTotal,
+} from "@/lib/payments";
 import { digitalFromExport } from "@/lib/ai/exportParser";
 import { aiMonthTotals, shareLines, shareQuery, type ShareTotals } from "@/lib/share";
 import { SOURCE_NAMES, type ActivitySource } from "@/lib/activity";
@@ -163,6 +179,10 @@ export function Store() {
   const [open, setOpen] = useState(false);
   const [checkout, setCheckout] = useState(false);
   const [covered, setCovered] = useState<Record<string, Covered>>({});
+  // Gifts through Every.org repeat on their own only if the person ticks this.
+  const [autopay, setAutopay] = useState(false);
+  // Progress through paying each charity, kept in this browser.
+  const [payState, setPayState] = useState<Checkout | null>(null);
   const [previewing, setPreviewing] = useState(false);
   // An optional tip toward running the site, added once to the next payment. Off unless chosen.
   const [tip, setTip] = useState(0);
@@ -212,6 +232,26 @@ export function Store() {
     setCovered(s.covered ?? {});
   }, []);
 
+  useEffect(() => setPayState(loadCheckout()), []);
+
+  // Once Every.org has confirmed every gift of a checkout, mark what it paid for as covered.
+  useEffect(() => {
+    if (!payState || payState.applied || !allConfirmed(payState)) return;
+    const from = new Date(payState.created);
+    const until = new Date(from);
+    if (payState.billing === "annual") until.setFullYear(until.getFullYear() + 1);
+    else until.setMonth(until.getMonth() + 1);
+    setCovered((c) => ({
+      ...c,
+      ...Object.fromEntries(
+        payState.lines.map((l): [string, Covered] => [l.productId, l.lifetime ? { kind: "life" } : { kind: "period", until: until.toISOString() }]),
+      ),
+    }));
+    const applied = { ...payState, applied: true };
+    saveCheckout(applied);
+    setPayState(applied);
+  }, [payState]);
+
   useEffect(() => {
     const preview = previewCovered();
     if (preview) {
@@ -244,8 +284,15 @@ export function Store() {
   });
   const billing = billingPick ?? DEFAULT_BILLING;
   const totals = planTotals(lines, ctx, billing);
+  // Through Every.org, each charity is its own payment with its own card fee.
+  const every = PAYMENT_MODE === "every";
+  const split = harmSplit(totals, ctx, billing);
+  const giftRows = payRows(split, billing, autopay);
+  const repeatTotal = sumTotal(repeatRows(split, billing));
   // Everything charged today: the one-time payment, the first ongoing payment and any tip.
-  const dueToday = (totals.oneTime?.total ?? 0) + (totals.recurring?.total ?? 0) + tip;
+  const dueToday = every ? sumTotal(giftRows) : (totals.oneTime?.total ?? 0) + (totals.recurring?.total ?? 0) + tip;
+  const thenTotal = every ? repeatTotal : (totals.recurring?.total ?? 0);
+  const tipUrl = process.env.NEXT_PUBLIC_TIP_URL;
   // Room below the footer for the plan bar, so it never covers the last lines of the page.
   useEffect(() => {
     document.body.style.paddingBottom = plan.length ? "5rem" : "";
@@ -997,94 +1044,177 @@ export function Store() {
                   </p>
                 </div>
                 )}
-                <div className="mt-3 flex border-t border-border pt-3 flex-wrap items-center gap-2 text-sm" role="radiogroup" aria-label="Optional tip">
-                  <span className="text-muted">
-                    Add a tip to help keep My Offset running?{" "}
-                    <a href="/ledger#tips" target="_blank" className="underline hover:text-foreground">
-                      What tips pay for
-                    </a>
-                  </span>
-                  {TIPS.map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      role="radio"
-                      aria-checked={tip === t}
-                      onClick={() => setTip(t)}
-                      className={`figures min-h-10 rounded-md border px-3 ${
-                        tip === t ? "border-rule bg-foreground text-background" : "border-border hover:border-rule"
-                      }`}
-                    >
-                      {t ? usd(t).replace(".00", "") : "No tip"}
-                    </button>
-                  ))}
-                </div>
-                <dl className="figures mt-3 space-y-1 border-t border-border pt-3 text-sm">
-                  {totals.oneTime && (
-                    <div className="flex justify-between gap-4">
-                      <dt className="font-sans text-muted">Donation, one time</dt>
-                      <dd>{usd(totals.oneTime.donation)}</dd>
-                    </div>
-                  )}
-                  {totals.recurring && (
-                    <div className="flex justify-between gap-4">
-                      <dt className="font-sans text-muted">Donation, first {billing === "annual" ? "year" : "month"}</dt>
-                      <dd>{usd(totals.recurring.donation)}</dd>
-                    </div>
-                  )}
-                  <div className="flex justify-between gap-4">
-                    <dt className="font-sans text-muted">Card fee ({CARD_FEE_LABEL})</dt>
-                    <dd>{usd(feeParts(totals.oneTime?.donation ?? 0).card + feeParts(totals.recurring?.donation ?? 0).card)}</dd>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <dt className="font-sans text-muted">
-                      <Link href="/ledger#sponsor" className="underline underline-offset-2 hover:text-foreground">
-                        Charity sponsor fee
-                      </Link>{" "}
-                      ({SPONSOR_FEE_LABEL})
-                    </dt>
-                    <dd>{usd(feeParts(totals.oneTime?.donation ?? 0).sponsor + feeParts(totals.recurring?.donation ?? 0).sponsor)}</dd>
-                  </div>
-                  {tip > 0 && (
-                    <div className="flex justify-between gap-4">
-                      <dt className="font-sans text-muted">Tip to keep My Offset running</dt>
-                      <dd>{usd(tip)}</dd>
-                    </div>
-                  )}
-                  <div className="flex justify-between gap-4 border-t border-border pt-1.5 text-base font-semibold">
-                    <dt className="font-sans">Total today</dt>
-                    <dd>{usd(dueToday)}</dd>
-                  </div>
-                  {totals.recurring && (
-                    <p className="font-sans text-muted">
-                      Then {usd(totals.recurring.total)} {BILLING[billing].per} ({usd(totals.recurring.donation)} donation +{" "}
-                      {usd(totals.recurring.fee)} fees). Cancel anytime.
+                {every ? (
+                  <>
+                    {tipUrl && (
+                      <p className="mt-3 border-t border-border pt-3 text-sm text-muted">
+                        Want to help keep My Offset running? Tips are separate from your gifts to the charities.{" "}
+                        <a href={tipUrl} target="_blank" rel="noreferrer" className="cursor-pointer font-semibold text-foreground underline underline-offset-2 hover:text-muted">
+                          Leave a tip
+                        </a>
+                        {" · "}
+                        <a href="/ledger#tips" target="_blank" className="cursor-pointer underline hover:text-foreground">
+                          What tips pay for
+                        </a>
+                      </p>
+                    )}
+                    <dl className="figures mt-3 space-y-1 border-t border-border pt-3 text-sm">
+                      {giftRows.map((r) => (
+                        <div key={r.key} className="flex justify-between gap-4">
+                          <dt className="font-sans text-muted">
+                            {charityName(r)} ({harmsText(r.harms, (k) => IMPACT_INFO[k].label.toLowerCase())}
+                            {r.frequency !== "ONCE" && `, ${BILLING[billing].per}`})
+                          </dt>
+                          <dd className="shrink-0 text-right">
+                            {usd(r.donation)} + {usd(r.fee)} fee
+                          </dd>
+                        </div>
+                      ))}
+                      <div className="flex justify-between gap-4 border-t border-border pt-1.5 text-base font-semibold">
+                        <dt className="font-sans">Total today</dt>
+                        <dd>{usd(dueToday)}</dd>
+                      </div>
+                      {repeatTotal > 0 && (
+                        <p className="font-sans text-muted">
+                          Then {usd(repeatTotal)} {BILLING[billing].per}, one gift to each charity with its own card fee.{" "}
+                          {autopay ? "Every.org charges it until you stop it." : "Nothing repeats on its own: you come back and give again."}
+                        </p>
+                      )}
+                    </dl>
+                    {totals.recurring && (
+                      <div className="mt-3 flex flex-wrap gap-2 text-sm" role="radiogroup" aria-label="How often to pay">
+                        {(["monthly", "annual"] as Billing[]).map((b) => (
+                          <button
+                            key={b}
+                            type="button"
+                            role="radio"
+                            aria-checked={billing === b}
+                            onClick={() => setBilling(b)}
+                            className={`min-h-10 cursor-pointer rounded-md border px-3 ${
+                              billing === b ? "border-rule bg-foreground text-background" : "border-border hover:border-rule"
+                            }`}
+                          >
+                            Pay {BILLING[b].label.toLowerCase()}
+                            {b === "annual" && " (one 30¢ fee per charity a year)"}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <p className="mt-2 text-xs text-muted">
+                      Each charity is paid separately through Every.org, which charges card payments 2.2% + 30¢ and bank payments
+                      nothing. Each gift includes its card fee so the whole donation arrives; pay by bank and the charity keeps the fee
+                      too. Every.org may also ask for a tip for itself, which is optional. The smallest gift is {usd(MIN_DONATION_USD)}; a
+                      charity&apos;s share under that is added to the largest gift, so a 30¢ fee doesn&apos;t eat it. Every.org emails you a
+                      receipt for each gift.
                     </p>
-                  )}
-                </dl>
-                {totals.recurring && (
-                  <div className="mt-3 flex flex-wrap gap-2 text-sm" role="radiogroup" aria-label="How often to pay">
-                    {(["monthly", "annual"] as Billing[]).map((b) => (
+                    {!paymentsOn() && (
+                      <p className="mt-3 text-sm font-semibold">Payments open soon. Your plan stays saved in this browser until then.</p>
+                    )}
+                    {paymentsOn() && checkout && (
+                      <PaySection
+                        rows={giftRows}
+                        lines={totals.lines.map((l) => ({ productId: l.productId, lifetime: l.cover.ahead === "lifetime" }))}
+                        billing={billing}
+                        hasRepeat={repeatTotal > 0}
+                        autopay={autopay}
+                        setAutopay={setAutopay}
+                        payState={payState}
+                        setPayState={setPayState}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <>
+                  <div className="mt-3 flex border-t border-border pt-3 flex-wrap items-center gap-2 text-sm" role="radiogroup" aria-label="Optional tip">
+                    <span className="text-muted">
+                      Add a tip to help keep My Offset running?{" "}
+                      <a href="/ledger#tips" target="_blank" className="underline hover:text-foreground">
+                        What tips pay for
+                      </a>
+                    </span>
+                    {TIPS.map((t) => (
                       <button
-                        key={b}
+                        key={t}
                         type="button"
                         role="radio"
-                        aria-checked={billing === b}
-                        onClick={() => setBilling(b)}
-                        className={`min-h-10 rounded-md border px-3 ${
-                          billing === b ? "border-rule bg-foreground text-background" : "border-border hover:border-rule"
+                        aria-checked={tip === t}
+                        onClick={() => setTip(t)}
+                        className={`figures min-h-10 rounded-md border px-3 ${
+                          tip === t ? "border-rule bg-foreground text-background" : "border-border hover:border-rule"
                         }`}
                       >
-                        Pay {BILLING[b].label.toLowerCase()}
-                        {b === "annual" && " (one 30¢ charge a year)"}
+                        {t ? usd(t).replace(".00", "") : "No tip"}
                       </button>
                     ))}
                   </div>
+                  <dl className="figures mt-3 space-y-1 border-t border-border pt-3 text-sm">
+                    {totals.oneTime && (
+                      <div className="flex justify-between gap-4">
+                        <dt className="font-sans text-muted">Donation, one time</dt>
+                        <dd>{usd(totals.oneTime.donation)}</dd>
+                      </div>
+                    )}
+                    {totals.recurring && (
+                      <div className="flex justify-between gap-4">
+                        <dt className="font-sans text-muted">Donation, first {billing === "annual" ? "year" : "month"}</dt>
+                        <dd>{usd(totals.recurring.donation)}</dd>
+                      </div>
+                    )}
+                    <div className="flex justify-between gap-4">
+                      <dt className="font-sans text-muted">Card fee ({CARD_FEE_LABEL})</dt>
+                      <dd>{usd(feeParts(totals.oneTime?.donation ?? 0).card + feeParts(totals.recurring?.donation ?? 0).card)}</dd>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <dt className="font-sans text-muted">
+                        <Link href="/ledger#sponsor" className="underline underline-offset-2 hover:text-foreground">
+                          Charity sponsor fee
+                        </Link>{" "}
+                        ({SPONSOR_FEE_LABEL})
+                      </dt>
+                      <dd>{usd(feeParts(totals.oneTime?.donation ?? 0).sponsor + feeParts(totals.recurring?.donation ?? 0).sponsor)}</dd>
+                    </div>
+                    {tip > 0 && (
+                      <div className="flex justify-between gap-4">
+                        <dt className="font-sans text-muted">Tip to keep My Offset running</dt>
+                        <dd>{usd(tip)}</dd>
+                      </div>
+                    )}
+                    <div className="flex justify-between gap-4 border-t border-border pt-1.5 text-base font-semibold">
+                      <dt className="font-sans">Total today</dt>
+                      <dd>{usd(dueToday)}</dd>
+                    </div>
+                    {totals.recurring && (
+                      <p className="font-sans text-muted">
+                        Then {usd(totals.recurring.total)} {BILLING[billing].per} ({usd(totals.recurring.donation)} donation +{" "}
+                        {usd(totals.recurring.fee)} fees). Cancel anytime.
+                      </p>
+                    )}
+                  </dl>
+                  {totals.recurring && (
+                    <div className="mt-3 flex flex-wrap gap-2 text-sm" role="radiogroup" aria-label="How often to pay">
+                      {(["monthly", "annual"] as Billing[]).map((b) => (
+                        <button
+                          key={b}
+                          type="button"
+                          role="radio"
+                          aria-checked={billing === b}
+                          onClick={() => setBilling(b)}
+                          className={`min-h-10 rounded-md border px-3 ${
+                            billing === b ? "border-rule bg-foreground text-background" : "border-border hover:border-rule"
+                          }`}
+                        >
+                          Pay {BILLING[b].label.toLowerCase()}
+                          {b === "annual" && " (one 30¢ charge a year)"}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <p className="mt-2 text-xs text-muted">
+                    The smallest donation is {usd(MIN_DONATION_USD)}. We pool small donations and send each charity one payment a
+                    month, so none is lost to extra card fees. You approve each payment yourself, unless you choose autopay, and even then we email you before every charge.
+                  </p>
+                  </>
                 )}
-                <p className="mt-2 text-xs text-muted">
-                  The smallest donation is {usd(MIN_DONATION_USD)}. We pool small donations and send each charity one payment a
-                  month, so none is lost to extra card fees. You approve each payment yourself, unless you choose autopay, and even then we email you before every charge.
-                </p>
                 <GiveDirectly totals={totals} ctx={ctx} billing={billing} />
                 <ShareAi
                   totals={aiMonthTotals(
@@ -1096,7 +1226,7 @@ export function Store() {
                     ctx,
                   )}
                 />
-                {checkout && (
+                {!every && checkout && (
                   <p className="mt-4 text-sm text-muted">Payments aren&apos;t switched on yet. Your plan stays saved in this browser until they are.</p>
                 )}
               </div>
@@ -1114,7 +1244,7 @@ export function Store() {
                 <span className="figures text-muted">
                   {[
                     `${usd(dueToday)} today`,
-                    totals.recurring && `then ${usd(totals.recurring.total)}${billing === "annual" ? "/yr" : "/mo"}`,
+                    thenTotal > 0 && `then ${usd(thenTotal)}${billing === "annual" ? "/yr" : "/mo"}`,
                   ]
                     .filter(Boolean)
                     .join(", ")}
@@ -1125,8 +1255,9 @@ export function Store() {
                 onClick={() => {
                   setOpen(true);
                   setCheckout(true);
+                  requestAnimationFrame(() => document.getElementById("pay-steps")?.scrollIntoView({ behavior: "smooth", block: "start" }));
                 }}
-                className="min-h-11 shrink-0 rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-strong"
+                className="min-h-11 shrink-0 cursor-pointer rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-strong"
               >
                 Review and pay
               </button>
@@ -1186,7 +1317,7 @@ function GiveDirectly({ totals, ctx, billing }: { totals: ReturnType<typeof plan
         Prefer to give to the charities yourself?
       </summary>
       <p className="mt-2 text-muted">
-        You can skip our fees by giving these amounts on each charity&apos;s own site. We can&apos;t see those gifts, so they won&apos;t
+        {PAYMENT_MODE === "every" ? "You can give these amounts on each charity's own site instead." : "You can skip our fees by giving these amounts on each charity's own site."} We can&apos;t see those gifts, so they won&apos;t
         count toward your Fully Offset badge or mark items as covered here, and some charities have a minimum gift.
       </p>
       <dl className="figures mt-2 space-y-1 border-t border-border pt-2">
@@ -1210,5 +1341,94 @@ function GiveDirectly({ totals, ctx, billing }: { totals: ReturnType<typeof plan
         })}
       </dl>
     </details>
+  );
+}
+
+/**
+ * Paying each charity in turn through Every.org: an autopay choice, then one
+ * row per charity with a Give button on the next one. The list is saved when
+ * the first Give is tapped, so the person can stop and come back to it.
+ */
+function PaySection({
+  rows,
+  lines,
+  billing,
+  hasRepeat,
+  autopay,
+  setAutopay,
+  payState,
+  setPayState,
+}: {
+  rows: PayRow[];
+  lines: Checkout["lines"];
+  billing: Billing;
+  hasRepeat: boolean;
+  autopay: boolean;
+  setAutopay: (v: boolean) => void;
+  payState: Checkout | null;
+  setPayState: (c: Checkout | null) => void;
+}) {
+  const [draftId, setDraftId] = useState<string | null>(null);
+  useEffect(() => setDraftId(newPlanId()), []);
+  // A list already started keeps its own rows, even if the plan has changed since.
+  const started = payState && Object.keys({ ...payState.done, ...payState.confirmed }).length > 0 ? payState : null;
+  // A list saved by tapping Give but not come back from keeps its id, so a gift made then still counts.
+  const saved = payState && JSON.stringify(payState.rows) === JSON.stringify(rows) ? payState : null;
+  const current: Checkout | null =
+    saved ?? (draftId ? { id: draftId, created: new Date().toISOString(), billing, rows, lines, done: {}, confirmed: {} } : null);
+  return (
+    <section id="pay-steps" aria-labelledby="pay-heading" className="mt-4 scroll-mt-4 border-t-2 border-rule pt-3">
+      <h3 id="pay-heading" className="text-base font-bold">
+        Pay each charity
+      </h3>
+      {started ? (
+        <>
+          <CheckoutSteps checkout={started} onChange={setPayState} />
+          <button
+            type="button"
+            onClick={() => {
+              saveCheckout(null);
+              setPayState(null);
+              setDraftId(newPlanId());
+            }}
+            className="mt-2 min-h-10 cursor-pointer text-sm text-muted underline underline-offset-2 hover:text-foreground"
+          >
+            Start a new list from your plan as it is now
+          </button>
+        </>
+      ) : (
+        <>
+          {hasRepeat && (
+            <label className="mt-2 flex min-h-10 cursor-pointer items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={autopay}
+                onChange={(e) => setAutopay(e.target.checked)}
+                className="mt-0.5 h-4 w-4 cursor-pointer accent-[var(--accent)]"
+              />
+              <span>
+                <span className="font-medium">Repeat these gifts automatically {BILLING[billing].approve}</span>
+                <span className="block text-muted">
+                  Off unless you tick it. With it on, Every.org charges your card {BILLING[billing].approve} until you cancel in your
+                  Every.org account. We can&apos;t email you first or hold a charge back, so leave it off to approve each one yourself.
+                </span>
+              </span>
+            </label>
+          )}
+          {current && rows.length > 0 && (
+            <CheckoutSteps
+              checkout={current}
+              saved={!!saved}
+              onChange={setPayState}
+              onGo={() => {
+                const c = { ...current, created: new Date().toISOString() };
+                saveCheckout(c);
+                setPayState(c);
+              }}
+            />
+          )}
+        </>
+      )}
+    </section>
   );
 }
