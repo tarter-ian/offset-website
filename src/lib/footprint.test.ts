@@ -12,6 +12,7 @@ import {
 import { STATES } from "./data/states";
 import * as F from "./factors";
 import {
+  CARBON_MODES,
   lifetimeCost,
   LIFETIME_GROWTH_BUFFER,
   LIFETIME_MIN_DONATION_USD,
@@ -192,7 +193,7 @@ describe("carbon modes", () => {
     const c = (m: CarbonMode) => monthlyCost(f, CATEGORY_KEYS, ["carbon"], m).byImpact.carbon;
     expect(c("expected")).toBeLessThan(c("blend"));
     expect(c("blend")).toBeLessThan(c("verified"));
-    expect(c("blend") / c("expected")).toBeCloseTo(49 / 15, 6);
+    expect(c("blend") / c("expected")).toBeCloseTo(CARBON_MODES.blend.perTonne / CARBON_MODES.expected.perTonne, 6);
   });
 });
 

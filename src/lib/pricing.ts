@@ -5,13 +5,15 @@ import { IMPACT_KEYS, sumImpacts, type CategoryKey, type Footprint, type ImpactK
 
 /**
  * Carbon: how a tonne is covered. Policy charities are cheap per expected tonne
- * but can't be measured (Founders Pledge puts its top picks under $10/t);
+ * but can't be measured: Giving Green's bar for its top picks is about $1/t and
+ * Founders Pledge's range for CATF tops out at $10/t, so we take $10, the top
+ * of what's published, to stay safe while keeping plans affordable;
  * certified removal (Puro biochar, ~EUR 159/t) is measured but costly. The
  * blend is 90% policy at a conservative $10/t plus 10% removal at ~$400/t.
  */
 export type CarbonMode = "expected" | "blend" | "verified";
 export const CARBON_MODES: Record<CarbonMode, { label: string; perTonne: number; detail: string }> = {
-  expected: { label: "Expected impact", perTonne: 15, detail: "All to policy charities. Cheapest, but no tonne is measured." },
+  expected: { label: "Expected impact", perTonne: 10, detail: "All to policy charities. Cheapest, but no tonne is measured." },
   blend: { label: "Blend", perTonne: 49, detail: "90% policy charities, 10% measured carbon removal." },
   verified: { label: "Verified only", perTonne: 185, detail: "Certified carbon removal. Every tonne is measured." },
 };
