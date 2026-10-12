@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { activityAmounts, readActivityFile, SOURCE_NAMES, type ActivityAmounts, type ActivityEvent, type ActivitySource } from "@/lib/activity";
+import { YOUTUBE_MIN_PER_VIDEO, activityAmounts, readActivityFile, SOURCE_NAMES, type ActivityAmounts, type ActivityEvent, type ActivitySource } from "@/lib/activity";
 
 const UNITS: Record<keyof ActivityAmounts["amounts"], (n: number) => string> = {
   music: (n) => `${n} hours a day of music and podcasts`,
@@ -9,9 +9,11 @@ const UNITS: Record<keyof ActivityAmounts["amounts"], (n: number) => string> = {
   car: (n) => `${n} miles a week by car`,
   transit: (n) => `${n} miles a week by bus and train`,
   flights: (n) => `${n} round trips a year`,
+  electricity: (n) => `${n} kWh a month of electricity`,
+  heating: (n) => `about $${n} a month of gas`,
 };
 
-/** Reads Spotify, YouTube, Netflix and Google Maps downloads in the browser and fills in the matching tiles. */
+/** Reads Spotify, YouTube, Netflix, Google Maps and utility (Green Button) downloads in the browser and fills in the matching tiles. */
 export function ActivityUpload({
   onResult,
 }: {
@@ -23,7 +25,7 @@ export function ActivityUpload({
     setSources(next);
     const result = activityAmounts(Object.values(next).flat());
     if (!result) {
-      setStatus({ kind: "error", text: "We didn't find any listening, watching or travel history." });
+      setStatus({ kind: "error", text: "We didn't find any listening, watching, travel or energy history." });
       return;
     }
     const from: Partial<Record<keyof ActivityAmounts["amounts"], ActivitySource[]>> = {};
@@ -44,7 +46,7 @@ export function ActivityUpload({
     try {
       const found = (await Promise.all([...files].map(readActivityFile))).flat();
       if (!found.some((f) => f.events.length)) {
-        setStatus({ kind: "error", text: "We couldn't find any listening, watching or travel history in that file." });
+        setStatus({ kind: "error", text: "We couldn't find any listening, watching, travel or energy history in that file." });
         return;
       }
       const next = { ...sources };
@@ -57,7 +59,7 @@ export function ActivityUpload({
 
   return (
     <div className="border-2 border-rule bg-card p-4">
-      <p className="font-medium">Add your Spotify, YouTube, Netflix or Google Maps history</p>
+      <p className="font-medium">Add your Spotify, YouTube, Netflix, Google Maps or utility history</p>
       <ul className="mt-1 list-disc space-y-0.5 pl-5 text-sm text-muted">
         <li>
           Spotify: Account, Privacy settings, Download your data. Pick &ldquo;Extended streaming history&rdquo; for exact
@@ -69,21 +71,25 @@ export function ActivityUpload({
             Google Takeout
           </a>
           , pick only YouTube, then history, in JSON. It lists videos but not how long you watched, so we assume{" "}
-          about 12 minutes each.
+          about {YOUTUBE_MIN_PER_VIDEO} minutes each.
         </li>
         <li>Netflix: Account, Download your personal information. Or the Viewing activity page&apos;s Download all.</li>
         <li>
           Google Maps: in the app, Settings, Location and privacy, Export Timeline data. This fills in driving, bus and
           train, and flights.
         </li>
+        <li>
+          Your electricity or gas: on your utility&apos;s website, look for Green Button or &ldquo;Download my data&rdquo; on the
+          usage page, and pick a year. Most US utilities offer it, as XML or CSV.
+        </li>
       </ul>
-      <p className="mt-1 text-sm text-muted">Add the .zip, .json or .csv. We read it in your browser; the file never leaves your device.</p>
+      <p className="mt-1 text-sm text-muted">Add the .zip, .json, .csv or .xml. We read it in your browser; the file never leaves your device.</p>
       <input
         type="file"
-        accept=".zip,.json,.csv,application/zip,application/json,text/csv"
+        accept=".zip,.json,.csv,.xml,application/zip,application/json,text/csv,application/xml,text/xml"
         multiple
         onChange={(e) => handle(e.target.files)}
-        aria-label="Spotify, YouTube, Netflix or Google Maps history"
+        aria-label="Spotify, YouTube, Netflix, Google Maps or utility history"
         className="mt-3 block w-full text-sm file:mr-3 file:rounded-md file:border-2 file:border-rule file:bg-background file:px-3 file:py-2 file:font-medium"
       />
       {status.kind === "reading" && <p className="mt-2 text-sm text-muted">{status.text ?? "Reading…"}</p>}
