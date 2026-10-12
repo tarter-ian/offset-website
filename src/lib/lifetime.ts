@@ -120,8 +120,8 @@ export const SPANS: Record<Span, { label: string; badge: string; per: string; hi
 export const SPAN_KEYS = Object.keys(SPANS) as Span[];
 // Lifetime prices above this get the choice of past use or monthly; lighter users just see lifetime.
 export const SPAN_CHOICE_ABOVE_USD = 100;
-// Above this, a lifetime price is mostly a guess about decades of future use, so we don't offer it.
-export const LIFETIME_MAX_USD = 1000;
+// Above this, lifetime is hidden behind "show lifetime anyway": few people give more than $100-400 at once (Ian, 2026-10-12).
+export const LIFETIME_MAX_USD = 400;
 
 export function lifetimeOffset(
   input: LifetimeInput,

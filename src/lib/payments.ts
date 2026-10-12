@@ -193,7 +193,7 @@ export interface Checkout {
   billing: Billing;
   rows: PayRow[];
   /** Items paid for, to mark covered once every gift is confirmed. */
-  lines: { productId: string; lifetime: boolean }[];
+  lines: { productId: string; lifetime: boolean; pastSpread?: boolean }[];
   /** Rows the person came back from Every.org on, with when. */
   done: Record<string, string>;
   /** Rows whose gift Every.org's webhook has confirmed. */

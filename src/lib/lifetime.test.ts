@@ -51,7 +51,7 @@ describe("lifetimeOffset", () => {
     expect(some.donation).toBeGreaterThan(50);
   });
 
-  // Devices for life pass $1,000 once e-waste is priced at what refurbishers spend.
+  // Devices for life pass the cap once e-waste is priced at what refurbishers spend.
   it("lands internet and AI in a price people would pay once", () => {
     for (const item of ["internet", "ai"] as const) {
       const o = lifetimeOffset(typical, [item], now);

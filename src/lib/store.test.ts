@@ -54,7 +54,7 @@ describe("covers", () => {
     expect(aheadFor(p("car"), 200, C)).toEqual(["monthly"]);
   });
 
-  it("hides lifetime above $1,000 unless asked", () => {
+  it("hides lifetime above the cap unless asked", () => {
     expect(aheadFor(p("phone"), 1, C)).toEqual(["monthly", "lifetime"]);
     expect(aheadFor(p("desktop"), 1, C)).toEqual(["monthly"]);
     expect(aheadFor(p("ai"), 20000, C)).toEqual(["monthly"]);
@@ -141,6 +141,37 @@ describe("planTotals", () => {
     expect(t.oneTime).toBeNull();
     expect(t.recurring!.donation).toBe(MIN_DONATION_USD);
     expect(planTotals([{ productId: "transit", amount: 1, cover: { past: false, ahead: "monthly" } }], C, "annual").recurring!.donation).toBe(ANNUAL_MIN_DONATION_USD);
+  });
+});
+
+describe("spreading past use over years", async () => {
+  const { harmSplit } = await import("./store");
+  const lines = [
+    { productId: "ai", amount: 30, cover: { past: true, ahead: "lifetime" as const } },
+    { productId: "car", amount: 200, cover: { past: false, ahead: "monthly" as const } },
+  ];
+  it("moves past use from the one-time payment into each month, with nothing added or taken off", () => {
+    const now = planTotals(lines, C, "monthly");
+    const spread = planTotals(lines, C, "monthly", 2);
+    const past = now.lines[0].pastCost;
+    expect(past).toBeGreaterThan(0);
+    expect(now.pastSpread).toBeNull();
+    expect(spread.pastSpread).toEqual({ total: past, years: 2, perMonth: past / 24 });
+    const futureOnly = Math.max(LIFETIME_MIN_DONATION_USD, Math.ceil(now.lines[0].aheadCost));
+    expect(spread.oneTime!.donation).toBe(futureOnly);
+    expect(spread.recurring!.donation).toBeCloseTo(Math.ceil((p("car").cost(200, "monthly", C) + past / 24) * 100) / 100, 6);
+  });
+
+  it("adds a repeating payment even when nothing else repeats", () => {
+    const t = planTotals(lines.slice(0, 1), C, "annual", 5);
+    expect(t.recurring).not.toBeNull();
+    const s = harmSplit(t, C, "annual");
+    const perYear = Object.values(s).reduce((a, v) => a + v.perPeriod, 0);
+    expect(perYear).toBeCloseTo(t.lines[0].pastCost / 5, 6);
+  });
+
+  it("does nothing when there's no past use", () => {
+    expect(planTotals(lines.slice(1), C, "monthly", 3).pastSpread).toBeNull();
   });
 });
 
