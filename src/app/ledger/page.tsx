@@ -16,6 +16,10 @@ const STEPS = [
 
 // What tips pay for. Rough monthly costs of keeping the site up; amounts are list prices.
 const RUNNING_COSTS = [
+  {
+    what: "Covering this site's own footprint: hosting and every page load, worked out the same way as yours (Ian covers the AI used to build it himself)",
+    cost: "first, each month; pennies at our size",
+  },
   { what: "Hosting the site (Cloudflare)", cost: "free up to 100,000 visits a day, then $5 a month" },
   { what: "The web address", cost: "about $15 a year" },
   { what: "Database for saved plans (Cloudflare D1)", cost: "free at our size for now" },
@@ -115,7 +119,7 @@ export default function LedgerPage() {
 
       <h2 id="tips" className="mt-12 scroll-mt-6 text-xl font-semibold">What tips pay for</h2>
       <p className="mt-2 text-muted">
-        Tips are optional and separate from your donation. They pay only for keeping My Offset running; nobody draws a salary from them.
+        Tips are optional and separate from your donation. They pay only for keeping My Offset running, starting with covering the site&apos;s own footprint; nobody draws a salary from them.
       </p>
       <ul className="mt-3 border-t-2 border-rule">
         {RUNNING_COSTS.map((c) => (
