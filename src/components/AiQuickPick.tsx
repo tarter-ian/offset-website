@@ -175,6 +175,10 @@ export function AiQuickPick({
         onError: (service, error) => setRows((r) => ({ ...r, [service]: { state: "error", error } })),
         onAsking: (asked) => setRows((r) => ({ ...r, ...Object.fromEntries(asked.map((x) => [x, { state: "asking" }])) })),
         onCounting: (allowed) => setRows((r) => ({ ...r, ...Object.fromEntries(allowed.map((x) => [x, { state: "counting" }])) })),
+        onProgress: (service, usage) => {
+          const text = progressText(usage);
+          if (text) setRows((r) => (r[service]?.state === "counting" ? { ...r, [service]: { state: "counting", text } } : r));
+        },
         onDone: then,
       },
       inFront,
@@ -315,7 +319,7 @@ export function AiQuickPick({
                   <div key={x} className="grid grid-cols-[6rem_minmax(0,1fr)] gap-3 border-b border-border py-2">
                     <dt className="font-semibold">{EXT_NAMES[x]}</dt>
                     <dd>
-                      {r.state === "counting" && <span className="text-muted">Counting…</span>}
+                      {r.state === "counting" && <span className="text-muted">{r.text ?? "Counting…"}</span>}
                       {r.state === "asking" && <span className="text-muted">Waiting for you to allow it in the Offset window…</span>}
                       {r.state === "done" && r.text}
                       {r.state === "skipped" && <span className="text-muted">Left out: you don&apos;t use it.</span>}
@@ -449,6 +453,17 @@ export function AiQuickPick({
 }
 
 /** A total from the extension (like `miles` or `titles`) and the days it covers. */
+/** "About 1,200 prompts so far (read 18 of 42 chats)…" from a running estimate. */
+function progressText(usage: unknown): string | null {
+  if (typeof usage !== "object" || !usage) return null;
+  const u = usage as Record<string, unknown>;
+  const prompts = Number(u.prompts);
+  const read = Number(u.chatsRead);
+  const total = Number(u.chatsTotal);
+  if (!Number.isFinite(prompts) || !(total > 0) || !Number.isFinite(read)) return null;
+  return `About ${Math.round(prompts).toLocaleString("en-US")} prompts so far (read ${read} of ${total} chats). Still counting; we price only the final figure.`;
+}
+
 function countOver(usage: unknown, key: string): { total: number; days: number } | null {
   if (typeof usage !== "object" || !usage) return null;
   const u = usage as Record<string, unknown>;
