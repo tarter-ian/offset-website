@@ -7,7 +7,7 @@ describe("item info", () => {
   it("explains every item and splits its money across charities", () => {
     for (const p of PRODUCTS) {
       expect(howEstimated(p).length, p.id).toBeGreaterThan(0);
-      const a = defaultAmount(p, C);
+      const a = defaultAmount(p, C) || 1;
       const c = coverImpacts(p, a, effectiveCover(p, a, C), C);
       const goes = whereItGoes(sumImpacts([c.once, c.monthly]));
       expect(goes.length, p.id).toBeGreaterThan(0);

@@ -49,6 +49,10 @@ export interface LifetimeInput {
   internetHoursPerDay: Record<InternetActivity, number>;
   aiPromptsPerDay: number;
   aiMediaPerWeek: number;
+  /** Short AI videos made a week. */
+  aiVideoPerWeek?: number;
+  /** AI built into other products (search answers, summaries), in typical prompts a day. */
+  aiBuiltInPerDay?: number;
   aiFromExport?: boolean;
   /** Average energy per prompt measured from an export, in Wh. */
   aiWhPerPrompt?: number;
@@ -91,11 +95,11 @@ export interface LifetimeOffset {
 
 const add = (a: Impacts, b: Impacts, k = 1): Impacts =>
   Object.fromEntries(IMPACT_KEYS.map((x) => [x, a[x] + b[x] * k])) as Impacts;
-const zero: Impacts = { carbon: 0, air: 0, water: 0, land: 0 };
+const zero: Impacts = { carbon: 0, air: 0, water: 0, land: 0, ewaste: 0 };
 const nonNeg = (n: number) => (Number.isFinite(n) && n > 0 ? n : 0);
 const part = (impacts: Impacts): LifetimePart => {
   const c = impactCost(impacts, "expected");
-  return { impacts, cost: c.carbon + c.air + c.water + c.land };
+  return { impacts, cost: c.carbon + c.air + c.water + c.land + c.ewaste };
 };
 
 /** Parses a `cover` value such as "ai" or "internet,devices"; anything else means all items. */
@@ -142,6 +146,7 @@ export function lifetimeOffset(
     air: perYear.air * air,
     water: (perYear.water - cooling) * power + cooling * ahead,
     land: perYear.land * ahead,
+    ewaste: perYear.ewaste * ahead,
   });
 
   // Internet: hours a day for each activity, with a wider margin on the rough ones.
@@ -162,15 +167,22 @@ export function lifetimeOffset(
     ((nonNeg(input.aiPromptsPerDay) * 365 * (input.aiWhPerPrompt ?? F.WH_PER_AI_PROMPT) + nonNeg(input.aiMediaPerWeek) * 52 * F.WH_PER_AI_MEDIA) /
       1000) *
     (1 + (input.aiFromExport ? MARGINS.measured : MARGINS.estimated));
+  // Video and AI built into other products are estimated, and only began in 2024.
+  const videoKwhPerYear = ((nonNeg(input.aiVideoPerWeek ?? 0) * 52 * F.WH_PER_AI_VIDEO) / 1000) * (1 + MARGINS.estimated);
+  const builtInKwhPerYear = ((nonNeg(input.aiBuiltInPerDay ?? 0) * 365 * F.WH_PER_AI_PROMPT) / 1000) * (1 + MARGINS.estimated);
+  const yearsSince = (start: number) => Math.max(0, year - Math.max(start, onlineSince));
   // Past AI use is measured when an export or chat history covers it; otherwise it grows
   // steadily from when you started to today's rate. Only chat is measured, so images are estimated.
   const aiPastKwh =
-    input.aiPastWh !== undefined
+    (input.aiPastWh !== undefined
       ? (input.aiPastWh / 1000) * (1 + MARGINS.measured) +
         ((nonNeg(input.aiMediaPerWeek) * 52 * F.WH_PER_AI_MEDIA) / 1000) * (1 + MARGINS.estimated) * pastAi * F.AI_PAST_RAMP
-      : aiKwhPerYear * pastAi * F.AI_PAST_RAMP;
-  const aiPlainKwh = span === "monthly" ? aiKwhPerYear / 12 : span === "future" ? 0 : aiPastKwh;
-  const ai = add(aiImpacts(aiPlainKwh), future(aiImpacts(aiKwhPerYear), aiCoolingWater(aiKwhPerYear)), LIFETIME_GROWTH_BUFFER);
+      : aiKwhPerYear * pastAi * F.AI_PAST_RAMP) +
+    videoKwhPerYear * yearsSince(Math.max(F.AI_VIDEO_START_YEAR, input.aiStartYear ?? 0)) * F.AI_PAST_RAMP +
+    builtInKwhPerYear * yearsSince(F.AI_BUILT_IN_START_YEAR);
+  const aiYearKwh = aiKwhPerYear + videoKwhPerYear + builtInKwhPerYear;
+  const aiPlainKwh = span === "monthly" ? aiYearKwh / 12 : span === "future" ? 0 : aiPastKwh;
+  const ai = add(aiImpacts(aiPlainKwh), future(aiImpacts(aiYearKwh), aiCoolingWater(aiYearKwh)), LIFETIME_GROWTH_BUFFER);
 
   // Devices: making each one you'd go through, plus the power to run it.
   // Making them isn't on the US grid, so it counts every year in full.
@@ -179,7 +191,8 @@ export function lifetimeOffset(
     const d = F.DEVICES[k];
     const count = nonNeg(input.devices[k]);
     const madeKg = (count * d.kgToMake * (plain(pastInternet) + ahead)) / d.yearsKept;
-    const made = { ...zero, carbon: madeKg, ...electronicsMaking(madeKg) };
+    const thrownKg = (count * d.kgWeight * (plain(pastInternet) + ahead)) / d.yearsKept;
+    const made = { ...zero, carbon: madeKg, ...electronicsMaking(madeKg), ewaste: thrownKg };
     const running = gridImpacts(count * d.kwhPerYear);
     const used = add(add(made, running, plain(pastInternet)), future(running));
     devices = add(devices, used, 1 + MARGINS.estimated);

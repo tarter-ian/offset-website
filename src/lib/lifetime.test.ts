@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import * as F from "./factors";
-import { DEFAULT_LIFETIME_INPUT, LIFETIME_MAX_USD, lifetimeOffset, parseItems } from "./lifetime";
+import { DEFAULT_LIFETIME_INPUT, LIFETIME_MAX_USD, lifetimeOffset, parseItems, type LifetimeInput } from "./lifetime";
 import { LIFETIME_MIN_DONATION_USD, paymentFee } from "./pricing";
 
 const now = new Date(Date.UTC(2026, 0, 1));
@@ -118,5 +118,30 @@ describe("past AI use", () => {
     const later = lifetimeOffset({ ...typical, aiPromptsPerDay: 50, aiStartYear: 2025 }, ["ai"], now, "past");
     expect(later.pastYears.ai).toBeCloseTo(1, 6);
     expect(later.parts.ai.cost).toBeLessThan(flat.parts.ai.cost);
+  });
+});
+
+describe("AI video and built-in AI", () => {
+  const now = new Date(2026, 9, 12);
+  const ai = (extra: Partial<LifetimeInput>) =>
+    lifetimeOffset({ ...DEFAULT_LIFETIME_INPUT, aiPromptsPerDay: 0, aiMediaPerWeek: 0, ...extra }, ["ai"], now).parts.ai.cost;
+
+  it("prices a video a week far above an image a week", () => {
+    expect(ai({ aiVideoPerWeek: 1 })).toBeGreaterThan(ai({ aiMediaPerWeek: 1 }) * 50);
+  });
+
+  it("counts AI built into other products on its own", () => {
+    expect(ai({ aiBuiltInPerDay: 2 })).toBeGreaterThan(0);
+    expect(ai({})).toBe(0);
+  });
+});
+
+describe("e-waste", () => {
+  it("counts the weight of every device you'll throw away and prices it", () => {
+    const now = new Date(2026, 9, 12);
+    const tv = lifetimeOffset({ ...DEFAULT_LIFETIME_INPUT, devices: { phone: 0, laptop: 0, tablet: 0, desktop: 0, tv: 1, console: 0 } }, ["devices"], now);
+    const phone = lifetimeOffset({ ...DEFAULT_LIFETIME_INPUT, devices: { phone: 1, laptop: 0, tablet: 0, desktop: 0, tv: 0, console: 0 } }, ["devices"], now);
+    expect(tv.parts.devices.impacts.ewaste).toBeGreaterThan(phone.parts.devices.impacts.ewaste);
+    expect(phone.parts.devices.impacts.ewaste).toBeGreaterThan(0);
   });
 });

@@ -31,7 +31,7 @@ import {
 export type SectionKey = "ai" | "online" | "devices" | "home" | "travel" | "food" | "shopping";
 
 export const SECTIONS: { key: SectionKey; title: string; blurb: string }[] = [
-  { key: "ai", title: "AI", blurb: "The cost of every prompt, image and the models behind them." },
+  { key: "ai", title: "AI", blurb: "The cost of every prompt, image and video, and the models behind them." },
   { key: "online", title: "Online", blurb: "The data centers and networks behind what you watch, play and scroll." },
   { key: "devices", title: "Devices", blurb: "Making and running the things you use them on." },
   { key: "home", title: "Home", blurb: "Your power and heat, month by month." },
@@ -95,7 +95,7 @@ const num = (v: number | string) => (typeof v === "number" && Number.isFinite(v)
 
 const costOf = (i: Impacts) => {
   const c = impactCost(i);
-  return c.carbon + c.air + c.water + c.land;
+  return c.carbon + c.air + c.water + c.land + c.ewaste;
 };
 
 function onlineItem(id: InternetActivity, name: string, blurb: string, hours: number): Product {
@@ -187,7 +187,14 @@ const level = (label: string): Amount => ({ kind: "choice", label, default: "ave
 
 const aiChat = (a: number | string, span: Span, ctx: Context) =>
   lifetimeOffset(
-    { ...base(ctx), aiPromptsPerDay: num(a), aiWhPerPrompt: ctx.aiWhPerPrompt, aiFromExport: ctx.aiFromExport, aiPastWh: ctx.aiPastWh },
+    {
+      ...base(ctx),
+      aiPromptsPerDay: num(a),
+      aiBuiltInPerDay: F.AI_BUILT_IN_PROMPTS_PER_DAY,
+      aiWhPerPrompt: ctx.aiWhPerPrompt,
+      aiFromExport: ctx.aiFromExport,
+      aiPastWh: ctx.aiPastWh,
+    },
     ["ai"],
     undefined,
     span,
@@ -198,23 +205,35 @@ export const PRODUCTS: Product[] = [
     id: "ai",
     section: "ai",
     name: "AI chat",
-    blurb: "ChatGPT, Claude, Gemini and the rest, including training the models and building the data centers.",
+    blurb: "ChatGPT, Claude, Gemini and the rest, plus the AI built into search and other apps, including training the models and building the data centers.",
     amount: { kind: "number", label: "AI prompts a day", unit: "prompts a day", default: 10, step: 1 },
     oneTime: true,
     cost: (a, span, ctx) => costOf(aiChat(a, span, ctx)),
     impacts: (a, span, ctx) => aiChat(a, span, ctx),
-    kgPerYear: (a, ctx) => aiImpacts((num(a) * 365 * (ctx.aiWhPerPrompt ?? F.WH_PER_AI_PROMPT)) / 1000).carbon,
+    kgPerYear: (a, ctx) =>
+      aiImpacts((num(a) * 365 * (ctx.aiWhPerPrompt ?? F.WH_PER_AI_PROMPT) + F.AI_BUILT_IN_PROMPTS_PER_DAY * 365 * F.WH_PER_AI_PROMPT) / 1000).carbon,
   },
   {
     id: "ai-media",
     section: "ai",
-    name: "AI images and video",
-    blurb: "Pictures and clips you make with AI.",
-    amount: { kind: "number", label: "AI images or videos a week", unit: "images or videos a week", default: 5, step: 1 },
+    name: "AI images",
+    blurb: "Pictures you make with AI.",
+    amount: { kind: "number", label: "AI images a week", unit: "images a week", default: 5, step: 1 },
     oneTime: true,
     cost: (a, span, ctx) => costOf(lifetimeOffset({ ...base(ctx), aiMediaPerWeek: num(a) }, ["ai"], undefined, span).parts.ai.impacts),
     impacts: (a, span, ctx) => lifetimeOffset({ ...base(ctx), aiMediaPerWeek: num(a) }, ["ai"], undefined, span).parts.ai.impacts,
     kgPerYear: (a) => aiImpacts((num(a) * 52 * F.WH_PER_AI_MEDIA) / 1000).carbon,
+  },
+  {
+    id: "ai-video",
+    section: "ai",
+    name: "AI video",
+    blurb: "Short clips you make with Sora, Veo and the like. Each one takes far more power than a picture.",
+    amount: { kind: "number", label: "AI videos a week", unit: "videos a week", default: 0, step: 1 },
+    oneTime: true,
+    cost: (a, span, ctx) => costOf(lifetimeOffset({ ...base(ctx), aiVideoPerWeek: num(a) }, ["ai"], undefined, span).parts.ai.impacts),
+    impacts: (a, span, ctx) => lifetimeOffset({ ...base(ctx), aiVideoPerWeek: num(a) }, ["ai"], undefined, span).parts.ai.impacts,
+    kgPerYear: (a) => aiImpacts((num(a) * 52 * F.WH_PER_AI_VIDEO) / 1000).carbon,
   },
   onlineItem("video", "Video streaming", "YouTube, Netflix, Twitch.", 2),
   onlineItem("social", "Social media", "TikTok, Instagram, Facebook, X.", 1),
@@ -414,7 +433,7 @@ export function coverPrice(p: Product, amount: number | string, cover: Cover, ct
 
 /** Everything an item covers under a cover: the one-time part and each month of the ongoing part. */
 export function coverImpacts(p: Product, amount: number | string, cover: Cover, ctx: Context) {
-  const zero: Impacts = { carbon: 0, air: 0, water: 0, land: 0 };
+  const zero: Impacts = { carbon: 0, air: 0, water: 0, land: 0, ewaste: 0 };
   const once = sumImpacts([
     cover.past ? p.impacts(amount, "past", ctx) : zero,
     cover.ahead === "lifetime" ? p.impacts(amount, "future", ctx) : zero,

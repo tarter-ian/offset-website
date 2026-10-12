@@ -125,7 +125,7 @@ export function Results({
   const rows = footprint.categories.filter((c) => show.includes(c.key));
   const cost = monthlyCost(footprint, covered, impacts, carbonMode, waterMode);
   const lifetime = lifetimeCost(cost);
-  const rawDonation = cost.byImpact.carbon + cost.byImpact.air + cost.byImpact.water + cost.byImpact.land;
+  const rawDonation = cost.byImpact.carbon + cost.byImpact.air + cost.byImpact.water + cost.byImpact.land + cost.byImpact.ewaste;
   const billing = billingPick ?? DEFAULT_BILLING;
   const bill = recurringPrice(rawDonation, billing);
   const allImpacts = IMPACT_KEYS.every((k) => impacts.includes(k));
@@ -476,8 +476,8 @@ export function Results({
           <p className="mt-4 text-muted">
             You earn a badge for each item or whole area you cover.{" "}
             {everything
-              ? "Covering everything, for all four kinds of harm, earns the complete Fully Offset badge."
-              : "Cover everything for all four kinds of harm to earn the complete Fully Offset badge."}{" "}
+              ? "Covering everything, for all five kinds of harm, earns the complete Fully Offset badge."
+              : "Cover everything for all five kinds of harm to earn the complete Fully Offset badge."}{" "}
             Badges count approved months and build a streak you can share. Each links to{" "}
             <Link href="/method" className="text-accent hover:underline">
               how we calculate

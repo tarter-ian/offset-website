@@ -11,9 +11,9 @@ import {
 const p = (id: string) => productById(id)!;
 
 describe("products", () => {
-  it("prices every item above zero at its default amount", () => {
+  it("prices every item above zero at its default amount (or 1, for items most people don't use)", () => {
     for (const item of PRODUCTS) {
-      const a = defaultAmount(item, C);
+      const a = defaultAmount(item, C) || 1;
       const price = coverPrice(item, a, effectiveCover(item, a, C), C);
       expect(price.once + price.monthly, item.id).toBeGreaterThan(0);
     }
@@ -34,7 +34,7 @@ describe("products", () => {
 
 describe("why lines", () => {
   it("gives every item a yearly carbon figure, compared to driving outside the travel aisle", () => {
-    for (const item of PRODUCTS) expect(item.kgPerYear(defaultAmount(item, C), C), item.id).toBeGreaterThan(0);
+    for (const item of PRODUCTS) expect(item.kgPerYear(defaultAmount(item, C) || 1, C), item.id).toBeGreaterThan(0);
     expect(yearlyLine(p("video"), 2, C)).toMatch(/^About \d+ kg of CO₂e a year, like driving \d+ miles\.$/);
     expect(yearlyLine(p("car"), 200, C)).not.toMatch(/driving/);
     expect(p("video").kgPerYear(4, C)).toBeCloseTo(2 * p("video").kgPerYear(2, C), 6);

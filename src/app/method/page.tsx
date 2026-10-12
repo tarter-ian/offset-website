@@ -14,6 +14,7 @@ import {
   WATER_MODES,
   type WaterMode,
   CARD_RATE,
+  EWASTE_USD_PER_KG,
   LIFETIME_GROWTH_BUFFER,
   MIN_DONATION_USD,
   usd,
@@ -107,6 +108,14 @@ const IMPACTS = [
     measure: "Land used to grow your food, to mine and make your electronics, and for the power plants and data centers behind your electricity and online use, in square meters. Power and data centers are a sliver of it: about 0.005 m² a year per kWh for power plants and their fuel (Lovering et al. 2022, weighted by the US mix) and 0.0005 for data centers.",
     price: "We fund permanently protecting the same area of threatened forest, at about $10 an acre.",
   },
+  {
+    name: "E-waste",
+    unit: "kg of electronics thrown away",
+    priceShort: `${usd(EWASTE_USD_PER_KG)} a kg, to reuse and proper recycling`,
+    measure:
+      "What your phones, laptops, tablets, computers, TVs and consoles weigh when you replace them, plus the electronics you buy. Only about a fifth of the world's e-waste is recycled properly (Global E-waste Monitor 2024); the rest is dumped or burned, leaking lead, mercury and flame retardants.",
+    price: `We pay ${usd(EWASTE_USD_PER_KG)} a kg to a charity that refurbishes devices and recycles the rest responsibly, roughly what US recyclers charge for the hardest items.`,
+  },
 ];
 
 const ROWS = [
@@ -173,7 +182,7 @@ export default function MethodPage() {
     <article className="mx-auto max-w-3xl px-4 py-12">
       <h1 className="text-4xl font-extrabold [font-stretch:85%]">How we calculate your footprint</h1>
       <p className="mt-4 text-lg text-muted">
-        We estimate four kinds of harm for each part of your life, add a margin that depends on how good the data is,
+        We estimate five kinds of harm for each part of your life, add a margin that depends on how good the data is,
         and turn the result into donations to charities that work on each kind.
       </p>
 
@@ -186,7 +195,7 @@ export default function MethodPage() {
         </Step>
         <Step n={2} title="The harm it does">
           <ul className="figures space-y-1">
-            {IMPACT_KEYS.map((k) => (
+            {IMPACT_KEYS.filter((k) => EX_IMPACTS[k] > 0).map((k) => (
               <li key={k}>{IMPACT_INFO[k].format(EX_IMPACTS[k])}</li>
             ))}
           </ul>
@@ -194,7 +203,7 @@ export default function MethodPage() {
         </Step>
         <Step n={3} title="What covers it">
           <ul className="figures space-y-1">
-            {IMPACT_KEYS.map((k) => (
+            {IMPACT_KEYS.filter((k) => EX_DOLLARS[k] > 0).map((k) => (
               <li key={k} className="flex justify-between gap-3">
                 <span className="font-sans text-muted">{IMPACT_INFO[k].label}</span>
                 <span>{usd(EX_DOLLARS[k])}</span>
@@ -208,7 +217,7 @@ export default function MethodPage() {
         </Step>
       </div>
 
-      <h2 className="mt-12 text-xl font-semibold">The four kinds of harm</h2>
+      <h2 className="mt-12 text-xl font-semibold">The five kinds of harm</h2>
       <div className="mt-4 grid gap-6 sm:grid-cols-2">
         {IMPACTS.map((i) => (
           <div key={i.name} className="border-t-4 border-rule pt-3">
@@ -296,7 +305,7 @@ export default function MethodPage() {
           <strong className="font-medium text-foreground">AI</strong> adds each prompt&apos;s share of training the models: about{" "}
           {Math.round(F.AI_TRAINING_SHARE * 100)}% of machine learning energy goes to training. On top of that, making the chips and servers
           and building the data centers adds about {Math.round(F.AI_HARDWARE_SHARE * 100)}% of AI&apos;s carbon. Some data centers run their own gas power, so
-          their air pollution counts {F.AI_LOCAL_AIR_WEIGHT} times. AI built into other products, like search answers, and AI video aren&apos;t measured yet.
+          their air pollution counts {F.AI_LOCAL_AIR_WEIGHT} times. AI built into other products, like search answers, counts as {F.AI_BUILT_IN_PROMPTS_PER_DAY} typical prompts a day for everyone. A short AI video counts about {F.WH_PER_AI_VIDEO} Wh, the one published measurement.
         </li>
         <li>
           <strong className="font-medium text-foreground">Devices</strong> counts the carbon to make each phone, laptop, tablet, computer, TV and
@@ -308,15 +317,14 @@ export default function MethodPage() {
       <h2 className="mt-10 text-xl font-semibold">What &ldquo;Fully Offset&rdquo; means</h2>
       <p className="mt-2 text-muted">
         A Fully Offset month is one where you approved donations covering the estimate plus its margin for every kind of
-        harm we count. Covering an item or a whole area earns its badge; covering everything for all four kinds of harm earns the
+        harm we count. Covering an item or a whole area earns its badge; covering everything for all five kinds of harm earns the
         complete badge. Unless you choose verified-only climate, donations fund charity work rather than certified credits. If you lower an estimate by hand by
         more than its margin, the badge pauses until a linked account confirms the new number.
       </p>
 
       <h2 className="mt-10 text-xl font-semibold">What we don&apos;t count yet</h2>
       <p className="mt-2 text-muted">
-        Air pollution from oil and propane heating;
-        air pollution from making devices; e-waste; building data centers for anything but AI; AI built into other products; and AI video. Your summary marks each gap.
+        Toxic harm from e-waste beyond paying to recycle it, and anything we haven&apos;t thought of. Tell us what&apos;s missing.
       </p>
 
       <h2 className="mt-10 text-xl font-semibold">Sources</h2>

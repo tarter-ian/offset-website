@@ -219,3 +219,26 @@ describe("holistic harms", () => {
     }
   });
 });
+
+describe("gaps closed 2026-10-12", () => {
+  const cat = (f: ReturnType<typeof computeFootprint>, k: string) => f.categories.find((c) => c.key === k)!;
+
+  it("counts air pollution from oil and propane heating", () => {
+    for (const fuel of ["oil", "propane"] as const) {
+      const c = cat(computeFootprint({ ...DEFAULT_ANSWERS, heating: { fuel, mode: "average" } }), "heating");
+      expect(c.impacts.air, fuel).toBeGreaterThan(0);
+      expect(c.notCounted, fuel).toEqual([]);
+    }
+  });
+
+  it("counts air pollution from making electronics", () => {
+    const c = cat(computeFootprint(DEFAULT_ANSWERS), "electronics");
+    expect(c.impacts.air).toBeGreaterThan(0);
+    expect(c.notCounted).toEqual([]);
+  });
+
+  it("adds the AI built into other apps even with no chatbot use", () => {
+    const f = computeFootprint({ ...DEFAULT_ANSWERS, digital: { ...DEFAULT_ANSWERS.digital, aiPromptsPerDay: 0, aiMediaPerWeek: 0 } });
+    expect(cat(f, "ai").impacts.carbon).toBeGreaterThan(0);
+  });
+});
