@@ -15,6 +15,11 @@
   --accent: #1d6b3d;
   --accent-strong: #134a2a;
   --accent-soft: #e4efe7;
+  /* Items already paid for: for life, or for the current month or year. */
+  --life: #dcefe2;
+  --life-ink: #134a2a;
+  --period: #e3ecf7;
+  --period-ink: #1d3f6b;
   --danger: #b42318;
   --on-accent: #ffffff;
 }
@@ -30,6 +35,10 @@
     --accent: #6cc28f;
     --accent-strong: #93d8ae;
     --accent-soft: #1b2e22;
+    --life: #183424;
+    --life-ink: #93d8ae;
+    --period: #172539;
+    --period-ink: #9cc1ef;
     --danger: #f97066;
     --on-accent: #0f1210;
   }
@@ -45,6 +54,10 @@
   --color-accent: var(--accent);
   --color-accent-strong: var(--accent-strong);
   --color-accent-soft: var(--accent-soft);
+  --color-life: var(--life);
+  --color-life-ink: var(--life-ink);
+  --color-period: var(--period);
+  --color-period-ink: var(--period-ink);
   --color-danger: var(--danger);
   --color-on-accent: var(--on-accent);
   --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
