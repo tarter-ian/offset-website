@@ -12,6 +12,12 @@ function lifeLost(min: number): string {
   return `${n(min / 60 / 24)} days`;
 }
 
+/**
+ * Air pollution on tiles and the receipt, e.g. "air 2.1 min": the minutes of healthy life
+ * are explained in each item's (i), so the tile doesn't lead with them (Ian, 2026-10-12).
+ */
+export const airShort = (usdDamage: number) => lifeLost(usdDamage * MINUTES_OF_LIFE_PER_DAMAGE_USD);
+
 export const IMPACT_INFO: Record<ImpactKey, { label: string; short: string; format: (n: number) => string }> = {
   carbon: {
     label: "Climate",
