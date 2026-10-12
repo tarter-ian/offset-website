@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { CHARITIES } from "@/lib/charities";
 import { IMPACT_INFO } from "@/lib/impacts";
@@ -138,6 +139,10 @@ export function CheckoutSteps({
           : next
             ? "Each button opens Every.org for that charity and brings you back here. You can stop and come back; this browser remembers where you got to."
             : "All given. Confirmations from Every.org can take a few minutes; this page checks for them."}
+      </p>
+      <p className="mt-2 text-sm text-muted">
+        Before you give: <Link href="/ledger">where the money goes</Link>, <Link href="/promises">what we promise</Link> and{" "}
+        <Link href="/method">how each price is worked out</Link>. Every gift goes straight to the charity through Every.org; none of it passes through My Offset.
       </p>
     </div>
   );
