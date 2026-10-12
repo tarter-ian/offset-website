@@ -22,7 +22,7 @@ const KEPT = [
   { where: "On our server", what: "Nothing. There are no accounts yet, so we keep no email or name. When accounts arrive, this line will say exactly what they store." },
   {
     where: "In the extension",
-    what: "If you use it: how many prompts and images each ChatGPT chat had per day, so next time it only reads chats that changed. Never titles or text, and never sent to us. Clearing below deletes it, and so does removing the extension.",
+    what: "If you use it: the last result for each service and a day-by-day record of those totals (up to about two years), so this page fills in straight away and monthly measuring builds a fuller history. Also how many prompts and images each ChatGPT chat had per day, so next time it only reads chats that changed. Only counts, dates and Amazon order totals. Never titles, text, products or addresses, and never sent to us except to this page when you open it. Clearing below deletes all of it, and so does removing the extension.",
   },
   { where: "Nowhere else", what: "The counts the extension hands this page, and any file you add. We turn them into amounts on the page and keep none of it. API keys are used once and never saved or logged. Your state starts as a guess from your connection's location, which our host reads on each visit; we don't save it, and picking a state replaces the guess." },
 ];
