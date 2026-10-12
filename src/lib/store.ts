@@ -218,7 +218,9 @@ export const PRODUCTS: Product[] = [
     section: "ai",
     name: "AI images",
     blurb: "Pictures you make with AI.",
-    amount: { kind: "number", label: "AI images a week", unit: "images a week", default: 5, step: 1 },
+    // Default 1 a week. Google reported 50 billion Nano Banana images by May 2026, up from 5 billion in mid-October 2025:
+    // about 1.5 a week for each of Gemini's 900 million monthly users, a mean pulled up by heavy users.
+    amount: { kind: "number", label: "AI images a week", unit: "images a week", default: 1, step: 1 },
     oneTime: true,
     cost: (a, span, ctx) => costOf(lifetimeOffset({ ...base(ctx), aiMediaPerWeek: num(a) }, ["ai"], undefined, span).parts.ai.impacts),
     impacts: (a, span, ctx) => lifetimeOffset({ ...base(ctx), aiMediaPerWeek: num(a) }, ["ai"], undefined, span).parts.ai.impacts,
