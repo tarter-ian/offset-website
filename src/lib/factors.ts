@@ -16,6 +16,14 @@ export const AVG_OIL_GAL_PER_MONTH = 50;
 export const AVG_PROPANE_GAL_PER_MONTH = 60;
 
 // Typical retail prices, used to turn a bill amount into fuel (approximate).
+/**
+ * Courier miles per food delivery: driving to the restaurant and on to you,
+ * our estimate from driver mileage logs (paid trips run about 4 to 5 miles,
+ * plus the drive to pick up). Packaging isn't counted.
+ */
+export const MILES_PER_DELIVERY = 6;
+/** DoorDash handled 2.6 billion orders in 2024 for 42 million monthly users: about 1.2 a week each (DoorDash 2024 annual report). */
+export const DELIVERIES_PER_WEEK = 1;
 export const GAS_PRICE_PER_THERM = 1.5;
 export const OIL_PRICE_PER_GAL = 3.8;
 export const PROPANE_PRICE_PER_GAL = 2.6;

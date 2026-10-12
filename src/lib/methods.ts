@@ -85,6 +85,10 @@ export const HOW_ESTIMATED: Record<string, string[]> = {
   meat: FOOD_NOTE("meat and fish"),
   dairy: FOOD_NOTE("dairy and eggs"),
   plants: FOOD_NOTE("plant foods"),
+  delivery: [
+    `Each delivery counts as about ${F.MILES_PER_DELIVERY} miles in an average gas car: the courier's drive to the restaurant and on to you. The food itself is under your diet; packaging isn't counted yet.`,
+    "Measured from your DoorDash and Uber Eats orders by the Offset extension; pickups don't count.",
+  ],
   clothing: [
     ...SHOPPING_NOTE("clothing", F.SHOPPING_SHARES.clothing),
     "Water, land and air pollution scale with the carbon, using the EPA's supply-chain model of US spending. Water is raised for cotton grown abroad, from Levi's study of a pair of jeans.",

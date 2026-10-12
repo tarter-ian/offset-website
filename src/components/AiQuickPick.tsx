@@ -11,7 +11,8 @@ import { SIGN_IN_READS } from "@/lib/signinReads";
 
 const AI_NAMES: Record<QuickService, string> = { chatgpt: "ChatGPT", claude: "Claude", gemini: "Gemini" };
 const SERVICES = Object.keys(AI_NAMES) as QuickService[];
-const EXT_NAMES: Record<ExtensionService, string> = { ...AI_NAMES, youtube: "YouTube" };
+const EXT_NAMES: Record<ExtensionService, string> = { ...AI_NAMES, youtube: "YouTube", doordash: "DoorDash", ubereats: "Uber Eats" };
+type FoodService = "doordash" | "ubereats";
 const ERRORS: Record<ExtensionError, (name: string) => string> = {
   "signed-out": (n) => `You're not logged in to ${n} in this browser.`,
   closed: () => "The tab was closed before it finished.",
@@ -36,6 +37,7 @@ export function AiQuickPick({
   onExact,
   onMeasured,
   onVideo,
+  onDelivery,
 }: {
   level: AiLevel | null;
   onPick: (level: AiLevel, from: string) => void;
@@ -44,9 +46,12 @@ export function AiQuickPick({
   onMeasured: (s: UsageSummary, note?: string) => void;
   /** Hours a day of video, measured from YouTube by the extension. */
   onVideo?: (hoursPerDay: number) => void;
+  /** Deliveries a week, measured from DoorDash and Uber Eats together. */
+  onDelivery?: (perWeek: number) => void;
 }) {
   const [ext, setExt] = useState<string | null>(null);
   const [rows, setRows] = useState<Partial<Record<ExtensionService, Row>>>({});
+  const [, setFood] = useState<Partial<Record<FoodService, number>>>({});
   const [aiSummaries, setAiSummaries] = useState<Partial<Record<QuickService, UsageSummary>>>({});
   const [installable, setInstallable] = useState(false);
   const [open, setOpen] = useState<QuickService | null>(null);
@@ -65,6 +70,24 @@ export function AiQuickPick({
       services,
       {
         onUsage: (service, usage) => {
+          if (service === "doordash" || service === "ubereats") {
+            const d = deliveries(usage);
+            if (!d) {
+              setRows((r) => ({ ...r, [service]: { state: "error", error: "unavailable", raw: usage } }));
+              return;
+            }
+            setRows((r) => ({
+              ...r,
+              [service]: { state: "done", raw: usage, text: `${d.deliveries} deliveries and ${d.pickups} pickups in ${d.days} days` },
+            }));
+            setFood((prev) => {
+              const next = { ...prev, [service]: (d.deliveries / d.days) * 7 };
+              const week = Object.values(next).reduce((s, n) => s + (n ?? 0), 0);
+              onDelivery?.(Math.round(week * 10) / 10);
+              return next;
+            });
+            return;
+          }
           if (service === "youtube") {
             const days = youtubeDays(usage);
             const video = activityAmounts(days)?.amounts.video;
@@ -162,8 +185,8 @@ export function AiQuickPick({
             ))}
           </div>
           <p className="mt-2 text-sm text-muted">
-            The Offset extension checks ChatGPT, Claude, Gemini and YouTube in the background, where you&apos;re already logged in, and
-            brings back your last 30 days. Only counts come back, never your chats.{" "}
+            The Offset extension checks ChatGPT, Claude, Gemini, YouTube, DoorDash and Uber Eats in the background, where you&apos;re already logged in, and
+            brings back your last 30 days. Only counts come back, never your chats or orders.{" "}
             <a href="/extension" className="underline hover:text-foreground">
               How it works
             </a>
@@ -304,6 +327,15 @@ export function AiQuickPick({
       {status.kind === "error" && <p className="mt-2 text-sm text-red-700">{status.text}</p>}
     </div>
   );
+}
+
+/** DoorDash or Uber Eats counts from the extension: deliveries and pickups over its window. */
+function deliveries(usage: unknown): { deliveries: number; pickups: number; days: number } | null {
+  if (typeof usage !== "object" || !usage) return null;
+  const u = usage as Record<string, unknown>;
+  const d = Number(u.deliveries);
+  if (!Number.isFinite(d)) return null;
+  return { deliveries: d, pickups: Number(u.pickups) || 0, days: Number(u.windowDays) || 30 };
 }
 
 function youtubeTotals(usage: unknown): { videos: number; shorts: number } {

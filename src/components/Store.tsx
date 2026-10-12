@@ -229,6 +229,13 @@ export function Store() {
     return "Add your Google Maps Timeline";
   };
 
+  /** An amount the extension measured, labelled with where it came from. */
+  const measuredAmount = (id: string, n: number, from: ActivitySource[]) => {
+    setAmounts((a) => ({ ...a, [id]: n }));
+    setEntered((e) => ({ ...e, [id]: false }));
+    setLinkedFrom((l) => ({ ...l, [id]: from }));
+  };
+
   const sourceNote = (p: Product) => {
     if (entered[p.id]) return "you entered";
     if (p.id === "ai" && ctx.aiFromExport && ctx.aiCode)
@@ -618,6 +625,8 @@ export function Store() {
                 setEntered((e) => ({ ...e, ai: false }));
               }}
               onExact={() => setMeasuring(true)}
+              onVideo={(h) => measuredAmount("video", h, ["youtube"])}
+              onDelivery={(n) => measuredAmount("delivery", n, ["doordash", "ubereats"])}
               onMeasured={(s, note) => {
                 const d = digitalFromExport(s);
                 setCtx((c) => ({
