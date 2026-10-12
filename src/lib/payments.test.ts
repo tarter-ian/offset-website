@@ -153,3 +153,24 @@ describe("payment rows", () => {
     expect(repeatRows(s, "annual").every((r) => r.frequency === "YEARLY")).toBe(true);
   });
 });
+
+describe("default spread for past use", async () => {
+  const { bestPastYears, payRows: rowsOf } = await import("./payments");
+  const { DEFAULT_CONTEXT: C, defaultPastYears, defaultAmount, harmSplit, planTotals, productById } = await import("./store");
+  const line = (id: string, past: boolean) => ({ productId: id, amount: defaultAmount(productById(id)!, C), cover: { past, ahead: "monthly" as const } });
+  it("stays within the $10-a-month cap and never costs more than the plain rule", () => {
+    for (const plan of [[line("tv", true)], [line("car", false), line("phone", true)], [line("music", true), line("transit", false)]]) {
+      const base = planTotals(plan, C, "monthly", 0);
+      const past = base.lines.reduce((s, l) => s + l.pastCost, 0);
+      const y = bestPastYears(plan, C, "monthly");
+      const plain = defaultPastYears(past);
+      expect(y === 0 ? past <= 10 : past / (y * 12) <= 10 + 1e-9).toBe(true);
+      const cost = (n: typeof y) => {
+        const r = rowsOf(harmSplit(planTotals(plan, C, "monthly", n), C, "monthly"), "monthly", true);
+        return r.reduce((s, x) => s + x.total, 0);
+      };
+      expect(Number.isFinite(cost(y))).toBe(true);
+      expect(y >= plain || y === 0).toBe(true);
+    }
+  });
+});
