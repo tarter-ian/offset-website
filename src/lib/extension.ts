@@ -16,7 +16,7 @@ const EXT = "offset-extension";
 
 type ExtMessage = {
   source: typeof EXT;
-  type: "ready" | "started" | "counting" | "progress" | "usage" | "error" | "forgotten";
+  type: "ready" | "started" | "counting" | "progress" | "usage" | "error" | "forgotten" | "results";
   version?: string;
   requestId?: string;
   service?: ExtensionService;
@@ -51,8 +51,8 @@ export function detectExtension(timeoutMs = 1000): Promise<string | null> {
 }
 
 /**
- * Asks the extension to delete the per-chat counts it keeps between runs (so a
- * later measure only reads new chats). Resolves true once it confirms, false if
+ * Asks the extension to delete everything it keeps between runs: saved results,
+ * the day-by-day record and per-chat counts. Resolves true once it confirms, false if
  * it isn't installed or doesn't answer.
  */
 export function forgetExtensionData(timeoutMs = 2000): Promise<boolean> {
@@ -88,7 +88,7 @@ export interface MeasureHandlers {
  * Asks the extension to measure services. With one service and `inFront`, its tab opens in front
  * so the person can log in first. Returns a function that stops listening.
  */
-export function measure(services: ExtensionService[], handlers: MeasureHandlers, inFront = false): () => void {
+export function measure(services: ExtensionService[], handlers: MeasureHandlers, inFront = false, maxAgeHours?: number): () => void {
   const requestId = Math.random().toString(36).slice(2);
   const waiting = new Set(services);
   const settle = (s: ExtensionService) => {
@@ -138,8 +138,44 @@ export function measure(services: ExtensionService[], handlers: MeasureHandlers,
   const stop = () => window.removeEventListener("message", onMessage);
   window.addEventListener("message", onMessage);
   if (inFront && services.length === 1) post({ type: "measure", service: services[0], requestId });
-  else post({ type: "measure-all", services, requestId });
+  else post({ type: "measure-all", services, requestId, ...(maxAgeHours ? { maxAgeHours } : {}) });
   return stop;
+}
+
+export type SavedResult = { usage: unknown; measuredAt: string };
+
+/** When a `usage` message was counted (extension 0.16.0 and later), if it says. */
+export const measuredAtOf = (usage: unknown): string | undefined => {
+  const at = typeof usage === "object" && usage ? (usage as Record<string, unknown>).measuredAt : undefined;
+  return typeof at === "string" && Number.isFinite(Date.parse(at)) ? at : undefined;
+};
+
+/**
+ * What the extension saved from earlier counts, without opening anything. Empty
+ * when it isn't installed, is older than 0.16.0, or has nothing saved.
+ */
+export function savedResults(timeoutMs = 1500): Promise<Partial<Record<ExtensionService, SavedResult>>> {
+  return new Promise((resolve) => {
+    const done = (v: Partial<Record<ExtensionService, SavedResult>>) => {
+      window.removeEventListener("message", onMessage);
+      clearTimeout(timer);
+      resolve(v);
+    };
+    const onMessage = (e: MessageEvent) => {
+      const m = fromExtension(e) as (ExtMessage & { results?: unknown }) | null;
+      if (m?.type !== "results") return;
+      const out: Partial<Record<ExtensionService, SavedResult>> = {};
+      const results = typeof m.results === "object" && m.results ? (m.results as Record<string, unknown>) : {};
+      for (const s of EXTENSION_SERVICES) {
+        const r = results[s] as { usage?: unknown; measuredAt?: unknown } | undefined;
+        if (r && r.usage && typeof r.measuredAt === "string" && Number.isFinite(Date.parse(r.measuredAt))) out[s] = { usage: r.usage, measuredAt: r.measuredAt };
+      }
+      done(out);
+    };
+    window.addEventListener("message", onMessage);
+    const timer = setTimeout(() => done({}), timeoutMs);
+    post({ type: "results" });
+  });
 }
 
 /** Chrome and Edge on a computer, where the extension can be installed. */
