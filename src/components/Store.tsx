@@ -360,6 +360,13 @@ export function Store() {
       },
       { monthly: 0, life: 0, past: 0 },
     );
+  /** Cover everything starts every item it adds on monthly, small ones too, so it reads as one monthly price (Ian, 2026-10-12). */
+  const everythingMonthly = addable(PRODUCTS).reduce((t, p) => t + p.cost(amountOf(p), "monthly", ctx), 0);
+  const addEverything = () => {
+    const ids = addable(PRODUCTS).map((p) => p.id);
+    setPicked((x) => ({ ...x, ...Object.fromEntries(ids.map((id) => [id, { ...x[id], ahead: "monthly" as const }])) }));
+    addAll(PRODUCTS);
+  };
   /** e.g. "$9 a month + $40 once". */
   const groupPrice = (ps: Product[]) => {
     const g = groupParts(ps);
@@ -1131,14 +1138,7 @@ export function Store() {
           </h2>
           <p className="mt-1 text-sm text-muted">
             Every item above at the amounts shown:{" "}
-            <span className="figures text-foreground">
-              {[
-                groupParts(PRODUCTS).monthly > 0 && per(groupParts(PRODUCTS).monthly, billing),
-                groupParts(PRODUCTS).life > 0 && `${once(groupParts(PRODUCTS).life)} once for life`,
-              ]
-                .filter(Boolean)
-                .join(" + ")}
-            </span>
+            <span className="figures text-foreground">{per(everythingMonthly, billing)}</span>
             {groupParts(PRODUCTS).past > 0 && (
               <>
                 , plus <span className="figures text-foreground">{once(groupParts(PRODUCTS).past)}</span> for past use, which you can pay
@@ -1152,7 +1152,7 @@ export function Store() {
           ) : (
             <button
               type="button"
-              onClick={() => addAll(PRODUCTS)}
+              onClick={addEverything}
               className="mt-3 min-h-11 cursor-pointer rounded-md bg-foreground px-4 font-semibold text-background hover:opacity-85"
             >
               Add everything
