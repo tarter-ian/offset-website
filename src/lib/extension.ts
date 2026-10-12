@@ -16,7 +16,7 @@ const EXT = "offset-extension";
 
 type ExtMessage = {
   source: typeof EXT;
-  type: "ready" | "started" | "counting" | "usage" | "error" | "forgotten";
+  type: "ready" | "started" | "counting" | "progress" | "usage" | "error" | "forgotten";
   version?: string;
   requestId?: string;
   service?: ExtensionService;
@@ -78,6 +78,8 @@ export interface MeasureHandlers {
   onAsking?: (services: ExtensionService[]) => void;
   /** Services that were allowed and are now counting. */
   onCounting?: (services: ExtensionService[]) => void;
+  /** A rough running figure while a slow count goes on (ChatGPT). Not for pricing: `usage` follows. */
+  onProgress?: (service: ExtensionService, usage: unknown) => void;
   /** Called once every service has answered. */
   onDone?: () => void;
 }
@@ -117,6 +119,10 @@ export function measure(services: ExtensionService[], handlers: MeasureHandlers,
       return;
     }
     if (!m.service || !waiting.has(m.service)) return;
+    if (m.type === "progress") {
+      handlers.onProgress?.(m.service, m.usage);
+      return;
+    }
     if (m.type === "usage") {
       handlers.onUsage(m.service, m.usage);
       settle(m.service);
