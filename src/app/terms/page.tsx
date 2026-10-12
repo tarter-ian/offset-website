@@ -28,8 +28,8 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
     title: "Donations",
     body: (
       <>
-        Your donation goes through a donation partner to the charities on your summary; we never hold it. The partner sends the receipt and
-        decides what is tax-deductible. If a charity closes or stops qualifying, your money goes to the nearest one working on the same
+        Your donation is held by our charity sponsor, a registered charity that runs My Offset as one of its projects, and paid to the
+        charities on your summary; we never hold it ourselves. The sponsor sends the receipt and decides what is tax-deductible. If a charity closes or stops qualifying, your money goes to the nearest one working on the same
         harm, and{" "}
         <Link href="/ledger" className="text-accent hover:underline">
           Where the money goes
@@ -41,7 +41,7 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
   },
   {
     title: "Fees and tips",
-    body: "The card fee is the cost of the card payment, listed separately, and we don't keep any of it. Tips are optional and pay for running the site, never a salary.",
+    body: "The card fee and our charity sponsor's fee are listed separately, and we don't keep any of either. Tips are optional and pay for running the site, never a salary.",
   },
   {
     title: "Paying again",

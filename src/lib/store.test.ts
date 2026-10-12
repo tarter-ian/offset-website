@@ -4,6 +4,7 @@ import {
   ANNUAL_MIN_DONATION_USD,
   DEFAULT_BILLING,
   LIFETIME_MIN_DONATION_USD,
+  feeParts,
   paymentFee,
   MIN_DONATION_USD,
 } from "./pricing";
@@ -113,13 +114,15 @@ describe("planTotals", () => {
     expect(t.recurring!.donation).toBeGreaterThan(MIN_DONATION_USD);
   });
 
-  it("charges only the card fee, so the donation arrives whole", () => {
-    // 30¢ + 3.6% of the whole payment, rounded up to the cent.
-    expect(paymentFee(10)).toBe(0.69);
-    expect(paymentFee(100)).toBe(4.05);
+  it("charges only the card and sponsor fees, so the donation arrives whole", () => {
+    // 30¢ + 2.2% for the card and 8% for the sponsor, of the whole payment, rounded up to the cent.
+    expect(paymentFee(10)).toBe(1.47);
+    expect(paymentFee(100)).toBe(11.7);
     for (const d of [1, 7.5, 40, 386]) {
       const total = d + paymentFee(d);
-      expect(total - (0.3 + 0.036 * total)).toBeGreaterThanOrEqual(d - 1e-9);
+      expect(total - (0.3 + 0.022 * total) - 0.08 * total).toBeGreaterThanOrEqual(d - 1e-9);
+      const parts = feeParts(d);
+      expect(parts.card + parts.sponsor).toBeCloseTo(paymentFee(d), 6);
     }
     expect(paymentFee(0)).toBe(0);
   });

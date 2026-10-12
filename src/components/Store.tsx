@@ -1,6 +1,7 @@
 "use client";
 
 import { AGENT_TOOL_NAMES } from "@/lib/ai/signin";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ActivityUpload } from "./ActivityUpload";
 import { AiExportUpload } from "./AiExportUpload";
@@ -22,6 +23,9 @@ import {
   type Billing,
   DEFAULT_BILLING,
   MIN_DONATION_USD,
+  CARD_FEE_LABEL,
+  SPONSOR_FEE_LABEL,
+  feeParts,
   usd,
 } from "@/lib/pricing";
 import {
@@ -1026,8 +1030,17 @@ export function Store() {
                     </div>
                   )}
                   <div className="flex justify-between gap-4">
-                    <dt className="font-sans text-muted">Card fee (30¢ + 3.6%, none of it to us)</dt>
-                    <dd>{usd((totals.oneTime?.fee ?? 0) + (totals.recurring?.fee ?? 0))}</dd>
+                    <dt className="font-sans text-muted">Card fee ({CARD_FEE_LABEL})</dt>
+                    <dd>{usd(feeParts(totals.oneTime?.donation ?? 0).card + feeParts(totals.recurring?.donation ?? 0).card)}</dd>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <dt className="font-sans text-muted">
+                      <Link href="/ledger#sponsor" className="underline underline-offset-2 hover:text-foreground">
+                        Charity sponsor fee
+                      </Link>{" "}
+                      ({SPONSOR_FEE_LABEL})
+                    </dt>
+                    <dd>{usd(feeParts(totals.oneTime?.donation ?? 0).sponsor + feeParts(totals.recurring?.donation ?? 0).sponsor)}</dd>
                   </div>
                   {tip > 0 && (
                     <div className="flex justify-between gap-4">
@@ -1042,7 +1055,7 @@ export function Store() {
                   {totals.recurring && (
                     <p className="font-sans text-muted">
                       Then {usd(totals.recurring.total)} {BILLING[billing].per} ({usd(totals.recurring.donation)} donation +{" "}
-                      {usd(totals.recurring.fee)} card fee). Cancel anytime.
+                      {usd(totals.recurring.fee)} fees). Cancel anytime.
                     </p>
                   )}
                 </dl>
@@ -1060,14 +1073,14 @@ export function Store() {
                         }`}
                       >
                         Pay {BILLING[b].label.toLowerCase()}
-                        {b === "annual" && " (one card fee a year)"}
+                        {b === "annual" && " (one 30¢ charge a year)"}
                       </button>
                     ))}
                   </div>
                 )}
                 <p className="mt-2 text-xs text-muted">
                   The smallest donation is {usd(MIN_DONATION_USD)}. We pool small donations and send each charity one payment a
-                  month, so none is lost to card fees. You approve each payment yourself, unless you choose autopay, and even then we email you before every charge.
+                  month, so none is lost to extra card fees. You approve each payment yourself, unless you choose autopay, and even then we email you before every charge.
                 </p>
                 {checkout && (
                   <p className="mt-4 text-sm text-muted">Payments aren&apos;t switched on yet. Your plan stays saved in this browser until they are.</p>

@@ -13,7 +13,8 @@ import {
   type CarbonMode,
   WATER_MODES,
   type WaterMode,
-  CARD_RATE,
+  CARD_FEE_LABEL,
+  SPONSOR_FEE_LABEL,
   EWASTE_USD_PER_KG,
   LIFETIME_GROWTH_BUFFER,
   MIN_DONATION_USD,
@@ -263,9 +264,9 @@ export default function MethodPage() {
 
       <h2 className="mt-10 text-xl font-semibold">Fees</h2>
       <p className="mt-2 text-muted">
-        Our fee is only what the card payment costs us: 30¢ plus {Math.round(CARD_RATE * 1000) / 10}% of each payment
-        (Stripe&apos;s 2.9% and 30¢, plus 0.7% for billing), so we make nothing on it and the donation arrives in full. A typical
-        monthly plan pays well under a dollar. Paying yearly means one 30¢ charge a year instead of twelve. Donations
+        We make nothing on fees. Each payment carries two, passed on at cost and worked out on the whole payment so the
+        donation arrives in full: the card fee, {CARD_FEE_LABEL}, and our charity sponsor&apos;s {SPONSOR_FEE_LABEL}. The sponsor is the
+        registered charity that holds the money, sends tax receipts and pays the charities. Paying yearly means one 30¢ charge a year instead of twelve. Donations
         under {usd(MIN_DONATION_USD)} are rounded up. Small donations are pooled and each charity gets one payment a month, so card
         fees don&apos;t eat them, and all of it goes to the charities.
       </p>
@@ -293,7 +294,7 @@ export default function MethodPage() {
         coal is its main source and retires first (in 2023 sulfur dioxide fell 24% and NOx 15%, against 7% for carbon), so we take{" "}
         {Math.round(F.GRID_AIR_CLEANER_PER_YEAR * 100)}% a year for air. Data center cooling water and making devices, mostly overseas, aren&apos;t
         discounted. Future AI use counts {LIFETIME_GROWTH_BUFFER} times over in case it keeps growing. Prices use
-        expected-impact climate pricing, plus the card fee.
+        expected-impact climate pricing, plus fees.
       </p>
       <ul className="mt-3 list-disc space-y-1 pl-5 text-muted">
         <li>

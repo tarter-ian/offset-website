@@ -4,14 +4,14 @@ import { CARBON_REMOVAL, CHARITIES } from "@/lib/charities";
 import { IMPACT_KEYS } from "@/lib/footprint";
 import { IMPACT_INFO } from "@/lib/impacts";
 import { LEDGER } from "@/lib/ledger";
-import { usd } from "@/lib/pricing";
+import { SPONSOR_FEE_LABEL, usd } from "@/lib/pricing";
 
 export const metadata: Metadata = { title: "Where the money goes | My Offset" };
 
 const STEPS = [
-  { title: "You pay", body: "Your donation and the card fee are listed separately at checkout." },
-  { title: "Our donation partner", body: "Your donation goes straight to a registered donation platform, which sends you the tax receipt. We never hold it." },
-  { title: "The charities", body: "The partner pools small donations and pays each charity on your summary once a month. The card fee goes to the card processor. We keep only tips people choose to add, which pay for running the site." },
+  { title: "You pay", body: "Your donation, the card fee and the sponsor fee are listed separately at checkout." },
+  { title: "Our charity sponsor", body: "A registered charity holds your donation and sends you the tax receipt. My Offset is one of its projects, so we never hold the money ourselves. It keeps the sponsor fee for that work." },
+  { title: "The charities", body: "The sponsor pools small donations and pays each charity on your summary once a month. The card fee goes to the card processor. We keep only tips people choose to add, which pay for running the site." },
 ];
 
 // What tips pay for. Rough monthly costs of keeping the site up; amounts are list prices.
@@ -104,6 +104,14 @@ export default function LedgerPage() {
           ))}
         </>
       )}
+
+      <h2 id="sponsor" className="mt-12 scroll-mt-6 text-xl font-semibold">Our charity sponsor</h2>
+      <p className="mt-2 text-muted">
+        My Offset isn&apos;t a charity of its own, so a registered charity runs it as one of its projects. That&apos;s called fiscal
+        sponsorship. The sponsor holds every donation, sends your tax receipt, checks the charities qualify and pays them each month.
+        For that it keeps {SPONSOR_FEE_LABEL} of each payment, shown as its own line at checkout. We&apos;ll name the sponsor here once
+        the agreement is signed.
+      </p>
 
       <h2 id="tips" className="mt-12 scroll-mt-6 text-xl font-semibold">What tips pay for</h2>
       <p className="mt-2 text-muted">

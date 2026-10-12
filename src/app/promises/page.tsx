@@ -12,12 +12,12 @@ const PROMISES = [
   },
   {
     title: "Your donation goes straight to charities",
-    body: "Donations pass through our donation partner directly to the charities on your summary, and you get the partner's receipt. We never hold the money. Every month's totals and receipts are public.",
+    body: "Your donation is held by our charity sponsor, a registered charity, which sends you the tax receipt and pays the charities on your summary each month. We never hold the money ourselves. Every month's totals and receipts are public.",
     link: { href: "/ledger", text: "Where the money goes" },
   },
   {
-    title: "No cut, just the card fee",
-    body: "We don't make money on your donation. The only fee is what the card payment costs: 30¢ plus 3.6% of each payment, which is well under a dollar on a typical monthly plan. Paying yearly means one 30¢ charge instead of twelve. It's listed separately from your donation on every summary. At checkout you can add a tip toward running the site; it's off unless you pick it.",
+    title: "No cut, just costs passed on",
+    body: "We don't make money on your donation. Two fees are passed on at cost, each on its own line: the card payment (30¢ plus 2.2%) and our charity sponsor's 8%, which pays for holding the money, sending tax receipts and paying the charities. Paying yearly means one 30¢ charge instead of twelve. At checkout you can add a tip toward running the site; it's off unless you pick it.",
   },
   {
     title: "No cheap, unverified carbon credits",

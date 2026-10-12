@@ -62,13 +62,26 @@ export const EWASTE_USD_PER_KG = 1;
 const cents = (n: number) => Math.round(n * 100) / 100;
 
 /**
- * Our fee is only what the card payment costs us, so we make no profit on it
- * (Ian, 2026-10-12): Stripe's 30¢ + 2.9%, plus 0.7% for its billing, on each
- * payment. It's worked out on the whole payment, so the donation arrives in full.
+ * We make no profit on fees (Ian, 2026-10-12). Each payment carries two, both
+ * passed on at cost: the card fee (Every.org's 30¢ + 2.2%) and our fiscal
+ * sponsor's share, the charity that holds the money and pays the charities out.
+ * Sponsors charge 6.5–8%; we show 8% until the agreement is signed. Both are
+ * worked out on the whole payment, so the donation arrives in full.
  */
 export const CARD_FIXED_USD = 0.3;
-export const CARD_RATE = 0.036;
-export const paymentFee = (donation: number) => (donation > 0 ? Math.ceil(((CARD_FIXED_USD + CARD_RATE * donation) / (1 - CARD_RATE)) * 100) / 100 : 0);
+export const CARD_RATE = 0.022;
+export const SPONSOR_RATE = 0.08;
+export const paymentFee = (donation: number) =>
+  donation > 0 ? Math.ceil(((CARD_FIXED_USD + (CARD_RATE + SPONSOR_RATE) * donation) / (1 - CARD_RATE - SPONSOR_RATE)) * 100) / 100 : 0;
+/** The fee split into what the card processor and the sponsor each take. */
+export function feeParts(donation: number): { card: number; sponsor: number } {
+  const fee = paymentFee(donation);
+  const sponsor = Math.round(SPONSOR_RATE * (donation + fee) * 100) / 100;
+  return { card: Math.round((fee - sponsor) * 100) / 100, sponsor };
+}
+/** "30¢ + 2.2%" and "8%", for labels. */
+export const CARD_FEE_LABEL = `30¢ + ${Math.round(CARD_RATE * 1000) / 10}%`;
+export const SPONSOR_FEE_LABEL = `${Math.round(SPONSOR_RATE * 1000) / 10}%`;
 
 /**
  * Smallest donation, a dollar on any payment. Small donations are pooled and
