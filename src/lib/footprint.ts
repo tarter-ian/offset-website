@@ -185,11 +185,17 @@ function category(
   };
 }
 
+/** Power generated per kWh used, after losses on the wires. */
+const GENERATED_PER_KWH = 1 / (1 - F.GRID_LINE_LOSS);
+/** Smokestack carbon scaled up for getting the fuel there and for line losses. */
+const SUPPLY_CARBON = (1 + F.GRID_UPSTREAM_SHARE) * GENERATED_PER_KWH;
+
+/** Greenhouse gases per kWh used in a state, including fuel supply and line losses. */
 export function gridKgPerKwh(state: StateCode): number {
-  return (STATES[state].gridLbPerMwh * F.KG_PER_LB) / 1000;
+  return ((STATES[state].gridLbPerMwh * F.KG_PER_LB) / 1000) * SUPPLY_CARBON;
 }
 
-const US_KG_PER_KWH = (F.US_GRID_LB_PER_MWH * F.KG_PER_LB) / 1000;
+const US_KG_PER_KWH = ((F.US_GRID_LB_PER_MWH * F.KG_PER_LB) / 1000) * SUPPLY_CARBON;
 const US_NOX_LB_PER_MWH = 0.5;
 const US_SO2_LB_PER_MWH = 0.359;
 
@@ -203,7 +209,7 @@ export function dataCenterImpacts(kwh: number): Impacts {
   return {
     ...g,
     // Running it, plus its share of building the servers and buildings.
-    carbon: (kwh * (F.KG_PER_STREAMING_HOUR / F.STREAMING_KWH_PER_HOUR)) / (1 - F.DATACENTER_BUILD_SHARE),
+    carbon: (kwh * (F.KG_PER_STREAMING_HOUR / F.STREAMING_KWH_PER_HOUR) * SUPPLY_CARBON) / (1 - F.DATACENTER_BUILD_SHARE),
     water: g.water + coolingWater(kwh),
     land: g.land + kwh * F.DATACENTER_M2_YEARS_PER_KWH,
   };
@@ -218,13 +224,14 @@ export const aiCoolingWater = (answerKwh: number) => coolingWater(answerKwh / (1
 /**
  * Everything behind AI use, from the energy to answer prompts (kWh): its share
  * of training, grid power and cooling water, the hardware and buildings, and
- * extra weight for data centers in dry areas or on their own gas power.
+ * extra weight for data centers in dry areas or on their own gas power. Its
+ * carbon is counted at the plants that ramp up for new demand, not the average.
  */
 export function aiImpacts(answerKwh: number): Impacts {
   const kwh = answerKwh / (1 - F.AI_TRAINING_SHARE);
   const g = gridImpacts(kwh);
   return {
-    carbon: g.carbon / (1 - F.AI_HARDWARE_SHARE),
+    carbon: (g.carbon * (F.AI_NEW_POWER_LB_PER_MWH / F.US_GRID_LB_PER_MWH)) / (1 - F.AI_HARDWARE_SHARE),
     air: g.air * F.AI_LOCAL_AIR_WEIGHT,
     water: g.water + coolingWater(kwh),
     land: g.land + kwh * F.DATACENTER_M2_YEARS_PER_KWH,
@@ -244,11 +251,12 @@ export function gridAirUsdPerKwh(noxLbPerMwh: number, so2LbPerMwh: number): numb
 /** Carbon, air and water for electricity drawn from a grid. */
 export function gridImpacts(kwh: number, state?: StateCode): Impacts {
   const s = state ? STATES[state] : undefined;
+  const generated = kwh * GENERATED_PER_KWH;
   return {
     carbon: kwh * (state ? gridKgPerKwh(state) : US_KG_PER_KWH),
-    air: kwh * gridAirUsdPerKwh(s?.noxLbPerMwh ?? US_NOX_LB_PER_MWH, s?.so2LbPerMwh ?? US_SO2_LB_PER_MWH),
-    water: kwh * F.GRID_L_PER_KWH * F.scarcityWeight("grid"),
-    land: kwh * F.GRID_M2_YEARS_PER_KWH,
+    air: generated * gridAirUsdPerKwh(s?.noxLbPerMwh ?? US_NOX_LB_PER_MWH, s?.so2LbPerMwh ?? US_SO2_LB_PER_MWH),
+    water: generated * F.GRID_L_PER_KWH * F.scarcityWeight("grid"),
+    land: generated * F.GRID_M2_YEARS_PER_KWH,
     ewaste: 0,
   };
 }

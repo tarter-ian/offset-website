@@ -29,6 +29,9 @@ const SOURCES = [
   { name: "Levi Strauss 501 jeans life cycle assessment (2015)", url: "https://www.levistrauss.com/wp-content/uploads/2015/03/Full-LCA-Results-Deck-FINAL.pdf" },
   { name: "EPA eGRID2023 state emission rates (CO₂e, NOx, SO₂)", url: "https://www.epa.gov/egrid/summary-data" },
   { name: "EIA 2024 residential electricity use and prices", url: "https://www.eia.gov/electricity/sales_revenue_price/" },
+  { name: "EIA, how much electricity is lost in transmission and distribution", url: "https://www.eia.gov/tools/faqs/faq.php?id=105&t=3" },
+  { name: "Alvarez et al. 2018, methane emissions from the US oil and gas supply chain (Science)", url: "https://www.science.org/doi/10.1126/science.aar7204" },
+  { name: "EPA AVERT, emissions from power plants that respond to new demand", url: "https://www.epa.gov/avert" },
   { name: "EIA Annual Energy Outlook (future grid carbon)", url: "https://www.eia.gov/outlooks/aeo/" },
   { name: "EPA Power Sector Programs Progress Report (power plant SO2 and NOx trends)", url: "https://www.epa.gov/power-sector/progress-report-emissions-reductions" },
   {
@@ -123,7 +126,7 @@ const ROWS = [
   {
     category: "Home electricity",
     method:
-      "Your bill or your state's average use, times your state's grid rates for greenhouse gases, NOx, SO₂ and water.",
+      `Your bill or your state's average use, times your state's grid rates for greenhouse gases, NOx, SO₂ and water. Those rates count only what leaves the power plant, so we add ${Math.round(F.GRID_UPSTREAM_SHARE * 100)}% to carbon for getting the fuel there (drilling, processing and methane leaking from gas lines) and ${Math.round(F.GRID_LINE_LOSS * 100)}% to everything for power lost on the wires. The same applies to all electricity on this page.`,
   },
   {
     category: "Home heating",
@@ -153,7 +156,7 @@ const ROWS = [
   },
   {
     category: "AI",
-    method: `About ${F.WH_PER_AI_PROMPT} Wh a chatbot prompt, plus its share of training the model, on the US grid, plus data center cooling water. If you add your ChatGPT, Claude or Gemini data export, we measure each prompt instead (longer conversations, reasoning models and images all use more), and your past use is your real history. The extension does the same from your ChatGPT and Claude chat list: each chat you've started since your first counts at the energy your recent chats use. With nothing linked, past use grows steadily from when you say you started (late 2022 at the earliest) to today's rate, which works out to half of today's rate over that time. Gemini's export lists prompts without their conversations, so long Gemini chats count as if each prompt started fresh.`,
+    method: `About ${F.WH_PER_AI_PROMPT} Wh a chatbot prompt, plus its share of training the model, plus data center cooling water. Because AI is new demand on the grid, its carbon is counted at the plants that ramp up to meet new demand, mostly gas, at about ${F.AI_NEW_POWER_LB_PER_MWH.toLocaleString()} lb CO₂ a MWh (EPA AVERT, rough) instead of the ${F.US_GRID_LB_PER_MWH} average. If you add your ChatGPT, Claude or Gemini data export, we measure each prompt instead (longer conversations, reasoning models and images all use more), and your past use is your real history. The extension does the same from your ChatGPT and Claude chat list: each chat you've started since your first counts at the energy your recent chats use. With nothing linked, past use grows steadily from when you say you started (late 2022 at the earliest) to today's rate, which works out to half of today's rate over that time. Gemini's export lists prompts without their conversations, so long Gemini chats count as if each prompt started fresh.`,
   },
   {
     category: "Video streaming",
@@ -325,7 +328,10 @@ export default function MethodPage() {
 
       <h2 className="mt-10 text-xl font-semibold">What we don&apos;t count yet</h2>
       <p className="mt-2 text-muted">
-        Toxic harm from e-waste beyond paying to recycle it, and anything we haven&apos;t thought of. Tell us what&apos;s missing.
+        Some harms are real but have no reliable price per prompt or per purchase yet, so we name them rather than guess: toxic waste and
+        working conditions in mining the metals for chips and devices; &ldquo;forever chemicals&rdquo; (PFAS) used in chip factories; noise and
+        diesel generators near data centers, and higher power bills for their neighbors; and toxic harm from e-waste beyond paying to recycle it.
+        Making the hardware is counted for carbon, water, land and e-waste. Tell us what&apos;s missing.
       </p>
 
       <h2 className="mt-10 text-xl font-semibold">Sources</h2>

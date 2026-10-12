@@ -139,6 +139,19 @@ export const scarcityWeight = (source: keyof typeof STRESSED_WATER_SHARE) =>
   STRESSED_WATER_SHARE[source] + (1 - STRESSED_WATER_SHARE[source]) * UNSTRESSED_WATER_WEIGHT;
 export const KG_PER_STREAMING_HOUR = 0.036;
 export const US_GRID_LB_PER_MWH = 770.9;
+// eGRID counts only what leaves the power plant's stack. Getting the fuel there
+// adds more: drilling, processing and pipeline methane leaks add roughly 10-20%
+// to the US grid's warming (Alvarez et al. 2018 put gas leaks at 2.3%; NREL's
+// life-cycle harmonization studies); we use 12%. And about 5% of power is lost
+// on the wires between the plant and the meter (EIA), so more is generated than
+// is used. Both apply to every kWh.
+export const GRID_UPSTREAM_SHARE = 0.12;
+export const GRID_LINE_LOSS = 0.05;
+// New demand like AI is met mostly by the plants that ramp up when load rises,
+// usually gas, which emit more than the grid average. EPA's AVERT puts these
+// marginal rates at roughly 1,000 to 1,200 lb CO2 per MWh; we use 1,100 for AI's
+// power (rough).
+export const AI_NEW_POWER_LB_PER_MWH = 1100;
 
 // The US grid gets cleaner over time. EIA's 2025 outlook (full IRA) has power
 // CO2 per kWh falling ~6% a year to 2050; its no-IRA case ~2%. With 2025's cuts
