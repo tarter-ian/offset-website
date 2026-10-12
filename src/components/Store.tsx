@@ -108,6 +108,9 @@ const LINK_ROW: { id: ProviderId; label: string }[] = [
   { id: "car", label: "Car" },
 ];
 
+// Optional tips toward hosting and upkeep; the default is none.
+const TIPS = [0, 1, 3, 5];
+
 // When someone started using AI, for past use when no history is linked. ChatGPT launched in late 2022.
 const AI_START_OPTIONS = Array.from({ length: new Date().getFullYear() - 2021 }, (_, i) => {
   const y = 2022 + i;
@@ -127,6 +130,8 @@ export function Store() {
   const [asked, setAsked] = useState<ProviderId[]>([]);
   const [open, setOpen] = useState(false);
   const [checkout, setCheckout] = useState(false);
+  // An optional tip toward running the site, added once to the next payment. Off unless chosen.
+  const [tip, setTip] = useState(0);
   const [measuring, setMeasuring] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
   // Which downloaded histories filled in each tile's amount.
@@ -861,6 +866,12 @@ export function Store() {
                       <dd className="font-medium">{usd(totals.oneTime.total)}</dd>
                     </div>
                   )}
+                  {tip > 0 && (
+                    <div className="flex justify-between gap-4">
+                      <dt className="font-sans text-muted">Tip to keep Offset running, once</dt>
+                      <dd className="font-medium">{usd(tip)}</dd>
+                    </div>
+                  )}
                   {totals.recurring && (
                     <div className="flex justify-between gap-4">
                       <dt className="font-sans text-muted">
@@ -890,6 +901,23 @@ export function Store() {
                     ))}
                   </div>
                 )}
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-sm" role="radiogroup" aria-label="Optional tip">
+                  <span className="text-muted">Add a tip to help keep Offset running?</span>
+                  {TIPS.map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      role="radio"
+                      aria-checked={tip === t}
+                      onClick={() => setTip(t)}
+                      className={`figures min-h-10 rounded-md border px-3 ${
+                        tip === t ? "border-rule bg-foreground text-background" : "border-border hover:border-rule"
+                      }`}
+                    >
+                      {t ? usd(t).replace(".00", "") : "No tip"}
+                    </button>
+                  ))}
+                </div>
                 <p className="mt-2 text-xs text-muted">
                   The smallest donation is {usd(MIN_DONATION_USD)}. We pool small donations and send each charity one payment a
                   month, so none is lost to card fees. You approve every payment yourself; nothing is charged automatically.
@@ -919,7 +947,7 @@ export function Store() {
                 </span>
                 <span className="figures text-muted">
                   {[
-                    totals.oneTime && `${usd(totals.oneTime.total)} once`,
+                    (totals.oneTime || tip > 0) && `${usd((totals.oneTime?.total ?? 0) + tip)} once`,
                     totals.recurring && `${usd(totals.recurring.total)}${billing === "annual" ? "/yr" : "/mo"}`,
                   ]
                     .filter(Boolean)

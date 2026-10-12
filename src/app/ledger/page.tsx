@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "Where the money goes | Offset" };
 const STEPS = [
   { title: "You pay", body: "Your donation and the card fee are listed separately at checkout." },
   { title: "Our donation partner", body: "Your donation goes straight to a registered donation platform, which sends you the tax receipt. We never hold it." },
-  { title: "The charities", body: "The partner pools small donations and pays each charity on your summary once a month. The card fee goes to the card processor; we keep nothing." },
+  { title: "The charities", body: "The partner pools small donations and pays each charity on your summary once a month. The card fee goes to the card processor. We keep only tips people choose to add, which pay for running the site." },
 ];
 
 export default function LedgerPage() {

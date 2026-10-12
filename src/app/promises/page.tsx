@@ -16,7 +16,7 @@ const PROMISES = [
   },
   {
     title: "No cut, just the card fee",
-    body: "We don't make money on your donation. The only fee is what the card payment costs: 30¢ plus 3.6% of each payment, which is well under a dollar on a typical monthly plan. Paying yearly means one 30¢ charge instead of twelve. It's listed separately from your donation on every summary.",
+    body: "We don't make money on your donation. The only fee is what the card payment costs: 30¢ plus 3.6% of each payment, which is well under a dollar on a typical monthly plan. Paying yearly means one 30¢ charge instead of twelve. It's listed separately from your donation on every summary. At checkout you can add a tip toward running the site; it's off unless you pick it.",
   },
   {
     title: "No cheap, unverified carbon credits",
