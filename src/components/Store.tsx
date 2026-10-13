@@ -6,7 +6,7 @@ import { type Covered, STORAGE_KEY } from "@/lib/covered";
 import { recordStatus } from "@/lib/record";
 import { steadyPlan } from "@/lib/steady";
 import { pullCovered, pushCovered } from "@/lib/accountClient";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityUpload } from "./ActivityUpload";
 import { CheckoutSteps } from "./Checkout";
 import { SteadyCheck } from "./SteadyCheck";
@@ -287,7 +287,7 @@ export function Store() {
       ),
     );
     setEntered(s.entered ?? {});
-    setPicked(s.picked ?? {});
+    setPicked(withoutAhead(s.picked ?? {}, (id) => !(s.plan ?? []).includes(id)));
     setAnyway(s.anyway ?? {});
     setPlan(s.plan ?? []);
     setBilling(s.billing ?? null);
@@ -411,6 +411,14 @@ export function Store() {
     };
   }, [plan.length]);
 
+  // A tile left out of the plan goes back to its own default, so a monthly pick from Add all
+  // doesn't stick to small items after they're removed (Ian, 2026-10-13).
+  const planBefore = useRef<string[]>([]);
+  useEffect(() => {
+    const gone = planBefore.current.filter((id) => !plan.includes(id));
+    planBefore.current = plan;
+    if (gone.length) setPicked((x) => withoutAhead(x, (id) => gone.includes(id)));
+  }, [plan]);
   const toggle = (id: string) => setPlan((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
   /** Items worth adding in a group: everything with something to cover at its current amount. */
   const addable = (ps: Product[]) =>
@@ -1930,6 +1938,11 @@ function GiveDirectly({ totals, ctx, billing }: { totals: ReturnType<typeof plan
 
 /** Above this, the first Give waits for a one-tap confirmation of the day's total. */
 const BIG_PAYMENT_USD = 100;
+
+/** Picks with the monthly-or-lifetime choice forgotten for the items that match. */
+function withoutAhead(picked: Record<string, Partial<Cover>>, forget: (id: string) => boolean) {
+  return Object.fromEntries(Object.entries(picked).map(([id, c]) => [id, forget(id) ? { ...c, ahead: undefined } : c]));
+}
 
 /**
  * Paying each charity in turn through Every.org: an autopay choice, then one
