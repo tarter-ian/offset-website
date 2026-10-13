@@ -87,6 +87,11 @@ h2 {
   letter-spacing: -0.015em;
 }
 
+/* Fraunces reads warm at semibold; its extra-bold cut is too heavy for headlines. */
+.font-display.font-extrabold {
+  font-weight: 600;
+}
+
 /* Visible keyboard focus everywhere, never removed. */
 :focus-visible {
   outline: 2px solid var(--accent);

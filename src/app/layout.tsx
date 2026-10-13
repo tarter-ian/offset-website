@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { Archivo, IBM_Plex_Mono, Public_Sans } from "next/font/google";
+import { Fraunces, IBM_Plex_Mono, Public_Sans } from "next/font/google";
 import Link from "next/link";
 import { AccountNav } from "@/components/Account";
 import "./globals.css";
 
-// Archivo's narrow, heavy cuts for headings, Public Sans (made for US government
+// Fraunces, a soft serif, for headings, Public Sans (made for US government
 // forms) for reading, and Plex Mono for every dollar and kilowatt-hour.
-const head = Archivo({ subsets: ["latin"], axes: ["wdth"], variable: "--font-head" });
+const head = Fraunces({ subsets: ["latin"], axes: ["opsz"], variable: "--font-head" });
 const body = Public_Sans({ subsets: ["latin"], variable: "--font-body" });
 const figures = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-figures" });
 
