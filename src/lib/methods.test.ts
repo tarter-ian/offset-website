@@ -12,6 +12,7 @@ describe("item info", () => {
       const goes = whereItGoes(sumImpacts([c.once, c.monthly]));
       expect(goes.length, p.id).toBeGreaterThan(0);
       expect(goes.reduce((s, g) => s + g.share, 0), p.id).toBeGreaterThan(0.98);
+      expect(new Set(goes.map((g) => g.charity.name)).size, p.id).toBe(goes.length);
     }
   });
 });

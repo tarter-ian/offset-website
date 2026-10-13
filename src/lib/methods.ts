@@ -124,11 +124,31 @@ export const HOW_ESTIMATED: Record<string, string[]> = {
 export const howEstimated = (p: Product): string[] => HOW_ESTIMATED[p.id] ?? [];
 
 /** Who gets an item's donation, and each charity's share of it. */
+/** One row per charity: a charity that takes more than one harm (CATF does climate and air) shows once, with its shares added. */
 export function whereItGoes(i: Impacts): { key: ImpactKey; charity: Charity; share: number }[] {
   const c = impactCost(i);
   const total = IMPACT_KEYS.reduce((s, k) => s + c[k], 0);
   if (total <= 0) return [];
-  return IMPACT_KEYS.filter((k) => c[k] / total >= 0.005)
-    .map((k) => ({ key: k, charity: CHARITIES[k], share: c[k] / total }))
+  const rows = new Map<string, { key: ImpactKey; charity: Charity; share: number; keys: ImpactKey[] }>();
+  for (const k of IMPACT_KEYS) {
+    const share = c[k] / total;
+    const row = rows.get(CHARITIES[k].name);
+    if (row) {
+      row.share += share;
+      row.keys.push(k);
+    } else rows.set(CHARITIES[k].name, { key: k, charity: CHARITIES[k], share, keys: [k] });
+  }
+  return [...rows.values()]
+    .filter((r) => r.share >= 0.005)
+    .map(({ key, charity, share, keys }) => ({
+      key,
+      charity: keys.length > 1 && JOINT_FOCUS[charity.name] ? { ...charity, focus: JOINT_FOCUS[charity.name] } : charity,
+      share,
+    }))
     .sort((a, b) => b.share - a.share);
 }
+
+/** What a charity that takes several harms does, for its one row. */
+const JOINT_FOCUS: Record<string, string> = {
+  "Clean Air Task Force": "Climate and clean air: pushed the rules that cut soot and smog from US power plants and diesel engines",
+};

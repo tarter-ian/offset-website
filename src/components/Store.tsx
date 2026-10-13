@@ -192,7 +192,6 @@ const amountText = (p: Product, amount: number | string) =>
       }`
     : (p.amount.options.find((o) => o.value === amount)?.label ?? String(amount));
 const providerName = (id: ProviderId) => PROVIDERS.find((x) => x.id === id)?.name ?? id;
-const SHELF_SIZE = 3;
 /**
  * What a new visitor sees first in each aisle: the things most people have,
  * at friendly prices. Cards measured from an account move ahead of these.
@@ -249,7 +248,6 @@ export function Store() {
   const [pastEveryday, setPastEverydayState] = useState(false);
   const [details, setDetails] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   /** The aisles stay folded until someone asks for them, so the first visit is about AI alone. */
   const [shelvesOpen, setShelvesOpen] = useState(false);
 
@@ -420,16 +418,16 @@ export function Store() {
       return c.once + c.monthly > 0;
     });
   const addAll = (ps: Product[]) => setPlan((cur) => [...cur, ...addable(ps).map((p) => p.id).filter((id) => !cur.includes(id))]);
-  /** What a group of items costs as they're set: each month, once for life, and once for past use. */
-  const groupParts = (ps: Product[]) =>
-    addable(ps).reduce(
-      (t, p) => {
-        const c = coverPrice(p, amountOf(p), coverOf(p), ctx);
-        const past = coverOf(p).past ? p.cost(amountOf(p), "past", ctx) : 0;
-        return { monthly: t.monthly + c.monthly, life: t.life + c.once - past, past: t.past + past };
-      },
-      { monthly: 0, life: 0, past: 0 },
-    );
+  /** Monthly wherever it's offered, so adding a group never leads with a big one-time charge (Ian, 2026-10-13). */
+  const monthlyCover = (p: Product): Cover => {
+    const c = coverOf(p);
+    return plan.includes(p.id) || !aheadFor(p, amountOf(p), ctx, anyway[p.id]).includes("monthly") ? c : { ...c, ahead: "monthly" };
+  };
+  const addGroup = (ps: Product[]) => {
+    const ids = addable(ps).filter((p) => !plan.includes(p.id) && monthlyCover(p).ahead === "monthly").map((p) => p.id);
+    setPicked((x) => ({ ...x, ...Object.fromEntries(ids.map((id) => [id, { ...x[id], ahead: "monthly" as const }])) }));
+    addAll(ps);
+  };
   /**
    * Cover everything starts every item it adds on monthly, small ones too, so it reads as one monthly price,
    * and shows what checkout will: card fees and the past-use instalment included (Ian, 2026-10-12).
@@ -450,10 +448,18 @@ export function Store() {
     setPicked((x) => ({ ...x, ...Object.fromEntries(ids.map((id) => [id, { ...x[id], ahead: "monthly" as const }])) }));
     addAll(PRODUCTS);
   };
-  /** e.g. "$9 a month + $40 once". */
+  /** e.g. "$9 a month, past use spread over 3 years": each item monthly, past use in instalments as checkout would. */
   const groupPrice = (ps: Product[]) => {
-    const g = groupParts(ps);
-    return [g.monthly > 0 && per(g.monthly, billing), g.life + g.past > 0 && `${once(g.life + g.past)} once`].filter(Boolean).join(" + ");
+    const gLines = addable(ps).map((p) => ({ productId: p.id, amount: amountOf(p), cover: monthlyCover(p) }));
+    const t = planTotals(gLines, ctx, billing, pastYears ?? bestPastYears(gLines, ctx, billing));
+    const monthly = t.lines.reduce((s, l) => s + (l.cover.ahead === "monthly" ? l.aheadCost : 0), 0) + (t.pastSpread?.perMonth ?? 0);
+    const onceSum = t.lines.reduce((s, l) => s + (l.cover.ahead === "lifetime" ? l.aheadCost + l.pastCost : t.pastSpread ? 0 : l.pastCost), 0);
+    return [
+      monthly > 0 && per(monthly, billing),
+      onceSum > 0 && `${once(onceSum)} once`,
+    ]
+      .filter(Boolean)
+      .join(" + ") + (t.pastSpread ? `, past use spread over ${t.pastSpread.years === 1 ? "a year" : `${t.pastSpread.years} years`}` : "");
   };
   // Meat, dairy and plant foods are three parts of one diet, so they share one answer.
   const FOOD_IDS = PRODUCTS.filter((x) => x.section === "food").map((x) => x.id);
@@ -741,7 +747,8 @@ export function Store() {
     };
   };
 
-  /** The (i) panel over a tile: how the item is estimated and who gets the money. */
+  const summaryCls = "flex min-h-10 cursor-pointer list-none items-center justify-between font-bold [&::-webkit-details-marker]:hidden after:content-['+'] after:text-lg after:font-normal [[open]>&]:after:content-['−']";
+  /** The (i) panel over a tile, folded into three parts (Ian, 2026-10-13): what it covers, how it's estimated, who gets the money. */
   const infoPanel = (p: Product) => {
     const c = coverImpacts(p, amountOf(p), coverOf(p), ctx);
     const goes = whereItGoes(sumImpacts([c.once, c.monthly]));
@@ -753,36 +760,45 @@ export function Store() {
         className="mt-3 border-t-2 border-rule pt-3 text-sm"
       >
         <p className="mb-2">{p.blurb}</p>
-        <h4 className="font-bold">What it covers</h4>
-        <ul className="mt-1 mb-3 space-y-1 text-muted">
+        <details open className="border-t border-border py-2">
+          <summary className={summaryCls}>What it covers</summary>
           {coversLines(p, true)
             .filter((l) => l[1])
             .map(([label, text]) => (
-              <li key={label}>
-                {label}: {text}
+              <div key={label} className="mt-2">
+                <p className="font-semibold">{label}</p>
+                <ul className="mt-1 space-y-1 text-muted">
+                  {text.split(" · ").map((part) => (
+                    <li key={part}>{part}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+        </details>
+        <details className="border-t border-border py-2">
+          <summary className={summaryCls}>How we estimate it</summary>
+          <ul className="mt-2 list-disc space-y-1 pl-4 text-muted">
+            {howEstimated(p).map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </details>
+        <details className="border-y border-border py-2">
+          <summary className={summaryCls}>Where the money goes</summary>
+          <ul className="mt-2 space-y-1">
+            {goes.map((g) => (
+              <li key={g.key} className="flex justify-between gap-3">
+                <span>
+                  <a href={g.charity.url} target="_blank" rel="noreferrer" className="underline underline-offset-2">
+                    {g.charity.name}
+                  </a>
+                  <span className="block text-xs text-muted">{g.charity.focus}</span>
+                </span>
+                <span className="figures shrink-0">{Math.round(g.share * 100)}%</span>
               </li>
             ))}
-        </ul>
-        <h4 className="font-bold">How we estimate it</h4>
-        <ul className="mt-1 list-disc space-y-1 pl-4 text-muted">
-          {howEstimated(p).map((line) => (
-            <li key={line}>{line}</li>
-          ))}
-        </ul>
-        <h4 className="mt-3 font-bold">Where the money goes</h4>
-        <ul className="mt-1 space-y-1">
-          {goes.map((g) => (
-            <li key={g.key} className="flex justify-between gap-3">
-              <span>
-                <a href={g.charity.url} target="_blank" rel="noreferrer" className="underline underline-offset-2">
-                  {g.charity.name}
-                </a>
-                <span className="block text-xs text-muted">{g.charity.focus}</span>
-              </span>
-              <span className="figures shrink-0">{Math.round(g.share * 100)}%</span>
-            </li>
-          ))}
-        </ul>
+          </ul>
+        </details>
         <p className="mt-2 text-xs text-muted">
           <a href="/method" className="underline">Full method and sources</a>
         </p>
@@ -791,7 +807,7 @@ export function Store() {
   };
 
   /** A store tile: what it is, why it matters, your amount, the price and a one-tap add. Details open below the shelf. */
-  const tile = (p: Product, index: number, collapsed: boolean) => {
+  const tile = (p: Product) => {
     const amount = amountOf(p);
     const cover = coverOf(p);
     const price = coverPrice(p, amount, cover, ctx);
@@ -826,8 +842,6 @@ export function Store() {
         key={p.id}
         className={`flex w-[78%] shrink-0 snap-start flex-col rounded-md p-4 md:w-auto ${
           paid?.kind === "life" || lifestyle ? "bg-life" : paid ? "bg-period" : plan.includes(p.id) ? "bg-accent-soft" : "bg-card"
-        } ${
-          collapsed && index >= SHELF_SIZE ? "md:hidden" : ""
         } ${isOpen ? "outline-2 outline-rule" : ""}`}
       >
         <div className="flex items-start justify-between gap-2">
@@ -1411,8 +1425,6 @@ export function Store() {
           .sort((a, b) => a.r - b.r)
           .map(({ p }) => p);
         if (!items.length) return null;
-        const collapsed = !expanded[s.key];
-        // Keep an open item's details visible even if the shelf is collapsed.
         const openItem = items.find((p) => p.id === details);
         return (
           <section key={s.key} id={`section-${s.key}`} className="mb-10 scroll-mt-16" aria-labelledby={`heading-${s.key}`}>
@@ -1430,25 +1442,16 @@ export function Store() {
                   ) : (
                     <button
                       type="button"
-                      onClick={() => addAll(items)}
+                      onClick={() => addGroup(items)}
                       className="min-h-10 cursor-pointer text-sm font-semibold underline underline-offset-4"
                     >
                       Add all {addable(items).length} <span className="amount font-normal text-muted">· {groupPrice(items)}</span>
                     </button>
                   ))}
-                {items.length > SHELF_SIZE && (
-                  <button
-                    type="button"
-                    onClick={() => setExpanded((x) => ({ ...x, [s.key]: !x[s.key] }))}
-                    className="hidden min-h-10 items-center text-sm font-semibold underline underline-offset-4 md:inline-flex"
-                  >
-                    {collapsed ? `See all ${items.length}` : "See fewer"}
-                  </button>
-                )}
               </div>
             </div>
             <ul className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:grid-cols-3 md:overflow-visible md:px-0 md:pb-0">
-              {items.map((p, i) => tile(p, i, collapsed))}
+              {items.map((p) => tile(p))}
             </ul>
             {openItem && detailPanel(openItem)}
             {(s.key === "online" || s.key === "devices") && (
