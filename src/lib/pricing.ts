@@ -80,27 +80,53 @@ const cents = (n: number) => Math.round(n * 100) / 100;
  * also carries the sponsor's share, 6.5–8%; we show 8% until an agreement is
  * signed. Paying through Every.org directly ("every" mode, for now) has no
  * sponsor, so its rate is 0 and each charity is paid separately, with its own
- * card fee. Fees are worked out on the whole payment, so the donation arrives in full.
+ * card fee. Through an Endaoment fund ("endaoment" mode, Ian leaning toward it
+ * 2026-10-13), the person makes one gift to the fund and Endaoment grants it on
+ * to the charities: its share is 0.5% on the way in plus 1% on the grant out.
+ * Fees are worked out on the whole payment, so the donation arrives in full.
  */
-export type PaymentMode = "every" | "sponsor";
+export type PaymentMode = "every" | "sponsor" | "endaoment";
+export interface CardRate {
+  fixed: number;
+  rate: number;
+}
 export const CARD_FIXED_USD = 0.3;
 export const CARD_RATE = 0.022;
+export const CARD: CardRate = { fixed: CARD_FIXED_USD, rate: CARD_RATE };
 export const SPONSOR_RATE = 0.08;
-/** The sponsor's share in each payment mode: none when paying through Every.org directly. */
-export const sponsorRate = (mode: PaymentMode) => (mode === "every" ? 0 : SPONSOR_RATE);
-export const paymentFee = (donation: number, sponsor: number = SPONSOR_RATE) =>
-  donation > 0 ? Math.ceil(((CARD_FIXED_USD + (CARD_RATE + sponsor) * donation) / (1 - CARD_RATE - sponsor)) * 100) / 100 : 0;
+/** Endaoment's published fees: 0.5% on donations in, 1% on grants out, no minimum gift or grant. */
+export const ENDAOMENT_IN_RATE = 0.005;
+export const ENDAOMENT_GRANT_RATE = 0.01;
+/**
+ * UNCONFIRMED: Endaoment's card processing fee. Ian asked Endaoment (2026-10-13)
+ * and has no answer yet; this is Stripe's standard 2.9% + 30¢, higher than
+ * Every.org's, so the donation still arrives in full if the real fee is lower.
+ * Replace with Endaoment's figure once it replies.
+ */
+export const ENDAOMENT_CARD: CardRate = { fixed: 0.3, rate: 0.029 };
+/** The share kept by whoever holds the money, in each payment mode: none when paying through Every.org directly. */
+export const sponsorRate = (mode: PaymentMode) =>
+  mode === "every" ? 0 : mode === "endaoment" ? ENDAOMENT_IN_RATE + ENDAOMENT_GRANT_RATE : SPONSOR_RATE;
+/** The card rate in each payment mode. */
+export const cardRate = (mode: PaymentMode): CardRate => (mode === "endaoment" ? ENDAOMENT_CARD : CARD);
+export const paymentFee = (donation: number, sponsor: number = SPONSOR_RATE, card: CardRate = CARD) =>
+  donation > 0 ? Math.ceil(((card.fixed + (card.rate + sponsor) * donation) / (1 - card.rate - sponsor)) * 100) / 100 : 0;
 /** The card fee alone on one payment, as on each Every.org donation. */
 export const cardFee = (donation: number) => paymentFee(donation, 0);
-/** The fee split into what the card processor and the sponsor each take. */
-export function feeParts(donation: number): { card: number; sponsor: number } {
-  const fee = paymentFee(donation);
-  const sponsor = Math.round(SPONSOR_RATE * (donation + fee) * 100) / 100;
-  return { card: Math.round((fee - sponsor) * 100) / 100, sponsor };
+/** The fee split into what the card processor and the sponsor (or Endaoment) each take. */
+export function feeParts(donation: number, sponsor: number = SPONSOR_RATE, card: CardRate = CARD): { card: number; sponsor: number } {
+  const fee = paymentFee(donation, sponsor, card);
+  const share = Math.round(sponsor * (donation + fee) * 100) / 100;
+  return { card: Math.round((fee - share) * 100) / 100, sponsor: share };
 }
 /** "30¢ + 2.2%" and "8%", for labels. */
 export const CARD_FEE_LABEL = `30¢ + ${Math.round(CARD_RATE * 1000) / 10}%`;
 export const SPONSOR_FEE_LABEL = `${Math.round(SPONSOR_RATE * 1000) / 10}%`;
+const pct = (r: number) => `${Math.round(r * 1000) / 10}%`;
+/** "0.5%", "1%" and "30¢ + 2.9%", for Endaoment's labels. */
+export const ENDAOMENT_IN_LABEL = pct(ENDAOMENT_IN_RATE);
+export const ENDAOMENT_GRANT_LABEL = pct(ENDAOMENT_GRANT_RATE);
+export const ENDAOMENT_CARD_LABEL = `30¢ + ${pct(ENDAOMENT_CARD.rate)}`;
 
 /**
  * Smallest donation, a dollar on any payment. Small donations are pooled and

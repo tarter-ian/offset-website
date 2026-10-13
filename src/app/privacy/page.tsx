@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ContactLink } from "@/components/ContactLink";
-import { PAYMENT_MODE } from "@/lib/payments";
+import { forMode, PAYMENT_MODE } from "@/lib/payments";
 
 export const metadata: Metadata = { title: "Privacy policy | My Offset" };
 
@@ -52,7 +52,9 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
   },
   {
     title: "When you pay",
-    body: PAYMENT_MODE === "every"
+    body: PAYMENT_MODE === "endaoment"
+      ? "You give on Endaoment's page for My Offset's fund. Endaoment, a nonprofit, takes your card or bank details under its own privacy policy; we never see them. It keeps your name and email to send the tax receipt. This browser keeps a note of what you gave and when, so checkout can show it; we don't receive it. Gifts made for someone else go through Every.org, which tells us the charity, the amount and your email if you share it, so we can show which gifts arrived."
+      : PAYMENT_MODE === "every"
       ? "You pay each charity on Every.org, a nonprofit donation platform, which takes your card or bank details under its own privacy policy; we never see them. For each gift made through our links, Every.org tells us the charity, the amount, how often it repeats, and your email if you share it. We keep that so we can show which gifts arrived. Every.org keeps your name and email to send the tax receipt."
       : "Payments aren't switched on yet. When they are, a card processor will take your card details, and we will never see or store your card number. We will keep your email, what you gave and when, so we can send receipts and the heads-up before any autopay charge. Your donation goes through a donation partner, which keeps your name and email to issue the tax receipt under its own privacy policy. This section will name both companies before the first payment.",
   },
@@ -66,7 +68,9 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
   },
   {
     title: "Who we share it with",
-    body: PAYMENT_MODE === "every"
+    body: PAYMENT_MODE === "endaoment"
+      ? "No one, except the companies that make the service run: our host, and Endaoment and Every.org for payments, each only for its own job. We will never sell your data or share it for advertising."
+      : PAYMENT_MODE === "every"
       ? "No one, except the companies that make the service run: our host, and Every.org for payments, each only for its own job. We will never sell your data or share it for advertising."
       : "No one, except the companies that make the service run: our host now, and the card processor and donation partner once payments start, each only for its own job. We will never sell your data or share it for advertising.",
   },
@@ -83,7 +87,8 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
           Your data
         </Link>{" "}
         has buttons that clear both. Once payments start, you can ask us to delete your payment records too, except what the law or{" "}
-        {PAYMENT_MODE === "every" ? "Every.org requires" : "the donation partner requires us to keep"} for tax receipts.
+        {forMode({ every: "Every.org requires", endaoment: "Endaoment or Every.org requires", sponsor: "the donation partner requires us to keep" })} for
+        tax receipts.
       </>
     ),
   },

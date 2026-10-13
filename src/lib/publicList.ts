@@ -85,7 +85,8 @@ export function parsePlanClaim(b: Record<string, unknown>): PlanClaimInput | nul
 }
 
 export function planRows(i: PlanClaimInput): PayRow[] {
-  return payRows(harmSplit(planTotals(i.lines, i.ctx, i.billing, i.pastYears), i.ctx, i.billing), i.billing, i.autopay);
+  // The list checks Every.org gifts, so its rows are always Every.org's.
+  return payRows(harmSplit(planTotals(i.lines, i.ctx, i.billing, i.pastYears), i.ctx, i.billing), i.billing, i.autopay, "every");
 }
 
 /** Whether rows the browser showed match the server's own: same charities, same gifts to the cent. */

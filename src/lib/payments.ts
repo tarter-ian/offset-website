@@ -1,22 +1,40 @@
 import { CHARITIES } from "./charities";
 import type { ImpactKey } from "./footprint";
-import { BILLING, type Billing, cardFee, MIN_DONATION_USD, paymentFee, type PaymentMode, sponsorRate } from "./pricing";
+import { BILLING, type Billing, cardFee, cardRate, feeParts, MIN_DONATION_USD, paymentFee, type PaymentMode, sponsorRate } from "./pricing";
 import { defaultPastYears, harmSplit, type HarmSplit, PAST_MONTHLY_CAP_USD, PAST_YEARS, type PastYears, type PlanLine, planTotals } from "./store";
 import type { Context } from "./store";
 
 // How people pay. For now each charity is paid through Every.org directly, a free
 // 501(c)(3) donation platform that sends its own receipt for each gift (Ian,
-// 2026-10-12). A fiscal sponsor may come later; then payLink() is the one place
-// that would point at the sponsor's single checkout instead.
+// 2026-10-12). Every.org wants at least $10 a gift, so Ian leans toward one gift
+// to an Endaoment fund that grants it on to the charities (2026-10-13); that mode
+// is built but stays off until the fund exists and Endaoment has answered him.
 
 export type { PaymentMode };
-export const PAYMENT_MODE: PaymentMode = "every";
+
+const httpsUrl = (u: string | undefined) => {
+  try {
+    return !!u && new URL(u).protocol === "https:";
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * NEXT_PUBLIC_PAYMENT_MODE=endaoment gives through the Endaoment fund, but only
+ * with NEXT_PUBLIC_ENDAOMENT_FUND_URL set to its donate page; anything else stays on Every.org.
+ */
+export const paymentModeFrom = (mode: string | undefined, fundUrl: string | undefined): PaymentMode =>
+  mode === "endaoment" && httpsUrl(fundUrl) ? "endaoment" : "every";
+export const PAYMENT_MODE: PaymentMode = paymentModeFrom(process.env.NEXT_PUBLIC_PAYMENT_MODE, process.env.NEXT_PUBLIC_ENDAOMENT_FUND_URL);
+/** Picks the wording or value for the current payment mode, so no mode is left showing another's. */
+export const forMode = <T>(m: Record<PaymentMode, T>, mode: PaymentMode = PAYMENT_MODE): T => m[mode];
 
 /** Payments are off until NEXT_PUBLIC_PAYMENTS_ON is "1"; until then nothing is chargeable. */
 export const paymentsOn = () => process.env.NEXT_PUBLIC_PAYMENTS_ON === "1";
 
-/** The fee on one payment in the current mode: the card fee, plus the sponsor's share once there is one. */
-export const feeFor = (donation: number, mode: PaymentMode = PAYMENT_MODE) => paymentFee(donation, sponsorRate(mode));
+/** The fee on one payment in the current mode: the card fee, plus the sponsor's or Endaoment's share. */
+export const feeFor = (donation: number, mode: PaymentMode = PAYMENT_MODE) => paymentFee(donation, sponsorRate(mode), cardRate(mode));
 
 /**
  * Every.org nonprofit slugs, each checked against its every.org page (2026-10-12).
@@ -117,15 +135,29 @@ export function bestPastYears(plan: PlanLine[], ctx: Context, billing: Billing, 
   const months = 12 * PAST_YEARS[PAST_YEARS.length - 1];
   const perPeriod = billing === "annual" ? 12 : 1;
   const paid = (y: PastYears) => {
-    const rows = payRows(harmSplit(planTotals(plan, ctx, billing, y), ctx, billing), billing, true, mode);
-    const plainRepeat = y ? payRows(harmSplit(base, ctx, billing), billing, true, mode).filter((r) => r.frequency !== "ONCE") : [];
-    const once = sumTotal(rows.filter((r) => r.frequency === "ONCE"));
-    const repeat = sumTotal(rows.filter((r) => r.frequency !== "ONCE"));
-    return once + repeat * ((12 * (y || months / 12)) / perPeriod) + (y ? sumTotal(plainRepeat) * ((months - 12 * y) / perPeriod) : 0);
+    const now = charges(harmSplit(planTotals(plan, ctx, billing, y), ctx, billing), billing, mode);
+    const plainRepeat = y ? charges(harmSplit(base, ctx, billing), billing, mode).repeat : 0;
+    return now.once + now.repeat * ((12 * (y || months / 12)) / perPeriod) + plainRepeat * ((months - 12 * y) / perPeriod);
   };
   const first = defaultPastYears(past);
   const allowed = PAST_YEARS.filter((y) => (y === 0 ? past <= PAST_MONTHLY_CAP_USD : y >= first));
   return allowed.reduce((best, y) => (paid(y) < paid(best) - 0.005 ? y : best), allowed[0]);
+}
+
+/** What a plan charges once, and then each month or year, with every fee, when the repeating part is its own gift. */
+function charges(split: HarmSplit, billing: Billing, mode: PaymentMode): { once: number; repeat: number } {
+  if (mode === "endaoment") return { once: fundGift(byHarm((k) => split[k].once)).total, repeat: fundGifts(split).repeat?.total ?? 0 };
+  const rows = payRows(split, billing, true, mode);
+  return { once: sumTotal(rows.filter((r) => r.frequency === "ONCE")), repeat: sumTotal(rows.filter((r) => r.frequency !== "ONCE")) };
+}
+
+/** What checkout charges today and then each month or year, fees included, through Every.org or Endaoment. */
+export function chargeSummary(split: HarmSplit, billing: Billing, autopay: boolean, mode: PaymentMode = PAYMENT_MODE) {
+  if (mode === "endaoment") {
+    const g = fundGifts(split);
+    return { today: g.today.total, then: g.repeat?.total ?? 0 };
+  }
+  return { today: sumTotal(payRows(split, billing, autopay, mode)), then: sumTotal(repeatRows(split, billing, mode)) };
 }
 
 export const sumTotal = (rows: PayRow[]) => Math.round(rows.reduce((s, r) => s + r.total, 0) * 100) / 100;
@@ -133,6 +165,74 @@ export const sumTotal = (rows: PayRow[]) => Math.round(rows.reduce((s, r) => s +
 /** The card fees for giving these amounts to the charities one payment each, as Every.org charges them. */
 export function perCharityFees(amounts: Partial<Record<ImpactKey, number>>): number {
   return Math.round([...byPayee(amounts).values()].reduce((s, g) => s + cardFee(g.amount), 0) * 100) / 100;
+}
+
+// Endaoment: one gift to the fund, which Endaoment grants on to each charity.
+
+/** One charity's part of a gift to the fund, and the harms it pays for. */
+export interface FundPart {
+  charity: ImpactKey;
+  harms: ImpactKey[];
+  amount: number;
+}
+
+/** One gift to the Endaoment fund: what each charity gets, and the fees on top. */
+export interface FundGift {
+  parts: FundPart[];
+  donation: number;
+  /** The card processor's part of the fee, an estimate until Endaoment confirms its rate. */
+  card: number;
+  /** Endaoment's part: 0.5% in and 1% on the grant out, worked out on the whole gift so the charities get theirs in full. */
+  endaoment: number;
+  fee: number;
+  total: number;
+}
+
+const cents = (n: number) => Math.round(n * 100) / 100;
+const byHarm = (f: (k: ImpactKey) => number) => Object.fromEntries(HARM_ORDER.map((k) => [k, f(k)])) as Record<ImpactKey, number>;
+
+/**
+ * One gift to the fund for these per-harm amounts. Endaoment has no smallest
+ * gift or grant, so nothing is rounded up to a dollar: each harm's share is kept
+ * to the cent (rounded up, so no charity gets less) and goes to its own charity.
+ */
+export function fundGift(amounts: Partial<Record<ImpactKey, number>>): FundGift {
+  const groups = new Map<ImpactKey, FundPart>();
+  for (const k of HARM_ORDER) {
+    const a = amounts[k] ?? 0;
+    if (!(a >= 0.005)) continue;
+    const part = groups.get(payee(k)) ?? { charity: payee(k), harms: [], amount: 0 };
+    part.amount = cents(part.amount + upToCent(a));
+    part.harms.push(k);
+    groups.set(payee(k), part);
+  }
+  const parts = [...groups.values()];
+  const donation = cents(parts.reduce((s, p) => s + p.amount, 0));
+  const fee = feeFor(donation, "endaoment");
+  const shares = feeParts(donation, sponsorRate("endaoment"), cardRate("endaoment"));
+  return { parts, donation, card: shares.card, endaoment: shares.sponsor, fee, total: cents(donation + fee) };
+}
+
+/**
+ * Today's gift (past use, lifetime and the first month or year together) and
+ * what each later month or year comes to. Whether Endaoment repeats card gifts is
+ * unconfirmed, so nothing repeats on its own: the person comes back and gives again.
+ */
+export function fundGifts(split: HarmSplit): { today: FundGift; repeat: FundGift | null } {
+  const repeat = fundGift(byHarm((k) => split[k].perPeriod));
+  return { today: fundGift(byHarm((k) => split[k].once + split[k].perPeriod)), repeat: repeat.donation > 0 ? repeat : null };
+}
+
+/**
+ * The fund's donate page, from NEXT_PUBLIC_ENDAOMENT_FUND_URL.
+ * TODO(Endaoment): Ian asked (2026-10-13) whether the donate page takes an amount
+ * and a note or reference we could fill with the plan id, and whether Endaoment
+ * can send a webhook. Until it answers, the link carries neither, so a gift stays
+ * "given, pending confirmation" and nothing is marked offset from it.
+ */
+export function fundLink(): string | null {
+  const url = process.env.NEXT_PUBLIC_ENDAOMENT_FUND_URL;
+  return url && httpsUrl(url) ? url : null;
 }
 
 /** "carbon and air pollution", for a row's covers line. */
@@ -217,6 +317,8 @@ export interface Checkout {
   applied?: boolean;
   /** Where Every.org sends the person back to, when not the plan's own return page (a gift's page). */
   returnPath?: string;
+  /** In endaoment mode: the one gift to the fund, with no rows; done.fund is set once the person taps Give. */
+  fund?: FundGift;
   /** What the plan was priced from, so a steady gift can be checked against measured use later. Kept in this browser only. */
   plan?: { lines: PlanLine[]; ctx: Context; pastYears: PastYears };
 }

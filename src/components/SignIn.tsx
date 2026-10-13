@@ -6,6 +6,7 @@ import { accountsOn, coversAll, mergeCovered } from "@/lib/account";
 import { localCovered, pushCovered, setLocalCovered, signOut, startSignIn, verifySignIn } from "@/lib/accountClient";
 import type { Covered } from "@/lib/covered";
 import { productById } from "@/lib/store";
+import { PAYMENT_MODE } from "@/lib/payments";
 
 type Step =
   | { kind: "email" }
@@ -95,7 +96,9 @@ export function SignIn() {
             Your email
           </label>
           <input id="signin-email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={field} />
-          <p className="text-sm text-muted">Use the one you gave Every.org when you paid, and what you covered is already there.</p>
+          <p className="text-sm text-muted">
+            {PAYMENT_MODE === "every" ? "Use the one you gave Every.org when you paid, and what you covered is already there." : "Use the one you give when you pay."}
+          </p>
           <div>
             <button type="submit" disabled={busy} className={primary}>
               {busy ? "Sending…" : "Email me a code"}

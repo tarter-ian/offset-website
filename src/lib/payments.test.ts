@@ -174,3 +174,88 @@ describe("default spread for past use", async () => {
     }
   });
 });
+
+describe("Endaoment mode", async () => {
+  const { chargeSummary, fundGift, fundGifts, fundLink, paymentModeFrom, bestPastYears } = await import("./payments");
+  const { ENDAOMENT_CARD, ENDAOMENT_GRANT_RATE, ENDAOMENT_IN_RATE, feeParts } = await import("./pricing");
+  const { DEFAULT_CONTEXT: C, defaultAmount, defaultPastYears, planTotals, productById, PAST_YEARS } = await import("./store");
+
+  it("is picked only with endaoment and an https fund link; otherwise it stays on Every.org", () => {
+    expect(paymentModeFrom(undefined, undefined)).toBe("every");
+    expect(paymentModeFrom("endaoment", undefined)).toBe("every");
+    expect(paymentModeFrom("endaoment", "")).toBe("every");
+    expect(paymentModeFrom("endaoment", "not a url")).toBe("every");
+    expect(paymentModeFrom("endaoment", "http://app.endaoment.org/x")).toBe("every");
+    expect(paymentModeFrom("every", "https://app.endaoment.org/x")).toBe("every");
+    expect(paymentModeFrom("endaoment", "https://app.endaoment.org/x")).toBe("endaoment");
+  });
+
+  it("links to the fund page from the environment, with nothing added", () => {
+    expect(fundLink()).toBeNull();
+    vi.stubEnv("NEXT_PUBLIC_ENDAOMENT_FUND_URL", "https://app.endaoment.org/funds/abc");
+    expect(fundLink()).toBe("https://app.endaoment.org/funds/abc");
+  });
+
+  it("charges Endaoment's 0.5% in and 1% out on top of the card fee", () => {
+    expect(sponsorRate("endaoment")).toBeCloseTo(ENDAOMENT_IN_RATE + ENDAOMENT_GRANT_RATE, 10);
+    expect(ENDAOMENT_IN_RATE).toBe(0.005);
+    expect(ENDAOMENT_GRANT_RATE).toBe(0.01);
+    expect(feeFor(100, "endaoment")).toBe(paymentFee(100, 0.015, ENDAOMENT_CARD));
+    expect(feeFor(100, "every")).toBe(cardFee(100));
+  });
+
+  it("makes one gift, each harm kept to the cent with no dollar minimum, harms sharing a charity together", () => {
+    const g = fundGift({ carbon: 1.234, air: 0.111, water: 0.004, land: 2.5, ewaste: 0.333 });
+    expect(g.parts).toEqual([
+      { charity: "carbon", harms: ["carbon", "air"], amount: 1.36 },
+      { charity: "land", harms: ["land"], amount: 2.5 },
+      { charity: "ewaste", harms: ["ewaste"], amount: 0.34 },
+    ]);
+    expect(g.donation).toBe(4.2);
+    expect(g.fee).toBe(0.51);
+    expect(g.total).toBe(4.71);
+    expect(g.endaoment).toBe(0.07);
+    expect(g.card).toBe(0.44);
+    expect(g.card + g.endaoment).toBeCloseTo(g.fee, 10);
+  });
+
+  it("keeps a few cents a few cents, where Every.org would round each up to a dollar", () => {
+    const g = fundGift({ water: 0.05, ewaste: 0.02 });
+    expect(g.donation).toBe(0.07);
+    expect(g.parts.map((p) => p.amount)).toEqual([0.05, 0.02]);
+    expect(fundGift({}).total).toBe(0);
+  });
+
+  it("leaves enough after every fee for the charities to get the whole donation", () => {
+    for (const d of [0.07, 1, 4.2, 9.99, 37.5, 120, 1234.56]) {
+      const g = fundGift({ land: d });
+      const afterCard = g.total * (1 - ENDAOMENT_CARD.rate) - ENDAOMENT_CARD.fixed;
+      const granted = afterCard * (1 - ENDAOMENT_IN_RATE) * (1 - ENDAOMENT_GRANT_RATE);
+      expect(granted).toBeGreaterThanOrEqual(d - 0.005);
+      expect(feeParts(g.donation, 0.015, ENDAOMENT_CARD).sponsor).toBe(g.endaoment);
+    }
+  });
+
+  it("puts everything due now in one gift, with the repeating part as its own later gift", () => {
+    const s = split({ carbon: [3.111, 0.5], land: [0, 0.25], ewaste: [1, 0] });
+    const g = fundGifts(s);
+    expect(g.today.parts.map((p) => [p.charity, p.amount])).toEqual([
+      ["carbon", 3.62],
+      ["land", 0.25],
+      ["ewaste", 1],
+    ]);
+    expect(g.repeat!.donation).toBe(0.75);
+    expect(chargeSummary(s, "monthly", true, "endaoment")).toEqual({ today: g.today.total, then: g.repeat!.total });
+    expect(fundGifts(split({ ewaste: [5, 0] })).repeat).toBeNull();
+    // Every.org stays as it was: one gift a charity, each at least a dollar.
+    expect(chargeSummary(s, "monthly", false, "every").today).toBe(sumTotal(payRows(s, "monthly", false, "every")));
+  });
+
+  it("picks a past-use spread from the offered ones, never shorter than the plain rule", () => {
+    const plan = [{ productId: "tv", amount: defaultAmount(productById("tv")!, C), cover: { past: true, ahead: "monthly" as const } }];
+    const past = planTotals(plan, C, "monthly", 0).lines.reduce((s, l) => s + l.pastCost, 0);
+    const y = bestPastYears(plan, C, "monthly", "endaoment");
+    expect((PAST_YEARS as readonly number[]).includes(y)).toBe(true);
+    expect(y === 0 ? past <= 10 : y >= defaultPastYears(past)).toBe(true);
+  });
+});

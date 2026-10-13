@@ -78,7 +78,8 @@ export function giftRows(items: GiftItem[], birthYear: number = DEFAULT_CONTEXT.
     const months = spanMonths(span) ?? 0;
     for (const k of Object.keys(total) as (keyof HarmSplit)[]) total[k].once += (split[k].once + split[k].perPeriod * months) * people;
   }
-  return payRows(total, "monthly", false);
+  // Gifts are given through Every.org in every payment mode, so each gift page can see its own confirmations.
+  return payRows(total, "monthly", false, "every");
 }
 
 const clean = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, max) : "");
