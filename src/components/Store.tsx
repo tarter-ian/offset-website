@@ -262,7 +262,7 @@ export function Store() {
     const hash = window.location.hash.slice(1);
     if (hash.startsWith("section-") || hash === "everything-heading") {
       setShelvesOpen(true);
-      requestAnimationFrame(() => document.getElementById(hash)?.scrollIntoView());
+      setTimeout(() => document.getElementById(hash)?.scrollIntoView(), 150);
     }
     if (!s) return;
     // Anyone who has covered something lands on their record, unless they came to the store on purpose.
@@ -465,7 +465,6 @@ export function Store() {
   };
 
   const linkLabel = (p: Product, src: ProviderId) => {
-    if (p.section === "ai") return "Link your AI account";
     if (src !== "activity") return `Link your ${providerName(src).toLowerCase()}`;
     if (p.id === "music") return "Add your Spotify or YouTube history";
     if (p.id === "video") return "Add your YouTube or Netflix history";
@@ -554,7 +553,7 @@ export function Store() {
             <span className="font-semibold tabular-nums">{amountText(p, amount)}</span>
             <span className="text-muted"> · {sourceNote(p)}</span>
           </span>
-          {sources.length > 0 && !fromAccount && (
+          {sources.length > 0 && !fromAccount && p.section !== "ai" && (
             <button
               type="button"
               onClick={() => link(sources[0])}
@@ -628,7 +627,7 @@ export function Store() {
                 aria-checked={cover.ahead === a}
                 onClick={() => setPicked((x) => ({ ...x, [p.id]: { ...x[p.id], ahead: a } }))}
                 className={`min-h-10 rounded-md border px-3 ${
-                  cover.ahead === a ? "border-rule bg-foreground text-background" : "border-border hover:border-rule"
+                  cover.ahead === a ? "border-rule bg-foreground text-background" : "border-rule hover:bg-card"
                 }`}
               >
                 {a === "monthly" ? BILLING[billing].label : "Lifetime"}{" "}
@@ -963,7 +962,7 @@ export function Store() {
               if (allLife) setAllAhead("monthly");
             }}
             className={`min-h-10 cursor-pointer rounded-md border px-3 ${
-              !allLife && billing === b ? "border-rule bg-foreground text-background" : "border-border hover:border-rule"
+              !allLife && billing === b ? "border-rule bg-foreground text-background" : "border-rule hover:bg-card"
             }`}
           >
             Pay {BILLING[b].label.toLowerCase()}
@@ -975,7 +974,7 @@ export function Store() {
           role="radio"
           aria-checked={allLife}
           onClick={() => setAllAhead("lifetime")}
-          className={`min-h-10 cursor-pointer rounded-md border px-3 ${allLife ? "border-rule bg-foreground text-background" : "border-border hover:border-rule"}`}
+          className={`min-h-10 cursor-pointer rounded-md border px-3 ${allLife ? "border-rule bg-foreground text-background" : "border-rule hover:bg-card"}`}
         >
           Pay once for life
         </button>
@@ -1016,12 +1015,6 @@ export function Store() {
   const aiCover = coverOf(ai);
   const aiPrice = coverPrice(ai, aiAmount, aiCover, ctx);
   const ab = aiBreakdown(typeof aiAmount === "number" ? aiAmount : 0, ctx, aiCover);
-  const covers =
-    aiCover.ahead === "lifetime"
-      ? aiCover.past
-        ? "Lifetime"
-        : "All future use"
-      : `${aiCover.past ? "Past use + " : ""}${billing === "annual" ? "each year" : "each month"}`;
   /** The hero's green button: puts AI chat in the plan if it isn't, then opens checkout. */
   const reviewAndPay = () => {
     setPlan((cur) => (cur.includes(ai.id) ? cur : [...cur, ai.id]));
@@ -1042,17 +1035,64 @@ export function Store() {
 
   return (
     <div className="pb-20">
-      <section className="grid gap-10 pt-10 pb-12 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-14 lg:pt-14">
-        <div>
-          <h1 className="font-display text-4xl leading-[1.05] font-extrabold [font-stretch:85%] sm:text-6xl">
+      <section className="pt-10 pb-12 lg:pt-14">
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-14">
+        <div className="self-center">
+          <h1 className="font-display text-4xl leading-[1.08] font-semibold sm:text-6xl">
             {aiLeadsLifetime(aiAmount, ctx)
               ? `Your AI use, covered for life: about ${once(coverPrice(ai, aiAmount, { past: true, ahead: "lifetime" }, ctx).once)}.`
               : `Your AI use, covered: about ${once(coverPrice(ai, aiAmount, { past: false, ahead: "monthly" }, ctx).monthly)} a month.`}
           </h1>
-          <p className="mt-6 max-w-xl text-lg">
-            Every prompt uses power and water, and a small gift to the right charities covers it.
-          </p>
-          <div className="mt-8 max-w-xl">
+        </div>
+
+        <aside id="ai-chat" aria-label="AI chat, itemized" className="self-start border-t-2 border-rule pt-4">
+          <div className="flex items-baseline justify-between">
+            <h2 className="text-xl font-bold">AI chat</h2>
+          </div>
+          <div className="mt-3 border-b border-border pb-3">
+            {amountLine(ai)}
+          </div>
+          <dl className="amount divide-y divide-border text-sm">
+            {[
+              ["Based on", aiBasis],
+              ...(["carbon", "air", "water", "land"] as const).map((k) => [IMPACT_INFO[k].label, k === "air" ? airShort(ab.impacts[k]) : IMPACT_INFO[k].format(ab.impacts[k])]),
+            ].map(([k, v]) => (
+              <div key={k} className="flex justify-between gap-4 py-2">
+                <dt className="text-muted">{k}</dt>
+                <dd className="text-right">{v}</dd>
+              </div>
+            ))}
+          </dl>
+          <details className="mt-1 text-xs text-muted">
+            <summary className="cursor-pointer underline underline-offset-2 hover:text-foreground">What&apos;s counted</summary>
+            <p className="mt-1">
+              A share of training the models and building the data centers. Future use counts {LIFETIME_GROWTH_BUFFER} times over in case it
+              grows, on a grid that gets cleaner each year. Past use is {pastNote(ai)}.{" "}
+              <Link href="/method" className="cursor-pointer underline underline-offset-2 hover:text-foreground">
+                Every number&apos;s source
+              </Link>
+            </p>
+          </details>
+          <div className="mt-4 flex items-center justify-between gap-4 border-t border-border pt-3">
+            <span className="amount text-2xl font-semibold">{priceText(aiPrice, aiCover, billing)}</span>
+            {paidCover(covered.ai) ? null : (
+              <button
+                type="button"
+                onClick={reviewAndPay}
+                className="min-h-11 shrink-0 cursor-pointer rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-strong"
+              >
+                {plan.includes(ai.id) ? "Review and pay" : "Cover my AI use"}
+              </button>
+            )}
+          </div>
+          {plan.includes(ai.id) && !paidCover(covered.ai) && (
+            <button type="button" onClick={() => toggle(ai.id)} className="mt-2 min-h-10 cursor-pointer text-sm text-muted underline underline-offset-4 hover:text-foreground">
+              Take AI chat out of your plan
+            </button>
+          )}
+        </aside>
+        </div>
+          <div className="mt-10">
             <AiQuickPick
               level={ctx.aiFromExport || entered.ai ? null : (ctx.aiEstimate?.level ?? null)}
               onPick={(level, from) => {
@@ -1104,57 +1144,6 @@ export function Store() {
               />
             </div>
           )}
-        </div>
-
-        <aside id="ai-chat" aria-label="AI chat, itemized" className="self-start border-t-2 border-rule pt-4">
-          <div className="flex items-baseline justify-between">
-            <h2 className="text-xl font-bold">AI chat</h2>
-            <span className="text-sm text-muted">ChatGPT, Claude, Gemini and the rest</span>
-          </div>
-          <div className="mt-3 border-b border-border pb-3">
-            {amountLine(ai)}
-          </div>
-          <dl className="amount divide-y divide-border text-sm">
-            {[
-              ["Based on", aiBasis],
-              ["Covers", covers],
-              ...(["carbon", "air", "water", "land"] as const).map((k) => [IMPACT_INFO[k].label, k === "air" ? airShort(ab.impacts[k]) : IMPACT_INFO[k].format(ab.impacts[k])]),
-            ].map(([k, v]) => (
-              <div key={k} className="flex justify-between gap-4 py-2">
-                <dt className="text-muted">{k}</dt>
-                <dd className="text-right">{v}</dd>
-              </div>
-            ))}
-          </dl>
-          <details className="mt-1 text-xs text-muted">
-            <summary className="cursor-pointer underline underline-offset-2 hover:text-foreground">What&apos;s counted</summary>
-            <p className="mt-1">
-              A share of training the models and building the data centers. Future use counts {LIFETIME_GROWTH_BUFFER} times over in case it
-              grows, on a grid that gets cleaner each year. Past use is {pastNote(ai)}.{" "}
-              <Link href="/method" className="cursor-pointer underline underline-offset-2 hover:text-foreground">
-                Every number&apos;s source
-              </Link>
-            </p>
-          </details>
-          <div className="mt-4">{coverControls(ai, true)}</div>
-          <div className="mt-4 flex items-center justify-between gap-4 border-t border-border pt-3">
-            <span className="amount text-2xl font-semibold">{priceText(aiPrice, aiCover, billing)}</span>
-            {paidCover(covered.ai) ? null : (
-              <button
-                type="button"
-                onClick={reviewAndPay}
-                className="min-h-11 shrink-0 cursor-pointer rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-strong"
-              >
-                {plan.includes(ai.id) ? "Review and pay" : "Cover my AI use"}
-              </button>
-            )}
-          </div>
-          {plan.includes(ai.id) && !paidCover(covered.ai) && (
-            <button type="button" onClick={() => toggle(ai.id)} className="mt-2 min-h-10 cursor-pointer text-sm text-muted underline underline-offset-4 hover:text-foreground">
-              Take AI chat out of your plan
-            </button>
-          )}
-        </aside>
       </section>
 
       {activityOpen && (
@@ -1405,7 +1394,7 @@ export function Store() {
                           aria-checked={spreadYears === y}
                           onClick={() => setPastYears(y)}
                           className={`min-h-10 cursor-pointer rounded-md border px-3 ${
-                            spreadYears === y ? "border-rule bg-foreground text-background" : "border-border hover:border-rule"
+                            spreadYears === y ? "border-rule bg-foreground text-background" : "border-rule hover:bg-card"
                           }`}
                         >
                           {y === 0 ? "All now" : `Over ${y} year${y > 1 ? "s" : ""}`}
@@ -1592,7 +1581,7 @@ export function Store() {
                         aria-checked={tip === t}
                         onClick={() => setTip(t)}
                         className={`figures min-h-10 rounded-md border px-3 ${
-                          tip === t ? "border-rule bg-foreground text-background" : "border-border hover:border-rule"
+                          tip === t ? "border-rule bg-foreground text-background" : "border-rule hover:bg-card"
                         }`}
                       >
                         {t ? usd(t).replace(".00", "") : "No tip"}

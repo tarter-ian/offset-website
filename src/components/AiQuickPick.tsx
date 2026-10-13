@@ -83,8 +83,8 @@ export function AiQuickPick({
   const [aiSummaries, setAiSummaries] = useState<Partial<Record<QuickService, UsageSummary>>>({});
   const [installable, setInstallable] = useState(false);
   const [open, setOpen] = useState<QuickService | null>(null);
-  /** Light, Medium and Heavy stay folded so the first screen has one thing to do; a picked level keeps them open. */
-  const [guessing, setGuessing] = useState(false);
+  /** The ways to count real use open from "Connect your data", or by themselves once there are counts to show. */
+  const [connecting, setConnecting] = useState(false);
   const [status, setStatus] = useState<{ kind: "idle" | "waiting" | "done" | "error"; text?: string; service?: QuickService }>({ kind: "idle" });
 
   useEffect(() => {
@@ -269,13 +269,47 @@ export function AiQuickPick({
   const signedOut = EXTENSION_SERVICES.filter((x) => rows[x]?.state === "error" && rows[x]?.error === "signed-out");
   const busy = Object.values(rows).some((r) => r?.state === "counting" || r?.state === "asking");
 
+  const showConnect = connecting || Object.keys(rows).length > 0 || open !== null || status.kind !== "idle";
+
   function connect(service: QuickService) {
     setOpen(open === service ? null : service);
   }
 
   return (
     <div>
-      <p className="font-display text-xl font-bold">See your real numbers</p>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="group" aria-label="How much you use AI">
+        {(Object.keys(AI_LEVELS) as AiLevel[]).map((k) => {
+          const l = AI_LEVELS[k];
+          const on = level === k;
+          return (
+            <button
+              key={k}
+              type="button"
+              aria-pressed={on}
+              onClick={() => onPick(k, `you picked ${l.label.toLowerCase()}`)}
+              className={`min-h-14 cursor-pointer rounded-md border-2 border-rule px-3 py-2 text-left ${on ? "bg-foreground text-background" : "hover:bg-card"}`}
+            >
+              <span className="block font-semibold">{l.label}</span>
+              <span className={`block text-sm ${on ? "opacity-80" : "text-muted"}`}>{l.promptsPerDay} prompts a day</span>
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          aria-expanded={showConnect}
+          onClick={() => {
+            setConnecting(true);
+            // With the extension there's nothing to choose: count everything straight away.
+            if (ext && !Object.keys(rows).length) run(EXTENSION_SERVICES, false, undefined, REUSE_HOURS);
+          }}
+          className={`min-h-14 cursor-pointer rounded-md border-2 border-rule px-3 py-2 text-left ${showConnect ? "bg-foreground text-background" : "hover:bg-card"}`}
+        >
+          <span className="block font-semibold">Connect your data</span>
+          <span className={`block text-sm ${showConnect ? "opacity-80" : "text-muted"}`}>your real count</span>
+        </button>
+      </div>
+      {showConnect && (
+        <div className="mt-4">
       {ext ? (
         <div className="mt-2">
           <div className="flex flex-wrap items-center gap-2">
@@ -467,6 +501,8 @@ export function AiQuickPick({
         </>
       )}
 
+        </div>
+      )}
       {open && (
         <div className="mt-3 border-2 border-rule p-4">
           {installable && !ext && <ExtensionOffer name={AI_NAMES[open]} service={open} />}
@@ -508,38 +544,6 @@ export function AiQuickPick({
         </div>
       )}
       {status.kind === "error" && <p className="mt-2 text-sm text-red-700">{status.text}</p>}
-      {!guessing && !level ? (
-        <p className="mt-5">
-          <button type="button" onClick={() => setGuessing(true)} className="min-h-10 cursor-pointer text-muted underline underline-offset-4 hover:text-foreground">
-            {ext ? "Or take a guess instead" : installable ? "No extension? Take a guess for now" : "Or take a guess"}
-          </button>
-        </p>
-      ) : (
-        <>
-      <p className="mt-6 text-muted">{ext ? "Or take a guess instead:" : installable ? "No extension? Take a guess for now:" : "Or take a guess:"}</p>
-      <div className="mt-2 grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="How much you use AI">
-        {(Object.keys(AI_LEVELS) as AiLevel[]).map((k) => {
-          const l = AI_LEVELS[k];
-          const on = level === k;
-          return (
-            <button
-              key={k}
-              type="button"
-              role="radio"
-              aria-checked={on}
-              onClick={() => onPick(k, `you picked ${l.label.toLowerCase()}`)}
-              className={`min-h-14 rounded-md border-2 px-3 py-2 text-left ${on ? "border-rule bg-foreground text-background" : "border-border hover:border-rule"}`}
-            >
-              <span className="block font-semibold">{l.label}</span>
-              <span className={`block text-sm ${on ? "opacity-80" : "text-muted"}`}>
-                {l.promptsPerDay} prompts a day
-              </span>
-            </button>
-          );
-        })}
-      </div>
-        </>
-      )}
     </div>
   );
 }

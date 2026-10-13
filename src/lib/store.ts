@@ -514,8 +514,13 @@ export function aheadFor(p: Product, amount: number | string, ctx: Context, show
   // Every item can be paid monthly; one-time items can also be paid once for life, unless that's over the cap.
   const cost = p.cost(amount, "lifetime", ctx);
   const life = cost + paymentFee(cost);
-  return life > LIFETIME_MAX_USD && !showLifetimeAnyway ? ["monthly"] : ["monthly", "lifetime"];
+  if (life > LIFETIME_MAX_USD && !showLifetimeAnyway) return ["monthly"];
+  // Under a cent a month isn't worth a monthly payment: just pay once (Ian, 2026-10-13).
+  return p.cost(amount, "monthly", ctx) < MONTHLY_MIN_USD ? ["lifetime"] : ["monthly", "lifetime"];
 }
+
+/** Below this a month, monthly isn't offered for items that can be paid once for life. */
+export const MONTHLY_MIN_USD = 0.01;
 
 /** Below this a month, an item leads with paying once for life: cents a month reads as trivial, but each payment's 30¢ card fee isn't. */
 export const SMALL_MONTHLY_USD = 1;
@@ -536,7 +541,7 @@ export function effectiveCover(
 ): Cover {
   const options = aheadFor(p, amount, ctx, showLifetimeAnyway);
   const small = p.id === "ai" ? aiLeadsLifetime(amount, ctx) : p.cost(amount, "monthly", ctx) < SMALL_MONTHLY_USD;
-  const fallback: Ahead = small && options.includes("lifetime") ? "lifetime" : "monthly";
+  const fallback: Ahead = !options.includes("monthly") || (small && options.includes("lifetime")) ? "lifetime" : "monthly";
   const ahead = picked.ahead && options.includes(picked.ahead) ? picked.ahead : fallback;
   // Online items start with past use in; everyday items' past is opt-in, since years of driving or food add up fast.
   return { past: picked.past ?? p.oneTime, ahead };
