@@ -13,10 +13,12 @@ import {
   type Gift,
   giftContext,
   type GiftItem,
+  giftPath,
   giftRows,
   giftSentence,
   type GiftSpan,
   giftUntil,
+  recipients,
   SPAN_LABEL,
   spanMonths,
 } from "@/lib/gifts";
@@ -79,7 +81,7 @@ export function GiftMaker() {
   const [picks, setPicks] = useState<Picks>({ ai: "life" });
   const [birth, setBirth] = useState<number | undefined>(undefined);
   const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
+  const [names, setNames] = useState<string[]>([""]);
   const [note, setNote] = useState("");
   const [started, setStarted] = useState<Checkout | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -114,7 +116,8 @@ export function GiftMaker() {
 
   const birthYear = birth && birth > 1900 && birth <= new Date().getFullYear() ? birth : DEFAULT_CONTEXT.birthYear;
   const items = toItems(picks);
-  const rows = items.length ? giftRows(items, birthYear) : [];
+  const people = Math.max(1, names.filter((n) => n.trim()).length);
+  const rows = items.length ? giftRows(items, birthYear, people) : [];
   const everydayForLife = items.some((i) => i.span === "life" && !productById(i.productId)?.oneTime);
   const start = async () => {
     setError(null);
@@ -124,7 +127,7 @@ export function GiftMaker() {
       const r = await fetch("/api/gifts", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ id, items, birthYear, from, to, note }),
+        body: JSON.stringify({ id, items, birthYear, from, to: names.map((n) => n.trim()).filter(Boolean), note }),
       });
       if (!r.ok) throw new Error(((await r.json().catch(() => null)) as { error?: string } | null)?.error ?? "Couldn't save the gift.");
       const c: Checkout = { id, created: new Date().toISOString(), billing: "monthly", rows, lines: [], done: {}, confirmed: {}, returnPath: `/gift/${id}` };
@@ -222,7 +225,7 @@ export function GiftMaker() {
           );
         })}
         <p className="mt-2 text-sm text-muted">
-          At typical use. If they measure theirs and it&apos;s higher, they can cover the rest.
+          {people > 1 && `Prices are for each person. `}At typical use. If they measure theirs and it&apos;s higher, they can cover the rest.
           {everydayForLife && " Everyday items for life assume today's habits until age 85, which is a rough guess."}
         </p>
       </fieldset>
@@ -236,23 +239,57 @@ export function GiftMaker() {
           placeholder={String(DEFAULT_CONTEXT.birthYear)}
           className={inputClass}
         />
-        <span className="mt-1 block text-sm text-muted">Sets how many years &ldquo;for life&rdquo; covers.</span>
+        <span className="mt-1 block text-sm text-muted">
+          Sets how many years &ldquo;for life&rdquo; covers{people > 1 ? ", for everyone on this gift" : ""}.
+        </span>
       </label>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="block">
-          <span className="font-semibold">Your name</span>
-          <input value={from} onChange={(e) => setFrom(e.target.value)} maxLength={GIFT_LIMITS.from} required className={inputClass} />
-        </label>
-        <label className="block">
-          <span className="font-semibold">Their name</span>
-          <input value={to} onChange={(e) => setTo(e.target.value)} maxLength={GIFT_LIMITS.to} required className={inputClass} />
-        </label>
-      </div>
+      <label className="block sm:max-w-[calc(50%-0.5rem)]">
+        <span className="font-semibold">Your name</span>
+        <input value={from} onChange={(e) => setFrom(e.target.value)} maxLength={GIFT_LIMITS.from} required className={inputClass} />
+      </label>
+      <fieldset>
+        <legend className="font-semibold">Who it&apos;s for</legend>
+        <p className="text-sm text-muted">One payment covers everyone here, and each person gets their own card link.</p>
+        <ul className="mt-1 space-y-2">
+          {names.map((n, i) => (
+            <li key={i} className="flex items-center gap-3">
+              <input
+                aria-label={names.length > 1 ? `Person ${i + 1}'s name` : "Their name"}
+                placeholder="Their name"
+                value={n}
+                onChange={(e) => setNames((x) => x.map((v, j) => (j === i ? e.target.value : v)))}
+                maxLength={GIFT_LIMITS.to}
+                required={i === 0}
+                className={`${inputClass} mt-0 sm:max-w-[calc(50%-0.5rem)]`}
+              />
+              {names.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setNames((x) => x.filter((_, j) => j !== i))}
+                  className="min-h-10 cursor-pointer text-sm text-muted underline underline-offset-4 hover:text-foreground"
+                >
+                  Remove
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+        {names.length < GIFT_LIMITS.people && (
+          <button
+            type="button"
+            onClick={() => setNames((x) => [...x, ""])}
+            className="mt-1 min-h-10 cursor-pointer text-sm font-semibold underline underline-offset-4 hover:text-muted"
+          >
+            Add another person
+          </button>
+        )}
+      </fieldset>
       <label className="block">
         <span className="font-semibold">A note</span> <span className="text-muted">(optional)</span>
         <textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={GIFT_LIMITS.note} rows={2} className={`${inputClass} py-2`} />
       </label>
-      <GiftCard gift={{ items, from, to, note }} />
+      <GiftCard gift={{ items, from, to: names.find((n) => n.trim()) ?? "", note }} />
+      {people > 1 && <p className="-mt-3 text-sm text-muted">Each person gets a card like this with their own name.</p>}
       <p className="text-sm text-muted">
         You pay each charity through Every.org, which emails you the receipts. The names and note are kept with the gift so its link can
         show them; nothing is sent to anyone.
@@ -268,11 +305,11 @@ export function GiftMaker() {
           disabled={busy || !rows.length}
           className="min-h-11 cursor-pointer rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-strong disabled:opacity-60"
         >
-          {rows.length ? `Pay for this gift (${usd(sumTotal(rows))}, fees included)` : "Pick something to cover"}
+          {rows.length ? `Pay for this gift (${usd(sumTotal(rows))}${people > 1 ? ` for ${people} people` : ""}, fees included)` : "Pick something to cover"}
         </button>
       ) : (
         <p className="font-semibold">
-          {rows.length ? `This gift comes to ${usd(sumTotal(rows))}, fees included. ` : ""}Payments open soon, and gifts with them.
+          {rows.length ? `This gift comes to ${usd(sumTotal(rows))}${people > 1 ? ` for ${people} people` : ""}, fees included. ` : ""}Payments open soon, and gifts with them.
         </p>
       )}
     </form>
@@ -299,7 +336,7 @@ function acceptGift(gift: Gift) {
 
 /** A gift's own page, /gift/<id>: paying for it if this browser is the giver's, the card and a way to accept it otherwise. */
 /** The recipient, not the giver, decides whether a gift puts them on the public list (Ian, 2026-10-12). */
-function GiftListing({ giftId }: { giftId: string }) {
+function GiftListing({ giftId, n }: { giftId: string; n: number }) {
   const [name, setName] = useState<string | null>(null);
   const [note, setNote] = useState("");
   return (
@@ -308,7 +345,7 @@ function GiftListing({ giftId }: { giftId: string }) {
       {name && !note && (
         <button
           type="button"
-          onClick={() => joinList(name, { source: "gift", giftId }).then((err) => setNote(err ?? `You're on the public list as ${name}.`))}
+          onClick={() => joinList(name, { source: "gift", giftId, for: n }).then((err) => setNote(err ?? `You're on the public list as ${name}.`))}
           className="ml-6 mt-2 min-h-10 cursor-pointer rounded-md border-2 border-rule px-3 text-sm font-semibold hover:bg-foreground hover:text-background"
         >
           Add me
@@ -326,12 +363,14 @@ function GiftListing({ giftId }: { giftId: string }) {
 export function GiftView({ id }: { id: string }) {
   const [state, setState] = useState<{ gift: Gift; paid: boolean } | "missing" | "error" | null>(null);
   const [mine, setMine] = useState<Checkout | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<number | null>(null);
   const [accepted, setAccepted] = useState<boolean | null>(null);
+  const [n, setN] = useState(0);
 
   useEffect(() => {
     // Coming back from Every.org: mark that charity's gift as given.
     const q = new URLSearchParams(window.location.search);
+    setN(Math.max(0, Number(q.get("for")) || 0));
     const saved = loadGift();
     if (saved?.id === id) {
       const gave = q.get("charity");
@@ -350,15 +389,16 @@ export function GiftView({ id }: { id: string }) {
   if (state === "missing") return <p>We couldn&apos;t find this gift. Check the link is complete.</p>;
   if (state === "error") return <p>We couldn&apos;t load this gift just now. Try again in a minute.</p>;
   const { gift } = state;
+  const names = recipients(gift);
   const paid = state.paid || (mine ? allConfirmed(mine) : false);
 
   if (mine) {
-    const link = `${window.location.origin}/gift/${id}`;
+    const toAll = names.length < 2 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
     return (
       <div>
-        <h1 className="text-3xl font-extrabold [font-stretch:85%]">Your gift for {gift.to}</h1>
+        <h1 className="text-3xl font-extrabold [font-stretch:85%]">Your gift for {toAll}</h1>
         <div className="mt-6">
-          <GiftCard gift={gift} />
+          <GiftCard gift={{ ...gift, to: names[0] ?? "" }} />
         </div>
         <h2 className="mt-8 text-lg font-bold">{paid ? "Paid" : "Pay each charity"}</h2>
         <div className="mt-2">
@@ -368,19 +408,27 @@ export function GiftView({ id }: { id: string }) {
           <h2 className="text-lg font-bold">Send it</h2>
           <p className="mt-1 text-sm text-muted">
             {paid
-              ? `Send ${gift.to} this link however you like. It shows the card and lets them mark it as covered.`
-              : "The link works once every charity's gift is confirmed. Until then it says the gift is still being paid for."}
+              ? `Send ${names.length > 1 ? "each person their own link" : `${toAll} this link`} however you like. It shows the card and lets them mark it as covered.`
+              : `The ${names.length > 1 ? "links work" : "link works"} once every charity's gift is confirmed. Until then ${names.length > 1 ? "they say" : "it says"} the gift is still being paid for.`}
           </p>
-          <div className="mt-2 flex flex-wrap items-center gap-3">
-            <code className="figures break-all text-sm">{link}</code>
-            <button
-              type="button"
-              onClick={() => navigator.clipboard?.writeText(link).then(() => setCopied(true))}
-              className="min-h-10 cursor-pointer rounded-md border-2 border-rule px-3 text-sm font-semibold hover:bg-foreground hover:text-background"
-            >
-              {copied ? "Copied" : "Copy link"}
-            </button>
-          </div>
+          <ul className="mt-2 space-y-2">
+            {names.map((name, i) => {
+              const link = `${window.location.origin}${giftPath(id, i, names.length)}`;
+              return (
+                <li key={i} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  {names.length > 1 && <span className="font-semibold">{name}</span>}
+                  <code className="figures break-all text-sm">{link}</code>
+                  <button
+                    type="button"
+                    onClick={() => navigator.clipboard?.writeText(link).then(() => setCopied(i))}
+                    className="min-h-10 cursor-pointer rounded-md border-2 border-rule px-3 text-sm font-semibold hover:bg-foreground hover:text-background"
+                  >
+                    {copied === i ? "Copied" : names.length > 1 ? `Copy ${name}'s link` : "Copy link"}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       </div>
     );
@@ -388,7 +436,7 @@ export function GiftView({ id }: { id: string }) {
 
   return (
     <div>
-      <GiftCard gift={gift} />
+      <GiftCard gift={{ ...gift, to: names[Math.min(n, names.length - 1)] ?? "" }} />
       {paid ? (
         accepted ? (
           <p className="mt-6">
@@ -412,7 +460,7 @@ export function GiftView({ id }: { id: string }) {
           </div>
         )
       ) : null}
-      {paid && <GiftListing giftId={gift.id} />}
+      {paid && <GiftListing giftId={gift.id} n={Math.min(n, names.length - 1)} />}
       {paid ? null : (
         <p className="mt-6 font-semibold">This gift is still being paid for. Check back soon.</p>
       )}

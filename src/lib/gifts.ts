@@ -1,5 +1,5 @@
 import { payRows, PLAN_ID, type PayRow } from "./payments";
-import { DEFAULT_CONTEXT, defaultAmount, harmSplit, type HarmSplit, planTotals, PRODUCTS, productById, type Context, type Product } from "./store";
+import { DEFAULT_CONTEXT, defaultAmount, harmSplit, type HarmSplit, planTotals, PRODUCTS, productById, SECTIONS, type Context, type Product } from "./store";
 
 // Gifting an offset: one person pays the charities for someone else's typical
 // use of one or more items, for some years or for life (Ian, 2026-10-12), such
@@ -30,12 +30,19 @@ export interface Gift {
   /** The recipient's birth year, which sets how long "for life" runs. */
   birthYear: number;
   from: string;
+  /** Who it's for: one name, or several on their own lines when one payment covers each of them. */
   to: string;
   note: string;
   createdAt: string;
 }
 
-export const GIFT_LIMITS = { from: 40, to: 40, note: 200, items: PRODUCTS.length } as const;
+export const GIFT_LIMITS = { from: 40, to: 40, note: 200, items: PRODUCTS.length, people: 20 } as const;
+
+/** Everyone a gift is for. Each gets their own card link, /gift/<id>?for=<n>. */
+export const recipients = (gift: Pick<Gift, "to">): string[] => gift.to.split("\n").filter(Boolean);
+
+/** Where one person's card for a gift lives: no suffix for a gift to one person. */
+export const giftPath = (id: string, n: number, count: number) => (count > 1 ? `/gift/${id}?for=${n}` : `/gift/${id}`);
 
 /** The context a gift is priced in: typical US use, with the recipient's age when given. */
 export const giftContext = (birthYear: number): Context => ({ ...DEFAULT_CONTEXT, birthYear });
@@ -59,7 +66,7 @@ const empty = (): HarmSplit => ({
  * The one-time gifts to each charity that pay for a gift, at typical use.
  * Worked out the same way on the server, so a gift link can't claim more than was paid.
  */
-export function giftRows(items: GiftItem[], birthYear: number = DEFAULT_CONTEXT.birthYear): PayRow[] {
+export function giftRows(items: GiftItem[], birthYear: number = DEFAULT_CONTEXT.birthYear, people = 1): PayRow[] {
   const ctx = giftContext(birthYear);
   const total = empty();
   for (const item of items) {
@@ -69,7 +76,7 @@ export function giftRows(items: GiftItem[], birthYear: number = DEFAULT_CONTEXT.
     const span = item.span;
     const split = harmSplit(planTotals([{ productId: p.id, amount, cover: { past: false, ahead: span === "life" ? "lifetime" : "monthly" } }], ctx, "monthly"), ctx, "monthly");
     const months = spanMonths(span) ?? 0;
-    for (const k of Object.keys(total) as (keyof HarmSplit)[]) total[k].once += split[k].once + split[k].perPeriod * months;
+    for (const k of Object.keys(total) as (keyof HarmSplit)[]) total[k].once += (split[k].once + split[k].perPeriod * months) * people;
   }
   return payRows(total, "monthly", false);
 }
@@ -94,7 +101,9 @@ export function parseGift(body: unknown, now = new Date()): { ok: true; gift: Gi
   const year = now.getFullYear();
   const birthYear = typeof b.birthYear === "number" && Number.isInteger(b.birthYear) && b.birthYear >= year - 100 && b.birthYear <= year ? b.birthYear : DEFAULT_CONTEXT.birthYear;
   const from = clean(b.from, GIFT_LIMITS.from);
-  const to = clean(b.to, GIFT_LIMITS.to);
+  const names = (Array.isArray(b.to) ? (b.to as unknown[]) : [b.to]).map((n) => clean(n, GIFT_LIMITS.to)).filter(Boolean);
+  if (names.length > GIFT_LIMITS.people) return { ok: false, error: `A gift can be for up to ${GIFT_LIMITS.people} people.` };
+  const to = names.join("\n");
   if (!from || !to) return { ok: false, error: "Add both names." };
   return { ok: true, gift: { id: b.id, items, birthYear, from, to, note: clean(b.note, GIFT_LIMITS.note), createdAt: now.toISOString() } };
 }
@@ -128,14 +137,55 @@ export function giftSentence(items: GiftItem[]): string {
   }
   const groups = GIFT_SPANS.slice()
     .reverse()
-    .map((span) => ({ span, names: items.filter((i) => i.span === span).map((i) => lowerName(productById(i.productId)?.name ?? "")) }))
-    .filter((g) => g.names.length);
-  return groups
-    .map((g) => {
-      const names = g.names.length > 4 ? [...g.names.slice(0, 3), `${g.names.length - 3} more things`] : g.names;
-      return `your ${list(names)} ${SPAN_LABEL[g.span]}`;
-    })
-    .join(", and ");
+    .map((span) => ({ span, ids: items.filter((i) => i.span === span).map((i) => i.productId) }))
+    .filter((g) => g.ids.length);
+  return groups.map((g) => `${giftNames(g.ids, g.span)} ${SPAN_LABEL[g.span]}`).join(", and ");
+}
+
+const SECTION_PHRASE: Record<string, string> = {
+  ai: "all your AI use",
+  online: "everything you do online",
+  devices: "all your devices",
+  home: "your home's power and heat",
+  travel: "all your travel",
+  food: "all your food",
+  shopping: "all your shopping",
+};
+
+/** Whole aisles first ("all your travel"), then single items, biggest gift first; past four, the smallest are counted, not named (Ian, 2026-10-13). */
+function giftNames(ids: string[], span: GiftSpan): string {
+  const sections = SECTIONS.filter((sec) => {
+    const all = GIFTABLE.filter((p) => p.section === sec.key);
+    return all.length > 1 && all.every((p) => ids.includes(p.id));
+  });
+  const whole = new Set(sections.map((sec) => sec.key));
+  const price = (p: Product) => {
+    const amount = defaultAmount(p, DEFAULT_CONTEXT);
+    return span === "life" ? p.cost(amount, "future", DEFAULT_CONTEXT) : p.cost(amount, "monthly", DEFAULT_CONTEXT) * (spanMonths(span) ?? 0);
+  };
+  const singles = ids
+    .map((id) => productById(id))
+    .filter((p): p is Product => !!p && !whole.has(p.section))
+    .sort((a, b) => price(b) - price(a))
+    .map((p) => lowerName(p.name));
+  const named = [
+    ...sections.map((sec) => ({ section: true, text: SECTION_PHRASE[sec.key] ?? `all your ${sec.title.toLowerCase()}`, n: GIFTABLE.filter((p) => p.section === sec.key).length })),
+    ...singles.map((text) => ({ section: false, text, n: 1 })),
+  ];
+  const shown = named.length > 4 ? named.slice(0, 3) : named;
+  const rest = named.slice(shown.length).reduce((t, x) => t + x.n, 0);
+  return phrase(
+    shown.filter((x) => x.section).map((x) => x.text),
+    shown.filter((x) => !x.section).map((x) => x.text),
+    rest ? `${rest} more thing${rest === 1 ? "" : "s"}` : undefined,
+  );
+}
+
+/** "all your travel, your TV and phone and 2 more things" */
+function phrase(sectionPhrases: string[], singles: string[], more?: string): string {
+  const items = more ? [...singles, more] : singles;
+  const parts = [...sectionPhrases, ...(items.length ? [`your ${list(items)}`] : [])];
+  return parts.length < 2 ? (parts[0] ?? "") : `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}`;
 }
 
 /** When a gifted item's cover ends: never for life, else the gift's date plus its years. */

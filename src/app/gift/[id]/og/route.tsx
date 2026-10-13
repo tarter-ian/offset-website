@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 import { loadGift } from "@/lib/giftStore";
-import { giftSentence } from "@/lib/gifts";
+import { giftSentence, recipients } from "@/lib/gifts";
 
 // The picture a texted gift link shows: a gift tag in the site's receipt style.
 // Names come from the gift itself, which only someone with the link can load.
@@ -13,7 +13,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   const found = await loadGift(id).catch(() => null);
   const from = found?.gift.from ?? "Someone";
-  const to = found?.gift.to ?? "you";
+  // One picture serves every card of a gift for several people, so it names none of them.
+  const names = found ? recipients(found.gift) : [];
+  const to = names.length === 1 ? names[0] : "you";
   const sentence = found ? giftSentence(found.gift.items) : "your footprint";
   return new ImageResponse(
     (
