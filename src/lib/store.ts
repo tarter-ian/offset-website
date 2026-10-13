@@ -13,6 +13,7 @@ import {
 import type { ProviderId } from "./providers";
 import type { AiLevel } from "./ai/levels";
 import type { CodeEstimate, UsageSummary } from "./ai/exportParser";
+import { monthAsYear, type CardPast } from "./history";
 import {
   type Billing,
   DEFAULT_BILLING,
@@ -67,6 +68,8 @@ export interface Context {
   before?: Record<string, Before>;
   /** Video hours watched to date, from YouTube and Netflix whole history. */
   videoPast?: { hours: number; since: string };
+  /** Deliveries and ride miles to date, from DoorDash, Uber Eats and Uber's orders and rides by month. */
+  measuredPast?: Partial<Record<"delivery" | "rideshare", CardPast>>;
   /** The year everyday items' past use counts from, when the person picks one. */
   pastSinceYear?: number;
 }
@@ -202,6 +205,25 @@ function everydaySpan(m: Impacts, span: Span, ctx: Context, keys: CategoryKey | 
   };
 }
 
+const ZERO: Impacts = { carbon: 0, air: 0, water: 0, land: 0, ewaste: 0, smogL: 0, sootG: 0 };
+const add = (a: Impacts, b: Impacts) => Object.fromEntries(IMPACT_KEYS.map((k) => [k, a[k] + b[k]])) as Impacts;
+
+/**
+ * Past use counted from an account's history, for a card whose amount is a
+ * weekly count (deliveries, ride miles): only the years past use counts from.
+ * Before the account's first order or ride there's nothing to count, unless the
+ * count stopped short of it; then those months are priced at today's habits.
+ */
+function measuredPast(m: CardPast, a: number | string, month: (a: number | string, ctx: Context) => Impacts, ctx: Context, now = new Date()): Impacts {
+  const from = everydaySince(ctx);
+  const total = Object.entries(m.byYear).reduce((s, [y, n]) => s + (Number(y) >= from ? n : 0), 0);
+  const gap = m.whole ? 0 : Math.min(everydayPastMonths(ctx, now), Math.max(0, Math.round((monthAsYear(m.since) - from) * 12)));
+  // One month at total ÷ weeks-a-month a week adds up to the total.
+  const counted = month(total / F.WEEKS_PER_MONTH, ctx);
+  const today = month(a, ctx);
+  return Object.fromEntries(IMPACT_KEYS.map((k) => [k, counted[k] + today[k] * gap])) as Impacts;
+}
+
 function lifeItem(
   id: string,
   section: SectionKey,
@@ -214,6 +236,8 @@ function lifeItem(
   const month = (a: number | string, ctx: Context) => monthly(keys, { ...DEFAULT_ANSWERS, state: ctx.state, ...answers(a, ctx) });
   const impacts = (a: number | string, span: Span, ctx: Context): Impacts => {
     const now = month(a, ctx);
+    const measured = (span === "past" || span === "lifetime") && ctx.measuredPast?.[id as "delivery" | "rideshare"];
+    if (measured) return add(measuredPast(measured, a, month, ctx), span === "lifetime" ? everydaySpan(now, "future", ctx, keys) : ZERO);
     const used = everydaySpan(now, span, ctx, keys);
     const b = ctx.before?.[id];
     if (!b || (span !== "past" && span !== "lifetime")) return used;

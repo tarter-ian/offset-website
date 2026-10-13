@@ -34,7 +34,8 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
       <>
         The optional extension reads usage counts (prompts, videos, orders, rides and similar) from services you are already logged in to,
         only when you press Measure, and hands them to this page in your browser. It never reads or sends the text of chats, titles, what
-        you watched, products, restaurants or addresses. Amazon order totals and spend by category are the only money figures it reads. It
+        you watched, products, item prices, restaurants, addresses or routes. The only money figures it reads are order totals from Amazon
+        (also split by kind of item), DoorDash and Uber Eats, and ride fares from Uber. It
         keeps the last results and a day-by-day record of those counts inside the extension so pages fill in quickly; removing the
         extension or pressing Clear deletes them. The list of exactly what it reads for each service is on{" "}
         <Link href="/data#extension" className="text-accent hover:underline">
