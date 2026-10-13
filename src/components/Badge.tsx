@@ -1,4 +1,4 @@
-import { badgeKey, type BadgeInfo, FULL_NAME, termLabel, type Tone, toneOf } from "@/lib/badges";
+import { type BadgeInfo, FULL_NAME, termLabel, type Tone, toneOf } from "@/lib/badges";
 import { fitSeal } from "@/lib/sealFit";
 
 // The badges, drawn like an inked seal on a bill: two rules, the name in
@@ -315,11 +315,15 @@ export function BadgeList({
     );
   }
   const n = new Set(lower.map((b) => b.key)).size;
+  // One size across a row, and a badge's yellow and blue held close as one unit, with a wider
+  // gap between badges (Ian, 2026-10-13): the tier shows in how much is printed solid.
   const row = (bs: BadgeInfo[], aria: string) => (
-    <ul className="flex flex-wrap items-center gap-3" aria-label={aria}>
-      {bs.map((b) => (
-        <li key={badgeKey(b)}>
-          <Seal kind={b.kind} name={b.name} until={b.until} />
+    <ul className="flex flex-wrap items-center gap-x-6 gap-y-4" aria-label={aria}>
+      {grouped(bs).map((b) => (
+        <li key={`${b.kind}:${b.key}`} className="flex items-center gap-1">
+          {b.untils.map((u) => (
+            <Seal key={String(u)} kind={b.kind} name={b.name} until={u} size={ROW_SIZE} />
+          ))}
         </li>
       ))}
     </ul>
@@ -339,39 +343,26 @@ export function BadgeList({
   );
 }
 
-/** The seals in an opened list row: a step up from the defaults, so about four fit across on a desktop and two on a phone. */
-const OPEN_SIZE: Record<BadgeInfo["kind"], number> = { item: 136, aisle: 144, full: 152 };
+/** Every seal in a row of the record or a gift card, so a row reads even. */
+const ROW_SIZE = 112;
+
+/** The seals in an opened list row, one size across the row: a step up from the record's, so about four fit across on a desktop and two on a phone. */
+const OPEN_SIZE = 144;
 
 /**
  * A person's badges, opened up on the list (Ian, 2026-10-13): each badge shown up front as its round
- * seal, yellow and blue side by side, with what it holds named underneath: an aisle's items, or the
- * aisles inside Fully Offset.
+ * seal, yellow and blue side by side. The seals stand alone, with no list of what's inside (Ian, 2026-10-13).
  */
 export function SealGrid({ badges, label }: { badges: BadgeInfo[]; label: string }) {
-  const inside = (b: Grouped) =>
-    b.kind === "item" ? [] : [...new Set(badges.filter((x) => x.within === b.key && (b.kind === "aisle" || x.kind === "aisle")).map((x) => x.name))];
   return (
-    <ul className="flex flex-wrap items-start gap-x-6 gap-y-5" aria-label={label}>
-      {grouped(badges.filter((b) => !b.within)).map((b) => {
-        const names = inside(b);
-        return (
-          <li key={`${b.kind}:${b.key}`} className="w-min">
-            <span className="flex gap-2">
-              {b.untils.map((u) => (
-                <Seal key={String(u)} kind={b.kind} name={b.name} until={u} size={OPEN_SIZE[b.kind]} />
-              ))}
-            </span>
-            {names.length > 0 && (
-              // Takes the seals' width without widening it.
-              <ul aria-label={`Inside ${tagLabel(b)}`} className="mt-2 w-0 min-w-full text-center text-xs leading-snug text-muted">
-                {names.map((n) => (
-                  <li key={n}>{n}</li>
-                ))}
-              </ul>
-            )}
-          </li>
-        );
-      })}
+    <ul className="flex flex-wrap items-center gap-x-6 gap-y-5" aria-label={label}>
+      {grouped(badges.filter((b) => !b.within)).map((b) => (
+        <li key={`${b.kind}:${b.key}`} className="flex items-center gap-1">
+          {b.untils.map((u) => (
+            <Seal key={String(u)} kind={b.kind} name={b.name} until={u} size={OPEN_SIZE} />
+          ))}
+        </li>
+      ))}
     </ul>
   );
 }

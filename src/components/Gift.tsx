@@ -462,11 +462,11 @@ function GiftListing({ giftId, n }: { giftId: string; n: number }) {
     );
   return (
     <div className="mt-6 border-t-2 border-rule pt-3">
-      <ListOptIn label="Show me on the public list" onChange={setName} />
+      <ListOptIn label="Show me on Who's offsetting" onChange={setName} />
       {name && !note && (
         <button
           type="button"
-          onClick={() => joinList(name, { source: "gift", giftId, for: n }).then((err) => setNote(err ?? `You're on the public list as ${name}.`))}
+          onClick={() => joinList(name, { source: "gift", giftId, for: n }).then((err) => setNote(err ?? `You're on Who's offsetting as ${name}.`))}
           className="ml-6 mt-2 min-h-10 cursor-pointer rounded-md border-2 border-rule px-3 text-sm font-semibold hover:bg-foreground hover:text-background"
         >
           Add me

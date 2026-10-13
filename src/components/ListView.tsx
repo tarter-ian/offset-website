@@ -20,7 +20,7 @@ export interface ListRowData {
  * `you` marks this browser's own entry, with the way to change it.
  *
  * The name opens the row in place to show that person's round seals (Ian, 2026-10-13), each
- * aisle with its items named under it. Closed, the row shows only the tags up front. Rows start closed.
+ * seal on its own. Closed, the row shows only the tags up front. Rows start closed.
  */
 export function Row({ name, items, example, you }: { name: string; items: ListItem[]; example?: boolean; you?: boolean }) {
   const [open, setOpen] = useState(false);
