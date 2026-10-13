@@ -1015,17 +1015,13 @@ export function Store() {
   const aiParts = PRODUCTS.filter((p) => p.section === "ai" && (p.id === ai.id || Number(amountOf(p)) > 0));
   // It leads with lifetime only while the whole AI total for life stays small; heavier use leads monthly.
   const heroLifetime = aiParts.reduce((t, p) => t + coverPrice(p, amountOf(p), { past: true, ahead: "lifetime" }, ctx).once, 0);
-  const aiCover = effectiveCover(
-    ai,
-    aiAmount,
-    ctx,
-    { past: pastAll, ...picked.ai, ahead: picked.ai?.ahead ?? (heroLifetime <= AI_LIFETIME_FIRST_MAX_USD ? "lifetime" : "monthly") },
-    anyway.ai,
-  );
+  const heroAhead = picked.ai?.ahead ?? (heroLifetime <= AI_LIFETIME_FIRST_MAX_USD ? "lifetime" : "monthly");
+  const heroPast = picked.ai?.past ?? pastAll;
+  // Each part takes the hero's cover where it's offered: a part too big for lifetime stays monthly, one under a cent a month is paid once.
   const heroLines = aiParts.map((p) => ({
     p,
     amount: amountOf(p),
-    cover: p.id === ai.id ? aiCover : effectiveCover(p, amountOf(p), ctx, { ahead: aiCover.ahead, past: aiCover.past }, anyway[p.id]),
+    cover: effectiveCover(p, amountOf(p), ctx, { ahead: heroAhead, past: heroPast }, anyway[p.id]),
   }));
   const aiPrice = heroLines.reduce(
     (t, l) => {
@@ -1034,6 +1030,8 @@ export function Store() {
     },
     { once: 0, monthly: 0 },
   );
+  // What the box shows: "for life" only when nothing is left to pay each month.
+  const aiCover: Cover = { past: heroPast, ahead: aiPrice.monthly > 0 ? "monthly" : "lifetime" };
   const aiImpacts = sumImpacts(heroLines.flatMap((l) => Object.values(coverImpacts(l.p, l.amount, l.cover, ctx))));
   const heroIds = heroLines.map((l) => l.p.id);
   const heroNames = heroLines.map((l) => ({ ai: "Chat", "ai-media": "images", "ai-video": "video", "ai-coding": "coding" })[l.p.id] ?? l.p.name);
@@ -1053,7 +1051,7 @@ export function Store() {
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-14">
         <div className="self-center">
           <h1 className="font-display text-4xl leading-[1.08] font-semibold sm:text-6xl">
-            {aiCover.ahead === "lifetime"
+            {heroAhead === "lifetime" && aiCover.ahead === "lifetime"
               ? `Your AI use, covered for life: about ${once(aiPrice.once)}.`
               : `Your AI use, covered: about ${per(aiPrice.monthly, billing)}.`}
           </h1>
