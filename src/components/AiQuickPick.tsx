@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { AI_LEVELS, type AiLevel } from "@/lib/ai/levels";
-import * as F from "@/lib/factors";
 import { AGENT_TOOL_NAMES, claudeLimitWhPerDay, signInUsage, summaryFromSignIn, type SignInUsage } from "@/lib/ai/signin";
 import { CLAUDE_PLANS, usageFromQuickCount, type ClaudePlan, type QuickService } from "@/lib/ai/quickCount";
 import { combineSummaries, type UsageSummary } from "@/lib/ai/exportParser";
@@ -141,7 +140,7 @@ export function AiQuickPick({
       }
       setRows((r) => ({
         ...r,
-        [service]: { state: "done", raw: usage, text: `${d.deliveries} deliveries and ${d.pickups} pickups in ${d.days} days` },
+        [service]: { state: "done", raw: usage, text: `${plural(d.deliveries, "delivery", "deliveries")}${d.pickups ? `, ${plural(d.pickups, "pickup")}` : ""} in ${d.days} days` },
       }));
       reportFood(service, (d.deliveries / d.days) * 7);
       return;
@@ -175,7 +174,7 @@ export function AiQuickPick({
       const ever = videoHistoryHours("netflix", usage);
       setRows((r) => ({
         ...r,
-        netflix: { state: "done", raw: usage, text: `${n.total} episodes and films in ${n.days} days, about ${hours.toFixed(1)} hours a day${everText(ever)}` },
+        netflix: { state: "done", raw: usage, text: `${plural(n.total, "episode or film", "episodes and films")} in ${n.days} days, ${hours < 0.1 ? "under 0.1" : `about ${hours.toFixed(1)}`} hours a day${everText(ever)}` },
       }));
       reportVideo("netflix", hours);
       reportVideoPast("netflix", ever);
@@ -188,7 +187,7 @@ export function AiQuickPick({
         setRows((r) => ({ ...r, uber: { state: "error", error: "unavailable", raw: usage } }));
         return;
       }
-      setRows((r) => ({ ...r, uber: { state: "done", raw: usage, text: `${rides} rides, ${Math.round(m.total)} miles in ${m.days} days` } }));
+      setRows((r) => ({ ...r, uber: { state: "done", raw: usage, text: `${plural(rides, "ride")}, ${Math.round(m.total)} miles in ${m.days} days` } }));
       onRides?.(Math.round((m.total / m.days) * 7));
       return;
     }
@@ -631,19 +630,18 @@ function youtubeTotals(usage: unknown): { videos: number; shorts: number } {
 const everText = (ever: HistoryTotal | null) =>
   ever ? `, and ${Math.round(ever.total).toLocaleString("en-US")} hours ${ever.whole ? "since" : "back to at least"} ${monthName(ever.firstMonth)}` : "";
 
+/** One short line per AI service. How coding is estimated lives in the Coding with AI card's (i). */
 function resultText(u: SignInUsage): string {
+  const agent: Record<keyof typeof AGENT_TOOL_NAMES, string> = { agent: "agent", codex: "Codex", both: "agent and Codex" };
   return (
-    `${u.prompts.toLocaleString("en-US")} prompts${u.images ? ` and ${u.images} images` : ""} in the last ${u.days} days` +
-    (u.promptsEver ? `, and ${u.promptsEver.total.toLocaleString("en-US")} since ${monthName(u.promptsEver.since)}.` : ".") +
-    (claudeLimitWhPerDay(u) > 0
-      ? ` You've also used ${Math.round(u.weeklyLimitUsedPercent!)}% of your plan's weekly limit, which counts Claude Code. The part beyond your chats, about ${(claudeLimitWhPerDay(u) / 1000).toFixed(1)} kWh a day in all, goes on the Coding with AI card.`
-      : "") +
-    (u.agentTokens
-      ? ` ${AGENT_TOOL_NAMES[u.agentTokens.tool]} used ${millions(u.agentTokens.window)} tokens in that time and ${millions(u.agentTokens.lifetime)} ever, estimated from that token total at about ${F.WH_PER_MILLION_AGENT_TOKENS} Wh a million, a rate from Claude Code studies, since OpenAI publishes none. That goes on the Coding with AI card.`
-      : "")
+    `${u.prompts.toLocaleString("en-US")} prompts${u.images ? `, ${u.images} images` : ""} in ${u.days} days` +
+    (u.promptsEver ? `, ${u.promptsEver.total.toLocaleString("en-US")} since ${monthName(u.promptsEver.since)}` : "") +
+    (claudeLimitWhPerDay(u) > 0 ? ` · ${Math.round(u.weeklyLimitUsedPercent!)}% of weekly limit (the extra is on Coding with AI)` : "") +
+    (u.agentTokens ? ` · ${millions(u.agentTokens.lifetime)} ${agent[u.agentTokens.tool]} tokens to date (on Coding with AI)` : "")
   );
 }
 
+const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString("en-US")} ${n === 1 ? one : many}`;
 const millions = (n: number) => (n >= 1e6 ? `${(n / 1e6).toLocaleString("en-US", { maximumFractionDigits: 1 })} million` : n.toLocaleString("en-US"));
 
 function ExtensionOffer({ name, service }: { name: string; service: QuickService }) {
