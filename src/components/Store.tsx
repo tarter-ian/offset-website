@@ -1049,7 +1049,7 @@ export function Store() {
           onClick={() => setAllAhead("lifetime")}
           className={`min-h-10 cursor-pointer rounded-md border px-3 ${allLife ? "border-rule bg-foreground text-background" : "border-rule hover:bg-card"}`}
         >
-          Pay once for life
+          Give once for life
         </button>
         {allLife && lines.some((l) => !productById(l.productId)?.oneTime) && (
           <span className="basis-full text-xs text-muted">Home, travel, food and shopping are priced at today&apos;s habits until age {LIFETIME_TO_AGE}.</span>
@@ -1442,7 +1442,7 @@ export function Store() {
         };
         return open ? null : (
           <section aria-labelledby="more-heading" className="mb-10">
-            <h2 id="more-heading" className="font-display text-3xl font-extrabold [font-stretch:85%]">Cover more than AI</h2>
+            <h2 id="more-heading" className="font-display text-3xl font-extrabold [font-stretch:85%]">Offset more than AI</h2>
             <ul className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
               {SECTIONS.filter((x) => x.key !== "ai").map((x) => (
                 <li key={x.key}>
@@ -1463,7 +1463,7 @@ export function Store() {
       {(shelvesOpen || plan.some((id) => id !== "ai") || Object.keys(covered).some((id) => id !== "ai") || Object.keys(linkedFrom).length > 0) && (
       <>
       <div className="mb-4">
-        <h2 className="font-display text-3xl font-extrabold [font-stretch:85%]">Cover more than AI</h2>
+        <h2 className="font-display text-3xl font-extrabold [font-stretch:85%]">Offset more than AI</h2>
       </div>
 
       {/* The aisle bar sticks only while the shelves are on screen. */}
@@ -1537,7 +1537,7 @@ export function Store() {
       {addable(PRODUCTS).length > 0 && (
         <section aria-labelledby="everything-heading" className="mb-10 border-t-2 border-rule pt-4">
           <h2 id="everything-heading" className="text-xl font-bold">
-            Cover everything
+            Offset everything
           </h2>
           <p className="mt-1 text-sm text-muted">
             Every item above at the amounts shown:{" "}
@@ -1556,7 +1556,7 @@ export function Store() {
                 it toward past use for {everything.spread.years} years
               </>
             )}
-            . Covering it all earns the Fully Offset badge.
+            . Offsetting it all earns the Fully Offset badge.
           </p>
           {addable(PRODUCTS).every((p) => plan.includes(p.id)) ? (
             <p className="mt-3 text-sm font-semibold">Everything is in your plan.</p>
@@ -1629,9 +1629,9 @@ export function Store() {
                 </ul>
                 {pastTotal > 0 && (
                   <div className="mt-2 border-t border-border pt-2 text-sm">
-                    <div className="flex flex-wrap items-center gap-2" role="radiogroup" aria-label="When to pay for past use">
+                    <div className="flex flex-wrap items-center gap-2" role="radiogroup" aria-label="When to give for past use">
                       <span className="text-muted">
-                        Pay past use (<span className="figures">{once(pastTotal)}</span>)
+                        Past use (<span className="figures">{once(pastTotal)}</span>)
                       </span>
                       {PAST_YEARS.filter((y) => y > 0 || allNowOk(pastTotal)).map((y) => (
                         <button
@@ -1763,22 +1763,22 @@ export function Store() {
                         <dt className="font-sans">Total today</dt>
                         <dd>{usd(dueToday)}</dd>
                       </div>
-                      {repeatTotal > 0 && (
-                        <p className="font-sans text-muted">
-                          Then {usd(repeatTotal)} {BILLING[billing].per}, one gift to each charity with its own card fee.{" "}
-                          {autopay ? "Every.org charges it until you stop it." : "Nothing repeats on its own: you come back and give again."}
-                          {totals.pastSpread &&
-                            ` It includes ${usd(totals.pastSpread.perMonth * (billing === "annual" ? 12 : 1))} toward past use until ${pastEnds}${
-                              autopay ? "; Every.org can't stop that part on its own, so lower the gift in your Every.org account then." : "."
-                            }`}
-                        </p>
-                      )}
                     </dl>
+                    {repeatTotal > 0 && (
+                      <p className="figures mt-1 font-sans text-sm text-muted">
+                        Then {usd(repeatTotal)} {BILLING[billing].per}, one gift to each charity with its own card fee.{" "}
+                        {autopay ? "Every.org charges it until you stop it." : "Nothing repeats on its own: you come back and give again."}
+                        {totals.pastSpread &&
+                          ` It includes ${usd(totals.pastSpread.perMonth * (billing === "annual" ? 12 : 1))} toward past use until ${pastEnds}${
+                            autopay ? "; Every.org can't stop that part on its own, so lower the gift in your Every.org account then." : "."
+                          }`}
+                      </p>
+                    )}
                     {payChoices(" (one 30¢ fee per charity a year)")}
                     <p className="mt-2 text-xs text-muted">
                       Each charity is paid separately through Every.org, which charges card payments 2.2% + 30¢ and bank payments
                       nothing. Each gift includes its card fee so the whole donation arrives; pay by bank and the charity keeps the fee
-                      too. Every.org may also ask for a tip for itself, which is optional. The smallest gift is {usd(MIN_DONATION_USD)}; a
+                      too. Every.org may ask for a tip for itself; you can set it to $0 on its page. We never see it. The smallest gift is {usd(MIN_DONATION_USD)}; a
                       charity&apos;s share under that is rounded up, so each part&apos;s money stays with its own charity. Every.org emails you a
                       receipt for each gift.
                     </p>
@@ -1824,15 +1824,15 @@ export function Store() {
                         <dt className="font-sans">Total today, one gift</dt>
                         <dd>{usd(dueToday)}</dd>
                       </div>
-                      {fund.repeat && (
-                        <p className="font-sans text-muted">
-                          Then {usd(fund.repeat.total)} {BILLING[billing].per} as one gift, fees included. Nothing repeats on its own: you
-                          come back and give again.
-                          {totals.pastSpread &&
-                            ` It includes ${usd(totals.pastSpread.perMonth * (billing === "annual" ? 12 : 1))} toward past use until ${pastEnds}.`}
-                        </p>
-                      )}
                     </dl>
+                    {fund.repeat && (
+                      <p className="figures mt-1 font-sans text-sm text-muted">
+                        Then {usd(fund.repeat.total)} {BILLING[billing].per} as one gift, fees included. Nothing repeats on its own: you
+                        come back and give again.
+                        {totals.pastSpread &&
+                          ` It includes ${usd(totals.pastSpread.perMonth * (billing === "annual" ? 12 : 1))} toward past use until ${pastEnds}.`}
+                      </p>
+                    )}
                     {payChoices(" (one card fee a year)")}
                     <p className="mt-2 text-xs text-muted">
                       You give once, to My Offset&apos;s fund at Endaoment, a nonprofit that runs charitable funds. Endaoment grants each
@@ -1886,14 +1886,14 @@ export function Store() {
                       <dt className="font-sans">Total today</dt>
                       <dd>{usd(dueToday)}</dd>
                     </div>
-                    {totals.recurring && (
-                      <p className="font-sans text-muted">
-                        Then {usd(totals.recurring.total)} {BILLING[billing].per} ({usd(totals.recurring.donation)} donation +{" "}
-                        {usd(totals.recurring.fee)} fees). Cancel anytime.
-                        {totals.pastSpread && ` Includes past use until ${pastEnds}.`}
-                      </p>
-                    )}
                   </dl>
+                  {totals.recurring && (
+                    <p className="figures mt-1 font-sans text-sm text-muted">
+                      Then {usd(totals.recurring.total)} {BILLING[billing].per} ({usd(totals.recurring.donation)} donation +{" "}
+                      {usd(totals.recurring.fee)} fees). Cancel anytime.
+                      {totals.pastSpread && ` Includes past use until ${pastEnds}.`}
+                    </p>
+                  )}
                   {payChoices(" (one 30¢ charge a year)")}
                   <p className="mt-2 text-xs text-muted">
                     The smallest donation is {usd(MIN_DONATION_USD)}. We pool small donations and send each charity one payment a

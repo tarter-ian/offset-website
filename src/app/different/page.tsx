@@ -1,12 +1,22 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ComputerOnly } from "@/components/ComputerOnly";
 import { forMode, PAYMENT_MODE } from "@/lib/payments";
 import { ENDAOMENT_GRANT_LABEL, ENDAOMENT_IN_LABEL } from "@/lib/pricing";
 
 export const metadata: Metadata = { title: "What's different | My Offset" };
 
 // Each row: what offset apps usually do, and what we do instead. Keep claims about others general and sourced.
-const ROWS = [
+// `computer` is shown only where the extension can be installed.
+type Row = {
+  topic: string;
+  usual: string;
+  ours: string;
+  source?: { href: string; text: string };
+  link?: { href: string; text: string };
+  computer?: { text: string; link?: { href: string; text: string } };
+};
+const ROWS: Row[] = [
   {
     topic: "How your footprint is found",
     usual: "A questionnaire about your home, car and diet, matched to national averages.",
@@ -16,13 +26,13 @@ const ROWS = [
   {
     topic: "Your AI use",
     usual: "Left out, or one line for \"digital\".",
-    ours: "Counted prompt by prompt, along with images, video, the AI built into search and apps, and the share of training the models. Our free browser extension does the counting on your computer.",
-    link: { href: "/extension", text: "About the extension" },
+    ours: "Counted prompt by prompt, along with images, video, the AI built into search and apps, and the share of training the models.",
+    computer: { text: "Our free browser extension does the counting on your computer.", link: { href: "/extension", text: "About the extension" } },
   },
   {
     topic: "What counts as harm",
     usual: "Carbon only.",
-    ours: "Five kinds: carbon, air pollution, water used up, land taken from nature, and e-waste. Each has its own charity, and you choose which to cover.",
+    ours: "Five kinds: carbon, air pollution, water used up, land taken from nature, and e-waste. Four charities share the work: carbon and air both go to Clean Air Task Force, and the others each have their own.",
     link: { href: "/method", text: "How we calculate" },
   },
   {
@@ -51,10 +61,10 @@ const ROWS = [
   {
     topic: "Paying once",
     usual: "A subscription, or one-off credits for a single flight.",
-    ours: "AI, internet and devices can be covered for life in one payment, including what you've already used.",
+    ours: "AI, internet and devices can be offset for life in one gift, including what you've already used.",
   },
   {
-    topic: "Choosing what to cover",
+    topic: "Choosing what to offset",
     usual: "One plan for your whole footprint.",
     ours: "Pick item by item, from AI chat to flights to the food you eat, and add only what you want.",
     link: { href: "/", text: "Browse items" },
@@ -62,17 +72,22 @@ const ROWS = [
   {
     topic: "Where the money goes",
     usual: "Often cheap carbon credits, many of which have been found not to deliver.",
-    ours: "Charities chosen on evidence, plus certified carbon removal only where it's measured per tonne. Every month's totals and receipts are public.",
+    ours: forMode({
+      every: "Charities chosen on evidence, and no carbon credits. Every month's totals are public, and Every.org emails you the receipt for each gift.",
+      endaoment: "Charities chosen on evidence, and no carbon credits. Every month's totals are public, and Endaoment emails you the receipt.",
+      sponsor: "Charities chosen on evidence, and no carbon credits. Every month's totals are public, and our charity sponsor emails you the receipt.",
+    }),
   },
   {
     topic: "What you can claim",
     usual: "\"Carbon neutral\" badges.",
-    ours: "A \"Fully Offset\" badge for what you covered, without claiming your emissions disappeared.",
+    ours: "A \"Fully Offset\" badge for what you offset, without claiming your emissions disappeared.",
   },
   {
     topic: "Your data",
     usual: "Linked accounts and answers kept on the company's servers.",
-    ours: "Counts are made in your browser and kept there. The extension's code is public, and you can see exactly what it sent.",
+    ours: "Counts are made in your browser and kept there.",
+    computer: { text: "The extension's code is public, and you can see exactly what it sent." },
     link: { href: "/data", text: "What we read and keep" },
   },
 ];
@@ -84,12 +99,12 @@ export default function DifferentPage() {
       <p className="mt-4 text-lg text-muted">
         Offset apps usually ask a few questions, guess a carbon number and charge you each month. Here is what we do instead.
       </p>
-      <dl className="mt-8 border-t-2 border-rule">
-        <div className="hidden border-b border-border py-2 text-sm text-muted sm:grid sm:grid-cols-[12rem_minmax(0,1fr)_minmax(0,1.4fr)] sm:gap-6">
-          <span />
-          <span>Usually</span>
-          <span>Here</span>
-        </div>
+      <div aria-hidden="true" className="mt-8 hidden border-t-2 border-b border-t-rule border-b-border py-2 text-sm text-muted sm:grid sm:grid-cols-[12rem_minmax(0,1fr)_minmax(0,1.4fr)] sm:gap-6">
+        <span />
+        <span>Usually</span>
+        <span>Here</span>
+      </div>
+      <dl className="mt-8 border-t-2 border-rule sm:mt-0 sm:border-t-0">
         {ROWS.map((r) => (
           <div key={r.topic} className="grid gap-2 border-b border-border py-5 sm:grid-cols-[12rem_minmax(0,1fr)_minmax(0,1.4fr)] sm:gap-6">
             <dt className="font-display text-lg font-bold">{r.topic}</dt>
@@ -108,10 +123,24 @@ export default function DifferentPage() {
             <dd>
               <span className="text-sm text-muted sm:hidden">Here: </span>
               {r.ours}
+              {r.computer && (
+                <ComputerOnly>
+                  {" "}
+                  {r.computer.text}
+                  {r.computer.link && (
+                    <>
+                      {" "}
+                      <Link href={r.computer.link.href} className="text-accent underline underline-offset-4">
+                        {r.computer.link.text}
+                      </Link>
+                    </>
+                  )}
+                </ComputerOnly>
+              )}
               {r.link && (
                 <>
                   {" "}
-                  <Link href={r.link.href} className="text-accent hover:underline">
+                  <Link href={r.link.href} className="text-accent underline underline-offset-4">
                     {r.link.text}
                   </Link>
                 </>
@@ -122,11 +151,11 @@ export default function DifferentPage() {
       </dl>
       <p className="mt-8 text-muted">
         It&apos;s made by one person, not a company with investors to pay back.{" "}
-        <Link href="/promises" className="text-accent hover:underline">
+        <Link href="/promises" className="text-accent underline underline-offset-4">
           Read our promises
         </Link>{" "}
         or{" "}
-        <Link href="/promises#who" className="text-accent hover:underline">
+        <Link href="/promises#who" className="text-accent underline underline-offset-4">
           see who&apos;s behind it
         </Link>
         .

@@ -13,7 +13,6 @@ import {
   DEFAULT_CARBON_MODE,
   DEFAULT_WATER_MODE,
   impactCost,
-  type CarbonMode,
   WATER_MODES,
   type WaterMode,
   CARD_FEE_LABEL,
@@ -87,9 +86,7 @@ const IMPACTS = [
     unit: "kg of greenhouse gases",
     priceShort: `${usd(CARBON_MODES[DEFAULT_CARBON_MODE].perTonne)} a tonne, to climate policy charities`,
     measure: "Greenhouse gases in kg of CO₂e, which counts methane and nitrous oxide as well as CO₂.",
-    price: `You choose how: ${(Object.keys(CARBON_MODES) as CarbonMode[])
-      .map((m) => `${CARBON_MODES[m].label.toLowerCase()} at ${usd(CARBON_MODES[m].perTonne)} a tonne`)
-      .join(", ")}. Policy charities are estimated to avert a tonne for $0.10 to $10, and we use the middle, but those tonnes can't be measured; certified removal is measured per tonne but costs far more. The default is expected impact; you can opt into the blend (90% policy, 10% removal) or verified-only.`,
+    price: `We give ${usd(CARBON_MODES[DEFAULT_CARBON_MODE].perTonne)} a tonne to climate policy charities. They are estimated to avert a tonne for $0.10 to $10, and we use the middle, but those tonnes can't be measured. Certified removal is measured per tonne but costs far more, so we don't buy it.`,
   },
   {
     name: "Air pollution",
@@ -349,7 +346,7 @@ export default function MethodPage() {
       <p className="mt-2 text-muted">
         A Fully Offset month is one where you approved donations covering the estimate plus its margin for every kind of
         harm we count. Covering an item or a whole area earns its badge; covering everything for all five kinds of harm earns the
-        complete badge. Unless you choose verified-only climate, donations fund charity work rather than certified credits. If you lower an estimate by hand by
+        complete badge. Donations fund charity work, not carbon credits. If you lower an estimate by hand by
         more than its margin, the badge pauses until a linked account confirms the new number.
       </p>
 
@@ -365,7 +362,7 @@ export default function MethodPage() {
       <ul className="mt-2 list-disc space-y-1 pl-5">
         {SOURCES.map((s) => (
           <li key={s.url}>
-            <a href={s.url} target="_blank" rel="noreferrer" className="text-accent hover:underline">
+            <a href={s.url} target="_blank" rel="noreferrer" className="text-accent underline underline-offset-4">
               {s.name}
             </a>
           </li>

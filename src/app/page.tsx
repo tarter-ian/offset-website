@@ -23,8 +23,7 @@ export default function Home() {
                 "Your donation is held by our charity sponsor, a registered charity, which pays the charities listed on your plan and sends you the tax receipt. We never hold it ourselves.",
             })}{" "}
             Most of it funds groups that push for cleaner power and protect
-            water in dry regions, because that does the most per dollar. Paying only for carbon removal that someone
-            measured is an option on your footprint summary, at about twelve times the price per tonne.
+            water in dry regions, because that does the most per dollar. We buy no carbon credits.
           </p>
           {PAYMENT_MODE === "every" ? (
             <p>

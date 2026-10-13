@@ -26,10 +26,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
             <span style={{ fontSize: 26, color: MUTED }}>A gift for {to}</span>
           </div>
           <div style={{ display: "flex", fontSize: 58, lineHeight: 1.15, color: INK, marginTop: 28, paddingBottom: 26, borderBottom: `4px solid ${INK}` }}>
-            {`${from} covered ${sentence}.`.slice(0, 160)}
+            {`${from} offset ${sentence}.`.slice(0, 160)}
           </div>
           <div style={{ display: "flex", fontSize: 28, color: MUTED, marginTop: 22 }}>
-            Paid to charities for the carbon, air, water, nature and e-waste behind it.
+            Given to charities for the carbon, air, water, nature and e-waste behind it.
           </div>
         </div>
       </div>

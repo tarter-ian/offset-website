@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ComputerOnly } from "@/components/ComputerOnly";
 import { CARBON_REMOVAL, CHARITIES } from "@/lib/charities";
 import { IMPACT_INFO } from "@/lib/impacts";
 import { LEDGER } from "@/lib/ledger";
-import { confirmedTotals, everyCharities } from "@/lib/ledgerLive";
+import { arrivedAndFees, confirmedTotals, everyCharities } from "@/lib/ledgerLive";
 import { ENDAOMENT_GRANT_LABEL, ENDAOMENT_IN_LABEL, SPONSOR_FEE_LABEL, usd } from "@/lib/pricing";
 import { forMode, PAYMENT_MODE } from "@/lib/payments";
 
@@ -31,22 +32,22 @@ const STEPS = PAYMENT_MODE === "every" ? [
 // What running the site costs, which Ian pays himself (no tips, Ian 2026-10-13); amounts are list prices.
 const RUNNING_COSTS = [
   {
-    what: "Covering this site's own footprint: hosting and every page load, worked out the same way as yours (Ian covers the AI used to build it himself)",
+    what: "Offsetting this site's own footprint: hosting and every page load, worked out the same way as yours (Ian offsets the AI used to build it himself)",
     cost: "each month; pennies at our size",
   },
   { what: "Hosting the site (Cloudflare)", cost: "free up to 100,000 visits a day, then $5 a month" },
   { what: "The web address", cost: "about $15 a year" },
   { what: "Database for saved plans (Cloudflare D1)", cost: "free at our size for now" },
-  { what: "Listing the browser extension in the Chrome Web Store", cost: "$5, once" },
+  // Phones never mention the extension (Ian, 2026-10-13).
+  { what: "Listing the browser extension in the Chrome Web Store", cost: "$5, once", computer: true },
 ];
 
 export default async function LedgerPage() {
   // In endaoment mode these are the gifts made for someone else, which still go through Every.org.
   const live = PAYMENT_MODE === "sponsor" ? [] : await confirmedTotals();
   const charities = everyCharities();
-  const givenTo = (slug: string) => live.filter((t) => t.slug === slug).reduce((sum, t) => sum + t.usd, 0);
   const removal = LEDGER.filter((e) => e.cause === "removal").reduce((sum, e) => sum + e.usd, 0);
-  const total = live.reduce((sum, t) => sum + t.usd, 0) + removal;
+  const all = arrivedAndFees(live);
   const months = [...new Set(live.map((t) => t.month))];
   const nameOf = (slug: string) => charities.find((c) => c.slug === slug)?.name ?? slug;
 
@@ -76,7 +77,8 @@ export default async function LedgerPage() {
           <tr className="border-b border-border text-sm text-muted">
             <th className="py-2 font-medium">For</th>
             <th className="py-2 font-medium">Charity</th>
-            <th className="py-2 text-right font-medium">Given</th>
+            <th className="py-2 pr-4 text-right font-medium">Arrived</th>
+            <th className="py-2 text-right font-medium">Card fees</th>
           </tr>
         </thead>
         <tbody>
@@ -89,7 +91,8 @@ export default async function LedgerPage() {
                 </a>
                 <span className="block text-sm text-muted">{CHARITIES[c.harms[0]].focus}</span>
               </td>
-              <td className="py-3 text-right font-mono">{usd(givenTo(c.slug))}</td>
+              <td className="py-3 pr-4 text-right font-mono">{usd(arrivedAndFees(live, c.slug).arrived)}</td>
+              <td className="py-3 text-right font-mono">{usd(arrivedAndFees(live, c.slug).fees)}</td>
             </tr>
           ))}
           {removal > 0 && (
@@ -100,19 +103,22 @@ export default async function LedgerPage() {
                   {CARBON_REMOVAL.name}
                 </a>
               </td>
-              <td className="py-3 text-right font-mono">{usd(removal)}</td>
+              <td className="py-3 pr-4 text-right font-mono">{usd(removal)}</td>
+              <td className="py-3 text-right font-mono">{usd(0)}</td>
             </tr>
           )}
           <tr className="border-b-2 border-rule font-semibold">
             <td className="py-3" colSpan={2}>
               Total
             </td>
-            <td className="py-3 text-right font-mono">{usd(total)}</td>
+            <td className="py-3 pr-4 text-right font-mono">{usd(all.arrived + removal)}</td>
+            <td className="py-3 text-right font-mono">{usd(all.fees)}</td>
           </tr>
         </tbody>
       </table>
       <p className="mt-2 text-sm text-muted">
-        Amounts are what people paid on Every.org, card fees included, as its webhook reports each gift. Nothing about who gave is shown.
+        Arrived is what reached each charity after Every.org&apos;s card fees, as its webhook reports each gift; card fees are what the
+        card processor kept. Nothing about who gave is shown.
         {PAYMENT_MODE === "endaoment" &&
           " So far that's gifts made for someone else. Gifts to the Endaoment fund are added once we can confirm them with Endaoment."}
       </p>
@@ -136,7 +142,9 @@ export default async function LedgerPage() {
                           · {t.gifts} gift{t.gifts === 1 ? "" : "s"}
                         </span>
                       </span>
-                      <span className="font-mono">{usd(t.usd)}</span>
+                      <span className="text-right font-mono">
+                        {usd(t.net)} <span className="text-sm text-muted">+ {usd(Math.max(0, t.usd - t.net))} fees</span>
+                      </span>
                     </li>
                   ))}
               </ul>
@@ -151,7 +159,7 @@ export default async function LedgerPage() {
           <p className="mt-2 text-muted">
             My Offset isn&apos;t a charity of its own, so for now you give to each charity directly through Every.org, a free 501(c)(3)
             donation platform. Each charity is paid separately through Every.org, which charges card payments 2.2% + 30¢ and bank
-            payments nothing. Every.org sends your tax receipt and pays the charity, and may ask for an optional tip for itself. Later
+            payments nothing. Every.org sends your tax receipt and pays the charity. It may ask for a tip for itself; you can set it to $0 on its page, and we never see it. Later
             we may move to a fiscal sponsor, a registered charity that would hold donations and pay the charities each month. We&apos;ll
             say so here before that changes.
           </p>
@@ -183,17 +191,20 @@ export default async function LedgerPage() {
         Ian Tarter, who made My Offset, pays these himself. There are no tips, and none of your donation goes to them.
       </p>
       <ul className="mt-3 border-t-2 border-rule">
-        {RUNNING_COSTS.map((c) => (
-          <li key={c.what} className="flex justify-between gap-4 border-b border-border py-2">
-            <span>{c.what}</span>
-            <span className="text-right font-mono text-sm">{c.cost}</span>
-          </li>
-        ))}
+        {RUNNING_COSTS.map((c) => {
+          const row = (
+            <li key={c.what} className="flex justify-between gap-4 border-b border-border py-2">
+              <span>{c.what}</span>
+              <span className="text-right font-mono text-sm">{c.cost}</span>
+            </li>
+          );
+          return "computer" in c ? <ComputerOnly key={c.what}>{row}</ComputerOnly> : row;
+        })}
       </ul>
 
       <p className="mt-10 text-muted">
-        See <Link href="/promises" className="text-accent hover:underline">our promises</Link> and{" "}
-        <Link href="/method" className="text-accent hover:underline">how we calculate</Link>.
+        See <Link href="/promises" className="text-accent underline underline-offset-4">our promises</Link> and{" "}
+        <Link href="/method" className="text-accent underline underline-offset-4">how we calculate</Link>.
       </p>
     </article>
   );

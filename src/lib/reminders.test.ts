@@ -17,7 +17,7 @@ describe("reminderFor", () => {
 describe("reminderEmail", () => {
   it("names the items without numbers", () => {
     const e = reminderEmail({ ids: ["ai", "video"], ended: "2026-10-12T00:00:00Z" }, "https://myoffset.org", "abc");
-    expect(e.text).toContain("Your AI chat and video streaming were covered through October 12.");
+    expect(e.text).toContain("Your AI chat and video streaming were offset through October 12.");
     expect(e.text).toContain("https://myoffset.org/reminders/stop?t=abc");
     expect(e.text).not.toMatch(/\$|prompts/);
   });
