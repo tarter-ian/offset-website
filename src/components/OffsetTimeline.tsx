@@ -36,7 +36,7 @@ function rows(covered: Record<string, Covered>): Row[] {
     if (!items.length) continue;
     const names = items.map(([id]) => productById(id)!.name);
     if (items.length > 1 && items.every(([, c]) => key(c) === key(items[0][1]))) {
-      out.push({ name: `${sec.title}: ${list(names.map((n) => lower(n.replace(/^AI /, ""))))}`, cover: items[0][1] });
+      out.push({ name: `${sec.title}: ${list(names.map((n) => lower(n.replace(/^AI /, "").replace(/ with AI$/, ""))))}`, cover: items[0][1] });
     } else out.push(...items.map(([, c], i) => ({ name: names[i], cover: c })));
   }
   return out;
