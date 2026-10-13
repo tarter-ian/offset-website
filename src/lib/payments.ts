@@ -225,12 +225,35 @@ export function fundGifts(split: HarmSplit): { today: FundGift; repeat: FundGift
   return { today: fundGift(byHarm((k) => split[k].once + split[k].perPeriod)), repeat: repeat.donation > 0 ? repeat : null };
 }
 
+/** The key a gift to the fund goes by: in a checkout's `done` and `confirmed`, and in the donations table as "<id>.fund". */
+export const FUND_KEY = "fund";
+
+/** What must arrive for a checkout or gift to count as paid: each Every.org gift by its row key, or the one gift to the fund. */
+export type Owed = Pick<PayRow, "key" | "donation">;
+export const fundOwed = (g: FundGift): Owed[] => [{ key: FUND_KEY, donation: g.donation }];
+
+/**
+ * Whether everything owed for a checkout or gift has arrived, from the donations
+ * recorded for it. Each must be at least the donation asked for, so a smaller gift
+ * under the same id doesn't count. One check for both modes, so the gift page and
+ * the public list read the same records the plan's own checkout does.
+ */
+export function owedPaid(id: string, owed: Owed[], donations: { partnerDonationId: string | null; amount: number }[]): boolean {
+  if (!owed.length) return false;
+  return owed.every((r) => {
+    const got = donations.filter((d) => d.partnerDonationId === partnerDonationId(id, r.key)).reduce((s, d) => s + d.amount, 0);
+    return got >= r.donation - 0.005;
+  });
+}
+
 /**
  * The fund's donate page, from NEXT_PUBLIC_ENDAOMENT_FUND_URL.
  * TODO(Endaoment): Ian asked (2026-10-13) whether the donate page takes an amount
  * and a note or reference we could fill with the plan id, and whether Endaoment
  * can send a webhook. Until it answers, the link carries neither, so a gift stays
- * "given, pending confirmation" and nothing is marked offset from it.
+ * "given, pending confirmation" and nothing is marked offset from it. Once it can,
+ * store each gift in the donations table as "<plan or gift id>.fund" (FUND_KEY):
+ * the plan's checkout, gifts and the public list all already look for it there.
  */
 export function fundLink(): string | null {
   const url = process.env.NEXT_PUBLIC_ENDAOMENT_FUND_URL;
@@ -321,6 +344,8 @@ export interface Checkout {
   returnPath?: string;
   /** In endaoment mode: the one gift to the fund, with no rows; done.fund is set once the person taps Give. */
   fund?: FundGift;
+  /** Whether the repeating gifts were set to repeat on Every.org on their own. Missing on checkouts saved before 2026-10-13. */
+  autopay?: boolean;
   /** What the plan was priced from, so a steady gift can be checked against measured use later. Kept in this browser only. */
   plan?: { lines: PlanLine[]; ctx: Context; pastYears: PastYears };
 }
@@ -352,7 +377,7 @@ export function saveCheckout(c: Checkout | null) {
 
 /** The row to pay next: the first one the person hasn't come back from. */
 export const nextRow = (c: Checkout) => c.rows.find((r) => !c.done[r.key] && !c.confirmed[r.key]) ?? null;
-export const allConfirmed = (c: Checkout) => c.rows.length > 0 && c.rows.every((r) => c.confirmed[r.key]);
+export const allConfirmed = (c: Checkout) => (c.fund ? !!c.confirmed[FUND_KEY] : c.rows.length > 0 && c.rows.every((r) => c.confirmed[r.key]));
 
 /** Asks the server which of a checkout's gifts Every.org has confirmed. */
 export async function fetchConfirmed(planId: string): Promise<string[]> {

@@ -4,7 +4,8 @@ import { productById } from "./store";
 
 // The monthly email: when a month or year someone covered has ended, one short
 // note saying it's ready, with no numbers in it (Ian, 2026-10-12: usage stays on
-// their computer). It goes once per ended month, never for someone else's gift.
+// their computer). It goes once per ended month, never for someone else's gift,
+// and never for what Every.org's autopay already renews (Ian, 2026-10-13).
 
 export interface Reminder {
   ids: string[];

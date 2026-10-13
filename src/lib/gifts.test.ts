@@ -3,11 +3,11 @@ import {
   defaultGiftSpan,
   GIFT_PRESETS,
   GIFTABLE,
+  giftCharge,
   giftCharities,
   giftImpacts,
-  giftPaid,
+  type GiftItem,
   giftPath,
-  giftRows,
   giftSentence,
   giftSteps,
   giftUntil,
@@ -15,21 +15,23 @@ import {
   presetItems,
   recipients,
 } from "./gifts";
-import { sumTotal } from "./payments";
+import { owedPaid, sumTotal } from "./payments";
 import { DEFAULT_CONTEXT as C, defaultAmount, productById } from "./store";
 
 const ID = "abcdef0123456789abcd";
+/** The Every.org gifts for a gift, as it is given in Every.org mode. */
+const everyRows = (items: GiftItem[], birthYear?: number, people?: number) => giftCharge(items, birthYear, people, "every").rows;
 
 describe("gifts", () => {
   it("can gift every item with something to cover, for life too, with no price cap", () => {
     expect(GIFTABLE.length).toBeGreaterThan(20);
-    const desk = giftRows([{ productId: "desktop", span: "life" }]);
+    const desk = everyRows([{ productId: "desktop", span: "life" }]);
     expect(desk.reduce((s, r) => s + r.donation, 0)).toBeGreaterThan(400);
   });
 
   it("prices years as the monthly amount times the months, in one-time gifts", () => {
     const car = productById("car")!;
-    const rows = giftRows([{ productId: "car", span: "5years" }]);
+    const rows = everyRows([{ productId: "car", span: "5years" }]);
     expect(rows.every((r) => r.frequency === "ONCE")).toBe(true);
     const raw = car.cost(defaultAmount(car, C), "monthly", C) * 60;
     const given = rows.reduce((s, r) => s + r.donation, 0);
@@ -38,8 +40,8 @@ describe("gifts", () => {
   });
 
   it("prices life by the recipient's age", () => {
-    const young = giftRows([{ productId: "car", span: "life" }], new Date().getFullYear() - 22);
-    const old = giftRows([{ productId: "car", span: "life" }], new Date().getFullYear() - 70);
+    const young = everyRows([{ productId: "car", span: "life" }], new Date().getFullYear() - 22);
+    const old = everyRows([{ productId: "car", span: "life" }], new Date().getFullYear() - 70);
     const sum = (r: typeof young) => r.reduce((s, x) => s + x.donation, 0);
     expect(sum(young)).toBeGreaterThan(sum(old) * 3);
   });
@@ -57,12 +59,12 @@ describe("gifts", () => {
   });
 
   it("counts a gift as paid only when every charity got at least what was asked", () => {
-    const rows = giftRows([{ productId: "car", span: "year" }, { productId: "tv", span: "life" }]);
+    const rows = everyRows([{ productId: "car", span: "year" }, { productId: "tv", span: "life" }]);
     const full = rows.map((r) => ({ partnerDonationId: `${ID}.${r.key}`, amount: r.total }));
-    expect(giftPaid(ID, rows, full)).toBe(true);
-    expect(giftPaid(ID, rows, full.slice(1))).toBe(false);
-    expect(giftPaid(ID, rows, full.map((d) => ({ ...d, amount: 0.5 })))).toBe(false);
-    expect(giftPaid(ID, [], full)).toBe(false);
+    expect(owedPaid(ID, rows, full)).toBe(true);
+    expect(owedPaid(ID, rows, full.slice(1))).toBe(false);
+    expect(owedPaid(ID, rows, full.map((d) => ({ ...d, amount: 0.5 })))).toBe(false);
+    expect(owedPaid(ID, [], full)).toBe(false);
   });
 
   it("reads as a sentence on the card", () => {
@@ -89,14 +91,14 @@ describe("gifts", () => {
     expect(giftUntil({ productId: "car", span: "5years" }, "2026-10-12T00:00:00.000Z")).toBe("2031-10-12T00:00:00.000Z");
     expect(giftUntil({ productId: "ai", span: "life" }, "2026-10-12T00:00:00.000Z")).toBeNull();
     expect(giftUntil({ productId: "car", span: "month" }, "2026-10-12T00:00:00.000Z")).toBe("2026-11-12T00:00:00.000Z");
-    const sum = (rows: ReturnType<typeof giftRows>) => rows.reduce((s, r) => s + r.donation, 0);
-    expect(sum(giftRows([{ productId: "car", span: "month" }]))).toBeLessThan(sum(giftRows([{ productId: "car", span: "year" }])));
+    const sum = (rows: ReturnType<typeof everyRows>) => rows.reduce((s, r) => s + r.donation, 0);
+    expect(sum(everyRows([{ productId: "car", span: "month" }]))).toBeLessThan(sum(everyRows([{ productId: "car", span: "year" }])));
   });
 
   it("covers several people in one payment, each with their own link", () => {
     // Three people pay the $1 minimum on a small share once, not three times.
-    const one = giftRows([{ productId: "car", span: "year" }]);
-    const three = giftRows([{ productId: "car", span: "year" }], undefined, 3);
+    const one = everyRows([{ productId: "car", span: "year" }]);
+    const three = everyRows([{ productId: "car", span: "year" }], undefined, 3);
     const total = (rows: typeof one) => rows.reduce((t, r) => t + r.donation, 0);
     expect(total(three)).toBeLessThanOrEqual(total(one) * 3);
     expect(total(three)).toBeGreaterThan(total(one) * 3 - 4);
@@ -108,16 +110,17 @@ describe("gifts", () => {
   });
 
   it("lists the quick picks with the year first and the dearest not first", () => {
-    const totals = GIFT_PRESETS.map((p) => sumTotal(giftRows(presetItems(p))));
+    const totals = GIFT_PRESETS.map((p) => sumTotal(everyRows(presetItems(p))));
     expect(GIFT_PRESETS[0].label).toBe("Everything for a year");
     expect(totals[0]).toBeLessThan(Math.max(...totals));
     expect(totals[0]).toBeGreaterThan(0);
   });
 
-  it("says how many Every.org gifts the giver makes, in either payment mode", () => {
+  it("says how many gifts the giver makes, and where, in either payment mode", () => {
     expect(giftSteps(4, 1, "every")).toBe("You'll make 4 gifts on Every.org, one per charity. Your link works once all 4 are confirmed.");
     expect(giftSteps(1, 2, "every")).toBe("You'll make 1 gift on Every.org. Your links work once it's confirmed.");
-    expect(giftSteps(4, 1, "endaoment")).toMatch(/^Gifts go through Every.org.*You'll make 4 gifts/);
+    // Through Endaoment a gift is one payment to the fund, like the store's, and never mentions Every.org.
+    expect(giftSteps(4, 1, "endaoment")).toBe("You'll make 1 gift to My Offset's fund at Endaoment, which grants each charity its part. Your link works once it's confirmed.");
   });
 
   it("names what a gift offsets and where the money goes", () => {
@@ -125,7 +128,9 @@ describe("gifts", () => {
     const year = giftImpacts([{ productId: "car", span: "year" }]);
     expect(year.carbon).toBeCloseTo(car.impacts(defaultAmount(car, C), "monthly", C).carbon * 12);
     expect(giftImpacts([{ productId: "car", span: "life" }]).carbon).toBeGreaterThan(year.carbon * 10);
-    const all = giftCharities(GIFTABLE.map((p) => ({ productId: p.id, span: "year" as const })));
+    const everything = GIFTABLE.map((p) => ({ productId: p.id, span: "year" as const }));
+    const all = giftCharities(everything, undefined, "every");
     expect(all).toEqual(["Clean Air Task Force", "Colorado Water Trust", "Rainforest Trust", "PCs for People"]);
+    expect(giftCharities(everything, undefined, "endaoment")).toEqual(all);
   });
 });

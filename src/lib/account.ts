@@ -60,6 +60,8 @@ export function cleanCovered(v: unknown): Record<string, Covered> {
       ...(isDate(c.since) ? { since: c.since } : {}),
       ...(typeof c.giftFrom === "string" && c.giftFrom.trim() ? { giftFrom: c.giftFrom.trim().slice(0, 60) } : {}),
       ...(typeof c.past === "boolean" ? { past: c.past } : {}),
+      // Kept so the reminder email skips what autopay renews.
+      ...(c.autopay === "monthly" || c.autopay === "annual" ? { autopay: c.autopay as "monthly" | "annual" } : {}),
     };
     if (c.kind === "life") out[id] = { kind: "life", ...extra };
     else if (c.kind === "period" && isDate(c.until)) out[id] = { kind: "period", until: c.until, ...extra };

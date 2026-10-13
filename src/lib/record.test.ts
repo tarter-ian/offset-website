@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { monthlyUse, monthTotal, offsetCount, recordStatus } from "./record";
+import { inForce, monthlyUse, monthTotal, offsetCount, recordStatus, untilOf } from "./record";
 
 const NOW = Date.parse("2026-10-12T12:00:00Z");
 
@@ -25,6 +25,21 @@ describe("recordStatus", () => {
       ended: "2026-10-02T00:00:00Z",
     });
     expect(recordStatus({ ...ended, car: { kind: "period", until: "2026-12-01T00:00:00Z" } }, NOW, ["ai"])).toEqual({ kind: "covered", until: "2026-12-01T00:00:00Z" });
+  });
+  it("never asks to renew what Every.org's autopay renews, and rolls its date on", () => {
+    const auto = { kind: "period" as const, until: "2026-09-01T00:00:00Z", autopay: "monthly" as const };
+    expect(recordStatus({ ai: auto }, NOW)).toEqual({ kind: "steady" });
+    expect(recordStatus({ ai: auto, video: { kind: "period", until: "2026-10-02T00:00:00Z" } }, NOW)).toEqual({
+      kind: "due",
+      ids: ["video"],
+      ended: "2026-10-02T00:00:00Z",
+    });
+    expect(inForce(auto, NOW)).toBe(true);
+    expect(untilOf(auto, NOW)).toBe("2026-11-01T00:00:00.000Z");
+    expect(untilOf({ ...auto, autopay: "annual" }, NOW)).toBe("2027-09-01T00:00:00.000Z");
+    // Without autopay the date stands, and a gift never renews.
+    expect(untilOf({ ...auto, autopay: undefined }, NOW)).toBe(auto.until);
+    expect(inForce({ ...auto, giftFrom: "Sam" }, NOW)).toBe(false);
   });
   it("never asks to renew someone else's gift", () =>
     expect(recordStatus({ ai: { kind: "period", until: "2026-10-01T00:00:00Z", giftFrom: "Sam" } }, NOW)).toEqual({ kind: "none" }));

@@ -5,16 +5,16 @@ import { useEffect, useState } from "react";
 import { type Covered, STORAGE_KEY } from "@/lib/covered";
 import { AccountBar } from "./Account";
 import { Seal } from "./Badge";
-import { badgesFor, PAST } from "@/lib/badges";
+import { badgesFor, fullBadge, offsetItems, toOffset } from "@/lib/badges";
 import { accountsOn } from "@/lib/account";
 import { fetchAccount, pullCovered, pushCovered } from "@/lib/accountClient";
 import { canInstallExtension, savedResults } from "@/lib/extension";
-import { AI_CHAT_SERVICES, type AiChatService, inForce, monthlyUse, monthTotal, type MonthUse, offsetCount, recordStatus } from "@/lib/record";
+import { AI_CHAT_SERVICES, type AiChatService, inForce, monthlyUse, monthTotal, type MonthUse, offsetCount, onAutopay, recordStatus } from "@/lib/record";
 import { loadCheckout, PAYMENT_MODE } from "@/lib/payments";
 import { itemName } from "@/lib/reminders";
 import { type SteadyPlan, steadyIds, steadyPlan } from "@/lib/steady";
 import { SteadyCheck } from "./SteadyCheck";
-import { productById, PRODUCTS } from "@/lib/store";
+import { type Context, DEFAULT_CONTEXT, productById } from "@/lib/store";
 
 // The page a returning visitor lands on: whether anything needs doing, their AI
 // use month by month (read from the extension on this computer, never sent to
@@ -39,17 +39,41 @@ function loadCovered(): Record<string, Covered> {
   }
 }
 
+/** The items there's something to offset at this browser's saved amounts, for Fully Offset. Amounts stay in the browser. */
+function loadNeeded(): string[] {
+  try {
+    const s = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}") as { amounts?: Record<string, number | string>; ctx?: Partial<Context> };
+    return toOffset(s.amounts ?? {}, { ...DEFAULT_CONTEXT, ...s.ctx });
+  } catch {
+    return toOffset({}, DEFAULT_CONTEXT);
+  }
+}
+
+/**
+ * Marks what a steady gift from this browser's checkout pays for as on autopay, for checkouts
+ * saved before covers kept the flag, so every part of the page reads autopay the same way.
+ */
+function withSteady(covered: Record<string, Covered>, steady: SteadyPlan | null): Record<string, Covered> {
+  const ids = steadyIds(steady);
+  if (!steady || !ids.length) return covered;
+  return Object.fromEntries(
+    Object.entries(covered).map(([id, c]) => [id, c.kind === "period" && !c.giftFrom && !c.autopay && ids.includes(id) ? { ...c, autopay: steady.billing } : c]),
+  );
+}
+
 export function Record() {
-  const [covered, setCovered] = useState<Record<string, Covered> | null>(null);
+  const [saved, setCovered] = useState<Record<string, Covered> | null>(null);
   const [use, setUse] = useState<MonthUse[] | null>(null);
   const [computer, setComputer] = useState(true);
   const [steady, setSteady] = useState<SteadyPlan | null>(null);
+  const [needed, setNeeded] = useState<string[]>([]);
   /** Signed in with reminders on: only then does a link come by email. */
   const [reminded, setReminded] = useState(false);
 
   useEffect(() => {
     setCovered(loadCovered());
     setSteady(steadyPlan(loadCheckout()));
+    setNeeded(loadNeeded());
     setComputer(canInstallExtension());
     fetchAccount().then((a) => setReminded(a.signedIn && a.reminders !== false));
     // Signed in: bring in what the account covers (from another device), then send up anything this browser adds.
@@ -62,13 +86,16 @@ export function Record() {
     savedResults().then((r) => setUse(monthlyUse(Object.fromEntries(AI_CHAT_SERVICES.map((s) => [s, r[s]?.record])))));
   }, []);
 
-  if (!covered) return <p className="py-16 text-muted">Loading your record…</p>;
+  if (!saved) return <p className="py-16 text-muted">Loading your record…</p>;
   const now = Date.now();
-  const repeating = steadyIds(steady);
-  const status = recordStatus(covered, now, repeating);
-  // Count what's offset against every item, so one item for life never reads as done (Ian, 2026-10-13).
-  const { offset, open } = offsetCount(covered, PRODUCTS.map((p) => p.id), now, repeating);
+  // Items on Every.org's autopay renew there, so they never come due here (Ian, 2026-10-13).
+  const covered = withSteady(saved, steady);
+  const status = recordStatus(covered, now);
+  // Count what's offset against every item there's something to offset, so one item for life
+  // never reads as done (Ian, 2026-10-13), and an item at nothing never stands in the way.
+  const { offset, open } = offsetCount(covered, needed, now);
   const all = open === 0;
+  const full = all ? fullBadge(covered, needed, now) : null;
   const subject = offset.length === 1 ? `${nameOf(offset[0])} is` : `${offset.length} things are`;
   const more = open > 0 && <> {open} more {open === 1 ? "thing" : "things"} you could offset.</>;
 
@@ -103,9 +130,13 @@ export function Record() {
           </>
         ) : (
           <>
-            <h1 className="font-display text-4xl leading-[1.05] font-extrabold [font-stretch:85%] sm:text-5xl">
-              {all ? "You're fully offset." : `${subject} offset${status.kind === "life" ? " for life" : ""}.`}
-            </h1>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
+              {/* The badge the store promises, once everything is offset (Ian, 2026-10-13). */}
+              {full && <Seal kind="full" name={full.name} until={full.until} size={112} />}
+              <h1 className="font-display text-4xl leading-[1.05] font-extrabold [font-stretch:85%] sm:text-5xl">
+                {all ? "You're fully offset." : `${subject} offset${status.kind === "life" ? " for life" : ""}.`}
+              </h1>
+            </div>
             <p className="mt-4 max-w-xl text-lg text-muted">
               {status.kind === "life" ? (
                 all ? (
@@ -161,8 +192,8 @@ export function Record() {
             Offset something else
           </Link>
         </div>
-        <Seals covered={covered} now={now} />
-        <CoveredList covered={covered} now={now} repeating={repeating} />
+        <Seals covered={covered} now={now} needed={needed} />
+        <CoveredList covered={covered} now={now} />
       </section>
 
       <SteadyCheck plan={steady} use={use} />
@@ -282,13 +313,12 @@ function UseChart({ use, computer }: { use: MonthUse[] | null; computer: boolean
   );
 }
 
-/** The badges what's in force earns, plus past use paid for on a cover that has ended: the same seals the public list and gift cards show. */
-function Seals({ covered, now }: { covered: Record<string, Covered>; now: number }) {
-  const seals = badgesFor(
-    Object.entries(covered)
-      .filter(([, c]) => inForce(c, now) || c.past)
-      .map(([productId, c]) => ({ productId, until: c.kind === "life" ? null : inForce(c, now) ? c.until : PAST })),
-  );
+/**
+ * The badges what's in force earns, plus past use paid for on a cover that has ended: the same
+ * seals the public list and gift cards show. Fully Offset shows at the top of the page instead.
+ */
+function Seals({ covered, now, needed }: { covered: Record<string, Covered>; now: number; needed: string[] }) {
+  const seals = badgesFor(offsetItems(covered, now), needed).filter((b) => b.kind !== "full");
   if (!seals.length) return null;
   return (
     <div className="mt-4 mb-2 flex flex-wrap gap-3">
@@ -300,7 +330,7 @@ function Seals({ covered, now }: { covered: Record<string, Covered>; now: number
 }
 
 /** Each offset item with a line over the last twelve months and the next: green for life, blue for a set stretch. */
-function CoveredList({ covered, now, repeating }: { covered: Record<string, Covered>; now: number; repeating: string[] }) {
+function CoveredList({ covered, now }: { covered: Record<string, Covered>; now: number }) {
   const entries = Object.entries(covered).sort(([, a], [, b]) => (a.kind === b.kind ? 0 : a.kind === "life" ? -1 : 1));
   if (!entries.length) return <p className="mt-3 text-muted">Nothing yet.</p>;
   const year = 365.25 * 86400000;
@@ -310,7 +340,7 @@ function CoveredList({ covered, now, repeating }: { covered: Record<string, Cove
   return (
     <ul className="mt-3 border-t border-rule">
       {entries.map(([id, c]) => {
-        const steady = c.kind === "period" && !c.giftFrom && repeating.includes(id);
+        const steady = onAutopay(c);
         const live = steady || inForce(c, now);
         const start = c.since ? Date.parse(c.since) : from;
         const end = c.kind === "life" || steady ? from + span : Date.parse(c.until);

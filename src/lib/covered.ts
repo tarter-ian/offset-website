@@ -11,4 +11,9 @@ export type Covered = ({ kind: "life" } | { kind: "period"; until: string }) & {
   giftFrom?: string;
   /** Whether past use was paid for too. Missing on covers saved before 2026-10-13 and on gifts. */
   past?: boolean;
+  /**
+   * Set when the gift that paid for a month or year repeats on Every.org's autopay, with how
+   * often: it renews on its own, so it never comes due here or by email (Ian, 2026-10-13).
+   */
+  autopay?: "monthly" | "annual";
 };

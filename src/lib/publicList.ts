@@ -1,11 +1,12 @@
 import { type Billing } from "./pricing";
 import { giftUntil, type Gift } from "./gifts";
 import { PAST_YEARS, harmSplit, planTotals, productById, type Context, type PastYears, type PlanLine } from "./store";
-import { payRows, PLAN_ID, type PayRow } from "./payments";
+import { fundGifts, fundOwed, type Owed, PAYMENT_MODE, payRows, PLAN_ID } from "./payments";
+import type { PaymentMode } from "./pricing";
 
 // The public list (Ian, 2026-10-12): people who chose to be listed, with a name
 // they pick, what they've covered and since when. No dollar amounts. Someone is
-// shown only once Every.org has confirmed every gift of a checkout, and a gift's
+// shown only once every gift of a checkout is confirmed, and a gift's
 // recipient is listed only if they opt in themselves. Leaving is one tap.
 
 export const LIST_NAME_MAX = 40;
@@ -26,7 +27,8 @@ export interface ListItem {
 export interface Claim {
   source: "plan" | "gift";
   sourceId: string;
-  rows: PayRow[];
+  /** What must arrive for it to count: each Every.org gift, or the one gift to the fund. */
+  rows: Owed[];
   items: ListItem[];
   createdAt: string;
 }
@@ -96,15 +98,24 @@ export function parsePlanClaim(b: Record<string, unknown>): PlanClaimInput | nul
   return { planId: b.planId, lines, ctx, billing: b.billing, pastYears, autopay: b.autopay === true };
 }
 
-export function planRows(i: PlanClaimInput): PayRow[] {
-  // The list checks Every.org gifts, so its rows are always Every.org's.
-  return payRows(harmSplit(planTotals(i.lines, i.ctx, i.billing, i.pastYears), i.ctx, i.billing), i.billing, i.autopay, "every");
+/**
+ * What a plan's checkout owes, in the site's payment mode: the list checks the same
+ * records the checkout does (Ian, 2026-10-13), so in Endaoment mode that's the one
+ * gift to the fund. Nothing repeats on its own there, so autopay plays no part.
+ */
+export function planRows(i: PlanClaimInput, mode: PaymentMode = PAYMENT_MODE): Owed[] {
+  const split = harmSplit(planTotals(i.lines, i.ctx, i.billing, i.pastYears), i.ctx, i.billing);
+  if (mode === "endaoment") {
+    const { today } = fundGifts(split);
+    return today.donation > 0 ? fundOwed(today) : [];
+  }
+  return payRows(split, i.billing, i.autopay, mode);
 }
 
-/** Whether rows the browser showed match the server's own: same charities, same gifts to the cent. */
-export function sameRows(a: PayRow[], b: unknown): boolean {
+/** Whether rows the browser showed match the server's own: same gifts to the cent. */
+export function sameRows(a: Owed[], b: unknown): boolean {
   if (!Array.isArray(b) || a.length !== b.length) return false;
-  return a.every((r) => (b as PayRow[]).some((x) => x?.key === r.key && Math.abs(Number(x.donation) - r.donation) < 0.011));
+  return a.every((r) => (b as Owed[]).some((x) => x?.key === r.key && Math.abs(Number(x.donation) - r.donation) < 0.011));
 }
 
 /**

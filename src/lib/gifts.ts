@@ -1,6 +1,6 @@
 import { CHARITIES } from "./charities";
 import { type Impacts, sumImpacts } from "./footprint";
-import { payRows, type PaymentMode, PLAN_ID, type PayRow } from "./payments";
+import { type FundGift, fundGift, fundOwed, type Owed, owedPaid, PAYMENT_MODE, type PaymentMode, payRows, PLAN_ID, type PayRow, sumTotal } from "./payments";
 import { DEFAULT_CONTEXT, defaultAmount, harmSplit, type HarmSplit, planTotals, PRODUCTS, productById, SECTIONS, type Context, type Product } from "./store";
 
 // Gifting an offset: one person pays the charities for someone else's typical
@@ -71,15 +71,16 @@ export const GIFT_PRESETS: { label: string; span: (p: Product) => GiftSpan }[] =
 ];
 export const presetItems = (preset: (typeof GIFT_PRESETS)[number]): GiftItem[] => GIFTABLE.map((p) => ({ productId: p.id, span: preset.span(p) }));
 
-/** What the giver is told before they give: one Every.org gift per charity, and when the link starts working. */
-export function giftSteps(gifts: number, links: number, mode: PaymentMode): string {
+/**
+ * What the giver is told before they give: how many gifts, where, and when the link
+ * starts working. Through Endaoment it's always one gift to the fund, as in the store.
+ */
+export function giftSteps(gifts: number, links: number, mode: PaymentMode = PAYMENT_MODE): string {
   const link = links > 1 ? "links work" : "link works";
-  const how =
-    gifts === 1
-      ? `You'll make 1 gift on Every.org. Your ${link} once it's confirmed.`
-      : `You'll make ${gifts} gifts on Every.org, one per charity. Your ${link} once all ${gifts} are confirmed.`;
-  // Gifts stay on Every.org even when the store gives through the Endaoment fund, so each gift link can see its own confirmations.
-  return mode === "endaoment" ? `Gifts go through Every.org, not the fund the rest of the site uses. ${how}` : how;
+  if (mode === "endaoment") return `You'll make 1 gift to My Offset's fund at Endaoment, which grants each charity its part. Your ${link} once it's confirmed.`;
+  return gifts === 1
+    ? `You'll make 1 gift on Every.org. Your ${link} once it's confirmed.`
+    : `You'll make ${gifts} gifts on Every.org, one per charity. Your ${link} once all ${gifts} are confirmed.`;
 }
 
 const empty = (): HarmSplit => ({
@@ -90,24 +91,60 @@ const empty = (): HarmSplit => ({
   ewaste: { once: 0, perPeriod: 0 },
 });
 
-/**
- * The one-time gifts to each charity that pay for a gift, at typical use.
- * Worked out the same way on the server, so a gift link can't claim more than was paid.
- */
-export function giftRows(items: GiftItem[], birthYear: number = DEFAULT_CONTEXT.birthYear, people = 1): PayRow[] {
+/** What a gift pays each harm's charity, all at once: typical use, times its span, times the people it's for. Null for an unknown item. */
+export function giftSplit(items: GiftItem[], birthYear: number = DEFAULT_CONTEXT.birthYear, people = 1): HarmSplit | null {
   const ctx = giftContext(birthYear);
   const total = empty();
   for (const item of items) {
     const p = productById(item.productId);
-    if (!p || !giftable(p)) return [];
+    if (!p || !giftable(p)) return null;
     const amount = defaultAmount(p, ctx);
     const span = item.span;
     const split = harmSplit(planTotals([{ productId: p.id, amount, cover: { past: false, ahead: span === "life" ? "lifetime" : "monthly" } }], ctx, "monthly"), ctx, "monthly");
     const months = spanMonths(span) ?? 0;
     for (const k of Object.keys(total) as (keyof HarmSplit)[]) total[k].once += (split[k].once + split[k].perPeriod * months) * people;
   }
-  // Gifts are given through Every.org in every payment mode, so each gift page can see its own confirmations.
-  return payRows(total, "monthly", false, "every");
+  return total;
+}
+
+/** How a gift is given: one Every.org gift per charity, or one gift to the Endaoment fund and no rows. */
+export interface GiftCharge {
+  rows: PayRow[];
+  fund?: FundGift;
+}
+
+/**
+ * What the giver gives for a gift, in the site's payment mode. Gifts follow the
+ * same switch as the plan's checkout (Ian, 2026-10-13: "the end goal is using
+ * endaoment"), so in Endaoment mode a gift is one payment to the fund, with no
+ * $1 minimums. Worked out the same way on the server, so a gift link can't claim
+ * more than was paid.
+ */
+export function giftCharge(items: GiftItem[], birthYear: number = DEFAULT_CONTEXT.birthYear, people = 1, mode: PaymentMode = PAYMENT_MODE): GiftCharge {
+  const split = items.length ? giftSplit(items, birthYear, people) : null;
+  if (!split) return { rows: [] };
+  if (mode === "endaoment") {
+    const fund = fundGift(Object.fromEntries(Object.entries(split).map(([k, v]) => [k, v.once])));
+    return fund.donation > 0 ? { rows: [], fund } : { rows: [] };
+  }
+  return { rows: payRows(split, "monthly", false, mode) };
+}
+
+/** What a gift's charge comes to, fees included. */
+export const chargeTotal = (c: GiftCharge) => (c.fund ? c.fund.total : sumTotal(c.rows));
+
+/** What must arrive for a gift to count as paid, in one payment mode. */
+export function giftOwed(gift: Pick<Gift, "items" | "birthYear" | "to">, mode: PaymentMode = PAYMENT_MODE): Owed[] {
+  const c = giftCharge(gift.items, gift.birthYear, recipients(gift).length, mode);
+  return c.fund ? fundOwed(c.fund) : c.rows;
+}
+
+/**
+ * The mode a gift was paid in, from the donations recorded for it, or null while
+ * it isn't paid. Both are checked so a gift given before the site switched modes stays paid.
+ */
+export function giftPaidMode(gift: Pick<Gift, "id" | "items" | "birthYear" | "to">, donations: { partnerDonationId: string | null; amount: number }[]): PaymentMode | null {
+  return (["every", "endaoment"] as const).find((m) => owedPaid(gift.id, giftOwed(gift, m), donations)) ?? null;
 }
 
 /** What a gift offsets for one person at typical use: lifetime for "for life", else each month times the months. */
@@ -126,9 +163,10 @@ export function giftImpacts(items: GiftItem[], birthYear: number = DEFAULT_CONTE
 }
 
 /** The charities a gift's money goes to, each named once, in checkout order. */
-export const giftCharities = (items: GiftItem[], birthYear?: number): string[] => [
-  ...new Set(giftRows(items, birthYear).map((r) => CHARITIES[r.charity].name)),
-];
+export function giftCharities(items: GiftItem[], birthYear?: number, mode: PaymentMode = PAYMENT_MODE): string[] {
+  const c = giftCharge(items, birthYear, 1, mode);
+  return [...new Set((c.fund ? c.fund.parts : c.rows).map((r) => CHARITIES[r.charity].name))];
+}
 
 const clean = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, max) : "");
 
@@ -155,19 +193,6 @@ export function parseGift(body: unknown, now = new Date()): { ok: true; gift: Gi
   const to = names.join("\n");
   if (!from || !to) return { ok: false, error: "Add both names." };
   return { ok: true, gift: { id: b.id, items, birthYear, from, to, note: clean(b.note, GIFT_LIMITS.note), createdAt: now.toISOString() } };
-}
-
-/**
- * Whether every charity's gift has arrived, from the donations Every.org reported
- * for this gift. Each must be at least the donation asked for, so a smaller gift
- * under the same id doesn't count.
- */
-export function giftPaid(id: string, rows: PayRow[], donations: { partnerDonationId: string | null; amount: number }[]): boolean {
-  if (!rows.length) return false;
-  return rows.every((r) => {
-    const got = donations.filter((d) => d.partnerDonationId === `${id}.${r.key}`).reduce((s, d) => s + d.amount, 0);
-    return got >= r.donation - 0.005;
-  });
 }
 
 /** "driving", but "AI chat" keeps its capitals. */

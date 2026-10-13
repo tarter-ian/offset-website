@@ -9,13 +9,15 @@ import {
   type Checkout,
   fetchConfirmed,
   frequencyText,
+  FUND_KEY,
+  fundLink,
   harmsText,
   nextRow,
   payLink,
   type PayRow,
   saveCheckout,
 } from "@/lib/payments";
-import { usd } from "@/lib/pricing";
+import { ENDAOMENT_GRANT_LABEL, ENDAOMENT_IN_LABEL, usd } from "@/lib/pricing";
 
 const harmLabel = (k: keyof typeof IMPACT_INFO) => IMPACT_INFO[k].label.toLowerCase();
 const POLL_MS = 5000;
@@ -63,6 +65,104 @@ function StepRow({ row, status, action }: { row: PayRow; status: "next" | "later
       </span>
       {action ?? (status === "later" && <span className="figures text-muted">{usd(row.total)}</span>)}
     </li>
+  );
+}
+
+/**
+ * A gift's one payment to the Endaoment fund: what each charity gets, the fees, and one
+ * Give button that opens the fund in a new tab. Looks once for a confirmation under the
+ * fund's key, the same record the store's checkout waits on; until Endaoment can send one
+ * (see fundLink), the gift stays given and pending.
+ */
+export function FundSteps({ checkout, onChange, save }: { checkout: Checkout; onChange: (c: Checkout) => void; save: (c: Checkout) => void }) {
+  const [href, setHref] = useState<string | null>(null);
+  const latest = useRef({ checkout, onChange, save });
+  useEffect(() => {
+    latest.current = { checkout, onChange, save };
+  });
+  useEffect(() => setHref(fundLink()), []);
+  useEffect(() => {
+    let stopped = false;
+    fetchConfirmed(checkout.id).then((paid) => {
+      const { checkout: c, onChange: change, save: keep } = latest.current;
+      if (stopped || !paid.includes(FUND_KEY) || c.confirmed[FUND_KEY]) return;
+      const next = { ...c, confirmed: { ...c.confirmed, [FUND_KEY]: true as const } };
+      keep(next);
+      change(next);
+    });
+    return () => {
+      stopped = true;
+    };
+  }, [checkout.id]);
+  const gift = checkout.fund;
+  if (!gift) return null;
+  const confirmed = !!checkout.confirmed[FUND_KEY];
+  const given = !!checkout.done[FUND_KEY];
+  return (
+    <div className="text-sm">
+      <dl className="figures space-y-1 border-y-2 border-rule py-3">
+        {gift.parts.map((p) => (
+          <div key={p.charity} className="flex justify-between gap-4">
+            <dt className="font-sans text-muted">
+              {CHARITIES[p.charity].name} ({harmsText(p.harms, harmLabel)})
+            </dt>
+            <dd className="shrink-0 text-right">{usd(p.amount)}</dd>
+          </div>
+        ))}
+        <div className="flex justify-between gap-4">
+          <dt className="font-sans text-muted">
+            Endaoment fees ({ENDAOMENT_IN_LABEL} in, {ENDAOMENT_GRANT_LABEL} to grant it out)
+          </dt>
+          <dd className="shrink-0 text-right">{usd(gift.endaoment)}</dd>
+        </div>
+        <div className="flex justify-between gap-4">
+          <dt className="font-sans text-muted">Card fee (estimated)</dt>
+          <dd className="shrink-0 text-right">{usd(gift.card)}</dd>
+        </div>
+        <div className="flex justify-between gap-4 border-t border-border pt-1.5 text-base font-semibold">
+          <dt className="font-sans">Total, one gift</dt>
+          <dd>{usd(gift.total)}</dd>
+        </div>
+      </dl>
+      {confirmed ? (
+        <p role="status" className="mt-3 font-semibold text-life-ink">
+          Given and confirmed. Thank you. Endaoment emails your tax receipt.
+        </p>
+      ) : given ? (
+        <p role="status" className="mt-3">
+          <span className="font-semibold">
+            <span aria-hidden>✓ </span>Given <span className="figures">{usd(gift.total)}</span>, pending confirmation
+          </span>
+          <span className="block text-muted">Endaoment emails your tax receipt. The gift link works once we can confirm the gift with Endaoment.</span>
+        </p>
+      ) : href ? (
+        <div className="mt-3">
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener"
+            onClick={() => {
+              const next = { ...checkout, done: { ...checkout.done, [FUND_KEY]: new Date().toISOString() } };
+              save(next);
+              onChange(next);
+            }}
+            className="inline-flex min-h-11 cursor-pointer items-center rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-strong"
+          >
+            Give {usd(gift.total)}
+          </a>
+          <p className="mt-2 text-muted">
+            Opens the My Offset fund on Endaoment in a new tab. Give <span className="figures">{usd(gift.total)}</span> there, and Endaoment grants
+            each charity its part.
+          </p>
+        </div>
+      ) : (
+        <p className="mt-3 font-semibold">Giving through Endaoment opens soon.</p>
+      )}
+      <p className="mt-2 text-muted">
+        Before you give: <Link href="/ledger">where the money goes</Link>, <Link href="/promises">what we promise</Link> and{" "}
+        <Link href="/method">how each price is worked out</Link>. None of it passes through My Offset.
+      </p>
+    </div>
   );
 }
 

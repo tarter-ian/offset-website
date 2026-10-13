@@ -12,6 +12,10 @@ describe("reminderFor", () => {
     expect(reminderFor({ ai: { ...ended.ai, giftFrom: "Sam" } }, null, NOW)).toBeNull();
     expect(reminderFor({ ai: { kind: "period", until: "2026-11-12T00:00:00Z" } }, null, NOW)).toBeNull();
   });
+  it("never for what autopay renews, so no one gives twice", () => {
+    expect(reminderFor({ ai: { ...ended.ai, autopay: "monthly" } }, null, NOW)).toBeNull();
+    expect(reminderFor({ ai: { ...ended.ai, autopay: "monthly" }, video: ended.ai }, null, NOW)).toEqual({ ids: ["video"], ended: "2026-10-12T00:00:00Z" });
+  });
 });
 
 describe("reminderEmail", () => {

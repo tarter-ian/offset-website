@@ -31,6 +31,13 @@ describe("cleanCovered", () => {
       }),
     ).toEqual({ ai: { kind: "life", since: "2026-03-01T00:00:00Z" }, video: { kind: "period", until: "2026-11-01T00:00:00Z", giftFrom: "Sam" } }));
   it("ignores non-objects", () => expect(cleanCovered([1])).toEqual({}));
+  it("keeps autopay, so the reminder email can skip it", () => {
+    const until = "2026-11-01T00:00:00Z";
+    expect(cleanCovered({ ai: { kind: "period", until, autopay: "annual" }, tv: { kind: "period", until, autopay: "weekly" } })).toEqual({
+      ai: { kind: "period", until, autopay: "annual" },
+      tv: { kind: "period", until },
+    });
+  });
 });
 
 describe("mergeCovered", () => {

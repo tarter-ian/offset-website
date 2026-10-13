@@ -1,5 +1,5 @@
 import { db, rowsOf } from "./db";
-import { giftPaid } from "./gifts";
+import { owedPaid } from "./payments";
 import { badges, hashToken, type Claim, type ListItem } from "./publicList";
 
 // Reading and writing the public list. Server only.
@@ -35,7 +35,7 @@ async function paidOnly(claims: (Claim & { personId: string })[]) {
     (d) => ({ partnerDonationId: String(d.partner_donation_id), amount: Number(d.amount) || 0 }),
   );
   // A gift for several people lists each of them as "<gift id>/<n>", paid when the gift is.
-  return claims.filter((c) => giftPaid(c.sourceId.split("/")[0], c.rows, donations));
+  return claims.filter((c) => owedPaid(c.sourceId.split("/")[0], c.rows, donations));
 }
 
 /** Everyone on the public list with at least one confirmed claim and a badge still current, newest first. */
