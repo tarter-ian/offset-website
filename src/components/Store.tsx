@@ -197,12 +197,6 @@ const COMMON_FIRST: Partial<Record<string, string[]>> = {
   travel: ["car", "flights", "rideshare"],
 };
 const LIVE_LINKS = new Set<ProviderId>(["chatgpt", "claude", "gemini", "openai-api", "anthropic-api", "activity"]);
-const LINK_ROW: { id: ProviderId; label: string }[] = [
-  { id: "chatgpt", label: "ChatGPT, Claude or Gemini" },
-  { id: "activity", label: "Spotify, YouTube, Netflix or Google Maps" },
-  { id: "utility", label: "Electric and gas utility" },
-  { id: "car", label: "Car" },
-];
 
 // Optional tips toward hosting and upkeep; the default is none.
 const TIPS = [0, 1, 3, 5];
@@ -612,7 +606,7 @@ export function Store() {
           />
           <span>
             Include past use <span className="amount text-muted">({once(pastPrice)})</span>
-            <span className="text-muted"> · {pastNote(p)}</span>
+            {p.id !== "ai" && <span className="text-muted"> · {pastNote(p)}</span>}
           </span>
         </label>
         )}
@@ -1011,7 +1005,6 @@ export function Store() {
         ? "Lifetime"
         : "All future use"
       : `${aiCover.past ? "Past use + " : ""}${billing === "annual" ? "each year" : "each month"}`;
-  const linkedSomething = ctx.aiFromExport || Object.keys(linkedFrom).length > 0;
   /** The hero's green button: puts AI chat in the plan if it isn't, then opens checkout. */
   const reviewAndPay = () => {
     setPlan((cur) => (cur.includes(ai.id) ? cur : [...cur, ai.id]));
@@ -1040,8 +1033,7 @@ export function Store() {
               : `Your AI use, covered: about ${once(coverPrice(ai, aiAmount, { past: false, ahead: "monthly" }, ctx).monthly)} a month.`}
           </h1>
           <p className="mt-6 max-w-xl text-lg">
-            Every prompt runs on data centers that use power and water, much of it in dry places, and add to air pollution.
-            A small gift to charities that cut carbon, clean the air and save water covers it.
+            Every prompt uses power and water, and a small gift to the right charities covers it.
           </p>
           <div className="mt-8 max-w-xl">
             <AiQuickPick
@@ -1117,13 +1109,16 @@ export function Store() {
               </div>
             ))}
           </dl>
-          <p className="mt-1 text-xs text-muted">
-            Includes a share of training the models and building the data centers. Future use counts {LIFETIME_GROWTH_BUFFER} times over in
-            case it grows, on a grid that gets cleaner each year.{" "}
-            <Link href="/method" className="cursor-pointer underline underline-offset-2 hover:text-foreground">
-              Every number&apos;s source
-            </Link>
-          </p>
+          <details className="mt-1 text-xs text-muted">
+            <summary className="cursor-pointer underline underline-offset-2 hover:text-foreground">What&apos;s counted</summary>
+            <p className="mt-1">
+              A share of training the models and building the data centers. Future use counts {LIFETIME_GROWTH_BUFFER} times over in case it
+              grows, on a grid that gets cleaner each year. Past use is {pastNote(ai)}.{" "}
+              <Link href="/method" className="cursor-pointer underline underline-offset-2 hover:text-foreground">
+                Every number&apos;s source
+              </Link>
+            </p>
+          </details>
           <div className="mt-4">{coverControls(ai, true)}</div>
           <div className="mt-4 flex items-center justify-between gap-4 border-t border-border pt-3">
             <span className="amount text-2xl font-semibold">{priceText(aiPrice, aiCover, billing)}</span>
@@ -1145,42 +1140,18 @@ export function Store() {
         </aside>
       </section>
 
-      <section aria-label="Link accounts" className="mb-6 border-y border-border py-3 text-sm">
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
-          <span className="font-semibold">{linkedSomething ? "Link the rest:" : "Fill in your real numbers:"}</span>
-          {LINK_ROW.filter((l) => LIVE_LINKS.has(l.id)).map((l) => {
-            const done = (l.id === "chatgpt" && ctx.aiFromExport) || (l.id === "activity" && Object.keys(linkedFrom).length > 0);
-            return (
-              <button
-                key={l.id}
-                type="button"
-                onClick={() => link(l.id)}
-                className={`inline-flex min-h-10 items-center underline underline-offset-4 ${done ? "text-accent" : "hover:text-accent"}`}
-              >
-                {done ? `✓ ${l.label}` : l.label}
-              </button>
-            );
-          })}
-        </div>
-        {activityOpen && (
-          <div id="link-activity" className="mt-3 max-w-2xl">
-            <ActivityUpload
-              onResult={(found, from) => {
-                setAmounts((a) => ({ ...a, ...found }));
-                if ("ai" in found) resetAiCover();
-                setEntered((e) => ({ ...e, ...Object.fromEntries(Object.keys(found).map((k) => [k, false])) }));
-                setLinkedFrom((l) => ({ ...l, ...from }));
-              }}
-            />
-          </div>
-        )}
-        {asked.length > 0 && (
-          <p className="text-muted">
-            Linking your {asked.map((a) => providerName(a).toLowerCase()).join(" and ")} opens at launch. Until then we use
-            typical amounts for {STATES[ctx.state].name}.
-          </p>
-        )}
-      </section>
+      {activityOpen && (
+        <section id="link-activity" aria-label="Add your history" className="mb-6 max-w-2xl border-y border-border py-3 text-sm">
+          <ActivityUpload
+            onResult={(found, from) => {
+              setAmounts((a) => ({ ...a, ...found }));
+              if ("ai" in found) resetAiCover();
+              setEntered((e) => ({ ...e, ...Object.fromEntries(Object.keys(found).map((k) => [k, false])) }));
+              setLinkedFrom((l) => ({ ...l, ...from }));
+            }}
+          />
+        </section>
+      )}
 
       <nav aria-label="Other things you can do" className="mb-10 flex flex-wrap gap-x-6 gap-y-1 text-sm">
         {recordStatus(covered).kind !== "none" && !previewing && (

@@ -572,7 +572,7 @@ export function AiQuickPick({
             >
               <span className="block font-semibold">{l.label}</span>
               <span className={`block text-sm ${on ? "opacity-80" : "text-muted"}`}>
-                {l.who}, about {l.promptsPerDay} prompts
+                {l.promptsPerDay} prompts a day
               </span>
             </button>
           );
