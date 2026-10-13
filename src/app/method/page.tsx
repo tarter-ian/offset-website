@@ -5,6 +5,7 @@ import { STATES } from "@/lib/data/states";
 import { IMPACT_INFO } from "@/lib/impacts";
 import { DEFAULT_CONTEXT, PAST_FROM_AGE, PAST_MONTHLY_CAP_USD, PAST_YEARS, PRODUCTS } from "@/lib/store";
 import { PAYMENT_MODE } from "@/lib/payments";
+import { ComputerOnly } from "@/components/ComputerOnly";
 import {
   AIR_DAMAGE_SHARE,
   ENDAOMENT_GRANT_LABEL,
@@ -156,7 +157,10 @@ const ROWS = [
   },
   {
     category: "AI",
-    method: `About ${F.WH_PER_AI_PROMPT} Wh a chatbot prompt, plus its share of training the model, plus data center cooling water. Because AI is new demand on the grid, its carbon is counted at the plants that ramp up to meet new demand, mostly gas, at about ${F.AI_NEW_POWER_LB_PER_MWH.toLocaleString()} lb CO₂ a MWh (EPA AVERT, rough) instead of the ${F.US_GRID_LB_PER_MWH} average. If you add your ChatGPT, Claude or Gemini data export, I measure each prompt instead (longer conversations, reasoning models and images all use more), and your past use is your real history. The extension does the same from your ChatGPT and Claude chat list: each chat you've started since your first counts at the energy your recent chats use. With nothing linked, past use grows steadily from when you say you started (late 2022 at the earliest) to today's rate, which works out to half of today's rate over that time. Gemini's export lists prompts without their conversations, so long Gemini chats count as if each prompt started fresh.`,
+    method: `About ${F.WH_PER_AI_PROMPT} Wh a chatbot prompt, plus its share of training the model, plus data center cooling water. Because AI is new demand on the grid, its carbon is counted at the plants that ramp up to meet new demand, mostly gas, at about ${F.AI_NEW_POWER_LB_PER_MWH.toLocaleString()} lb CO₂ a MWh (EPA AVERT, rough) instead of the ${F.US_GRID_LB_PER_MWH} average. If you add your ChatGPT, Claude or Gemini data export, I measure each prompt instead (longer conversations, reasoning models and images all use more), and your past use is your real history.`,
+    // Phones never mention the extension (Ian, 2026-10-13).
+    computer: `The extension does the same from your ChatGPT and Claude chat list: each chat you've started since your first counts at the energy your recent chats use.`,
+    after: `With nothing linked, past use grows steadily from when you say you started (late 2022 at the earliest) to today's rate, which works out to half of today's rate over that time. Gemini's export lists prompts without their conversations, so long Gemini chats count as if each prompt started fresh.`,
   },
   {
     category: "Video streaming",
@@ -248,7 +252,11 @@ export default function MethodPage() {
           <li key={r.category}>
             <details className="py-3">
               <summary className="cursor-pointer font-medium">{r.category}</summary>
-              <p className="mt-2 text-sm text-muted">{r.method}</p>
+              <p className="mt-2 text-sm text-muted">
+                {r.method}
+                {"computer" in r && <ComputerOnly> {r.computer}</ComputerOnly>}
+                {"after" in r && ` ${r.after}`}
+              </p>
             </details>
           </li>
         ))}

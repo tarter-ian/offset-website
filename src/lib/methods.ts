@@ -28,8 +28,8 @@ const DEVICE_NOTE = (id: keyof typeof F.DEVICES) => {
   ];
 };
 
-const GOODS_USD_NOTE = (k: keyof typeof F.GOODS_KG_CO2_PER_USD) =>
-  `About ${F.GOODS_KG_CO2_PER_USD[k]} kg CO₂e for each dollar spent, from the EPA's supply-chain model. The default, $${F.GOODS_USD_PER_MONTH[k]} a month, is a typical American's spending (BLS, 2024). If the My Offset extension finds you spend more than that on Amazon alone, I use your Amazon figure instead. Amazon splits an order's cost evenly over its items, so a mixed order is rough.`;
+const GOODS_USD_NOTE = (k: keyof typeof F.GOODS_KG_CO2_PER_USD, phone: boolean) =>
+  `About ${F.GOODS_KG_CO2_PER_USD[k]} kg CO₂e for each dollar spent, from the EPA's supply-chain model. The default, $${F.GOODS_USD_PER_MONTH[k]} a month, is a typical American's spending (BLS, 2024). ${phone ? "If your Amazon spending, measured on a computer, is more than that, I use it instead." : "If the My Offset extension finds you spend more than that on Amazon alone, I use your Amazon figure instead."} Amazon splits an order's cost evenly over its items, so a mixed order is rough.`;
 
 const FOOD_NOTE = (what: string) => [
   `Yearly per-person carbon, water and land for your type of diet, with ${what} taking its typical share.`,
@@ -42,10 +42,14 @@ const SHOPPING_NOTE = (what: string, share: number) => [
 
 const GOODS_NOTE = "Water, land and air pollution scale with the carbon, using the EPA's supply-chain model of US spending.";
 
-export const HOW_ESTIMATED: Record<string, string[]> = {
+/**
+ * Each item's lines for its (i). Phones never mention the extension (Ian, 2026-10-13), so with
+ * `phone` those lines are reworded or dropped; `null` lines are left out.
+ */
+const howEstimatedFor = (phone: boolean): Record<string, (string | null)[]> => ({
   ai: [
     `About ${F.WH_PER_AI_PROMPT} Wh a prompt, or each prompt measured from your ChatGPT, Claude or Gemini export if you link it.`,
-    `How many prompts: the light (${AI_LEVELS.light.promptsPerDay} a day), medium (${AI_LEVELS.medium.promptsPerDay}) or heavy (${AI_LEVELS.heavy.promptsPerDay}) you pick, the real count from the My Offset extension or your export, or your own count of chats (${F.PROMPTS_PER_CHAT} prompts a chat, the middle of published chatbot logs). Light is the average ChatGPT user and medium the average daily user, from OpenAI's prompt and user counts; heavy is my estimate for people who use it for hours a day.`,
+    `How many prompts: the light (${AI_LEVELS.light.promptsPerDay} a day), medium (${AI_LEVELS.medium.promptsPerDay}) or heavy (${AI_LEVELS.heavy.promptsPerDay}) you pick, the real count from ${phone ? "" : "the My Offset extension or "}your export, or your own count of chats (${F.PROMPTS_PER_CHAT} prompts a chat, the middle of published chatbot logs). Light is the average ChatGPT user and medium the average daily user, from OpenAI's prompt and user counts; heavy is my estimate for people who use it for hours a day.`,
     `Also counts the AI built into search and other apps, such as Google's AI answers and email summaries, as ${F.AI_BUILT_IN_PROMPTS_PER_DAY} typical prompts a day since mid-2024.`,
     `Adds each prompt's share of training the models (${Math.round(F.AI_TRAINING_SHARE * 100)}% of AI energy) and of making the chips and buildings (+${Math.round(F.AI_HARDWARE_SHARE * 100)}% carbon).`,
     "Power is on the US grid; water is the power plants' plus data center cooling.",
@@ -58,7 +62,9 @@ export const HOW_ESTIMATED: Record<string, string[]> = {
   ],
   video: [
     `About ${F.STREAMING_KWH_PER_HOUR} kWh and ${g(F.KG_PER_STREAMING_HOUR)} of CO₂ an hour, from the IEA.`,
-    "If the extension counts your whole history, past watching is measured from YouTube's hours and Netflix's titles (about 40 minutes each), and only the years before that history starts are estimated.",
+    phone
+      ? null
+      : "If the extension counts your whole history, past watching is measured from YouTube's hours and Netflix's titles (about 40 minutes each), and only the years before that history starts are estimated.",
     "Can be measured from your YouTube or Netflix history; otherwise it starts from typical use.",
     ONLINE_NOTE,
   ],
@@ -105,29 +111,34 @@ export const HOW_ESTIMATED: Record<string, string[]> = {
   plants: FOOD_NOTE("plant foods"),
   rideshare: [
     `Each ride mile counts as ${F.RIDESHARE_EMPTY_MILES} miles in an average gas car, adding the driving between fares and to pick you up (California Air Resources Board).`,
-    "Measured from your Uber trips by the My Offset extension.",
+    phone ? "Can be measured from your Uber trips on a computer." : "Measured from your Uber trips by the My Offset extension.",
   ],
   delivery: [
     `Each delivery counts as about ${F.MILES_PER_DELIVERY} miles in an average gas car: the courier's drive to the restaurant and on to you. The food itself is under your diet; packaging isn't counted yet.`,
-    "Measured from your DoorDash and Uber Eats orders by the My Offset extension; pickups don't count.",
+    phone
+      ? "Can be measured from your DoorDash and Uber Eats orders on a computer; pickups don't count."
+      : "Measured from your DoorDash and Uber Eats orders by the My Offset extension; pickups don't count.",
   ],
   clothing: [
-    GOODS_USD_NOTE("clothing"),
+    GOODS_USD_NOTE("clothing", phone),
     "Water, land and air pollution scale with the carbon, using the EPA's supply-chain model of US spending. Water is raised for cotton grown abroad, from Levi's study of a pair of jeans.",
   ],
   electronics: [
-    GOODS_USD_NOTE("electronics"),
+    GOODS_USD_NOTE("electronics", phone),
     "Water consumed and land used to mine and make them are scaled from studies of smartphones. Air pollution from the factories uses the EPA's supply-chain rate for manufactured goods.",
   ],
-  household: [GOODS_USD_NOTE("household"), GOODS_NOTE],
+  household: [GOODS_USD_NOTE("household", phone), GOODS_NOTE],
   othergoods: [
     `About ${F.GOODS_KG_CO2_PER_USD.household} kg CO₂e a dollar, the EPA's rate for household goods, the closest of its groups. The default, $${F.GOODS_USD_PER_MONTH.other} a month, is a typical American's spending on toys, books, pets and personal care.`,
     GOODS_NOTE,
   ],
   services: [...SHOPPING_NOTE("services", F.SHOPPING_SHARES.services), GOODS_NOTE],
-};
+});
 
-export const howEstimated = (p: Product): string[] => HOW_ESTIMATED[p.id] ?? [];
+const HOW_ESTIMATED = { computer: howEstimatedFor(false), phone: howEstimatedFor(true) };
+
+export const howEstimated = (p: Product, phone = false): string[] =>
+  (HOW_ESTIMATED[phone ? "phone" : "computer"][p.id] ?? []).filter((l): l is string => l !== null);
 
 /** Who gets an item's donation, and each charity's share of it. */
 /** One row per charity: a charity that takes more than one harm (CATF does climate and air) shows once, with its shares added. */
