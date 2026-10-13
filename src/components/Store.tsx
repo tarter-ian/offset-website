@@ -54,9 +54,7 @@ import {
 } from "@/lib/pricing";
 import {
   aheadFor,
-  aiLeadsLifetime,
   SMALL_MONTHLY_USD,
-  aiBreakdown,
   BEFORE_GROUPS,
   lifestyleBadge,
   codingMeasured,
@@ -1013,11 +1011,28 @@ export function Store() {
   const ai = PRODUCTS.find((p) => p.id === "ai")!;
   const aiAmount = amountOf(ai);
   const aiCover = coverOf(ai);
-  const aiPrice = coverPrice(ai, aiAmount, aiCover, ctx);
-  const ab = aiBreakdown(typeof aiAmount === "number" ? aiAmount : 0, ctx, aiCover);
-  /** The hero's green button: puts AI chat in the plan if it isn't, then opens checkout. */
+  // The hero covers all AI use, not just chat (Ian, 2026-10-13): chat plus any images, video and coding, on chat's cover.
+  const heroLines = PRODUCTS.filter((p) => p.section === "ai" && (p.id === ai.id || Number(amountOf(p)) > 0)).map((p) => ({
+    p,
+    amount: amountOf(p),
+    cover: p.id === ai.id ? aiCover : effectiveCover(p, amountOf(p), ctx, { ahead: aiCover.ahead, past: aiCover.past }, anyway[p.id]),
+  }));
+  const aiPrice = heroLines.reduce(
+    (t, l) => {
+      const c = coverPrice(l.p, l.amount, l.cover, ctx);
+      return { once: t.once + c.once, monthly: t.monthly + c.monthly };
+    },
+    { once: 0, monthly: 0 },
+  );
+  const aiImpacts = sumImpacts(heroLines.flatMap((l) => Object.values(coverImpacts(l.p, l.amount, l.cover, ctx))));
+  const heroIds = heroLines.map((l) => l.p.id);
+  const heroNames = heroLines.map((l) => ({ ai: "Chat", "ai-media": "images", "ai-video": "video", "ai-coding": "coding" })[l.p.id] ?? l.p.name);
+  const heroParts = heroNames.length > 1 ? `${heroNames.slice(0, -1).join(", ")} and ${heroNames.at(-1)}` : "Chat";
+  const heroInPlan = heroIds.every((id) => plan.includes(id) || paidCover(covered[id]));
+  /** The hero's green button: puts every AI part in the plan on the hero's cover, then opens checkout. */
   const reviewAndPay = () => {
-    setPlan((cur) => (cur.includes(ai.id) ? cur : [...cur, ai.id]));
+    setPlan((cur) => [...cur, ...heroIds.filter((id) => !cur.includes(id) && !paidCover(covered[id]))]);
+    setPicked((x) => ({ ...x, ...Object.fromEntries(heroLines.filter((l) => l.p.id !== ai.id).map((l) => [l.p.id, { ...x[l.p.id], ...l.cover }])) }));
     setOpen(true);
     setCheckout(true);
     setTimeout(() => document.getElementById("pay-steps")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
@@ -1028,16 +1043,16 @@ export function Store() {
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-14">
         <div className="self-center">
           <h1 className="font-display text-4xl leading-[1.08] font-semibold sm:text-6xl">
-            {aiLeadsLifetime(aiAmount, ctx)
-              ? `Your AI use, covered for life: about ${once(coverPrice(ai, aiAmount, { past: true, ahead: "lifetime" }, ctx).once)}.`
-              : `Your AI use, covered: about ${once(coverPrice(ai, aiAmount, { past: false, ahead: "monthly" }, ctx).monthly)} a month.`}
+            {aiCover.ahead === "lifetime"
+              ? `Your AI use, covered for life: about ${once(aiPrice.once)}.`
+              : `Your AI use, covered: about ${once(aiPrice.monthly)} a month.`}
           </h1>
         </div>
 
         <aside id="ai-chat" aria-label="AI chat, itemized" className="self-start border-t-2 border-rule pt-4">
           <dl className="amount -mt-2 divide-y divide-border text-sm">
             {[
-              ...(["carbon", "air", "water", "land"] as const).map((k) => [IMPACT_INFO[k].label, k === "air" ? airShort(ab.impacts[k]) : IMPACT_INFO[k].format(ab.impacts[k])]),
+              ...(["carbon", "air", "water", "land"] as const).map((k) => [IMPACT_INFO[k].label, k === "air" ? airShort(aiImpacts[k]) : IMPACT_INFO[k].format(aiImpacts[k])]),
             ].map(([k, v]) => (
               <div key={k} className="flex justify-between gap-4 py-2">
                 <dt className="text-muted">{k}</dt>
@@ -1048,7 +1063,7 @@ export function Store() {
           <details className="mt-1 text-xs text-muted">
             <summary className="cursor-pointer underline underline-offset-2 hover:text-foreground">What&apos;s counted</summary>
             <p className="mt-1">
-              A share of training the models and building the data centers. Future use counts {LIFETIME_GROWTH_BUFFER} times over in case it
+              {heroParts}, plus a share of training the models and building the data centers. Future use counts {LIFETIME_GROWTH_BUFFER} times over in case it
               grows, on a grid that gets cleaner each year. Past use is {pastNote(ai)}.{" "}
               <Link href="/method" className="cursor-pointer underline underline-offset-2 hover:text-foreground">
                 Every number&apos;s source
@@ -1063,13 +1078,17 @@ export function Store() {
                 onClick={reviewAndPay}
                 className="min-h-11 shrink-0 cursor-pointer rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-strong"
               >
-                {plan.includes(ai.id) ? "Review and pay" : "Cover my AI use"}
+                {heroInPlan ? "Review and pay" : "Cover my AI use"}
               </button>
             )}
           </div>
-          {plan.includes(ai.id) && !paidCover(covered.ai) && (
-            <button type="button" onClick={() => toggle(ai.id)} className="mt-2 min-h-10 cursor-pointer text-sm text-muted underline underline-offset-4 hover:text-foreground">
-              Take AI chat out of your plan
+          {heroIds.some((id) => plan.includes(id) && !paidCover(covered[id])) && (
+            <button
+              type="button"
+              onClick={() => setPlan((cur) => cur.filter((id) => !heroIds.includes(id) || paidCover(covered[id])))}
+              className="mt-2 min-h-10 cursor-pointer text-sm text-muted underline underline-offset-4 hover:text-foreground"
+            >
+              Take AI out of your plan
             </button>
           )}
         </aside>

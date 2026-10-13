@@ -482,16 +482,6 @@ export function sourcesFor(p: Product): ProviderId[] {
   return SOURCES[p.section];
 }
 
-/** What AI chat adds up to under a cover, for the itemized receipt on the home page. */
-export function aiBreakdown(promptsPerDay: number, ctx: Context, cover: { past: boolean; ahead: "monthly" | "lifetime" }) {
-  const spans: Span[] = [...(cover.past ? (["past"] as const) : []), cover.ahead === "lifetime" ? "future" : "monthly"];
-  const input = { ...base(ctx), aiPromptsPerDay: num(promptsPerDay), aiWhPerPrompt: ctx.aiWhPerPrompt, aiFromExport: ctx.aiFromExport, aiPastWh: ctx.aiPastWh };
-  const parts = spans.map((s) => lifetimeOffset(input, ["ai"], undefined, s).parts.ai.impacts);
-  const impacts = { carbon: 0, air: 0, water: 0, land: 0 };
-  for (const i of parts) for (const k of Object.keys(impacts) as (keyof typeof impacts)[]) impacts[k] += i[k];
-  return { impacts };
-}
-
 export function defaultAmount(p: Product, ctx: Context): number | string {
   if (p.id === "electricity") return STATES[ctx.state].avgKwhPerMonth;
   return p.amount.default;
