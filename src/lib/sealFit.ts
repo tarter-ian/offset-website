@@ -1,6 +1,6 @@
 // Fits a badge's name inside the seal's inner ring (Ian, 2026-10-13: no text may
 // touch a ring). The seal is drawn on a 120 by 120 grid; the name sits inside the
-// ring of radius 39.5, with the small italic "offset" under it.
+// ring of radius 39.5, under an aisle's icon or Fully Offset's star when there is one.
 
 /** Fraunces semibold advance widths, in ems, measured in Chromium. Unknown letters count as wide. */
 const EM: Record<string, number> = {
@@ -21,8 +21,6 @@ const CENTER = 60;
 const ASCENT = 0.74;
 const DESCENT = 0.23;
 const LEADING = 1.0;
-/** The italic "offset" under the name: a gap, then lettering about 8 tall and 31 wide. */
-const TAIL = { gap: 2.4, below: 7.8, height: 9.6, width: 31 };
 
 export interface SealLayout {
   lines: string[];
@@ -30,20 +28,13 @@ export interface SealLayout {
   fs: number;
   /** Baseline of each line. */
   baselines: number[];
-  /** Where "offset" goes, when there is a tail: the top of its box, and its baseline. */
-  rule?: number;
-  tail?: number;
   /** The center of the mark over the name, when there is one. */
   mark?: number;
 }
 
 export interface FitOptions {
-  /** Whether the italic "offset" goes under the name. */
-  tail?: boolean;
   max?: number;
   min?: number;
-  /** How far from the center anything may reach; smaller inside an extra ring. */
-  field?: number;
   /** Size of a square mark over the name (an aisle's icon, Fully Offset's star), or 0 for none. */
   mark?: number;
 }
@@ -62,19 +53,17 @@ function splits(words: string[]): string[][] {
 }
 
 /** Lays out the lines at a size, centered as a block, or null when a corner of any line would cross the field. */
-function place(lines: string[], fs: number, { tail = true, field = FIELD_R, mark = 0 }: FitOptions): SealLayout | null {
+function place(lines: string[], fs: number, { mark = 0 }: FitOptions): SealLayout | null {
   const lh = fs * LEADING;
   const head = mark ? mark + MARK_GAP : 0;
   const nameHeight = ASCENT * fs + (lines.length - 1) * lh + DESCENT * fs;
-  const height = head + nameHeight + (tail ? TAIL.height + TAIL.gap : 0);
+  const height = head + nameHeight;
   const top = CENTER - height / 2;
   const baselines = lines.map((_, i) => top + head + ASCENT * fs + i * lh);
   const boxes = lines.map((l, i) => ({ half: textWidth(l, fs) / 2, top: baselines[i] - ASCENT * fs, bottom: baselines[i] + DESCENT * fs }));
-  const rule = top + head + nameHeight + TAIL.gap;
-  if (tail) boxes.push({ half: TAIL.width / 2, top: rule, bottom: rule + TAIL.height });
   if (mark) boxes.push({ half: mark / 2, top, bottom: top + mark });
-  const inside = boxes.every((b) => Math.hypot(b.half, Math.max(Math.abs(b.top - CENTER), Math.abs(b.bottom - CENTER))) <= field);
-  return inside ? { lines, fs, baselines, ...(tail ? { rule, tail: rule + TAIL.below } : {}), ...(mark ? { mark: top + mark / 2 } : {}) } : null;
+  const inside = boxes.every((b) => Math.hypot(b.half, Math.max(Math.abs(b.top - CENTER), Math.abs(b.bottom - CENTER))) <= FIELD_R);
+  return inside ? { lines, fs, baselines, ...(mark ? { mark: top + mark / 2 } : {}) } : null;
 }
 
 /**

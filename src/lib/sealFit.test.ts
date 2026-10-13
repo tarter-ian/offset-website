@@ -18,14 +18,15 @@ describe("seal fit", () => {
       });
     }
   });
-  it("fits every aisle, and Fully Offset, under a mark inside the beaded ring", () => {
+  it("fits every aisle under its icon, and Fully Offset under its star, inside the ring", () => {
     for (const s of [...SECTIONS.map((x) => x.title), "Digital"]) {
-      const l = fitSeal(s, { max: 17, field: 33.2, mark: 13 });
+      const l = fitSeal(s, { max: 15, mark: 24 });
       expect(l.mark, s).toBeDefined();
-      expect(l.mark! - 6.5, s).toBeGreaterThan(60 - 33.2);
+      expect(Math.hypot(12, l.mark! - 12 - 60), s).toBeLessThanOrEqual(FIELD_R);
+      expect(l.baselines[0] - 0.74 * l.fs, s).toBeGreaterThan(l.mark! + 12);
       expect(l.fs, s).toBeGreaterThanOrEqual(11);
     }
-    const full = fitSeal("Fully Offset", { tail: false, max: 16, field: 33.2, mark: 9 });
+    const full = fitSeal("Fully Offset", { max: 16, mark: 9 });
     expect(full.lines).toEqual(["Fully", "Offset"]);
     expect(full.baselines[0] - 0.74 * full.fs).toBeGreaterThan(full.mark! + 4.5);
   });
@@ -35,6 +36,6 @@ describe("seal fit", () => {
   });
   it("breaks long names into balanced lines", () => {
     expect(fitSeal("Music and podcasts").lines.length).toBeGreaterThan(1);
-    expect(fitSeal("Fully Offset", { tail: false, max: 17 }).lines).toEqual(["Fully", "Offset"]);
+    expect(fitSeal("Fully Offset", { max: 17 }).lines).toEqual(["Fully", "Offset"]);
   });
 });
