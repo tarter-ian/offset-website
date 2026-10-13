@@ -152,8 +152,8 @@ export default async function ListPage({ searchParams }: { searchParams: Promise
           ))}
         </ul>
         <p className="mt-5 text-sm text-muted">
-          Green with a solid edge is for life. Blue with a perforated edge runs through a date. Once that date passes, the badge turns yellow if
-          past use was offset too, and drops off the list if not.
+          Green is for life. Blue runs through a date. Once that date passes, the badge turns yellow if past use was offset too, and drops off the
+          list if not.
         </p>
       </section>
 
