@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AI_LEVELS, type AiLevel } from "@/lib/ai/levels";
 import { AGENT_TOOL_NAMES, claudeLimitWhPerDay, signInUsage, summaryFromSignIn, type SignInUsage } from "@/lib/ai/signin";
 import { CLAUDE_PLANS, usageFromQuickCount, type ClaudePlan, type QuickService } from "@/lib/ai/quickCount";
@@ -46,6 +46,7 @@ type Row = { state: "asking" | "counting" | "done" | "incomplete" | "error" | "s
  */
 export function AiQuickPick({
   level,
+  keepGuess = false,
   onPick,
   onExact,
   onMeasured,
@@ -56,6 +57,8 @@ export function AiQuickPick({
   onShopping,
 }: {
   level: AiLevel | null;
+  /** Light, Medium or Heavy was picked: counts saved from an earlier visit are shown but don't replace the pick (Ian, 2026-10-13). */
+  keepGuess?: boolean;
   onPick: (level: AiLevel, from: string) => void;
   onExact: () => void;
   /** A summary of real use. `note` is set when it's the person's own count rather than a measurement. */
@@ -81,6 +84,10 @@ export function AiQuickPick({
   const [whole, setWhole] = useState(false);
   const [, setFood] = useState<Partial<Record<FoodService, number>>>({});
   const [aiSummaries, setAiSummaries] = useState<Partial<Record<QuickService, UsageSummary>>>({});
+  const summariesRef = useRef<Partial<Record<QuickService, UsageSummary>>>({});
+  // Read at the moment saved counts arrive, after the page has restored the person's last pick.
+  const keepGuessRef = useRef(keepGuess);
+  keepGuessRef.current = keepGuess;
   const [installable, setInstallable] = useState(false);
   const [open, setOpen] = useState<QuickService | null>(null);
   /** The ways to count real use open from "Connect your data", or by themselves once there are counts to show. */
@@ -96,7 +103,7 @@ export function AiQuickPick({
       savedResults().then((saved) => {
         const stale: ExtensionService[] = [];
         for (const [service, r] of Object.entries(saved) as [ExtensionService, SavedResult][]) {
-          applyUsage(service, r.usage, r.measuredAt);
+          applyUsage(service, r.usage, r.measuredAt, true);
           if (Date.now() - Date.parse(r.measuredAt) > REFRESH_DAYS * 86400000) stale.push(service);
         }
         if (stale.length) run(stale);
@@ -108,7 +115,7 @@ export function AiQuickPick({
 
 
   /** Puts one service's counts on its row and the cards it fills. */
-  function applyUsage(service: ExtensionService, usage: unknown, at?: string) {
+  function applyUsage(service: ExtensionService, usage: unknown, at?: string, saved = false) {
     setMeasuredAt((m) => ({ ...m, [service]: at ?? new Date().toISOString() }));
     if (service === "doordash" || service === "ubereats") {
       const d = deliveries(usage);
@@ -197,12 +204,11 @@ export function AiQuickPick({
       return;
     }
     setRows((r) => ({ ...r, [service]: { state: "done", text: resultText(u), raw: usage } }));
-    setAiSummaries((prev) => {
-      const next = { ...prev, [service]: summaryFromSignIn(service, u) };
-      const all = combineSummaries(Object.values(next) as UsageSummary[]);
-      if (all) onMeasured(all);
-      return next;
-    });
+    // Combined outside the state updater, so the page isn't updated while this one renders.
+    summariesRef.current = { ...summariesRef.current, [service]: summaryFromSignIn(service, u) };
+    setAiSummaries(summariesRef.current);
+    const all = combineSummaries(Object.values(summariesRef.current) as UsageSummary[]);
+    if (all && !(saved && keepGuessRef.current)) onMeasured(all);
   }
 
   function run(services: ExtensionService[], inFront = false, then?: () => void, maxAgeHours?: number) {
@@ -441,6 +447,7 @@ export function AiQuickPick({
             <button
               type="button"
               onClick={() => {
+                summariesRef.current = {};
                 setAiSummaries({});
                 setRows({});
                 onPick("medium", "you removed your measured numbers, so we use medium");

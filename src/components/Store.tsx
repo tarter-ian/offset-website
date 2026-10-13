@@ -1279,6 +1279,7 @@ export function Store() {
         {heroPaid && !updatingNumbers ? null : (
           <div className="mt-10">
             <AiQuickPick
+              keepGuess={Boolean(ctx.aiEstimate?.level)}
               level={
                 ctx.aiFromExport || entered.ai
                   ? null
@@ -1286,12 +1287,14 @@ export function Store() {
               }
               onPick={(level, from) => {
                 setCtx((c) => ({ ...c, aiEstimate: { level, from }, aiFromExport: false, aiWhPerPrompt: undefined, aiPastWh: undefined, aiCode: undefined, aiAgent: undefined, aiCodingPastWh: undefined }));
-                // Images and video follow the pick too, unless the person typed their own.
+                // Images and video follow the pick too, unless the person typed their own. A pick replaces connected data
+                // entirely, so measured coding goes back to none (Ian, 2026-10-13).
                 setAmounts((a) => ({
                   ...a,
                   ai: AI_LEVELS[level].promptsPerDay,
                   ...(entered["ai-media"] ? {} : { "ai-media": AI_LEVELS[level].imagesPerWeek }),
                   ...(entered["ai-video"] ? {} : { "ai-video": AI_LEVELS[level].videosPerWeek }),
+                  ...(entered["ai-coding"] ? {} : { "ai-coding": 0 }),
                 }));
                 resetAiCover();
                 setEntered((e) => ({ ...e, ai: false }));
