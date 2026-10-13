@@ -408,7 +408,7 @@ export function Results({
                       billing === b ? "border-accent bg-accent-soft font-medium text-accent" : "border-border hover:border-accent"
                     }`}
                   >
-                    Pay {BILLING[b].label.toLowerCase()}
+                    Give {BILLING[b].label.toLowerCase()}
                   </button>
                 ))}
               </div>

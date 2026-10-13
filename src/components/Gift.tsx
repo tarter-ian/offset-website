@@ -291,7 +291,7 @@ export function GiftMaker() {
       <GiftCard gift={{ items, from, to: names.find((n) => n.trim()) ?? "", note }} />
       {people > 1 && <p className="-mt-3 text-sm text-muted">Each person gets a card like this with their own name.</p>}
       <p className="text-sm text-muted">
-        You pay each charity through Every.org, which emails you the receipts. The names and note are kept with the gift so its link can
+        You give to each charity through Every.org, which emails you the receipts. The names and note are kept with the gift so its link can
         show them; nothing is sent to anyone.
       </p>
       {error && (
@@ -400,7 +400,7 @@ export function GiftView({ id }: { id: string }) {
         <div className="mt-6">
           <GiftCard gift={{ ...gift, to: names[0] ?? "" }} />
         </div>
-        <h2 className="mt-8 text-lg font-bold">{paid ? "Paid" : "Pay each charity"}</h2>
+        <h2 className="mt-8 text-lg font-bold">{paid ? "Given" : "Give to each charity"}</h2>
         <div className="mt-2">
           <CheckoutSteps checkout={mine} save={saveGift} onChange={setMine} />
         </div>

@@ -998,7 +998,7 @@ export function Store() {
               !allLife && billing === b ? "border-rule bg-foreground text-background" : "border-rule hover:bg-card"
             }`}
           >
-            Pay {BILLING[b].label.toLowerCase()}
+            Give {BILLING[b].label.toLowerCase()}
             {b === "annual" && annualNote}
           </button>
         ))}
@@ -1245,7 +1245,7 @@ export function Store() {
                 onClick={reviewAndPay}
                 className="min-h-11 shrink-0 cursor-pointer rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-strong"
               >
-                {heroInPlan ? "Review and pay" : "Offset my AI use"}
+                {heroInPlan ? "Review and give" : "Offset my AI use"}
               </button>
             </div>
           )}
@@ -1828,7 +1828,7 @@ export function Store() {
                 }}
                 className="min-h-11 shrink-0 cursor-pointer rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-strong"
               >
-                Review and pay
+                Review and give
               </button>
             </div>
           </div>
@@ -1959,7 +1959,7 @@ function PaySection({
   return (
     <section id="pay-steps" aria-labelledby="pay-heading" className="mt-4 scroll-mt-4 border-t-2 border-rule pt-3">
       <h3 id="pay-heading" className="text-base font-bold">
-        Pay each charity
+        Give to each charity
       </h3>
       {started ? (
         <>
