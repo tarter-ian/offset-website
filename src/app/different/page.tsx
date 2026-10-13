@@ -33,7 +33,7 @@ const ROWS: Row[] = [
     topic: "What counts as harm",
     usual: "Carbon only.",
     ours: "Five kinds: carbon, air pollution, water used up, land taken from nature, and e-waste. Four charities share the work: carbon and air both go to Clean Air Task Force, and the others each have their own.",
-    link: { href: "/method", text: "How we calculate" },
+    link: { href: "/method", text: "How it's calculated" },
   },
   {
     topic: "How much reaches charity",

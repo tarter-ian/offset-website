@@ -27,13 +27,13 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             </Link>
             <div className="flex gap-4 text-sm sm:gap-5">
               <Link href="/method" className="hidden text-muted hover:text-foreground sm:inline">
-                How we calculate
+                How it&apos;s calculated
               </Link>
               <Link href="/different" className="hidden text-muted hover:text-foreground sm:inline">
                 What&apos;s different
               </Link>
               <Link href="/promises" className="text-muted hover:text-foreground">
-                Our promises
+                Promises
               </Link>
               {/* Who's offsetting, the public list, in the header (Ian, 2026-10-13); "List" on phones so it fits beside Sign in. */}
               <Link href="/list" className="text-muted hover:text-foreground">
@@ -56,7 +56,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             </span>
             <span className="flex flex-wrap gap-x-4 gap-y-1">
               <Link href="/method" className="underline hover:text-foreground sm:hidden">
-                How we calculate
+                How it&apos;s calculated
               </Link>
               <Link href="/different" className="underline hover:text-foreground sm:hidden">
                 What&apos;s different

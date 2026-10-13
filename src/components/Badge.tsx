@@ -268,7 +268,7 @@ function grouped(badges: BadgeInfo[]): Grouped[] {
  *
  * As tags (the list), each badge is one tag, its yellow and blue in one split tag. Fully Offset
  * stands alone; an aisle's items fold under a quiet "N items" at the end of the row. As
- * `seals` (the record, a gift card), the lower ones fold under "and N more inside" below.
+ * `seals` (the record, a gift card), the lower ones fold under "and N more" below.
  * `end` sets the tags to the right, for a row with the name on the left. `topOnly` drops the fold, for
  * the list, where opening the row shows everything as seals (Ian, 2026-10-13).
  */
@@ -334,7 +334,7 @@ export function BadgeList({
       {n > 0 && (
         <details className={top.length ? "mt-2" : ""}>
           <summary className="inline-flex min-h-10 cursor-pointer items-center text-sm underline underline-offset-4">
-            {top.length ? `and ${n} more inside` : `See the ${n} badges inside`}
+            {top.length ? `and ${n} more` : `See the ${n} badges inside`}
           </summary>
           <div className="mt-1">{row(lower, `${label} inside`)}</div>
         </details>

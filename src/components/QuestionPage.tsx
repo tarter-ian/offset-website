@@ -108,7 +108,7 @@ export function Cite({ s }: { s: { name: string; url: string } }) {
 }
 
 /** A link to the method page, optionally to one of its sections. */
-export function Method({ children = "How we calculate", hash }: { children?: React.ReactNode; hash?: string }) {
+export function Method({ children = "How it's calculated", hash }: { children?: React.ReactNode; hash?: string }) {
   return (
     <Link href={`/method${hash ? `#${hash}` : ""}`} className={link}>
       {children}

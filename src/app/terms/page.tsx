@@ -20,7 +20,7 @@ const SECTIONS: { title: string; body: React.ReactNode; computer?: boolean }[] =
       <>
         Every figure here is an estimate from published sources, shown with its source on{" "}
         <Link href="/method" className="text-accent underline underline-offset-4">
-          How we calculate
+          How it&apos;s calculated
         </Link>
         . Counts from your accounts come from your own browser and aren&apos;t verified by anyone. Nothing on this site is a certified
         carbon audit, and you shouldn&apos;t use it as one for a business, a regulator or a legal claim.

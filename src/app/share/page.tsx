@@ -46,7 +46,7 @@ export default async function SharePage({ searchParams }: Props) {
           Includes a share of training the models and building the data centers, and the AI built into search and other apps. Air
           pollution&apos;s harm is shared across everyone who breathes it.{" "}
           <Link href="/method" className="underline hover:text-foreground">
-            How we calculate
+            How it&apos;s calculated
           </Link>
         </p>
       </div>
