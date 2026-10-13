@@ -113,6 +113,10 @@ export function payRows(split: HarmSplit, billing: Billing, autopay: boolean, mo
   ];
 }
 
+/** One-time gifts for these per-harm amounts, one per charity, each rounded up to the smallest donation. */
+export const onceRows = (amounts: Partial<Record<ImpactKey, number>>, mode: PaymentMode = PAYMENT_MODE) =>
+  rowsFor(Object.fromEntries(HARM_ORDER.map((k) => [k, amounts[k] ?? 0])) as Record<ImpactKey, number>, "ONCE", "", mode);
+
 /** What a plan costs again each month or year, one gift per charity. */
 export const repeatRows = (split: HarmSplit, billing: Billing, mode: PaymentMode = PAYMENT_MODE) =>
   payRows(split, billing, true, mode).filter((r) => r.frequency !== "ONCE");
@@ -315,6 +319,8 @@ export interface Checkout {
   returnPath?: string;
   /** In endaoment mode: the one gift to the fund, with no rows; done.fund is set once the person taps Give. */
   fund?: FundGift;
+  /** What the plan was priced from, so a steady gift can be checked against measured use later. Kept in this browser only. */
+  plan?: { lines: PlanLine[]; ctx: Context; pastYears: PastYears };
 }
 
 export function newPlanId(): string {

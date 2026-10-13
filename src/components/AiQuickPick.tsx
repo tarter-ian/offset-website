@@ -6,8 +6,9 @@ import { AGENT_TOOL_NAMES, claudeLimitWhPerDay, signInUsage, summaryFromSignIn, 
 import { CLAUDE_PLANS, usageFromQuickCount, type ClaudePlan, type QuickService } from "@/lib/ai/quickCount";
 import { combineSummaries, type UsageSummary } from "@/lib/ai/exportParser";
 import { activityAmounts, amazonShopping, NETFLIX_MIN_PER_TITLE, youtubeDays } from "@/lib/activity";
-import { canInstallExtension, detectExtension, EXTENSION_SERVICES, EXTENSION_URL, measure, measuredAtOf, savedResults, type ExtensionError, type ExtensionService, type SavedResult } from "@/lib/extension";
+import { canInstallExtension, detectExtension, isPhone, EXTENSION_SERVICES, EXTENSION_URL, measure, measuredAtOf, savedResults, type ExtensionError, type ExtensionService, type SavedResult } from "@/lib/extension";
 import { SIGN_IN_READS } from "@/lib/signinReads";
+import { AiPhoneExport } from "./AiPhoneExport";
 import { combineVideoPast, monthName, videoHistoryHours, type HistoryTotal, type VideoPast } from "@/lib/history";
 
 const AI_NAMES: Record<QuickService, string> = { chatgpt: "ChatGPT", claude: "Claude", gemini: "Gemini" };
@@ -41,8 +42,10 @@ type Row = { state: "asking" | "counting" | "done" | "incomplete" | "error" | "s
 /**
  * Sizing AI use. One click: pick light, medium or heavy. Exact: the Offset
  * extension counts the last 30 days in a tab where you're already logged in.
- * Without the extension (phones, Safari): count the chats in your sidebar.
- * The data export stays available for a full history.
+ * Phones can't run it, so there the data export is the way in, read on the
+ * phone; counting the chats in your sidebar covers the wait for its email.
+ * Elsewhere without the extension (Safari, Firefox): count the chats yourself,
+ * with the data export for a full history.
  */
 export function AiQuickPick({
   level,
@@ -89,6 +92,7 @@ export function AiQuickPick({
   const keepGuessRef = useRef(keepGuess);
   keepGuessRef.current = keepGuess;
   const [installable, setInstallable] = useState(false);
+  const [phone, setPhone] = useState(false);
   const [open, setOpen] = useState<QuickService | null>(null);
   /** The ways to count real use open from "Connect your data", or by themselves once there are counts to show. */
   const [connecting, setConnecting] = useState(false);
@@ -96,6 +100,7 @@ export function AiQuickPick({
 
   useEffect(() => {
     setInstallable(canInstallExtension());
+    setPhone(isPhone());
     detectExtension().then((v) => {
       setExt(v);
       if (!v) return;
@@ -483,6 +488,16 @@ export function AiQuickPick({
           </details>
           </details>
         </div>
+      ) : phone ? (
+        <AiPhoneExport
+          onMeasured={(s) => {
+            setStatus({ kind: "idle" });
+            setOpen(null);
+            onMeasured(s);
+          }}
+          onRemove={() => onPick("medium", "you removed your measured numbers, so we use medium")}
+          onCount={(s) => setOpen(s)}
+        />
       ) : (
         <>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -523,6 +538,7 @@ export function AiQuickPick({
               onMeasured(summaryFromSignIn(open, u), note);
             }}
           />
+          {!phone && (
           <p className="mt-3 text-sm text-muted">
             Want your full history?{" "}
             <button type="button" onClick={onExact} className="underline hover:text-foreground">
@@ -530,6 +546,7 @@ export function AiQuickPick({
             </button>
             .
           </p>
+          )}
         </div>
       )}
 
