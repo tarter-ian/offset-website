@@ -243,6 +243,8 @@ export function Store() {
   const [details, setDetails] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  /** The aisles stay folded until someone asks for them, so the first visit is about AI alone. */
+  const [shelvesOpen, setShelvesOpen] = useState(false);
 
   useEffect(() => {
     const s = load();
@@ -255,6 +257,12 @@ export function Store() {
           if (state && state in STATES) setCtx((c) => (c.statePicked ? c : { ...c, state }));
         })
         .catch(() => {});
+    }
+    // A link straight to an aisle opens the folded aisles and goes there.
+    const hash = window.location.hash.slice(1);
+    if (hash.startsWith("section-") || hash === "everything-heading") {
+      setShelvesOpen(true);
+      requestAnimationFrame(() => document.getElementById(hash)?.scrollIntoView());
     }
     if (!s) return;
     // Anyone who has covered something lands on their record, unless they came to the store on purpose.
@@ -632,6 +640,15 @@ export function Store() {
               </button>
             ))}
           </div>
+        )}
+        {withPast && options.length > 1 && (
+          <p className="text-muted">
+            {cover.ahead === "lifetime"
+              ? "Best if you'd rather pay once and be done."
+              : billing === "annual"
+                ? "Best if your use is steady: one payment a year."
+                : "Best if your use changes: pay for each month as it comes."}
+          </p>
         )}
         {hiddenLifetime && (
           <button
@@ -1172,6 +1189,35 @@ export function Store() {
         </Link>
       </nav>
 
+      {(() => {
+        const open = shelvesOpen || plan.some((id) => id !== "ai") || Object.keys(covered).some((id) => id !== "ai") || Object.keys(linkedFrom).length > 0;
+        const openAt = (key: string) => {
+          setShelvesOpen(true);
+          requestAnimationFrame(() => document.getElementById(`section-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+        };
+        return open ? null : (
+          <section aria-labelledby="more-heading" className="mb-10">
+            <h2 id="more-heading" className="font-display text-3xl font-extrabold [font-stretch:85%]">Cover more than AI</h2>
+            <p className="mt-1 max-w-2xl text-muted">Pick an aisle when you&apos;re ready. Each is priced the same way.</p>
+            <ul className="mt-3 flex flex-wrap gap-2">
+              {SECTIONS.filter((x) => x.key !== "ai").map((x) => (
+                <li key={x.key}>
+                  <button
+                    type="button"
+                    onClick={() => openAt(x.key)}
+                    className="min-h-11 cursor-pointer rounded-md border-2 border-rule px-4 font-semibold hover:bg-foreground hover:text-background"
+                  >
+                    {x.title}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        );
+      })()}
+
+      {(shelvesOpen || plan.some((id) => id !== "ai") || Object.keys(covered).some((id) => id !== "ai") || Object.keys(linkedFrom).length > 0) && (
+      <>
       <div className="mb-4">
         <h2 className="font-display text-3xl font-extrabold [font-stretch:85%]">Cover more than AI</h2>
         <p className="mt-1 max-w-2xl text-muted">Streaming, devices, travel, food and shopping, each priced the same way. Start with the ones you know you have.</p>
@@ -1293,6 +1339,8 @@ export function Store() {
             </Link>
           </p>
         </section>
+      )}
+      </>
       )}
 
       {plan.length > 0 && (
