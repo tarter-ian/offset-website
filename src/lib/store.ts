@@ -11,7 +11,7 @@ import {
   type Span,
 } from "./lifetime";
 import type { ProviderId } from "./providers";
-import type { AiLevel } from "./ai/levels";
+import { AI_LEVELS, type AiLevel } from "./ai/levels";
 import type { CodeEstimate, UsageSummary } from "./ai/exportParser";
 import { monthAsYear, type CardPast } from "./history";
 import {
@@ -311,6 +311,17 @@ const aiChat = (a: number | string, span: Span, ctx: Context) =>
 /** Coding hours to count: none when a linked Claude or ChatGPT account already measured coding in with chat. */
 /** Coding measured from a linked account: Claude's weekly limit (which covers Claude Code) or ChatGPT's agent and Codex tokens. */
 export const codingMeasured = (ctx: Context) => Boolean(ctx.aiFromExport && (ctx.aiCode || ctx.aiAgent));
+
+export const HOURS_PER_WEEK = 168;
+/**
+ * How coding's amount reads on its card. Measured through Claude's weekly limit it shows that basis,
+ * since the limit's energy in agent hours can pass the 168 hours a week has; any other figure over a
+ * week's hours is shown as an equivalent, capped. Null keeps the plain "N hours a week".
+ */
+export function codingAmountText(hours: number, ctx: Context): string | null {
+  if (ctx.aiCode) return `${Math.round(ctx.aiCode.limitPercent)}% of your ${ctx.aiCode.plan} weekly limit`;
+  return hours > HOURS_PER_WEEK ? `the same as ${HOURS_PER_WEEK} hours a week or more` : null;
+}
 const codingHours = (a: number | string) => num(a);
 const aiCoding = (a: number | string, span: Span, ctx: Context) =>
   lifetimeOffset({ ...base(ctx), aiCodingHoursPerWeek: num(a), aiCodingPastWh: ctx.aiCodingPastWh }, ["ai"], undefined, span).parts.ai.impacts;
@@ -321,7 +332,8 @@ export const PRODUCTS: Product[] = [
     section: "ai",
     name: "AI chat",
     blurb: "ChatGPT, Claude, Gemini and the rest, plus the AI built into search and other apps, including training the models and building the data centers.",
-    amount: { kind: "number", label: "AI prompts a day", unit: "prompts a day", default: 10, step: 1 },
+    // AI starts on Medium's exact numbers, so the Medium shown as picked at load is the price tapping it gives (Ian, 2026-10-13).
+    amount: { kind: "number", label: "AI prompts a day", unit: "prompts a day", default: AI_LEVELS.medium.promptsPerDay, step: 1 },
     oneTime: true,
     cost: (a, span, ctx) => costOf(aiChat(a, span, ctx)),
     impacts: (a, span, ctx) => aiChat(a, span, ctx),
@@ -333,9 +345,9 @@ export const PRODUCTS: Product[] = [
     section: "ai",
     name: "AI images",
     blurb: "Pictures you make with AI.",
-    // Default 1 a week. Google reported 50 billion Nano Banana images by May 2026, up from 5 billion in mid-October 2025:
-    // about 1.5 a week for each of Gemini's 900 million monthly users, a mean pulled up by heavy users.
-    amount: { kind: "number", label: "AI images a week", unit: "images a week", default: 1, step: 1 },
+    // Medium's images a week, just above the 1.5 a week that Google's 50 billion Nano Banana images by May 2026 give each of
+    // Gemini's 900 million monthly users, a mean pulled up by heavy users.
+    amount: { kind: "number", label: "AI images a week", unit: "images a week", default: AI_LEVELS.medium.imagesPerWeek, step: 1 },
     oneTime: true,
     cost: (a, span, ctx) => costOf(lifetimeOffset({ ...base(ctx), aiMediaPerWeek: num(a) }, ["ai"], undefined, span).parts.ai.impacts),
     impacts: (a, span, ctx) => lifetimeOffset({ ...base(ctx), aiMediaPerWeek: num(a) }, ["ai"], undefined, span).parts.ai.impacts,
@@ -346,7 +358,7 @@ export const PRODUCTS: Product[] = [
     section: "ai",
     name: "AI video",
     blurb: "Short clips you make with Sora, Veo and the like. Each one takes far more power than a picture.",
-    amount: { kind: "number", label: "AI videos a week", unit: "videos a week", default: 0, step: 1 },
+    amount: { kind: "number", label: "AI videos a week", unit: "videos a week", default: AI_LEVELS.medium.videosPerWeek, step: 1 },
     oneTime: true,
     cost: (a, span, ctx) => costOf(lifetimeOffset({ ...base(ctx), aiVideoPerWeek: num(a) }, ["ai"], undefined, span).parts.ai.impacts),
     impacts: (a, span, ctx) => lifetimeOffset({ ...base(ctx), aiVideoPerWeek: num(a) }, ["ai"], undefined, span).parts.ai.impacts,
@@ -487,6 +499,11 @@ export function yearlyLine(p: Product, amount: number | string, ctx: Context): s
 }
 
 export const productById = (id: string) => PRODUCTS.find((p) => p.id === id);
+/** Whether these items hold anything outside the AI aisle, which is what opens the other aisles. */
+export const hasNonAi = (ids: string[]) => ids.some((id) => {
+  const p = productById(id);
+  return !!p && p.section !== "ai";
+});
 
 /** Accounts that fill in each item's amount. Online time and devices have no account to read yet, so they stay typed in. */
 const AI_SOURCES: ProviderId[] = ["chatgpt", "claude", "gemini", "openai-api", "anthropic-api"];
@@ -684,4 +701,28 @@ export function harmSplit(totals: PlanTotals, ctx: Context, billing: Billing = D
     add(lifetime ? l.aheadCost : l.aheadCost * (billing === "annual" ? 12 : 1), ahead, lifetime ? "once" : "perPeriod");
   }
   return out;
+}
+
+/**
+ * What a plan asks for, split the way checkout charges it: each month's ongoing
+ * items, past use spread into instalments, past use paid once, and lifetime items
+ * (their past use included). Each dollar shows in exactly one place.
+ */
+export function chargeParts(t: PlanTotals) {
+  const life = t.lines.filter((l) => l.cover.ahead === "lifetime");
+  const monthlyLines = t.lines.filter((l) => l.cover.ahead === "monthly");
+  return {
+    monthly: monthlyLines.reduce((s, l) => s + l.aheadCost, 0),
+    spread: t.pastSpread,
+    pastOnce: t.pastSpread ? 0 : monthlyLines.reduce((s, l) => s + l.pastCost, 0),
+    lifeOnce: life.reduce((s, l) => s + l.pastCost + l.aheadCost, 0),
+  };
+}
+
+/** A plan and its picks once these items are added on monthly, as Add everything does. */
+export function addedMonthly(plan: string[], picked: Record<string, Partial<Cover>>, ids: string[]) {
+  return {
+    plan: [...plan, ...ids.filter((id) => !plan.includes(id))],
+    picked: { ...picked, ...Object.fromEntries(ids.map((id) => [id, { ...picked[id], ahead: "monthly" as const }])) },
+  };
 }

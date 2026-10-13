@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { type Covered, STORAGE_KEY } from "@/lib/covered";
 import { AccountBar } from "./Account";
 import { Seal } from "./Badge";
-import { badgesFor } from "@/lib/badges";
+import { badgesFor, PAST } from "@/lib/badges";
 import { accountsOn } from "@/lib/account";
 import { fetchAccount, pullCovered, pushCovered } from "@/lib/accountClient";
 import { canInstallExtension, savedResults } from "@/lib/extension";
@@ -173,7 +173,7 @@ export function Record() {
         </h2>
         <ul className="mt-3 grid border-t border-rule sm:grid-cols-3">
           {[
-            ["/gift", "Give an offset as a gift", "For a year or for life."],
+            ["/gift", "Give an offset as a gift", "For a year or for life, with a link to send."],
             ["/ledger", "Where the money goes", "Every charity, and what each gift pays for."],
             // Repeating gifts are stopped in the person's Every.org account, not here (Ian, 2026-10-13).
             ...(PAYMENT_MODE === "every" ? [[EVERY_GIVING, "Manage repeating gifts", "Stop or change autopay on Every.org."]] : []),
@@ -282,12 +282,12 @@ function UseChart({ use, computer }: { use: MonthUse[] | null; computer: boolean
   );
 }
 
-/** The badges what's in force earns, the same seals the public list and gift cards show. */
+/** The badges what's in force earns, plus past use paid for on a cover that has ended: the same seals the public list and gift cards show. */
 function Seals({ covered, now }: { covered: Record<string, Covered>; now: number }) {
   const seals = badgesFor(
     Object.entries(covered)
-      .filter(([, c]) => inForce(c, now))
-      .map(([productId, c]) => ({ productId, until: c.kind === "life" ? null : c.until })),
+      .filter(([, c]) => inForce(c, now) || c.past)
+      .map(([productId, c]) => ({ productId, until: c.kind === "life" ? null : inForce(c, now) ? c.until : PAST })),
   );
   if (!seals.length) return null;
   return (

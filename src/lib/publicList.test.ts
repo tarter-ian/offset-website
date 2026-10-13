@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { badges, cleanName, parsePlanClaim, planRows, sameRows, planItems } from "./publicList";
+import { badges, cleanName, PAST, parsePlanClaim, planRows, sameRows, planItems } from "./publicList";
 import { DEFAULT_CONTEXT as C } from "./store";
 
 const ID = "abcdef0123456789abcd";
@@ -35,6 +35,19 @@ describe("public list", () => {
       { productId: "car", until: "2026-11-01T00:00:00.000Z" },
     ]);
     expect(badges([{ source: "plan", sourceId: "a", rows: [], items: old.filter((i) => i.productId === "car"), createdAt: "" }], now)).toEqual([]);
+  });
+  it("leaves a past-use badge when a dated cover ends, only if its past use was paid in full", () => {
+    const now = new Date("2026-10-12T00:00:00Z");
+    const pastToo = [{ productId: "car", amount: 200, cover: { past: true, ahead: "monthly" as const } }];
+    const paid = planItems(pastToo, "monthly", "2026-01-01T00:00:00.000Z");
+    expect(paid[0].past).toBe(true);
+    expect(planItems(pastToo, "monthly", "2026-01-01T00:00:00.000Z", 3)[0].past).toBeUndefined();
+    const claim = (items: typeof paid, id = "a") => ({ source: "plan" as const, sourceId: id, rows: [], items, createdAt: "" });
+    expect(badges([claim(paid)], now)).toEqual([{ productId: "car", until: PAST }]);
+    // A cover still running beats past use, from either side.
+    const running = planItems(lines, "monthly", "2026-10-01T00:00:00.000Z").filter((i) => i.productId === "car");
+    expect(badges([claim(paid), claim(running, "b")], now)).toEqual([{ productId: "car", until: "2026-11-01T00:00:00.000Z" }]);
+    expect(badges([claim(running, "b"), claim(paid)], now)).toEqual([{ productId: "car", until: "2026-11-01T00:00:00.000Z" }]);
   });
   it("cleans names", () => expect(cleanName("  Ian   T ".padEnd(80, "x"))).toHaveLength(40));
 });

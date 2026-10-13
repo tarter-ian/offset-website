@@ -1,5 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { levelForPlan } from "./levels";
+import { AI_LEVELS, levelForPlan, levelOf } from "./levels";
+import { defaultAmount, DEFAULT_CONTEXT, productById } from "../store";
+
+describe("starting level", () => {
+  const start = (id: string) => Number(defaultAmount(productById(id)!, DEFAULT_CONTEXT));
+  const starting = () => ({
+    promptsPerDay: start("ai"),
+    imagesPerWeek: start("ai-media"),
+    videosPerWeek: start("ai-video"),
+    codingHoursPerWeek: start("ai-coding"),
+  });
+
+  it("starts on Medium's exact numbers, so tapping Medium changes nothing", () => {
+    const m = AI_LEVELS.medium;
+    expect(starting()).toEqual({ promptsPerDay: m.promptsPerDay, imagesPerWeek: m.imagesPerWeek, videosPerWeek: m.videosPerWeek, codingHoursPerWeek: 0 });
+    expect(levelOf(starting())).toBe("medium");
+  });
+
+  it("names a level only when every AI amount matches it", () => {
+    expect(levelOf({ ...starting(), imagesPerWeek: 1 })).toBeNull();
+    expect(levelOf({ ...starting(), codingHoursPerWeek: 5 })).toBeNull();
+    expect(levelOf({ promptsPerDay: 40, imagesPerWeek: 10, videosPerWeek: 0, codingHoursPerWeek: 0 })).toBe("heavy");
+  });
+});
 
 describe("quick AI estimates", () => {
   it("maps plans to usage levels", () => {

@@ -1,4 +1,6 @@
-import { payRows, PLAN_ID, type PayRow } from "./payments";
+import { CHARITIES } from "./charities";
+import { type Impacts, sumImpacts } from "./footprint";
+import { payRows, type PaymentMode, PLAN_ID, type PayRow } from "./payments";
 import { DEFAULT_CONTEXT, defaultAmount, harmSplit, type HarmSplit, planTotals, PRODUCTS, productById, SECTIONS, type Context, type Product } from "./store";
 
 // Gifting an offset: one person pays the charities for someone else's typical
@@ -54,6 +56,32 @@ export const GIFTABLE = PRODUCTS.filter(giftable);
 /** The span a gift starts each item on: for life for AI, online and devices, a year for everyday items. */
 export const defaultGiftSpan = (p: Product): GiftSpan => (p.oneTime ? "life" : "year");
 
+/** Above this, a gift asks for a one-tap check before it's saved, as the store does for a big day's total. */
+export const GIFT_CONFIRM_OVER_USD = 100;
+
+/**
+ * The quick picks, the year first so the list never leads with the dearest one;
+ * each shows its total beside it (Ian, 2026-10-13).
+ */
+export const GIFT_PRESETS: { label: string; span: (p: Product) => GiftSpan }[] = [
+  { label: "Everything for a year", span: () => "year" },
+  { label: "Everything for a month", span: () => "month" },
+  { label: "AI, online and devices for life, the rest for a year", span: defaultGiftSpan },
+  { label: "Everything for life", span: () => "life" },
+];
+export const presetItems = (preset: (typeof GIFT_PRESETS)[number]): GiftItem[] => GIFTABLE.map((p) => ({ productId: p.id, span: preset.span(p) }));
+
+/** What the giver is told before they give: one Every.org gift per charity, and when the link starts working. */
+export function giftSteps(gifts: number, links: number, mode: PaymentMode): string {
+  const link = links > 1 ? "links work" : "link works";
+  const how =
+    gifts === 1
+      ? `You'll make 1 gift on Every.org. Your ${link} once it's confirmed.`
+      : `You'll make ${gifts} gifts on Every.org, one per charity. Your ${link} once all ${gifts} are confirmed.`;
+  // Gifts stay on Every.org even when the store gives through the Endaoment fund, so each gift link can see its own confirmations.
+  return mode === "endaoment" ? `Gifts go through Every.org, not the fund the rest of the site uses. ${how}` : how;
+}
+
 const empty = (): HarmSplit => ({
   carbon: { once: 0, perPeriod: 0 },
   air: { once: 0, perPeriod: 0 },
@@ -81,6 +109,26 @@ export function giftRows(items: GiftItem[], birthYear: number = DEFAULT_CONTEXT.
   // Gifts are given through Every.org in every payment mode, so each gift page can see its own confirmations.
   return payRows(total, "monthly", false, "every");
 }
+
+/** What a gift offsets for one person at typical use: lifetime for "for life", else each month times the months. */
+export function giftImpacts(items: GiftItem[], birthYear: number = DEFAULT_CONTEXT.birthYear): Impacts {
+  const ctx = giftContext(birthYear);
+  return sumImpacts(
+    items.flatMap((item) => {
+      const p = productById(item.productId);
+      if (!p) return [];
+      const amount = defaultAmount(p, ctx);
+      if (item.span === "life") return [p.impacts(amount, "future", ctx)];
+      const months = spanMonths(item.span) ?? 0;
+      return [Object.fromEntries(Object.entries(p.impacts(amount, "monthly", ctx)).map(([k, v]) => [k, v * months])) as Impacts];
+    }),
+  );
+}
+
+/** The charities a gift's money goes to, each named once, in checkout order. */
+export const giftCharities = (items: GiftItem[], birthYear?: number): string[] => [
+  ...new Set(giftRows(items, birthYear).map((r) => CHARITIES[r.charity].name)),
+];
 
 const clean = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, max) : "");
 
@@ -125,22 +173,22 @@ export function giftPaid(id: string, rows: PayRow[], donations: { partnerDonatio
 /** "driving", but "AI chat" keeps its capitals. */
 export const lowerName = (name: string) => (/^[A-Z]{2}/.test(name) ? name : name.charAt(0).toLowerCase() + name.slice(1));
 
-const list = (names: string[]) => (names.length < 2 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`);
+/** "A, B and C". */
+export const andList = (names: string[]) => (names.length < 2 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`);
 
 /** "your AI chat and TV for life, and your driving for 5 years", for the gift card. Long lists are shortened. */
 export function giftSentence(items: GiftItem[]): string {
-  // Everything there is to cover reads as the whole footprint, whatever the span (Ian, 2026-10-12).
+  // Everything there is to cover, all on one span, reads as the whole footprint (Ian, 2026-10-12).
   const spans = GIFTABLE.map((p) => items.find((i) => i.productId === p.id)?.span);
-  if (spans.every(Boolean)) {
-    const shortest = GIFT_SPANS.find((sp) => spans.includes(sp))!;
-    const label = spans.every((sp) => sp === shortest) ? SPAN_LABEL[shortest] : `${SPAN_LABEL[shortest]} or longer`;
-    return `your whole footprint ${label}: climate, air, water, nature and e-waste, from AI to food to flights`;
-  }
+  if (spans.every((sp) => sp && sp === spans[0]))
+    return `your whole footprint ${SPAN_LABEL[spans[0]!]}: climate, air, water, nature and e-waste, from AI to food to flights`;
   const groups = GIFT_SPANS.slice()
     .reverse()
     .map((span) => ({ span, ids: items.filter((i) => i.span === span).map((i) => i.productId) }))
     .filter((g) => g.ids.length);
-  return groups.map((g) => `${giftNames(g.ids, g.span)} ${SPAN_LABEL[g.span]}`).join(", and ");
+  // Everything on mixed spans: the shortest reads as "everything else", never "or longer" (Ian, 2026-10-13).
+  const rest = spans.every(Boolean) ? groups.length - 1 : -1;
+  return groups.map((g, n) => `${n === rest ? "everything else" : giftNames(g.ids, g.span)} ${SPAN_LABEL[g.span]}`).join(", and ");
 }
 
 const SECTION_PHRASE: Record<string, string> = {
@@ -185,7 +233,7 @@ function giftNames(ids: string[], span: GiftSpan): string {
 /** "all your travel, your TV and phone and 2 more things" */
 function phrase(sectionPhrases: string[], singles: string[], more?: string): string {
   const items = more ? [...singles, more] : singles;
-  const parts = [...sectionPhrases, ...(items.length ? [`your ${list(items)}`] : [])];
+  const parts = [...sectionPhrases, ...(items.length ? [`your ${andList(items)}`] : [])];
   return parts.length < 2 ? (parts[0] ?? "") : `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}`;
 }
 

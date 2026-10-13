@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { badgesFor, filterCounts, matches, parseFilter, termLabel } from "./badges";
+import { badgesFor, filterCounts, matches, PAST, parseFilter, termLabel, toneOf } from "./badges";
 import { PRODUCTS } from "./store";
 
 const AI = ["ai", "ai-media", "ai-video", "ai-coding"];
@@ -32,7 +32,14 @@ describe("badges", () => {
     expect(c["item:ai"]).toBe(2);
     expect(c.food).toBe(1);
   });
+  it("colors by term, and an aisle with any past-use item is past use", () => {
+    expect([null, "2027-10-01", PAST].map(toneOf)).toEqual(["life", "period", "past"]);
+    const b = badgesFor([...life(AI.slice(1)), { productId: "ai", until: PAST }]);
+    expect(b[0]).toMatchObject({ kind: "aisle", until: PAST });
+    expect(badgesFor([...life(AI.slice(2)), { productId: "ai", until: PAST }, { productId: "ai-media", until: "2027-01-01" }])[0].until).toBe(PAST);
+  });
   it("words the term", () => {
+    expect(termLabel(PAST)).toBe("past use");
     expect(termLabel(null)).toBe("for life");
     expect(termLabel("monthly")).toBe("each month");
     expect(termLabel("2027-10-15T00:00:00.000Z")).toBe("through Oct 2027");
