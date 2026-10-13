@@ -11,7 +11,7 @@ import { ActivityUpload } from "./ActivityUpload";
 import { CheckoutSteps } from "./Checkout";
 import { SteadyCheck } from "./SteadyCheck";
 import { LIFETIME_TO_AGE } from "@/lib/factors";
-import { joinList, ListOptIn } from "./ListOptIn";
+import { joinList, ListInvite, ListOptIn } from "./ListOptIn";
 import { AiExportUpload } from "./AiExportUpload";
 import { AiQuickPick } from "./AiQuickPick";
 import { OffsetTimeline } from "./OffsetTimeline";
@@ -2086,6 +2086,18 @@ function PaySection({
       {started ? (
         <>
           <CheckoutSteps checkout={started} onChange={setPayState} />
+          {allConfirmed(started) && (
+            <ListInvite
+              what="this checkout"
+              // Only while the plan still matches the checkout, since the server works the claim out again from it.
+              join={
+                saved
+                  ? (name) =>
+                      joinList(name, { source: "plan", planId: started.id, billing, autopay, pastYears: listing.pastYears, lines: listing.lines, ctx: listing.ctx, rows })
+                  : undefined
+              }
+            />
+          )}
           <SteadyCheck plan={steadyPlan(started)} inStore />
           <button
             type="button"

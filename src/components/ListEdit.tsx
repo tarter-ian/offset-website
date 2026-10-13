@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { productById } from "@/lib/store";
-import { LIST_NAME_MAX } from "@/lib/publicList";
+import { badgesFor } from "@/lib/badges";
+import { badges, LIST_NAME_MAX } from "@/lib/publicList";
+import { BadgeTag } from "./Badge";
 import { forgetListing, savedListing } from "./ListOptIn";
 
 type Listing = { name: string; claims: { items: { productId: string; until: string | null }[]; createdAt: string; paid: boolean }[] };
@@ -39,7 +41,7 @@ export function ListEdit() {
   if (!token || (!listing && !note))
     return (
       <p className="mt-6">
-        This browser isn&apos;t on the <Link href="/list" className="underline">public list</Link>. You join it when you pay, by ticking &ldquo;List me
+        This browser isn&apos;t on the <Link href="/list" className="underline">public list</Link>. You join it when you give, by ticking &ldquo;List me
         publicly&rdquo;. If you joined in another browser, open this page there.
       </p>
     );
@@ -71,7 +73,19 @@ export function ListEdit() {
           </form>
           <div>
             <h2 className="font-semibold">What it shows</h2>
-            <ul className="mt-2 divide-y divide-border border-y-2 border-rule text-sm">
+            {(() => {
+              const shown = badgesFor(badges(listing.claims.filter((c) => c.paid).map((c) => ({ source: "plan", sourceId: "", rows: [], ...c }))));
+              return shown.length ? (
+                <ul className="mt-2 flex flex-wrap gap-2" aria-label="Your badges">
+                  {shown.map((b) => (
+                    <li key={b.key}>
+                      <BadgeTag kind={b.kind} name={b.name} until={b.until} />
+                    </li>
+                  ))}
+                </ul>
+              ) : null;
+            })()}
+            <ul className="mt-3 divide-y divide-border border-y-2 border-rule text-sm">
               {listing.claims.map((c, i) => (
                 <li key={i} className="py-2">
                   {c.items.map((x) => `${productById(x.productId)?.name ?? x.productId} ${x.until === null ? "for life" : `through ${month(x.until)}`}`).join(", ")}
