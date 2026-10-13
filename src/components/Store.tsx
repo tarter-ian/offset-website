@@ -15,7 +15,7 @@ import { AiQuickPick } from "./AiQuickPick";
 import { AI_LEVELS } from "@/lib/ai/levels";
 import { NumberInput, Select } from "./fields";
 import { STATE_OPTIONS, STATES, type StateCode } from "@/lib/data/states";
-import { airShort, IMPACT_INFO } from "@/lib/impacts";
+import { airShort, IMPACT_INFO, lifeText } from "@/lib/impacts";
 import { CHARITIES } from "@/lib/charities";
 import { IMPACT_KEYS, sumImpacts, type Impacts } from "@/lib/footprint";
 import { howEstimated, whereItGoes } from "@/lib/methods";
@@ -147,9 +147,15 @@ function tilePrice(price: { once: number; monthly: number }, cover: Cover, billi
 }
 /** Every kind of harm covered, skipping ones too small to show, e.g. "181 kg CO₂e · air 7.7 min · 947 L water". */
 const MIN_SHOWN: Impacts = { carbon: 0.005, air: 0.0005, water: 0.05, land: 0.001, ewaste: 0.01 };
-const coversText = (i: Impacts) =>
+const coversText = (i: Impacts, long = false) =>
   IMPACT_KEYS.filter((k) => i[k] >= MIN_SHOWN[k])
-    .map((k) => (k === "air" ? `air ${airShort(i[k])}` : IMPACT_INFO[k].format(i[k])))
+    .map((k) =>
+      k !== "air"
+        ? IMPACT_INFO[k].format(i[k])
+        : long
+          ? `${IMPACT_INFO.air.format(i[k])} air pollution (about ${lifeText(i[k])} of healthy life)`
+          : `air ${airShort(i[k])}`,
+    )
     .join(" · ");
 
 /**
@@ -685,23 +691,26 @@ export function Store() {
   };
 
   /** What an item's price pays to cover, in every kind of harm. */
-  const coversLines = (p: Product): [string, string][] => {
+  const coversLines = (p: Product, long = false): [string, string][] => {
     const cover = coverOf(p);
     const c = coverImpacts(p, amountOf(p), cover, ctx);
     const lines: [string, string][] = [];
-    if (cover.ahead === "lifetime") lines.push([cover.past ? "Offsets for life" : "Offsets all future use", coversText(c.once)]);
+    if (cover.ahead === "lifetime") lines.push([cover.past ? "Offsets for life" : "Offsets all future use", coversText(c.once, long)]);
     else {
-      if (cover.past) lines.push(["Covers past use", coversText(c.once)]);
+      if (cover.past) lines.push(["Offsets past use", coversText(c.once, long)]);
       const k = billing === "annual" ? 12 : 1;
       lines.push([
-        billing === "annual" ? "Covers each year" : "Covers each month",
-        coversText({
-          carbon: c.monthly.carbon * k,
-          air: c.monthly.air * k,
-          water: c.monthly.water * k,
-          land: c.monthly.land * k,
-          ewaste: c.monthly.ewaste * k,
-        }),
+        billing === "annual" ? "Offsets each year" : "Offsets each month",
+        coversText(
+          {
+            carbon: c.monthly.carbon * k,
+            air: c.monthly.air * k,
+            water: c.monthly.water * k,
+            land: c.monthly.land * k,
+            ewaste: c.monthly.ewaste * k,
+          },
+          long,
+        ),
       ]);
     }
     return lines;
@@ -730,11 +739,11 @@ export function Store() {
         <p className="mb-2">{p.blurb}</p>
         <h4 className="font-bold">What it covers</h4>
         <ul className="mt-1 mb-3 space-y-1 text-muted">
-          {coversLines(p)
+          {coversLines(p, true)
             .filter((l) => l[1])
             .map(([label, text]) => (
               <li key={label}>
-                {label}: {text.replace(/(\d) (min|sec|hr|days)\b/, "$1 $2 of healthy life")}
+                {label}: {text}
               </li>
             ))}
         </ul>
@@ -1066,7 +1075,7 @@ export function Store() {
         <aside id="ai-chat" aria-label="AI chat, itemized" className="self-start border-t-2 border-rule pt-4">
           <dl className="amount -mt-2 divide-y divide-border text-sm">
             {[
-              ...(["carbon", "air", "water", "land"] as const).map((k) => [IMPACT_INFO[k].label, k === "air" ? airShort(aiImpacts[k]) : IMPACT_INFO[k].format(aiImpacts[k])]),
+              ...(["carbon", "air", "water", "land"] as const).map((k) => [IMPACT_INFO[k].label, IMPACT_INFO[k].format(aiImpacts[k])]),
             ].map(([k, v]) => (
               <div key={k} className="flex justify-between gap-4 py-2">
                 <dt className="text-muted">{k}</dt>

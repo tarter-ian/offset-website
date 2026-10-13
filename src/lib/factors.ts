@@ -208,6 +208,12 @@ export const POWER_USD_PER_TON_SO2 = 57_000;
 export const GROUND_USD_PER_TON_NOX = 7_100;
 export const GROUND_USD_PER_TON_PM25 = 700_000;
 
+// Air pollution is shown in grams of soot-equivalent (Ian, 2026-10-13): each
+// pollutant counted by its harm against fine soot released at street level, the
+// way CO2e counts other gases against CO2. A gram of power plant NOx or SO2 counts
+// as a fraction of a gram, so the figure is the soot that would do the same harm.
+export const SOOT_EQ_G_PER_DAMAGE_USD = 907_185 / GROUND_USD_PER_TON_PM25;
+
 // Gasoline car tailpipe, EPA420-F-08-024 (2008). Overstates today's cars;
 // replace with current MOVES rates (BTS NTS Table 4-43).
 export const CAR_G_NOX_PER_MILE = 0.693;

@@ -1,5 +1,5 @@
 import type { ImpactKey } from "./footprint";
-import { MINUTES_OF_LIFE_PER_DAMAGE_USD } from "./factors";
+import { MINUTES_OF_LIFE_PER_DAMAGE_USD, SOOT_EQ_G_PER_DAMAGE_USD } from "./factors";
 
 // How each kind of impact is named and shown.
 
@@ -12,11 +12,18 @@ function lifeLost(min: number): string {
   return `${n(min / 60 / 24)} days`;
 }
 
-/**
- * Air pollution on tiles and the receipt, e.g. "air 2.1 min": the minutes of healthy life
- * are explained in each item's (i), so the tile doesn't lead with them (Ian, 2026-10-12).
- */
-export const airShort = (usdDamage: number) => lifeLost(usdDamage * MINUTES_OF_LIFE_PER_DAMAGE_USD);
+/** Healthy life lost to air pollution damage (dollars), e.g. "3.9 min", kept for the (i) details and question pages. */
+export const lifeText = (usdDamage: number) => lifeLost(usdDamage * MINUTES_OF_LIFE_PER_DAMAGE_USD);
+
+/** Grams of soot-equivalent for air pollution damage (dollars), e.g. "11 g". */
+export function sootGrams(usdDamage: number): string {
+  const g = usdDamage * SOOT_EQ_G_PER_DAMAGE_USD;
+  if (g >= 1000) return `${(g / 1000).toFixed(g < 10_000 ? 1 : 0)} kg`;
+  return `${g < 10 ? g.toFixed(1).replace(/\.0$/, "") : Math.round(g)} g`;
+}
+
+/** Air pollution on tiles and the receipt, e.g. "11 g"; minutes of healthy life are in each item's (i). */
+export const airShort = sootGrams;
 
 export const IMPACT_INFO: Record<ImpactKey, { label: string; short: string; format: (n: number) => string }> = {
   carbon: {
@@ -26,8 +33,8 @@ export const IMPACT_INFO: Record<ImpactKey, { label: string; short: string; form
   },
   air: {
     label: "Air pollution",
-    short: "life lost",
-    format: (usdDamage) => `${lifeLost(usdDamage * MINUTES_OF_LIFE_PER_DAMAGE_USD)} of life`,
+    short: "soot-equivalent",
+    format: (usdDamage) => `${sootGrams(usdDamage)} soot-equivalent`,
   },
   water: {
     label: "Water",
