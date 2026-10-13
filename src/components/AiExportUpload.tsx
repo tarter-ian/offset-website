@@ -8,7 +8,7 @@ import { WH_PER_AI_PROMPT } from "@/lib/factors";
 
 const NAMES = { chatgpt: "ChatGPT", claude: "Claude", gemini: "Gemini", "openai-api": "OpenAI API", "anthropic-api": "Anthropic API" } as const;
 
-function describe(s: UsageSummary): string {
+export function describeExport(s: UsageSummary): string {
   const perPrompt = s.promptsPerDay > 0 ? s.whPerDay / s.promptsPerDay : 0;
   const times = perPrompt / WH_PER_AI_PROMPT;
   const parts = [
@@ -46,7 +46,7 @@ export function AiExportUpload({ onResult, showApi = true }: { onResult: (s: Usa
       add("export", s);
       setStatus({
         kind: "done",
-        text: describe(s),
+        text: describeExport(s),
       });
     } catch {
       setStatus({ kind: "error", text: "We couldn't read that file. Try the .zip exactly as you downloaded it." });

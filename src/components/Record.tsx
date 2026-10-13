@@ -9,7 +9,10 @@ import { badgesFor } from "@/lib/badges";
 import { pullCovered, pushCovered } from "@/lib/accountClient";
 import { canInstallExtension, savedResults } from "@/lib/extension";
 import { AI_CHAT_SERVICES, type AiChatService, inForce, monthlyUse, monthTotal, type MonthUse, recordStatus } from "@/lib/record";
+import { loadCheckout } from "@/lib/payments";
 import { itemName } from "@/lib/reminders";
+import { type SteadyPlan, steadyIds, steadyPlan } from "@/lib/steady";
+import { SteadyCheck } from "./SteadyCheck";
 import { productById } from "@/lib/store";
 
 // The page a returning visitor lands on: whether anything needs doing, their AI
@@ -38,9 +41,11 @@ export function Record() {
   const [covered, setCovered] = useState<Record<string, Covered> | null>(null);
   const [use, setUse] = useState<MonthUse[] | null>(null);
   const [computer, setComputer] = useState(true);
+  const [steady, setSteady] = useState<SteadyPlan | null>(null);
 
   useEffect(() => {
     setCovered(loadCovered());
+    setSteady(steadyPlan(loadCheckout()));
     setComputer(canInstallExtension());
     // Signed in: bring in what the account covers (from another device), then send up anything this browser adds.
     pullCovered().then((merged) => {
@@ -54,7 +59,8 @@ export function Record() {
 
   if (!covered) return <p className="py-16 text-muted">Loading your record…</p>;
   const now = Date.now();
-  const status = recordStatus(covered, now);
+  const repeating = steadyIds(steady);
+  const status = recordStatus(covered, now, repeating);
 
   return (
     <div className="pb-20">
@@ -91,7 +97,9 @@ export function Record() {
             <p className="mt-4 max-w-xl text-lg text-muted">
               {status.kind === "life"
                 ? "Everything here is covered for life. There's nothing more to do."
-                : `Nothing to do until ${day(status.until)}. We'll send you a link then.`}
+                : status.kind === "steady"
+                  ? "Your steady gift repeats on its own through Every.org until you stop it there. There's nothing to do."
+                  : `Nothing to do until ${day(status.until)}. We'll send you a link then.`}
             </p>
           </>
         )}
@@ -124,8 +132,10 @@ export function Record() {
           </Link>
         </div>
         <Seals covered={covered} now={now} />
-        <CoveredList covered={covered} now={now} />
+        <CoveredList covered={covered} now={now} repeating={repeating} />
       </section>
+
+      <SteadyCheck plan={steady} use={use} />
 
       <section aria-labelledby="more-heading" className="mt-12">
         <h2 id="more-heading" className="text-2xl font-bold">
@@ -135,7 +145,8 @@ export function Record() {
           {[
             ["/gift", "Cover a friend's AI use", "As a gift, for a year or for life."],
             ["/ledger", "Where the money goes", "Every charity, and what each gift pays for."],
-            ["/data", "Stop or clear", "Ends anything repeating. What you covered stays covered."],
+            // Repeating gifts are stopped in the person's Every.org account, not on /data.
+            ["/data", "See or clear your data", "What this browser and your account keep. What you offset stays offset."],
           ].map(([href, title, note]) => (
             <li key={href} className="border-b border-border py-3 pr-4">
               <Link href={href} className="group block">
@@ -245,7 +256,7 @@ function Seals({ covered, now }: { covered: Record<string, Covered>; now: number
 }
 
 /** Each covered item with a line over the last twelve months and the next: green for life, blue for a set stretch. */
-function CoveredList({ covered, now }: { covered: Record<string, Covered>; now: number }) {
+function CoveredList({ covered, now, repeating }: { covered: Record<string, Covered>; now: number; repeating: string[] }) {
   const entries = Object.entries(covered).sort(([, a], [, b]) => (a.kind === b.kind ? 0 : a.kind === "life" ? -1 : 1));
   if (!entries.length) return <p className="mt-3 text-muted">Nothing yet.</p>;
   const year = 365.25 * 86400000;
@@ -255,11 +266,13 @@ function CoveredList({ covered, now }: { covered: Record<string, Covered>; now: 
   return (
     <ul className="mt-3 border-t border-rule">
       {entries.map(([id, c]) => {
-        const live = inForce(c, now);
+        const steady = c.kind === "period" && !c.giftFrom && repeating.includes(id);
+        const live = steady || inForce(c, now);
         const start = c.since ? Date.parse(c.since) : from;
-        const end = c.kind === "life" ? from + span : Date.parse(c.until);
-        const state =
-          c.kind === "life"
+        const end = c.kind === "life" || steady ? from + span : Date.parse(c.until);
+        const state = steady
+          ? `Repeats through Every.org${c.since ? `, since ${monthYear(c.since)}` : ""}`
+          : c.kind === "life"
             ? `For life${c.since ? `, since ${monthYear(c.since)}` : ""}`
             : live
               ? `Through ${day(c.until)}${c.since ? `, since ${monthYear(c.since)}` : ""}`
