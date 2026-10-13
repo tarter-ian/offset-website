@@ -140,7 +140,7 @@ export function Record() {
         </h2>
         <ul className="mt-3 grid border-t border-rule sm:grid-cols-3">
           {[
-            ["/gift", "Cover a friend's AI use", "As a gift, for a year or for life."],
+            ["/gift", "Give an offset as a gift", "For a year or for life, with a link to send."],
             ["/ledger", "Where the money goes", "Every charity, and what each gift pays for."],
             // Repeating gifts are stopped in the person's Every.org account, not on /data.
             ["/data", "See or clear your data", "What this browser and your account keep. What you offset stays offset."],

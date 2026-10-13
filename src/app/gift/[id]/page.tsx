@@ -9,7 +9,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: "A gift | My Offset",
     robots: { index: false },
-    openGraph: { title: "A gift from My Offset", description: "Someone covered part of your footprint.", type: "website", images: [{ url: image, width: 1200, height: 630 }] },
+    openGraph: { title: "A gift from My Offset", description: "Someone offset part of your footprint for you.", type: "website", images: [{ url: image, width: 1200, height: 630 }] },
     twitter: { card: "summary_large_image", images: [image] },
   };
 }

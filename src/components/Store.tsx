@@ -1400,7 +1400,7 @@ export function Store() {
         <span aria-hidden className="hidden text-muted sm:inline">·</span>
         <span className="hidden text-muted sm:inline">Giving?</span>
         <Link href="/gift" className="inline-flex min-h-10 items-center underline underline-offset-4 hover:text-muted">
-          Cover a friend&apos;s AI use
+          Give an offset as a gift
         </Link>
       </nav>
 
