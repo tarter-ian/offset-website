@@ -15,4 +15,13 @@ describe("item info", () => {
       expect(new Set(goes.map((g) => g.charity.name)).size, p.id).toBe(goes.length);
     }
   });
+
+  it("never mentions the extension on a phone, and keeps it on a computer", () => {
+    for (const p of PRODUCTS) {
+      const lines = howEstimated(p, true);
+      expect(lines.length, p.id).toBeGreaterThan(0);
+      for (const l of lines) expect(l, p.id).not.toMatch(/extension/i);
+    }
+    expect(PRODUCTS.some((p) => howEstimated(p).some((l) => /extension/i.test(l)))).toBe(true);
+  });
 });

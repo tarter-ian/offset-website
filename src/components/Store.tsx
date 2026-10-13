@@ -23,6 +23,7 @@ import { airShort, IMPACT_INFO, lifeText } from "@/lib/impacts";
 import { CHARITIES } from "@/lib/charities";
 import { IMPACT_KEYS, type ImpactKey, sumImpacts, type Impacts } from "@/lib/footprint";
 import { howEstimated, whereItGoes } from "@/lib/methods";
+import { isPhone } from "@/lib/extension";
 import { PROVIDERS, type ProviderId } from "@/lib/providers";
 import {
   allConfirmed,
@@ -331,6 +332,11 @@ export function Store() {
   }, []);
 
   useEffect(() => setPayState(loadCheckout()), []);
+
+  // Phones never mention the extension (Ian, 2026-10-13): the (i) notes start in their phone wording
+  // and a computer switches to the full wording once it's known not to be a phone.
+  const [phone, setPhone] = useState(true);
+  useEffect(() => setPhone(isPhone()), []);
 
   // Signed in: what the account covers (from another device) shows here too, and new covers go up to it.
   const [signedIn, setSignedIn] = useState(false);
@@ -842,7 +848,7 @@ export function Store() {
         <details className="border-t border-border py-2">
           <summary className={summaryCls}>How it&apos;s estimated</summary>
           <ul className="mt-2 list-disc space-y-1 pl-4 text-muted">
-            {howEstimated(p).map((line) => (
+            {howEstimated(p, phone).map((line) => (
               <li key={line}>{line}</li>
             ))}
           </ul>
