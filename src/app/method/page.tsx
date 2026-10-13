@@ -23,7 +23,7 @@ import {
   usd,
 } from "@/lib/pricing";
 
-export const metadata: Metadata = { title: "How we calculate | My Offset" };
+export const metadata: Metadata = { title: "How it's calculated | My Offset" };
 
 const SOURCES = [
   { name: "EPA USEEIO v2.0 supply-chain model (clothing, home goods, services)", url: "https://www.epa.gov/land-research/us-environmentally-extended-input-output-useeio-models" },
@@ -184,7 +184,7 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
 export default function MethodPage() {
   return (
     <article className="mx-auto max-w-3xl px-4 py-12">
-      <h1 className="text-4xl font-extrabold [font-stretch:85%]">How we calculate your footprint</h1>
+      <h1 className="text-4xl font-extrabold [font-stretch:85%]">How your footprint is calculated</h1>
       <p className="mt-4 text-lg text-muted">
         We estimate five kinds of harm for each part of your life, add a margin that depends on how good the data is,
         and turn the result into donations to charities that work on each kind.

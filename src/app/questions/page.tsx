@@ -40,7 +40,7 @@ export default function QuestionsPage() {
       <p className="mt-8 text-muted">
         Every factor and source is on{" "}
         <Link href="/method" className={link}>
-          How we calculate
+          How it&apos;s calculated
         </Link>
         .{" "}
         <Link href="/" className={link}>

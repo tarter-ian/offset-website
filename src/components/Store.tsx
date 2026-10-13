@@ -1496,7 +1496,7 @@ export function Store() {
           Where the money goes
         </Link>
         <Link href="/method" className="inline-flex min-h-10 items-center underline underline-offset-4 hover:text-muted">
-          How we calculate
+          How it&apos;s calculated
         </Link>
         <span aria-hidden className="hidden text-muted sm:inline">·</span>
         <span className="hidden text-muted sm:inline">Giving?</span>

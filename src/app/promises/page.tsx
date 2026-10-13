@@ -4,7 +4,7 @@ import { ContactLink } from "@/components/ContactLink";
 import { forMode } from "@/lib/payments";
 import { ENDAOMENT_GRANT_LABEL, ENDAOMENT_IN_LABEL } from "@/lib/pricing";
 
-export const metadata: Metadata = { title: "Our promises | My Offset" };
+export const metadata: Metadata = { title: "Promises | My Offset" };
 
 // Each promise answers a common complaint about offset apps.
 const PROMISES = [
@@ -71,7 +71,7 @@ const PROMISES = [
 export default function PromisesPage() {
   return (
     <article className="mx-auto max-w-4xl px-4 py-12">
-      <h1 className="text-4xl font-extrabold [font-stretch:85%]">Our promises</h1>
+      <h1 className="text-4xl font-extrabold [font-stretch:85%]">Promises</h1>
       <p className="mt-4 text-lg text-muted">
         People have good reasons to distrust offset apps. Here is how we handle each one.
       </p>
