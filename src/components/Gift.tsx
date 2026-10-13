@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { Seal } from "./Badge";
 import { CheckoutSteps } from "./Checkout";
-import { joinList, ListOptIn } from "./ListOptIn";
+import { joinList, ListInvite, ListOptIn, savedListing } from "./ListOptIn";
 import { type Covered, STORAGE_KEY } from "@/lib/covered";
 import {
   defaultGiftSpan,
@@ -22,6 +23,7 @@ import {
   SPAN_LABEL,
   spanMonths,
 } from "@/lib/gifts";
+import { badgesFor } from "@/lib/badges";
 import { allConfirmed, type Checkout, newPlanId, paymentsOn, PLAN_ID, sumTotal } from "@/lib/payments";
 import { usd } from "@/lib/pricing";
 import { DEFAULT_CONTEXT, defaultAmount, type Product, productById, SECTIONS } from "@/lib/store";
@@ -53,7 +55,9 @@ type Picks = Record<string, GiftSpan>;
 const toItems = (picks: Picks): GiftItem[] => Object.entries(picks).map(([productId, span]) => ({ productId, span }));
 
 /** The gift as its card reads, for both the giver's preview and the person receiving it. */
-function GiftCard({ gift }: { gift: Pick<Gift, "items" | "from" | "to" | "note"> }) {
+function GiftCard({ gift }: { gift: Pick<Gift, "items" | "from" | "to" | "note"> & { createdAt?: string } }) {
+  const from = gift.createdAt ?? new Date().toISOString();
+  const seals = badgesFor(gift.items.map((i) => ({ productId: i.productId, until: giftUntil(i, from) })));
   return (
     <div className="border-y-4 border-rule py-5">
       <p className="text-sm text-muted">A gift for {gift.to || "someone"}</p>
@@ -61,6 +65,13 @@ function GiftCard({ gift }: { gift: Pick<Gift, "items" | "from" | "to" | "note">
         {gift.from || "Someone"} covered {giftSentence(gift.items) || "something for you"}.
       </p>
       {gift.note && <p className="mt-3 whitespace-pre-line">&ldquo;{gift.note}&rdquo;</p>}
+      {seals.length > 0 && (
+        <div className="mt-4 flex flex-wrap gap-3">
+          {seals.map((b) => (
+            <Seal key={b.key} kind={b.kind} name={b.name} until={b.until} size={104} />
+          ))}
+        </div>
+      )}
       <p className="mt-3 text-sm text-muted">
         Paid to the charities on My Offset at typical US use: the carbon, air pollution, water, nature and e-waste behind each one.
       </p>
@@ -339,6 +350,15 @@ function acceptGift(gift: Gift) {
 function GiftListing({ giftId, n }: { giftId: string; n: number }) {
   const [name, setName] = useState<string | null>(null);
   const [note, setNote] = useState("");
+  const [listed, setListed] = useState(false);
+  useEffect(() => setListed(!!savedListing()), []);
+  // Already on the list from this browser: offer to add this gift, or change or leave.
+  if (listed)
+    return (
+      <div className="mt-6 border-t-2 border-rule pt-1">
+        <ListInvite what="this gift" join={(name) => joinList(name, { source: "gift", giftId, for: n })} />
+      </div>
+    );
   return (
     <div className="mt-6 border-t-2 border-rule pt-3">
       <ListOptIn label="Show me on the public list" onChange={setName} />
@@ -403,6 +423,7 @@ export function GiftView({ id }: { id: string }) {
         <h2 className="mt-8 text-lg font-bold">{paid ? "Given" : "Give to each charity"}</h2>
         <div className="mt-2">
           <CheckoutSteps checkout={mine} save={saveGift} onChange={setMine} />
+          {paid && <ListInvite />}
         </div>
         <div className="mt-8 border-t-2 border-rule pt-4">
           <h2 className="text-lg font-bold">Send it</h2>

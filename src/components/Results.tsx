@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Badge } from "./Badge";
+import { Seal } from "./Badge";
 import { CARBON_REMOVAL, CHARITIES, type Charity } from "@/lib/charities";
 import {
   AREAS,
@@ -475,20 +475,20 @@ export function Results({
       {active && (
         <section className="rounded-xl bg-accent-soft p-6">
           <h3 className="font-semibold">Badges you&apos;d earn each month</h3>
-          <div className="mt-4 flex flex-wrap gap-3">
-            {everything && <Badge />}
-            {!everything &&
-              fullAreas.map((g) => <Badge key={g.key} area={single ? g.rows[0].label : g.label} detail={impactLabel} size="sm" />)}
-            {everything && fullAreas.map((g) => <Badge key={g.key} area={g.label} size="sm" />)}
+          <div className="mt-4 flex flex-wrap gap-4">
+            {everything && <Seal kind="full" name="Fully Offset" until="monthly" size={120} />}
+            {fullAreas.map((g) => (
+              <Earned key={g.key} kind={single ? "item" : "aisle"} name={single ? g.rows[0].label : g.label} only={everything ? undefined : impactLabel} />
+            ))}
             {partialBadges.map((label) => (
-              <Badge key={label} area={label} detail={impactLabel} size="sm" />
+              <Earned key={label} kind="item" name={label} only={impactLabel} />
             ))}
           </div>
           <p className="mt-4 text-muted">
-            You earn a badge for each item or whole area you cover.{" "}
+            You earn a badge for each item or whole area you offset.{" "}
             {everything
-              ? "Covering everything, for all five kinds of impact, earns the complete Fully Offset badge."
-              : "Cover everything for all five kinds of impact to earn the complete Fully Offset badge."}{" "}
+              ? "Offsetting everything, for all five kinds of impact, earns the complete Fully Offset badge."
+              : "Offset everything for all five kinds of impact to earn the complete Fully Offset badge."}{" "}
             Badges count approved months and build a streak you can share. Each links to{" "}
             <Link href="/method" className="text-accent hover:underline">
               how we calculate
@@ -516,5 +516,15 @@ export function Results({
         ← Change my answers
       </button>
     </div>
+  );
+}
+
+/** A seal with, under it, which kinds of impact it counts when not all five. */
+function Earned({ kind, name, only }: { kind: "aisle" | "item"; name: string; only?: string }) {
+  return (
+    <figure className="flex w-28 flex-col items-center">
+      <Seal kind={kind} name={name} until="monthly" size={104} />
+      {only && <figcaption className="mt-1 text-center text-xs text-muted">{only} only</figcaption>}
+    </figure>
   );
 }

@@ -57,8 +57,8 @@ export function ListOptIn({ label, onChange }: { label: string; onChange: (name:
         <span>
           <span className="font-medium">{label}</span>
           <span className="block text-muted">
-            Off unless you tick it. The <Link href="/list" className="underline">public list</Link> shows the name you pick, what you&apos;ve covered and
-            since when, never amounts. You can change your name or leave anytime.
+            Off unless you tick it. The <Link href="/list" className="underline">public list</Link> shows the name you pick, the badges for what you&apos;ve offset
+            and since when, never amounts. You can change your name or leave anytime.
           </span>
         </span>
       </label>
@@ -74,5 +74,102 @@ export function ListOptIn({ label, onChange }: { label: string; onChange: (name:
         />
       )}
     </div>
+  );
+}
+
+/**
+ * After giving (Ian, 2026-10-13): one quiet line for anyone not on the public list,
+ * which opens a name field only when asked. Someone already on it gets the change-or-leave link.
+ * Without `join` (a gift's giver, who isn't the one listed) it only says how to join.
+ */
+export function ListInvite({ join, what }: { join?: (name: string) => Promise<string | null>; what?: string }) {
+  const [listing, setListing] = useState<{ name: string } | null | undefined>(undefined);
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => setListing(savedListing()), []);
+  if (listing === undefined) return null;
+  const send = async (n: string) => {
+    if (!join) return;
+    setBusy(true);
+    const err = await join(n);
+    setBusy(false);
+    setNote(err ?? `You'll show on the public list as ${n} once Every.org confirms every gift.`);
+  };
+  const edit = (
+    <Link href="/list/edit" className="underline">
+      Change or leave
+    </Link>
+  );
+  if (note)
+    return (
+      <p role="status" className="mt-3 text-sm">
+        {note} {edit}
+      </p>
+    );
+  if (listing)
+    return (
+      <p className="mt-3 text-sm text-muted">
+        You&apos;re on the <Link href="/list" className="underline">public list</Link> as {listing.name}.{" "}
+        {join && what && (
+          <>
+            <button type="button" disabled={busy} onClick={() => send(listing.name)} className="cursor-pointer underline hover:text-foreground">
+              Add {what} to it
+            </button>{" "}
+            or{" "}
+          </>
+        )}
+        <Link href="/list/edit" className="underline">
+          {join && what ? "change or leave" : "Change or leave"}
+        </Link>
+        .
+      </p>
+    );
+  if (!join)
+    return (
+      <p className="mt-3 text-sm text-muted">
+        You can join the <Link href="/list" className="underline">public list</Link> when you give for your own plan. It shows a name you pick and badges, never
+        amounts.
+      </p>
+    );
+  if (!open)
+    return (
+      <p className="mt-3 text-sm text-muted">
+        Want to show on the <Link href="/list" className="underline">public list</Link>?{" "}
+        <button type="button" onClick={() => setOpen(true)} className="cursor-pointer font-medium text-foreground underline">
+          Join it
+        </button>{" "}
+        under a name or initials you pick. It shows badges, never amounts, and you can leave anytime.
+      </p>
+    );
+  return (
+    <form
+      className="mt-3 flex flex-wrap items-center gap-2 text-sm"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (name.trim()) void send(name.trim());
+      }}
+    >
+      <input
+        type="text"
+        value={name}
+        maxLength={LIST_NAME_MAX}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="A name or initials"
+        aria-label="Name on the public list"
+        className="min-h-10 w-64 max-w-full rounded-md border-2 border-rule bg-background px-3"
+      />
+      <button
+        type="submit"
+        disabled={busy || !name.trim()}
+        className="min-h-10 cursor-pointer rounded-md border-2 border-rule px-3 font-semibold hover:bg-foreground hover:text-background disabled:cursor-default disabled:opacity-60"
+      >
+        Add me
+      </button>
+      <button type="button" onClick={() => setOpen(false)} className="min-h-10 cursor-pointer px-2 text-muted underline hover:text-foreground">
+        Not now
+      </button>
+    </form>
   );
 }
