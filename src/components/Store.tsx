@@ -1532,7 +1532,7 @@ export function Store() {
         };
         return open ? null : (
           <section aria-labelledby="more-heading" className="mb-10">
-            <h2 id="more-heading" className="font-display text-3xl font-extrabold [font-stretch:85%]">Offset more than AI</h2>
+            <h2 id="more-heading" className="font-display text-3xl font-extrabold [font-stretch:85%]">Everything you can offset</h2>
             <ul className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
               {SECTIONS.filter((x) => x.key !== "ai").map((x) => (
                 <li key={x.key}>
@@ -1553,7 +1553,7 @@ export function Store() {
       {aislesOpen && (
       <>
       <div className="mb-4">
-        <h2 className="font-display text-3xl font-extrabold [font-stretch:85%]">Offset more than AI</h2>
+        <h2 className="font-display text-3xl font-extrabold [font-stretch:85%]">Everything you can offset</h2>
       </div>
 
       {/* The aisle bar sticks only while the shelves are on screen. */}

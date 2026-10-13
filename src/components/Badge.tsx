@@ -315,17 +315,17 @@ export function BadgeList({
     );
   }
   const n = new Set(lower.map((b) => b.key)).size;
-  // One size across a row, and a badge's yellow and blue held close as one unit, with a wider
-  // gap between badges (Ian, 2026-10-13): the tier shows in how much is printed solid.
+  // One size and one even gap across a row, a badge's yellow and blue included (Ian, 2026-10-13:
+  // pairs shouldn't sit closer together).
   const row = (bs: BadgeInfo[], aria: string) => (
     <ul className="flex flex-wrap items-center gap-x-6 gap-y-4" aria-label={aria}>
-      {grouped(bs).map((b) => (
-        <li key={`${b.kind}:${b.key}`} className="flex items-center gap-1">
-          {b.untils.map((u) => (
-            <Seal key={String(u)} kind={b.kind} name={b.name} until={u} size={ROW_SIZE} />
-          ))}
-        </li>
-      ))}
+      {grouped(bs).flatMap((b) =>
+        b.untils.map((u) => (
+          <li key={`${b.kind}:${b.key}:${String(u)}`}>
+            <Seal kind={b.kind} name={b.name} until={u} size={ROW_SIZE} />
+          </li>
+        )),
+      )}
     </ul>
   );
   return (
@@ -351,18 +351,18 @@ const OPEN_SIZE = 144;
 
 /**
  * A person's badges, opened up on the list (Ian, 2026-10-13): each badge shown up front as its round
- * seal, yellow and blue side by side. The seals stand alone, with no list of what's inside (Ian, 2026-10-13).
+ * seal, yellow and blue evenly spaced like the rest. The seals stand alone, with no list of what's inside (Ian, 2026-10-13).
  */
 export function SealGrid({ badges, label }: { badges: BadgeInfo[]; label: string }) {
   return (
     <ul className="flex flex-wrap items-center gap-x-6 gap-y-5" aria-label={label}>
-      {grouped(badges.filter((b) => !b.within)).map((b) => (
-        <li key={`${b.kind}:${b.key}`} className="flex items-center gap-1">
-          {b.untils.map((u) => (
-            <Seal key={String(u)} kind={b.kind} name={b.name} until={u} size={OPEN_SIZE} />
-          ))}
-        </li>
-      ))}
+      {grouped(badges.filter((b) => !b.within)).flatMap((b) =>
+        b.untils.map((u) => (
+          <li key={`${b.kind}:${b.key}:${String(u)}`}>
+            <Seal kind={b.kind} name={b.name} until={u} size={OPEN_SIZE} />
+          </li>
+        )),
+      )}
     </ul>
   );
 }
