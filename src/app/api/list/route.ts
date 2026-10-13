@@ -52,7 +52,7 @@ export async function POST(req: Request) {
       // The browser's list of gifts must be the one the server works out, or the listing could claim more than was paid.
       if (!rows.length || !sameRows(rows, body.rows)) return NextResponse.json({ error: "The plan changed; try again." }, { status: 409 });
       const createdAt = now.toISOString();
-      claim = { source: "plan", sourceId: input.planId, rows, items: planItems(input.lines, input.billing, createdAt), createdAt };
+      claim = { source: "plan", sourceId: input.planId, rows, items: planItems(input.lines, input.billing, createdAt, input.pastYears), createdAt };
     }
     await addClaim(token, name, claim, now);
   } catch (e) {

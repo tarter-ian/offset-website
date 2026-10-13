@@ -1,9 +1,12 @@
-import type { ListItem } from "./publicList";
+import { type ListItem, PAST } from "./publicList";
 import { PRODUCTS, SECTIONS, type SectionKey } from "./store";
+
+export { PAST };
 
 // Badges (Ian, 2026-10-13): one system everywhere a badge shows. Fully Offset
 // for everything in the store, "<aisle> offset" for a whole aisle, and one per
-// item otherwise. Each is for life or through a date. Never "carbon neutral".
+// item otherwise. Each is for life, through a date, or for past use once a
+// date has passed. Never "carbon neutral".
 
 export type BadgeKind = "full" | "aisle" | "item";
 
@@ -13,16 +16,24 @@ export interface BadgeInfo {
   key: string;
   /** What the seal names, e.g. "AI" or "Video streaming"; "Fully" for the full badge. */
   name: string;
-  /** ISO date the cover ends, null for life. A badge made of several items lasts as long as the shortest. */
+  /** ISO date the cover ends, null for life, or PAST once only past use is offset. A badge made of several items lasts as long as the shortest. */
   until: string | null;
 }
+
+/**
+ * A badge's color says its term (Ian, 2026-10-13): green for life, blue while a
+ * month or year runs, yellow once only past use is offset.
+ */
+export type Tone = "life" | "period" | "past";
+export const toneOf = (until: string | null): Tone => (until === null ? "life" : until === PAST ? "past" : "period");
 
 export const FULL_NAME = "Fully Offset";
 
 const itemsIn = (section: SectionKey) => PRODUCTS.filter((p) => p.section === section);
 
-/** The shortest cover among several: null (for life) only when every one is for life. */
+/** The shortest cover among several: past use if any has only that, else the earliest date; null (for life) only when every one is for life. */
 function shortest(untils: (string | null)[]): string | null {
+  if (untils.includes(PAST)) return PAST;
   const dated = untils.filter((u): u is string => u !== null).sort();
   return dated[0] ?? null;
 }
@@ -77,9 +88,10 @@ export function filterCounts(people: ListItem[][]): Record<string, number> {
   return counts;
 }
 
-/** "for life", or "through Oct 2027". */
+/** "for life", "through Oct 2027", or "past use". */
 export function termLabel(until: string | null | "monthly"): string {
   if (until === null) return "for life";
   if (until === "monthly") return "each month";
+  if (until === PAST) return "past use";
   return `through ${new Date(until).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" })}`;
 }

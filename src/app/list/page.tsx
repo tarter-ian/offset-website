@@ -152,8 +152,8 @@ export default async function ListPage({ searchParams }: { searchParams: Promise
           ))}
         </ul>
         <p className="mt-5 text-sm text-muted">
-          A solid edge means for life. A perforated edge runs through a date, and the badge drops off the list once that date passes unless it&apos;s
-          renewed.
+          Green with a solid edge is for life. Blue with a perforated edge runs through a date. Once that date passes, the badge turns yellow if
+          past use was offset too, and drops off the list if not.
         </p>
       </section>
 

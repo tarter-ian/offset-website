@@ -20,6 +20,9 @@
   --life-ink: #134a2a;
   --period: #e3ecf7;
   --period-ink: #1d3f6b;
+  /* Past use offset, with no cover running now: yellow, for badges (Ian, 2026-10-13). */
+  --past: #faefcc;
+  --past-ink: #5c4300;
   --danger: #b42318;
   --on-accent: #ffffff;
 }
@@ -39,6 +42,8 @@
     --life-ink: #93d8ae;
     --period: #172539;
     --period-ink: #9cc1ef;
+    --past: #2f2710;
+    --past-ink: #ebc86e;
     --danger: #f97066;
     --on-accent: #0f1210;
   }
@@ -58,6 +63,8 @@
   --color-life-ink: var(--life-ink);
   --color-period: var(--period);
   --color-period-ink: var(--period-ink);
+  --color-past: var(--past);
+  --color-past-ink: var(--past-ink);
   --color-danger: var(--danger);
   --color-on-accent: var(--on-accent);
   --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
