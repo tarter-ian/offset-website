@@ -146,6 +146,8 @@ function tilePrice(price: { once: number; monthly: number }, cover: Cover, billi
   }
   return { big: once(price.once), note: cover.past ? "once, for life" : "once, for all future use" };
 }
+/** Past use above this is always spread over years, never asked for at once. */
+const PAST_ALL_NOW_MAX_USD = 100;
 /** Every kind of harm covered, skipping ones too small to show, e.g. "181 kg CO₂e · air 7.7 min · 947 L water". */
 const MIN_SHOWN: Record<ImpactKey, number> = { carbon: 0.005, air: 0.0005, water: 0.05, land: 0.001, ewaste: 0.01 };
 const coversText = (i: Impacts, long = false) =>
@@ -382,7 +384,10 @@ export function Store() {
   });
   const billing = billingPick ?? DEFAULT_BILLING;
   const pastTotal = lines.reduce((sum, l) => sum + (l.cover.past && l.cover.ahead === "monthly" ? productById(l.productId)!.cost(l.amount, "past", ctx) : 0), 0);
-  const spreadYears = pastYears ?? bestPastYears(lines, ctx, billing);
+  // "All now" is only offered while past use stays small; a big past-use sum is always spread (Ian, 2026-10-13).
+  const allNowOk = (usd: number) => usd <= PAST_ALL_NOW_MAX_USD;
+  const pastPick = (pastUsd: number) => (pastYears === 0 && !allNowOk(pastUsd) ? null : pastYears);
+  const spreadYears = pastPick(pastTotal) ?? bestPastYears(lines, ctx, billing);
   const totals = planTotals(lines, ctx, billing, spreadYears);
   // When the last past-use instalment is due, for the autopay note.
   const pastEnds = totals.pastSpread
@@ -433,7 +438,7 @@ export function Store() {
       amount: amountOf(p),
       cover: { past: coverOf(p).past, ahead: plan.includes(p.id) ? coverOf(p).ahead : ("monthly" as const) },
     }));
-    const years = pastYears ?? bestPastYears(evLines, ctx, billing);
+    const years = pastPick(Infinity) ?? bestPastYears(evLines, ctx, billing);
     const t = planTotals(evLines, ctx, billing, years);
     const evSplit = harmSplit(t, ctx, billing);
     return { today: sumTotal(payRows(evSplit, billing, autopay)), then: sumTotal(repeatRows(evSplit, billing)), spread: t.pastSpread };
@@ -446,7 +451,7 @@ export function Store() {
   /** e.g. "$9 a month, past use spread over 3 years": each item monthly, past use in instalments as checkout would. */
   const groupPrice = (ps: Product[]) => {
     const gLines = addable(ps).map((p) => ({ productId: p.id, amount: amountOf(p), cover: monthlyCover(p) }));
-    const t = planTotals(gLines, ctx, billing, pastYears ?? bestPastYears(gLines, ctx, billing));
+    const t = planTotals(gLines, ctx, billing, pastPick(Infinity) ?? bestPastYears(gLines, ctx, billing));
     const monthly = t.lines.reduce((s, l) => s + (l.cover.ahead === "monthly" ? l.aheadCost : 0), 0) + (t.pastSpread?.perMonth ?? 0);
     const onceSum = t.lines.reduce((s, l) => s + (l.cover.ahead === "lifetime" ? l.aheadCost + l.pastCost : t.pastSpread ? 0 : l.pastCost), 0);
     return [
@@ -808,7 +813,7 @@ export function Store() {
     const price = coverPrice(p, amount, cover, ctx);
     // A card not in the plan yet shows the spread its past use would get if added.
     const cardSpread =
-      pastYears ??
+      pastPick(price.once) ??
       (plan.includes(p.id) || !cover.past || cover.ahead !== "monthly" ? spreadYears : bestPastYears([...lines, { productId: p.id, amount, cover }], ctx, billing));
     const tp = tilePrice(price, cover, billing, cardSpread);
     // Nothing to offset, like meat on a vegan diet: say so instead of a $0 price.
@@ -1097,7 +1102,10 @@ export function Store() {
     : sumImpacts(dueLines.flatMap((l) => Object.values(coverImpacts(l.p, l.amount, l.cover, ctx))));
   const paidNames = paidLines.map((l) => (l.p.id === "ai" ? "Chat" : heroName(l.p.id, l.p.name)));
   const heroIds = heroLines.map((l) => l.p.id);
-  const heroPastOnce = dueLines.reduce((t, l) => t + (l.cover.past ? l.p.cost(l.amount, "past", ctx) : 0), 0);
+  // Past use on monthly parts is spread over years, as checkout does, so the box never asks for a big one-time sum (Ian, 2026-10-13).
+  const heroPlan = dueLines.map((l) => ({ productId: l.p.id, amount: l.amount, cover: l.cover }));
+  const heroSpread = planTotals(heroPlan, ctx, billing, pastPick(Infinity) ?? bestPastYears(heroPlan, ctx, billing)).pastSpread;
+  const heroPastOnce = dueLines.reduce((t, l) => t + (l.cover.past ? l.p.cost(l.amount, "past", ctx) : 0), 0) - (heroSpread?.total ?? 0);
   const heroLifeNames = dueLines
     .filter((l) => l.cover.ahead === "lifetime")
     .map((l) => heroName(l.p.id, l.p.name))
@@ -1220,12 +1228,14 @@ export function Store() {
             </div>
           ) : (
             <div className="mt-4 flex items-center justify-between gap-4 border-t border-border pt-3">
-              {aiPrice.monthly > 0 && aiPrice.once > 0 ? (
+              {aiPrice.monthly > 0 && (aiPrice.once > 0 || heroSpread) ? (
                 // Two charges: the monthly leads, and the one-time part says what it pays for (Ian, 2026-10-13).
                 <span>
                   <span className="amount block text-2xl font-semibold">{per(aiPrice.monthly, billing)}</span>
                   <span className="block text-sm text-muted">
                     {[
+                      heroSpread &&
+                        `+ ${per(heroSpread.perMonth, billing)} for ${heroSpread.years === 1 ? "a year" : `${heroSpread.years} years`} for past use`,
                       heroPastOnce >= 0.005 && `+ ${once(heroPastOnce)} once for past use`,
                       aiPrice.once - heroPastOnce >= 0.005 && `+ ${once(aiPrice.once - heroPastOnce)} once to offset ${heroLifeNames} for life`,
                     ]
@@ -1570,7 +1580,7 @@ export function Store() {
                       <span className="text-muted">
                         Pay past use (<span className="figures">{once(pastTotal)}</span>)
                       </span>
-                      {PAST_YEARS.map((y) => (
+                      {PAST_YEARS.filter((y) => y > 0 || allNowOk(pastTotal)).map((y) => (
                         <button
                           key={y}
                           type="button"
