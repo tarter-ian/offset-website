@@ -120,3 +120,26 @@ h2 {
     cursor: pointer;
   }
 }
+
+/* The photo band behind the home headline: full width, with a dark wash so white text reads at 4.5:1 or better. */
+.hero-band {
+  position: absolute;
+  z-index: -1;
+  inset-block: 0;
+  left: 50%;
+  width: 100vw;
+  transform: translateX(-50%);
+  background:
+    linear-gradient(180deg, rgb(8 18 12 / 0.72), rgb(8 18 12 / 0.5)),
+    url("/hero-landscape.svg") center / cover;
+}
+@media (min-width: 1024px) {
+  .hero-band {
+    background:
+      linear-gradient(90deg, rgb(8 18 12 / 0.78), rgb(8 18 12 / 0.55) 50%, rgb(8 18 12 / 0.25)),
+      url("/hero-landscape.svg") center 60% / cover;
+  }
+}
+body {
+  overflow-x: clip;
+}

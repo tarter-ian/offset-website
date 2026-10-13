@@ -12,6 +12,7 @@ import { LIFETIME_TO_AGE } from "@/lib/factors";
 import { joinList, ListOptIn } from "./ListOptIn";
 import { AiExportUpload } from "./AiExportUpload";
 import { AiQuickPick } from "./AiQuickPick";
+import { OffsetTimeline } from "./OffsetTimeline";
 import { AI_LEVELS } from "@/lib/ai/levels";
 import { NumberInput, Select } from "./fields";
 import { STATE_OPTIONS, STATES, type StateCode } from "@/lib/data/states";
@@ -221,6 +222,7 @@ export function Store() {
   const [anyway, setAnyway] = useState<Record<string, boolean>>({});
   const [plan, setPlan] = useState<string[]>([]);
   const [billingPick, setBilling] = useState<Billing | null>(null);
+  const [updatingNumbers, setUpdatingNumbers] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [asked, setAsked] = useState<ProviderId[]>([]);
   const [open, setOpen] = useState(false);
@@ -334,7 +336,11 @@ export function Store() {
       ...Object.fromEntries(
         payState.lines.map((l): [string, Covered] => [
           l.productId,
-          { ...(l.lifetime ? { kind: "life" as const } : { kind: "period" as const, until: until.toISOString() }), since: c[l.productId]?.since ?? payState.created },
+          {
+            ...(l.lifetime ? { kind: "life" as const } : { kind: "period" as const, until: until.toISOString() }),
+            since: c[l.productId]?.since ?? payState.created,
+            ...(l.past !== undefined ? { past: l.past || !!c[l.productId]?.past } : {}),
+          },
         ]),
       ),
     }));
@@ -1091,10 +1097,59 @@ export function Store() {
   };
   return (
     <div className="pb-20">
-      <section className="pt-10 pb-12 lg:pt-14">
-        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-14">
+      <section className="relative isolate pb-12">
+        {heroPaid && !updatingNumbers ? (
+          // Once all AI is paid, the photo carries what's offset instead of a price (Ian, 2026-10-13).
+          <div className="relative py-10 lg:py-14">
+            <div aria-hidden="true" className="hero-band" />
+            <div className="border-t-[6px] border-rule bg-background px-5 pt-5 pb-3 shadow-[0_10px_30px_rgba(0,0,0,0.25)] sm:px-8">
+              {/* What the money does, in the same amounts the box showed before paying (Ian, 2026-10-13). */}
+              <p className="mb-2 text-sm font-semibold text-life-ink">
+                ✓ {paidLife ? "Your AI use, offset for life" : `Your AI use, offset through ${shortDate(paidUntil ?? "")}`}
+                {paidGift && `, a gift from ${paidGift}`}
+              </p>
+              <dl className="mb-6 grid grid-cols-2 gap-x-6 gap-y-4 border-b border-border pb-5 lg:grid-cols-4">
+                {(
+                  [
+                    ["carbon", "kept out of the air", ""],
+                    ["air", "met with clean-air work", ""],
+                    ["water", "of water put back in dry rivers", " water"],
+                    ["land", "of forest protected", " land"],
+                  ] as const
+                ).map(([k, what, unit]) => (
+                  <div key={k}>
+                    <dt className="sr-only">{IMPACT_INFO[k].label}</dt>
+                    <dd className="amount text-2xl font-semibold">{IMPACT_INFO[k].format(aiImpacts[k], aiImpacts).replace(unit, "")}</dd>
+                    <dd className="text-sm text-muted">{what}</dd>
+                  </div>
+                ))}
+              </dl>
+              <OffsetTimeline covered={Object.fromEntries(Object.entries(covered).filter(([, c]) => paidCover(c)))} />
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => setUpdatingNumbers(true)}
+                  className="min-h-10 cursor-pointer text-sm text-muted underline underline-offset-4 hover:text-foreground"
+                >
+                  Using more AI now? Update your numbers
+                </button>
+                {!previewing && (
+                  <Link
+                    href="/record"
+                    className="inline-flex min-h-11 items-center rounded-md border-2 border-rule px-4 font-semibold hover:bg-foreground hover:text-background"
+                  >
+                    Your record
+                  </Link>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+        <div className="relative grid gap-10 py-10 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-14 lg:py-12">
+        {/* A photo behind the headline (Ian, 2026-10-13); a drawn landscape until a charity photo is in. */}
+        <div aria-hidden="true" className="hero-band" />
         <div className="self-center">
-          <h1 className="font-display text-4xl leading-[1.08] font-semibold sm:text-6xl">
+          <h1 className="font-display text-4xl leading-[1.08] font-semibold text-white sm:text-6xl">
             {heroPaid
               ? paidLife
                 ? "Your AI use is offset for life."
@@ -1103,7 +1158,7 @@ export function Store() {
           </h1>
         </div>
 
-        <aside id="ai-chat" aria-label="AI chat, itemized" className="self-start border-t-2 border-rule pt-4">
+        <aside id="ai-chat" aria-label="AI chat, itemized" className="self-start border-t-[6px] border-rule bg-background px-6 pt-4 pb-4 shadow-[0_10px_30px_rgba(0,0,0,0.25)]">
           {heroPaid && (
             <p className={`pb-1 text-sm font-semibold ${paidLife ? "text-life-ink" : "text-period-ink"}`}>
               ✓ {paidLife ? "What you've offset, for life" : "What you're offsetting each month"}
@@ -1192,6 +1247,8 @@ export function Store() {
           )}
         </aside>
         </div>
+        )}
+        {heroPaid && !updatingNumbers ? null : (
           <div className="mt-10">
             <AiQuickPick
               level={
@@ -1244,6 +1301,7 @@ export function Store() {
               )}
             </div>
           </div>
+          )}
           {measuring && (
             <div className="mt-6 max-w-xl">
               <AiExportUpload
@@ -1304,14 +1362,13 @@ export function Store() {
         return open ? null : (
           <section aria-labelledby="more-heading" className="mb-10">
             <h2 id="more-heading" className="font-display text-3xl font-extrabold [font-stretch:85%]">Cover more than AI</h2>
-            <p className="mt-1 max-w-2xl text-muted">Pick an aisle when you&apos;re ready. Each is priced the same way.</p>
-            <ul className="mt-3 flex flex-wrap gap-2">
+            <ul className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
               {SECTIONS.filter((x) => x.key !== "ai").map((x) => (
                 <li key={x.key}>
                   <button
                     type="button"
                     onClick={() => openAt(x.key)}
-                    className="min-h-11 cursor-pointer rounded-md border-2 border-rule px-4 font-semibold hover:bg-foreground hover:text-background"
+                    className="min-h-11 w-full cursor-pointer rounded-md border-2 border-rule px-4 font-semibold hover:bg-foreground hover:text-background"
                   >
                     {x.title}
                   </button>
@@ -1326,16 +1383,19 @@ export function Store() {
       <>
       <div className="mb-4">
         <h2 className="font-display text-3xl font-extrabold [font-stretch:85%]">Cover more than AI</h2>
-        <p className="mt-1 max-w-2xl text-muted">Streaming, devices, travel, food and shopping, each priced the same way. Start with the ones you know you have.</p>
       </div>
 
       {/* The aisle bar sticks only while the shelves are on screen. */}
       <div>
       <nav aria-label="Aisles" className="sticky top-0 z-20 -mx-4 mb-8 border-b-2 border-rule bg-background px-4">
-        <ul className="flex gap-1 overflow-x-auto py-2 text-sm font-semibold [scrollbar-width:none]">
+        {/* Equal widths across the page; a phone scrolls them sideways (Ian, 2026-10-13). */}
+        <ul className="flex gap-2 overflow-x-auto py-2 text-sm font-semibold [scrollbar-width:none]">
           {SECTIONS.map((s) => (
-            <li key={s.key}>
-              <a href={`#section-${s.key}`} className="inline-flex min-h-10 items-center rounded-md px-3 whitespace-nowrap hover:bg-card">
+            <li key={s.key} className="min-w-24 flex-1 basis-0">
+              <a
+                href={`#section-${s.key}`}
+                className="flex min-h-10 items-center justify-center rounded-md border border-border px-3 whitespace-nowrap hover:border-rule hover:bg-card"
+              >
                 {s.title}
               </a>
             </li>
@@ -1670,7 +1730,7 @@ export function Store() {
                     {paymentsOn() && checkout && (
                       <PaySection
                         rows={giftRows}
-                        lines={totals.lines.map((l) => ({ productId: l.productId, lifetime: l.cover.ahead === "lifetime" }))}
+                        lines={totals.lines.map((l) => ({ productId: l.productId, lifetime: l.cover.ahead === "lifetime", past: l.cover.past }))}
                         listing={{ lines, ctx, pastYears: spreadYears }}
                         billing={billing}
                         hasRepeat={repeatTotal > 0}

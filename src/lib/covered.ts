@@ -9,4 +9,6 @@ export type Covered = ({ kind: "life" } | { kind: "period"; until: string }) & {
   since?: string;
   /** Who gave it, when it came as a gift. */
   giftFrom?: string;
+  /** Whether past use was paid for too. Missing on covers saved before 2026-10-13 and on gifts. */
+  past?: boolean;
 };

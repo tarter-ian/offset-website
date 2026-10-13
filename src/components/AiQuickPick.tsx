@@ -273,6 +273,8 @@ export function AiQuickPick({
   const counted = EXTENSION_SERVICES.filter((x) => rows[x]?.state === "done").length;
 
   const showConnect = connecting || Object.keys(rows).length > 0 || open !== null || status.kind !== "idle";
+  // Only one button looks picked: Connect while counted numbers are in use, not after a level replaces them (Ian, 2026-10-13).
+  const connectOn = showConnect && level === null;
 
   function connect(service: QuickService) {
     setOpen(open === service ? null : service);
@@ -300,16 +302,17 @@ export function AiQuickPick({
         <button
           type="button"
           aria-expanded={showConnect}
+          aria-pressed={connectOn}
           onClick={() => {
             setConnecting(true);
             // With the extension there's nothing to choose: every click updates the numbers (Ian, 2026-10-13).
             if (ext && !busy) run(EXTENSION_SERVICES, false, undefined, REUSE_HOURS);
           }}
-          className={`min-h-14 cursor-pointer rounded-md border-2 border-rule px-3 py-2 text-left ${showConnect ? "bg-foreground text-background" : "hover:bg-card"}`}
+          className={`min-h-14 cursor-pointer rounded-md border-2 border-rule px-3 py-2 text-left ${connectOn ? "bg-foreground text-background" : "hover:bg-card"}`}
         >
           <span className="block font-semibold">Connect your data</span>
           {ext && (busy || lastMeasured) && (
-            <span className={`block text-sm ${showConnect ? "opacity-80" : "text-muted"}`}>
+            <span className={`block text-sm ${connectOn ? "opacity-80" : "text-muted"}`}>
               {busy ? "Counting…" : `Updated ${ago(lastMeasured!)}`}
             </span>
           )}
