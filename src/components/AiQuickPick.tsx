@@ -311,6 +311,10 @@ export function AiQuickPick({
           aria-pressed={connectOn}
           onClick={() => {
             setConnecting(true);
+            // Counts already here (saved, or from earlier this visit) replace a Light/Medium/Heavy pick straight away,
+            // without waiting on a fresh count that may still be running (Ian, 2026-10-13).
+            const known = combineSummaries(Object.values(summariesRef.current) as UsageSummary[]);
+            if (known) onMeasured(known);
             // With the extension there's nothing to choose: every click updates the numbers (Ian, 2026-10-13).
             if (ext && !busy) run(EXTENSION_SERVICES, false, undefined, REUSE_HOURS);
           }}
