@@ -1177,12 +1177,25 @@ export function Store() {
         {/* A photo behind the headline (Ian, 2026-10-13); a drawn landscape until a charity photo is in. */}
         <div aria-hidden="true" className="hero-band" />
         <div className="self-center">
-          <h1 className="font-display text-4xl leading-[1.08] font-semibold text-white sm:text-6xl">
+          <h1 className={`font-display text-4xl leading-[1.08] font-semibold text-white ${paidLines.length && !heroPaid ? "sm:text-5xl" : "sm:text-[3.5rem]"}`}>
             {heroPaid
               ? paidLife
                 ? "Your AI use is offset for life."
-                : `Your AI use is offset through ${shortDate(paidUntil ?? "")}.`
-              : `${paidLines.length ? "The rest of your AI use" : "Your AI use"}, offset${heroAhead === "lifetime" && aiCover.ahead === "lifetime" ? ` for life: about ${once(aiPrice.once)}` : `: about ${per(aiPrice.monthly, billing)}`}.`}
+                : (
+                    <>
+                      <span className="block">Your AI use is offset</span>
+                      <span className="block">through {shortDate(paidUntil ?? "")}.</span>
+                    </>
+                  )
+              : (
+                  // Two lines on a computer: what it is, then the price (Ian, 2026-10-13).
+                  <>
+                    <span className="block">{paidLines.length ? "Your other AI use" : "Your AI use"}, offset</span>
+                    <span className="block">
+                      {heroAhead === "lifetime" && aiCover.ahead === "lifetime" ? `for life: ${once(aiPrice.once)}.` : `for ${per(aiPrice.monthly, billing)}.`}
+                    </span>
+                  </>
+                )}
           </h1>
         </div>
 

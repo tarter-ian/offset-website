@@ -445,7 +445,7 @@ export const PRODUCTS: Product[] = [
   lifeItem("electronics", "shopping", "Electronics", "Gadgets beyond your main devices.", dollars(F.GOODS_USD_PER_MONTH.electronics), (a) => ({ shoppingUsd: { electronics: num(a) } }), "electronics"),
   lifeItem("household", "shopping", "Home goods", "Furniture, kitchen and things for the house.", dollars(F.GOODS_USD_PER_MONTH.household), (a) => ({ shoppingUsd: { household: num(a) } }), "household"),
   // Toys, books, beauty, pets and the rest: priced like home goods, the closest of the EPA's groups.
-  lifeItem("othergoods", "shopping", "Everything else", "Books, toys, beauty, pet supplies and the rest.", dollars(F.GOODS_USD_PER_MONTH.other), (a) => ({ shoppingUsd: { household: num(a) } }), "household"),
+  lifeItem("othergoods", "shopping", "Books, toys and more", "Books, toys, beauty, pet supplies and the rest.", dollars(F.GOODS_USD_PER_MONTH.other), (a) => ({ shoppingUsd: { household: num(a) } }), "household"),
   lifeItem("services", "shopping", "Services", "Eating out, subscriptions and other services.", level("How much you buy"), (a) => ({ shopping: a as Shopping }), "services"),
 ];
 
