@@ -1,6 +1,6 @@
 import { type Billing } from "./pricing";
 import { giftUntil, type Gift } from "./gifts";
-import { PAST_YEARS, harmSplit, planTotals, productById, type Context, type PastYears, type PlanLine } from "./store";
+import { PAST_YEARS, PRODUCTS, harmSplit, planTotals, productById, type Context, type PastYears, type PlanLine } from "./store";
 import { fundGifts, fundOwed, type Owed, PAYMENT_MODE, payRows, PLAN_ID } from "./payments";
 import type { PaymentMode } from "./pricing";
 
@@ -17,15 +17,21 @@ export const PAST = "past";
 /** A covered item on the list: for life, or through a date. */
 export interface ListItem {
   productId: string;
-  /** ISO date the cover ends, or null for life. On a person's badges, "past" once only past use is left. */
+  /** ISO date the cover ends, or null for the future for life. On a person's badges, "past" once only past use is left. */
   until: string | null;
-  /** Whether past use was paid for in full, so a badge stays after the date. Missing on claims saved before 2026-10-13. */
+  /**
+   * Whether past use was paid off in full, not in instalments still running: a yellow badge, or green
+   * beside a future for life (Ian, 2026-10-13). Missing on claims saved before 2026-10-13.
+   */
   past?: boolean;
+  /** Offset because the person uses none of it, with nothing paid. */
+  zero?: true;
 }
 
 /** One paid-for checkout or gift behind a listing. */
 export interface Claim {
-  source: "plan" | "gift";
+  /** "zero" holds the items the person uses none of: one per person, replaced on each update, never paid. */
+  source: "plan" | "gift" | "zero";
   sourceId: string;
   /** What must arrive for it to count: each Every.org gift, or the one gift to the fund. */
   rows: Owed[];
@@ -60,7 +66,8 @@ export function planItems(lines: PlanLine[], billing: Billing, createdAt: string
   else until.setMonth(until.getMonth() + 1);
   return lines.map((l) =>
     l.cover.ahead === "lifetime"
-      ? { productId: l.productId, until: null }
+      ? // A lifetime item's past use is paid with it, all at once.
+        { productId: l.productId, until: null, ...(l.cover.past ? { past: true } : {}) }
       : { productId: l.productId, until: until.toISOString(), ...(l.cover.past && pastYears === 0 ? { past: true } : {}) },
   );
 }
@@ -119,19 +126,42 @@ export function sameRows(a: Owed[], b: unknown): boolean {
 }
 
 /**
- * A person's badges: the best cover for each item across their paid claims. A cover that has ended
- * leaves a past-use badge when its past use was paid for, and nothing otherwise.
+ * A person's badges: for each item across their paid claims, the furthest future still paid
+ * (for life beats a date, a later date an earlier one) and whether any paid its past off. A
+ * cover that has ended leaves a past-use badge when its past use was paid, and nothing otherwise.
  */
 export function badges(claims: Claim[], now = new Date()): ListItem[] {
-  const best = new Map<string, string | null>();
-  const rank = (u: string | null | undefined) => (u === undefined ? 0 : u === PAST ? 1 : u === null ? 3 : 2);
+  const best = new Map<string, { future: string | null | undefined; past: boolean }>();
+  const further = (a: string | null | undefined, b: string | null | undefined) => (a === null || b === undefined || (b !== null && a !== undefined && a > b) ? a : b);
   for (const c of claims)
     for (const i of c.items) {
-      const ended = i.until !== null && Date.parse(i.until) < now.getTime();
-      if (ended && !i.past) continue;
-      const until = ended ? PAST : i.until;
-      const had = best.get(i.productId);
-      if (rank(until) > rank(had) || (rank(until) === 2 && rank(had) === 2 && until! > had!)) best.set(i.productId, until);
+      const ended = i.until !== null && (i.until === PAST || Date.parse(i.until) < now.getTime());
+      const had = best.get(i.productId) ?? { future: undefined, past: false };
+      best.set(i.productId, { future: further(ended ? undefined : i.until, had.future), past: had.past || !!i.past });
     }
-  return [...best].map(([productId, until]) => ({ productId, until }));
+  return [...best]
+    .filter(([, b]) => b.future !== undefined || b.past)
+    .map(([productId, b]) => ({ productId, until: b.future === undefined ? PAST : b.future, ...(b.past ? { past: true } : {}) }));
+}
+
+/**
+ * The items someone says they use none of, as the browser sends them: names only, never
+ * amounts (Ian, 2026-10-13). Null when it isn't a list of the store's own items. Each item
+ * counts once, so the list can never hold more than the store does.
+ */
+export function parseZeroUse(v: unknown): string[] | null {
+  if (!Array.isArray(v) || v.length > 2 * PRODUCTS.length || !v.every((id) => typeof id === "string" && productById(id))) return null;
+  return PRODUCTS.filter((p) => v.includes(p.id)).map((p) => p.id);
+}
+
+/**
+ * Items at zero use count as offset for life (Ian, 2026-10-13: "if it's at 0 they auto-get
+ * those badges"), but only beside something actually offset, so nobody gets a badge for
+ * giving nothing. A paid badge keeps its own term: zero use only fills items with none.
+ */
+export function withZeroUse(paid: ListItem[], zero: string[]): ListItem[] {
+  if (!paid.length) return paid;
+  const has = new Set(paid.map((i) => i.productId));
+  const added = PRODUCTS.filter((p) => zero.includes(p.id) && !has.has(p.id)).map((p) => ({ productId: p.id, until: null, zero: true as const }));
+  return [...paid, ...added];
 }

@@ -3,12 +3,17 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { productById } from "@/lib/store";
-import { badgesFor } from "@/lib/badges";
-import { badges, LIST_NAME_MAX } from "@/lib/publicList";
-import { BadgeTag } from "./Badge";
-import { forgetListing, savedListing } from "./ListOptIn";
+import { badgesFor, savedUse } from "@/lib/badges";
+import { badges, LIST_NAME_MAX, withZeroUse } from "@/lib/publicList";
+import { BadgeList } from "./Badge";
+import { forgetListing, savedListing, syncZeroUse } from "./ListOptIn";
 
-type Listing = { name: string; claims: { items: { productId: string; until: string | null }[]; createdAt: string; paid: boolean }[] };
+type Listing = {
+  name: string;
+  claims: { items: { productId: string; until: string | null; past?: boolean }[]; createdAt: string; paid: boolean }[];
+  /** Items the list counts as offset because the person uses none. */
+  zeroUse?: string[];
+};
 
 const month = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
@@ -24,7 +29,10 @@ export function ListEdit() {
     const t = savedListing()?.token ?? null;
     setToken(t);
     if (!t) return;
-    fetch("/api/list/me", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token: t }) })
+    // Bring the zero-use items up to date first, so what this page shows is what the list shows.
+    const use = savedUse();
+    (use.saved ? syncZeroUse(use.zero) : Promise.resolve())
+      .then(() => fetch("/api/list/me", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token: t }) }))
       .then((r) => (r.ok ? r.json() : null))
       .then((d: Listing | null) => {
         setListing(d);
@@ -74,21 +82,29 @@ export function ListEdit() {
           <div>
             <h2 className="font-semibold">What it shows</h2>
             {(() => {
-              const shown = badgesFor(badges(listing.claims.filter((c) => c.paid).map((c) => ({ source: "plan", sourceId: "", rows: [], ...c }))));
+              const paid = badges(listing.claims.filter((c) => c.paid).map((c) => ({ source: "plan", sourceId: "", rows: [], ...c })));
+              const items = withZeroUse(paid, listing.zeroUse ?? []);
+              const shown = badgesFor(items);
+              const unused = items.filter((i) => i.zero).map((i) => productById(i.productId)?.name ?? i.productId);
               return shown.length ? (
-                <ul className="mt-2 flex flex-wrap gap-2" aria-label="Your badges">
-                  {shown.map((b) => (
-                    <li key={b.key}>
-                      <BadgeTag kind={b.kind} name={b.name} until={b.until} />
-                    </li>
-                  ))}
-                </ul>
+                <>
+                  <div className="mt-2">
+                    <BadgeList badges={shown} label="Your badges" />
+                  </div>
+                  {unused.length > 0 && (
+                    <p className="mt-2 text-sm text-muted">
+                      Offset because you use none: {unused.join(", ")}. The list has only these names from your amounts, never the numbers.
+                    </p>
+                  )}
+                </>
               ) : null;
             })()}
             <ul className="mt-3 divide-y divide-border border-y-2 border-rule text-sm">
               {listing.claims.map((c, i) => (
                 <li key={i} className="py-2">
-                  {c.items.map((x) => `${productById(x.productId)?.name ?? x.productId} ${x.until === null ? "for life" : `through ${month(x.until)}`}`).join(", ")}
+                  {c.items
+                    .map((x) => `${productById(x.productId)?.name ?? x.productId} ${x.until === null ? (x.past ? "for life" : "for the rest of life") : `through ${month(x.until)}${x.past ? ", past use too" : ""}`}`)
+                    .join("; ")}
                   <span className="text-muted"> · {c.paid ? `from ${month(c.createdAt)}` : "shows once Every.org confirms every gift"}</span>
                 </li>
               ))}

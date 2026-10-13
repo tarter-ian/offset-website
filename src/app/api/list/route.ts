@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { NoDatabaseError } from "@/lib/db";
 import { loadGift } from "@/lib/giftStore";
 import { recipients } from "@/lib/gifts";
-import { addClaim, listedPeople } from "@/lib/listStore";
+import { addClaim, listedPeople, setZeroUse } from "@/lib/listStore";
 import { paymentsOn } from "@/lib/payments";
-import { cleanName, giftItems, newToken, parsePlanClaim, planItems, planRows, sameRows, TOKEN, type Claim } from "@/lib/publicList";
+import { cleanName, giftItems, newToken, parsePlanClaim, parseZeroUse, planItems, planRows, sameRows, TOKEN, type Claim } from "@/lib/publicList";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +34,9 @@ export async function POST(req: Request) {
   const name = cleanName(body.name);
   if (!name) return NextResponse.json({ error: "Add a name to be listed under." }, { status: 400 });
   const token = typeof body.token === "string" && TOKEN.test(body.token) ? body.token : newToken();
+  // Which items the person uses none of: names checked against the store, never amounts (Ian, 2026-10-13).
+  const zeroUse = body.zeroUse === undefined ? undefined : parseZeroUse(body.zeroUse);
+  if (zeroUse === null) return NextResponse.json({ error: "Unknown item." }, { status: 400 });
   const now = new Date();
   let claim: Claim;
   try {
@@ -54,7 +57,8 @@ export async function POST(req: Request) {
       const createdAt = now.toISOString();
       claim = { source: "plan", sourceId: input.planId, rows, items: planItems(input.lines, input.billing, createdAt, input.pastYears), createdAt };
     }
-    await addClaim(token, name, claim, now);
+    const id = await addClaim(token, name, claim, now);
+    if (zeroUse) await setZeroUse(id, zeroUse, now);
   } catch (e) {
     console.error("list: couldn't save", e instanceof NoDatabaseError ? "no database" : e);
     return NextResponse.json({ error: "Couldn't save." }, { status: 503 });

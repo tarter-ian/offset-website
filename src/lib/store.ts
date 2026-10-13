@@ -272,10 +272,10 @@ export const BEFORE_GROUPS: Record<string, string[]> = { meat: DIET_IDS, dairy: 
  * Only for choices that leave nothing to pay going forward.
  */
 export function lifestyleBadge(p: Product, amount: number | string): string | null {
-  if (p.id === "meat" && (amount === "vegan" || amount === "vegetarian")) return `Covered by eating ${amount}`;
-  if (p.id === "dairy" && amount === "vegan") return "Covered by eating vegan";
-  if (p.id === "car" && num(amount) === 0) return "Covered by not driving";
-  if (p.id === "flights" && num(amount) === 0) return "Covered by not flying";
+  if (p.id === "meat" && (amount === "vegan" || amount === "vegetarian")) return `Offset by eating ${amount}`;
+  if (p.id === "dairy" && amount === "vegan") return "Offset by eating vegan";
+  if (p.id === "car" && num(amount) === 0) return "Offset by not driving";
+  if (p.id === "flights" && num(amount) === 0) return "Offset by not flying";
   return null;
 }
 

@@ -16,7 +16,7 @@ import { AiExportUpload } from "./AiExportUpload";
 import { AiQuickPick } from "./AiQuickPick";
 import { OffsetTimeline } from "./OffsetTimeline";
 import { Seal } from "./Badge";
-import { fullBadge, PAST, termLabel, toOffset } from "@/lib/badges";
+import { badgeKey, fullBadges, termPhrase, zeroUse } from "@/lib/badges";
 import { AI_LEVELS, levelOf } from "@/lib/ai/levels";
 import { NumberInput, Select } from "./fields";
 import { STATE_OPTIONS, STATES, type StateCode } from "@/lib/data/states";
@@ -431,6 +431,10 @@ export function Store() {
   const spreadFor = (ls: PlanLine[]) => pastPick(pastOf(ls)) ?? bestPastYears(ls, ctx, billing);
   const spreadYears = spreadFor(lines);
   const totals = planTotals(lines, ctx, billing, spreadYears);
+  // Past use counts as paid on a badge only once it's paid off (Ian, 2026-10-13): a lifetime item's
+  // past is paid with it, all at once; a monthly item's only when it isn't spread over years.
+  const payLines = (ls: typeof totals.lines) =>
+    ls.map((l) => ({ productId: l.productId, lifetime: l.cover.ahead === "lifetime", past: l.cover.past && (l.cover.ahead === "lifetime" || spreadYears === 0) }));
   // When the last past-use instalment is due, for the autopay note.
   const pastEnds = totals.pastSpread
     ? new Date(new Date().setMonth(new Date().getMonth() + totals.pastSpread.years * 12)).toLocaleDateString("en-US", { month: "long", year: "numeric" })
@@ -900,11 +904,13 @@ export function Store() {
     const paid = paidCover(covered[p.id]);
     // A lifestyle choice that leaves nothing to pay going forward, like meat on a vegan diet, counts as covered.
     const lifestyle = !paid && coverPrice(p, amount, { past: false, ahead: "monthly" }, ctx).monthly < 0.005 ? lifestyleBadge(p, amount) : null;
+    // Any item at zero use reads as offset too, with its badge on the record and the list (Ian, 2026-10-13).
+    const offsetFree = lifestyle ?? (!paid && p.cost(amount, "monthly", ctx) <= 0 ? "Offset, since you use none" : null);
     return (
       <li
         key={p.id}
         className={`flex w-[78%] shrink-0 snap-start flex-col rounded-md p-4 md:w-auto ${
-          paid?.kind === "life" || lifestyle ? "bg-life" : paid ? "bg-period" : plan.includes(p.id) ? "bg-accent-soft" : "bg-card"
+          paid?.kind === "life" || offsetFree ? "bg-life" : paid ? "bg-period" : plan.includes(p.id) ? "bg-accent-soft" : "bg-card"
         } ${isOpen ? "outline-2 outline-rule" : ""}`}
       >
         <div className="flex items-start justify-between gap-2">
@@ -914,12 +920,12 @@ export function Store() {
               <p className={`text-sm font-semibold ${paid.kind === "life" ? "text-life-ink" : "text-period-ink"}`}>
                 ✓{" "}
                 {paid.kind === "life"
-                  ? "Offset for life"
+                  ? paid.past ? "Offset for life" : "Offset for the rest of life"
                   : `Offset through ${shortDate(paid.until)}`}
                 {paid.giftFrom && `, a gift from ${paid.giftFrom}`}
               </p>
             )}
-            {lifestyle && <p className="text-sm font-semibold text-life-ink">✓ {lifestyle}</p>}
+            {offsetFree && <p className="text-sm font-semibold text-life-ink">✓ {offsetFree}</p>}
           </div>
           <button
             type="button"
@@ -1146,7 +1152,7 @@ export function Store() {
     .sort()[0];
   const paidGift = paidLines.map((l) => covered[l.p.id]?.giftFrom).find(Boolean);
   // Everything there is to offset at the person's own amounts, offset: the paid hero shows the badge (Ian, 2026-10-13).
-  const full = heroPaid && !previewing ? fullBadge(covered, toOffset(amounts, ctx), Date.now()) : null;
+  const full = heroPaid && !previewing ? fullBadges(covered, zeroUse(amounts, ctx), Date.now()) : [];
   // Past use on monthly parts is spread over years, as checkout does, so the box never asks for a big one-time sum (Ian, 2026-10-13).
   // The box is priced by the same totals as the plan, so spread past use isn't also counted once, and a lifetime
   // part's past use, already in its price, gets no line of its own (Ian, 2026-10-13).
@@ -1214,12 +1220,14 @@ export function Store() {
                 ✓ {paidLife ? "Your AI use, offset for life" : `Your AI use, offset through ${shortDate(paidUntil ?? "")}`}
                 {paidGift && `, a gift from ${paidGift}`}
               </p>
-              {full && (
-                <div className="mb-5 flex items-center gap-4 border-b border-border pb-5">
-                  <Seal kind="full" name={full.name} until={full.until} size={104} />
+              {full.length > 0 && (
+                <div className="mb-5 flex flex-wrap items-center gap-4 border-b border-border pb-5">
+                  {full.map((b) => (
+                    <Seal key={badgeKey(b)} kind="full" name={b.name} until={b.until} size={104} />
+                  ))}
                   <p>
                     <span className="block font-display text-2xl font-semibold">Fully Offset</span>
-                    <span className="text-muted">Everything there is to offset for you is offset {full.until === PAST ? "for past use" : termLabel(full.until)}.</span>
+                    <span className="text-muted">Everything there is to offset for you is offset {termPhrase(full.map((b) => b.until))}.</span>
                   </p>
                 </div>
               )}
@@ -1866,7 +1874,7 @@ export function Store() {
                     {paymentsOn() && checkout && (
                       <PaySection
                         rows={giftRows}
-                        lines={totals.lines.map((l) => ({ productId: l.productId, lifetime: l.cover.ahead === "lifetime", past: l.cover.past }))}
+                        lines={payLines(totals.lines)}
                         listing={{ lines, ctx, pastYears: spreadYears }}
                         billing={billing}
                         hasRepeat={repeatTotal > 0}
@@ -1926,7 +1934,7 @@ export function Store() {
                       <FundPaySection
                         gift={fund.today}
                         listing={{ lines, ctx, pastYears: spreadYears }}
-                        lines={totals.lines.map((l) => ({ productId: l.productId, lifetime: l.cover.ahead === "lifetime", past: l.cover.past }))}
+                        lines={payLines(totals.lines)}
                         billing={billing}
                         payState={payState}
                         setPayState={setPayState}

@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { type Covered, STORAGE_KEY } from "@/lib/covered";
 import { AccountBar } from "./Account";
-import { Seal } from "./Badge";
-import { badgesFor, fullBadge, offsetItems, toOffset } from "@/lib/badges";
+import { BadgeList, Seal } from "./Badge";
+import { badgeKey, badgesFor, fullBadges, offsetItems, savedUse } from "@/lib/badges";
 import { accountsOn } from "@/lib/account";
 import { fetchAccount, pullCovered, pushCovered } from "@/lib/accountClient";
 import { canInstallExtension, savedResults } from "@/lib/extension";
@@ -14,7 +14,8 @@ import { loadCheckout, PAYMENT_MODE } from "@/lib/payments";
 import { itemName } from "@/lib/reminders";
 import { type SteadyPlan, steadyIds, steadyPlan } from "@/lib/steady";
 import { SteadyCheck } from "./SteadyCheck";
-import { type Context, DEFAULT_CONTEXT, productById } from "@/lib/store";
+import { productById } from "@/lib/store";
+import { syncZeroUse } from "./ListOptIn";
 
 // The page a returning visitor lands on: whether anything needs doing, their AI
 // use month by month (read from the extension on this computer, never sent to
@@ -39,16 +40,6 @@ function loadCovered(): Record<string, Covered> {
   }
 }
 
-/** The items there's something to offset at this browser's saved amounts, for Fully Offset. Amounts stay in the browser. */
-function loadNeeded(): string[] {
-  try {
-    const s = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}") as { amounts?: Record<string, number | string>; ctx?: Partial<Context> };
-    return toOffset(s.amounts ?? {}, { ...DEFAULT_CONTEXT, ...s.ctx });
-  } catch {
-    return toOffset({}, DEFAULT_CONTEXT);
-  }
-}
-
 /**
  * Marks what a steady gift from this browser's checkout pays for as on autopay, for checkouts
  * saved before covers kept the flag, so every part of the page reads autopay the same way.
@@ -67,13 +58,18 @@ export function Record() {
   const [computer, setComputer] = useState(true);
   const [steady, setSteady] = useState<SteadyPlan | null>(null);
   const [needed, setNeeded] = useState<string[]>([]);
+  const [zero, setZero] = useState<string[]>([]);
   /** Signed in with reminders on: only then does a link come by email. */
   const [reminded, setReminded] = useState(false);
 
   useEffect(() => {
     setCovered(loadCovered());
     setSteady(steadyPlan(loadCheckout()));
-    setNeeded(loadNeeded());
+    // Amounts stay in the browser; the public list only hears which items are at zero use (Ian, 2026-10-13).
+    const use = savedUse();
+    setNeeded(use.needed);
+    setZero(use.zero);
+    if (use.saved) void syncZeroUse(use.zero);
     setComputer(canInstallExtension());
     fetchAccount().then((a) => setReminded(a.signedIn && a.reminders !== false));
     // Signed in: bring in what the account covers (from another device), then send up anything this browser adds.
@@ -90,12 +86,12 @@ export function Record() {
   const now = Date.now();
   // Items on Every.org's autopay renew there, so they never come due here (Ian, 2026-10-13).
   const covered = withSteady(saved, steady);
-  const status = recordStatus(covered, now);
+  const status = recordStatus(covered, now, [], zero);
   // Count what's offset against every item there's something to offset, so one item for life
   // never reads as done (Ian, 2026-10-13), and an item at nothing never stands in the way.
   const { offset, open } = offsetCount(covered, needed, now);
   const all = open === 0;
-  const full = all ? fullBadge(covered, needed, now) : null;
+  const full = all ? fullBadges(covered, zero, now) : [];
   const subject = offset.length === 1 ? `${nameOf(offset[0])} is` : `${offset.length} things are`;
   const more = open > 0 && <> {open} more {open === 1 ? "thing" : "things"} you could offset.</>;
 
@@ -132,7 +128,9 @@ export function Record() {
           <>
             <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
               {/* The badge the store promises, once everything is offset (Ian, 2026-10-13). */}
-              {full && <Seal kind="full" name={full.name} until={full.until} size={112} />}
+              {full.map((b) => (
+                <Seal key={badgeKey(b)} kind="full" name={b.name} until={b.until} size={112} />
+              ))}
               <h1 className="font-display text-4xl leading-[1.05] font-extrabold [font-stretch:85%] sm:text-5xl">
                 {all ? "You're fully offset." : `${subject} offset${status.kind === "life" ? " for life" : ""}.`}
               </h1>
@@ -192,7 +190,7 @@ export function Record() {
             Offset something else
           </Link>
         </div>
-        <Seals covered={covered} now={now} needed={needed} />
+        <Seals covered={covered} now={now} zero={zero} />
         <CoveredList covered={covered} now={now} />
       </section>
 
@@ -314,18 +312,26 @@ function UseChart({ use, computer }: { use: MonthUse[] | null; computer: boolean
 }
 
 /**
- * The badges what's in force earns, plus past use paid for on a cover that has ended: the same
- * seals the public list and gift cards show. Fully Offset shows at the top of the page instead.
+ * The badges what's in force earns, plus past use paid for on a cover that has ended and items at
+ * zero use: the same seals the public list and gift cards show. Fully Offset shows at the top of the page instead.
  */
-function Seals({ covered, now, needed }: { covered: Record<string, Covered>; now: number; needed: string[] }) {
-  const seals = badgesFor(offsetItems(covered, now), needed).filter((b) => b.kind !== "full");
+function Seals({ covered, now, zero }: { covered: Record<string, Covered>; now: number; zero: string[] }) {
+  const items = offsetItems(covered, now, zero);
+  const seals = badgesFor(items).filter((b) => b.kind !== "full");
+  const unused = items.filter((i) => i.zero).map((i) => nameOf(i.productId));
   if (!seals.length) return null;
   return (
-    <div className="mt-4 mb-2 flex flex-wrap items-center gap-3">
-      {seals.map((b) => (
-        <Seal key={b.key} kind={b.kind} name={b.name} until={b.until} />
-      ))}
-    </div>
+    <>
+      <div className="mt-4 mb-2">
+        <BadgeList badges={seals} seals label="Your badges" />
+      </div>
+      {unused.length > 0 && (
+        <p className="mb-2 max-w-2xl text-sm text-muted">
+          {list(unused)} {unused.length === 1 ? "counts" : "count"} as offset because you use none. If you start, {unused.length === 1 ? "it's" : "they're"}{" "}
+          back in the store to offset.
+        </p>
+      )}
+    </>
   );
 }
 
@@ -347,7 +353,7 @@ function CoveredList({ covered, now }: { covered: Record<string, Covered>; now: 
         const state = steady
           ? `Repeats through Every.org${c.since ? `, since ${monthYear(c.since)}` : ""}`
           : c.kind === "life"
-            ? `For life${c.since ? `, since ${monthYear(c.since)}` : ""}`
+            ? `For ${c.past ? "life" : "the rest of life"}${c.since ? `, since ${monthYear(c.since)}` : ""}`
             : live
               ? `Through ${day(c.until)}${c.since ? `, since ${monthYear(c.since)}` : ""}`
               : `Ended ${day(c.until)}`;

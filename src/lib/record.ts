@@ -35,9 +35,10 @@ export type RecordStatus =
 
 /**
  * `steady` lists items a steady gift keeps paying for. They, and anything marked as on
- * autopay, never come due here, so no one is asked to give twice.
+ * autopay, never come due here, so no one is asked to give twice. Nor do items in `zero`,
+ * the ones now at zero use: there's nothing to offset until use goes above zero again.
  */
-export function recordStatus(covered: Record<string, Covered>, now: number = Date.now(), steady: string[] = []): RecordStatus {
+export function recordStatus(covered: Record<string, Covered>, now: number = Date.now(), steady: string[] = [], zero: string[] = []): RecordStatus {
   const entries = Object.entries(covered);
   if (!entries.length) return { kind: "none" };
   const repeating = entries.filter(([id, c]) => c.kind === "period" && !c.giftFrom && (steady.includes(id) || onAutopay(c)));
@@ -45,7 +46,7 @@ export function recordStatus(covered: Record<string, Covered>, now: number = Dat
     (e): e is [string, Extract<Covered, { kind: "period" }>] => e[1].kind === "period" && !repeating.some(([id]) => id === e[0]),
   );
   // A gift that ran out isn't the person's to renew, so only their own covers come due.
-  const lapsed = periods.filter(([, c]) => !c.giftFrom && Date.parse(c.until) <= now);
+  const lapsed = periods.filter(([id, c]) => !c.giftFrom && Date.parse(c.until) <= now && !zero.includes(id));
   if (lapsed.length) return { kind: "due", ids: lapsed.map(([id]) => id), ended: lapsed.map(([, c]) => c.until).sort()[0] };
   const live = periods.filter(([, c]) => Date.parse(c.until) > now);
   if (live.length) return { kind: "covered", until: live.map(([, c]) => c.until).sort()[0] };
