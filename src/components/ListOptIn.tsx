@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { savedUse } from "@/lib/badges";
 import { LIST_NAME_MAX } from "@/lib/publicList";
 
 // Opting in to the public list: off unless ticked, under a name the person picks.
@@ -9,7 +10,10 @@ import { LIST_NAME_MAX } from "@/lib/publicList";
 
 const KEY = "offset:list:v1";
 
-export function savedListing(): { token: string; name: string } | null {
+/** `zero` is the zero-use items last sent, so an unchanged list isn't sent again. */
+type Saved = { token: string; name: string; zero?: string[] };
+
+export function savedListing(): Saved | null {
   try {
     const v = JSON.parse(localStorage.getItem(KEY) ?? "null");
     return v && typeof v.token === "string" ? v : null;
@@ -26,21 +30,53 @@ export function forgetListing() {
   }
 }
 
+const keep = (v: Saved) => localStorage.setItem(KEY, JSON.stringify(v));
+const sameIds = (a: string[] | undefined, b: string[]) => !!a && a.length === b.length && a.every((x) => b.includes(x));
+
+/**
+ * The items this browser's saved amounts put at zero use, or undefined when none were saved here.
+ * Only these names go to the list, never an amount (Ian, 2026-10-13).
+ */
+function zeroUseToSend(): string[] | undefined {
+  const use = savedUse();
+  return use.saved ? use.zero : undefined;
+}
+
 /** Sends a claim; resolves with an error message, or null once saved. */
 export async function joinList(name: string, claim: Record<string, unknown>): Promise<string | null> {
   const saved = savedListing();
+  const zeroUse = zeroUseToSend();
   try {
-    const res = await fetch("/api/list", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...claim, name, token: saved?.token }) });
+    const res = await fetch("/api/list", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...claim, name, token: saved?.token, zeroUse }),
+    });
     const data = (await res.json().catch(() => ({}))) as { token?: string; error?: string };
     if (!res.ok || !data.token) return data.error ?? "Couldn't add you to the list.";
     try {
-      localStorage.setItem(KEY, JSON.stringify({ token: data.token, name }));
+      keep({ token: data.token, name, zero: zeroUse ?? saved?.zero });
     } catch {
       return "Added, but this browser won't keep the link to change or leave it.";
     }
     return null;
   } catch {
     return "Couldn't reach the site. Try again.";
+  }
+}
+
+/**
+ * Keeps the list's zero-use items in step with this browser's amounts, so an item whose use goes
+ * above zero loses its badge there too. Sends only when on the list and the items changed.
+ */
+export async function syncZeroUse(zero: string[]): Promise<void> {
+  const saved = savedListing();
+  if (!saved || sameIds(saved.zero, zero)) return;
+  try {
+    const res = await fetch("/api/list/me", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ token: saved.token, zeroUse: zero }) });
+    if (res.ok) keep({ ...saved, zero });
+  } catch {
+    // Tried again on the next visit.
   }
 }
 
@@ -58,7 +94,7 @@ export function ListOptIn({ label, onChange }: { label: string; onChange: (name:
           <span className="font-medium">{label}</span>
           <span className="block text-muted">
             Off unless you tick it. The <Link href="/list" className="underline">public list</Link> shows the name you pick, the badges for what you&apos;ve offset
-            and since when, never amounts. You can change your name or leave anytime.
+            and since when, never amounts. Items you use none of count as offset, so it gets their names, not your numbers. You can change your name or leave anytime.
           </span>
         </span>
       </label>

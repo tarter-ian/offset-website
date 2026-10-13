@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Seal } from "./Badge";
+import { BadgeList } from "./Badge";
 import { CheckoutSteps, FundSteps } from "./Checkout";
 import { joinList, ListInvite, ListOptIn, savedListing } from "./ListOptIn";
 import { type Covered, STORAGE_KEY } from "@/lib/covered";
@@ -78,10 +78,8 @@ function GiftCard({ gift, heading }: { gift: Pick<Gift, "items" | "from" | "to" 
       </Sentence>
       {gift.note && <p className="mt-3 whitespace-pre-line">&ldquo;{gift.note}&rdquo;</p>}
       {seals.length > 0 && (
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          {seals.map((b) => (
-            <Seal key={b.key} kind={b.kind} name={b.name} until={b.until} />
-          ))}
+        <div className="mt-4">
+          <BadgeList badges={seals} seals label="Badges in this gift" />
         </div>
       )}
       {charities.length > 0 && (

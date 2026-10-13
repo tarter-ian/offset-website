@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BadgeTag, Seal } from "@/components/Badge";
-import { badgesFor, filterCounts, type ListFilter, matches, parseFilter } from "@/lib/badges";
+import { BadgeList, BadgeTag, FilterTag, Seal } from "@/components/Badge";
+import { badgesFor, filterCounts, type ListFilter, type ListStatus, matches, PAST, parseFilter, REST, type Tone } from "@/lib/badges";
 import { listedPeople, type ListedPerson } from "@/lib/listStore";
 import { paymentsOn } from "@/lib/payments";
 import { PRODUCTS, productById, SECTIONS } from "@/lib/store";
@@ -14,17 +14,15 @@ export const dynamic = "force-dynamic";
 
 const month = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
-const chip = (on: boolean) =>
-  `inline-flex min-h-10 items-center gap-1.5 rounded-md border-2 border-rule px-3 ${on ? "bg-foreground text-background" : "hover:bg-card"}`;
-
-function FilterLink({ href, on, label, count }: { href: string; on: boolean; label: string; count?: number }) {
-  return (
-    <Link href={href} className={chip(on)} aria-current={on ? "page" : undefined}>
-      {label}
-      {!!count && <span className={`amount text-xs ${on ? "" : "text-muted"}`}>{count}</span>}
-    </Link>
-  );
-}
+/**
+ * The color chips. Green is past and future both paid, so it also shows under the other two (Ian, 2026-10-13).
+ * Blue reads "Future paid", not "giving now": a future paid for life isn't still being given.
+ */
+const STATUS_CHIPS: { status: ListStatus; tone: Tone; label: string }[] = [
+  { status: "life", tone: "life", label: "For life" },
+  { status: "past", tone: "past", label: "Past paid" },
+  { status: "future", tone: "period", label: "Future paid" },
+];
 
 /** One person's row: the name, since when, and their badges as tags. */
 function Row({ name, since, items, example }: { name: string; since: string; items: ListedPerson["badges"]; example?: boolean }) {
@@ -34,18 +32,14 @@ function Row({ name, since, items, example }: { name: string; since: string; ite
         <span className={`font-display text-xl font-semibold ${example ? "italic" : ""}`}>{name}</span>
         <span className="text-sm text-muted">since {month(since)}</span>
       </div>
-      <ul className="mt-2.5 flex flex-wrap gap-2" aria-label="Badges">
-        {badgesFor(items).map((b) => (
-          <li key={b.key}>
-            <BadgeTag kind={b.kind} name={b.name} until={b.until} />
-          </li>
-        ))}
-      </ul>
+      <div className="mt-2.5">
+        <BadgeList badges={badgesFor(items)} label={`${name}'s badges`} />
+      </div>
     </div>
   );
 }
 
-export default async function ListPage({ searchParams }: { searchParams: Promise<{ aisle?: string; item?: string }> }) {
+export default async function ListPage({ searchParams }: { searchParams: Promise<{ aisle?: string; item?: string; status?: string }> }) {
   const filter: ListFilter = parseFilter(await searchParams);
   let people: ListedPerson[] | null = null;
   try {
@@ -71,25 +65,49 @@ export default async function ListPage({ searchParams }: { searchParams: Promise
 
       <nav aria-label="Filter by badge" className="mt-8">
         <h2 className="text-sm font-semibold">Filter by badge</h2>
-        <div className="mt-2 flex flex-wrap gap-2 text-sm">
-          <FilterLink href="/list" on={filter.kind === "everyone"} label="Everyone" count={people?.length} />
-          <FilterLink href="/list?aisle=everything" on={filter.kind === "full"} label="Fully Offset" count={counts.everything} />
-          {SECTIONS.map((s) => (
-            <FilterLink key={s.key} href={`/list?aisle=${s.key}`} on={filter.kind === "aisle" && filter.key === s.key} label={s.title} count={counts[s.key]} />
+        {/* The filter speaks the badges' language (Ian, 2026-10-13): tags in their colors, filled when chosen. */}
+        <form action="/list" method="get" className="mt-2 flex flex-wrap gap-2">
+          <FilterTag label="Everyone" on={filter.kind === "everyone"} count={people?.length || undefined} />
+          {STATUS_CHIPS.map((c) => (
+            <FilterTag
+              key={c.status}
+              kind="item"
+              tone={c.tone}
+              label={c.label}
+              name="status"
+              value={c.status}
+              on={filter.kind === "status" && filter.status === c.status}
+              count={counts[`status:${c.status}`] || undefined}
+            />
           ))}
-        </div>
+          <FilterTag kind="full" label="Fully Offset" name="aisle" value="everything" on={filter.kind === "full"} count={counts.everything || undefined} />
+          {SECTIONS.map((s) => (
+            <FilterTag
+              key={s.key}
+              kind="aisle"
+              label={s.title}
+              name="aisle"
+              value={s.key}
+              on={(filter.kind === "aisle" && filter.key === s.key) || (filter.kind === "item" && aisle === s.key)}
+              count={counts[s.key] || undefined}
+            />
+          ))}
+        </form>
         {aisle && (
-          <div className="mt-2 flex flex-wrap gap-2 border-l-2 border-rule pl-3 text-sm">
+          <form action="/list" method="get" aria-label={`Items in ${SECTIONS.find((s) => s.key === aisle)?.title}`} className="mt-2 flex flex-wrap gap-2 border-l-2 border-rule pl-3">
             {PRODUCTS.filter((p) => p.section === aisle).map((p) => (
-              <FilterLink
+              <FilterTag
                 key={p.id}
-                href={filter.kind === "item" && filter.key === p.id ? `/list?aisle=${aisle}` : `/list?item=${p.id}`}
-                on={filter.kind === "item" && filter.key === p.id}
+                kind="item"
                 label={p.name}
-                count={counts[`item:${p.id}`]}
+                name="item"
+                value={p.id}
+                back={["aisle", aisle]}
+                on={filter.kind === "item" && filter.key === p.id}
+                count={counts[`item:${p.id}`] || undefined}
               />
             ))}
-          </div>
+          </form>
         )}
       </nav>
 
@@ -110,10 +128,10 @@ export default async function ListPage({ searchParams }: { searchParams: Promise
               name="Your name"
               since={now.toISOString()}
               items={[
-                { productId: "ai", until: null },
-                { productId: "ai-media", until: null },
-                { productId: "ai-video", until: null },
-                { productId: "ai-coding", until: null },
+                { productId: "ai", until: null, past: true },
+                { productId: "ai-media", until: null, past: true },
+                { productId: "ai-video", until: null, past: true },
+                { productId: "ai-coding", until: null, past: true },
                 { productId: "video", until: nextYear },
               ]}
             />
@@ -151,9 +169,24 @@ export default async function ListPage({ searchParams }: { searchParams: Promise
             </li>
           ))}
         </ul>
-        <p className="mt-5 text-sm text-muted">
-          Green is for life. Blue runs through a date. Once that date passes, the badge turns yellow if past use was offset too, and drops off the
-          list if not.
+        {/* The term key (Ian, 2026-10-13): the color says what's paid, the edge says until when. */}
+        <ul className="mt-6 space-y-2 text-sm">
+          {[
+            { until: null, name: "AI chat", note: "Past and future use, offset for life." },
+            { until: nextYear, name: "Video streaming", note: "The future, being offset through a date." },
+            { until: REST, name: "AI images", note: "The future, offset for the rest of life; past use not yet." },
+            { until: PAST, name: "Car", note: "Past use, fully paid off." },
+          ].map((t) => (
+            <li key={t.note} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <BadgeTag kind="item" name={t.name} until={t.until} />
+              <span className="text-muted">{t.note}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-4 text-sm text-muted">
+          Past use paid off with the future still running shows two badges, yellow and blue. Green replaces both. An aisle or Fully Offset is green
+          only when every item in it is. Items someone uses none of, like AI video for someone who makes none, count as green. A badge whose date
+          passes drops off the list unless past use was paid.
         </p>
       </section>
 

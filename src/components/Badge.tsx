@@ -1,10 +1,14 @@
-import { type BadgeInfo, FULL_NAME, termLabel, type Tone, toneOf } from "@/lib/badges";
+import { badgeKey, type BadgeInfo, FULL_NAME, termLabel, type Tone, toneOf } from "@/lib/badges";
 import { fitSeal } from "@/lib/sealFit";
 
 // The badges, drawn like an inked seal on a bill: two rules, the name in
 // Fraunces, "My Offset" and the term set round the edge. The ink says the term
-// (Ian, 2026-10-13): green for life, blue for a month or year, yellow for past
-// use, the same colors as the store's tiles. Edges are solid for every term and
+// (Ian, 2026-10-13): blue while the future is being paid, "through" a date for a
+// month or year or "rest of life" when it's paid for life but past use isn't;
+// yellow once past use is paid off in full; green only when past and future are
+// both paid for life, or the item is at zero use. Past paid with the future still
+// running shows two seals side by side, yellow and blue; green replaces both. The
+// colors are the store's tiles' colors. Edges are solid for every term and
 // item and aisle seals have no side dots (Ian, 2026-10-13): the color and the
 // lettered term already say it.
 //
@@ -161,13 +165,13 @@ export function Seal({ kind, name, until, size }: SealProps) {
 }
 
 /** A small mark for the start of a tag, stepped like the seals: outline rings for an item, a filled center for an aisle, filled all over for Fully Offset. */
-function Mark({ kind, tone }: { kind: BadgeInfo["kind"]; tone: Tone }) {
+function Mark({ kind, tone, paper }: { kind: BadgeInfo["kind"]; tone: Tone; paper?: string }) {
   return (
     <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" className="shrink-0">
       {kind === "full" ? (
         <>
           <circle cx="8" cy="8" r="7.4" fill="currentColor" />
-          <path d={star(8, 8.3, 3.2)} fill={PAPER[tone]} />
+          <path d={star(8, 8.3, 3.2)} fill={paper ?? PAPER[tone]} />
         </>
       ) : (
         <>
@@ -202,5 +206,89 @@ export function BadgeTag({ kind, name, until }: Omit<SealProps, "size">) {
         {termLabel(until)}
       </span>
     </span>
+  );
+}
+
+/**
+ * A row of badges, highest tier up front, with the lower ones earned inside it folded
+ * under "and N more" (Ian, 2026-10-13), so a Fully Offset person doesn't see 38 at once.
+ * `seals` draws round seals; otherwise tags.
+ */
+export function BadgeList({ badges, seals, label = "Badges" }: { badges: BadgeInfo[]; seals?: boolean; label?: string }) {
+  const top = badges.filter((b) => !b.within || !badges.some((x) => x.key === b.within));
+  const lower = badges.filter((b) => !top.includes(b));
+  const n = new Set(lower.map((b) => b.key)).size;
+  const row = (bs: BadgeInfo[], aria: string) => (
+    <ul className={`flex flex-wrap items-center ${seals ? "gap-3" : "gap-2"}`} aria-label={aria}>
+      {bs.map((b) => (
+        <li key={badgeKey(b)}>
+          {seals ? <Seal kind={b.kind} name={b.name} until={b.until} /> : <BadgeTag kind={b.kind} name={b.name} until={b.until} />}
+        </li>
+      ))}
+    </ul>
+  );
+  return (
+    <>
+      {top.length > 0 && row(top, label)}
+      {n > 0 && (
+        <details className={top.length ? "mt-2" : ""}>
+          <summary className="inline-flex min-h-10 cursor-pointer items-center text-sm underline underline-offset-4">
+            {top.length ? `and ${n} more inside` : `See the ${n} badges inside`}
+          </summary>
+          <div className="mt-1">{row(lower, `${label} inside`)}</div>
+        </details>
+      )}
+    </>
+  );
+}
+
+/** A filter chip in the badges' own look (Ian, 2026-10-13): a tag in its color, filled solid when chosen. */
+const CHIP_OFF: Record<Tone | "plain", string> = { ...TAG, plain: "border-rule bg-background text-foreground" };
+const CHIP_ON: Record<Tone | "plain", string> = {
+  life: "border-life-ink bg-life-ink text-life",
+  period: "border-period-ink bg-period-ink text-period",
+  past: "border-past-ink bg-past-ink text-past",
+  plain: "border-foreground bg-foreground text-background",
+};
+
+/**
+ * A toggle that submits the list's filter form: `name=value` when pressed on, and `back` (or
+ * nothing, for everyone) when pressed off. Works without JavaScript.
+ */
+export function FilterTag({
+  label,
+  tone,
+  kind,
+  on,
+  count,
+  name,
+  value,
+  back,
+}: {
+  label: string;
+  tone?: Tone;
+  /** The badge mark to show, if any. */
+  kind?: BadgeInfo["kind"];
+  on: boolean;
+  count?: number;
+  name?: string;
+  value?: string;
+  /** What pressing it off goes back to, as [name, value]. */
+  back?: [string, string];
+}) {
+  const look = tone ?? "plain";
+  const [n, v] = on ? (back ?? []) : [name, value];
+  return (
+    <button
+      type="submit"
+      name={n}
+      value={v}
+      aria-pressed={on}
+      className={`inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-sm border-[1.5px] px-2.5 text-sm leading-none ${on ? CHIP_ON[look] : CHIP_OFF[look]}`}
+    >
+      {kind && <Mark kind={kind} tone={tone ?? "life"} paper={tone ? undefined : on ? "var(--foreground)" : "var(--background)"} />}
+      <span className="font-display font-semibold">{label}</span>
+      {count !== undefined && <span className="amount text-xs">{count}</span>}
+    </button>
   );
 }

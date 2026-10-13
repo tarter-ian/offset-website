@@ -1,6 +1,7 @@
 import { db, rowsOf } from "./db";
 import { owedPaid } from "./payments";
-import { badges, hashToken, type Claim, type ListItem } from "./publicList";
+import { badges, hashToken, type Claim, type ListItem, withZeroUse } from "./publicList";
+import { productById } from "./store";
 
 // Reading and writing the public list. Server only.
 
@@ -21,15 +22,19 @@ const parse = <T,>(v: unknown, fallback: T): T => {
 };
 
 const toClaim = (r: Record<string, unknown>): Claim => ({
-  source: r.source === "gift" ? "gift" : "plan",
+  source: r.source === "gift" || r.source === "zero" ? r.source : "plan",
   sourceId: String(r.source_id),
   rows: parse(r.rows, []),
   items: parse(r.items, []),
   createdAt: String(r.created_at),
 });
 
-/** Every claim whose gifts have all arrived, from the donations table. */
-async function paidOnly(claims: (Claim & { personId: string })[]) {
+/** The items a person's zero-use claim names, still in the store. */
+const zeroOf = (claims: Claim[]) => (claims.find((c) => c.source === "zero")?.items ?? []).map((i) => i.productId).filter((id) => productById(id));
+
+/** Every claim whose gifts have all arrived, from the donations table. A zero-use claim pays for nothing, so it's never one. */
+async function paidOnly(all: (Claim & { personId: string })[]) {
+  const claims = all.filter((c) => c.source !== "zero");
   if (!claims.length) return [];
   const donations = rowsOf(await (await db()).execute({ sql: "SELECT partner_donation_id, amount FROM donations WHERE partner_donation_id IS NOT NULL" })).map(
     (d) => ({ partnerDonationId: String(d.partner_donation_id), amount: Number(d.amount) || 0 }),
@@ -50,7 +55,9 @@ export async function listedPeople(now = new Date()): Promise<ListedPerson[]> {
   return people
     .map((p) => {
       const mine = paid.filter((c) => c.personId === p.id);
-      return { id: String(p.id), name: String(p.name), since: mine.map((c) => c.createdAt).sort()[0] ?? "", badges: badges(mine, now) };
+      // Zero-use items join only beside a badge that was paid for (see withZeroUse).
+      const zero = zeroOf(claims.filter((c) => c.personId === p.id));
+      return { id: String(p.id), name: String(p.name), since: mine.map((c) => c.createdAt).sort()[0] ?? "", badges: withZeroUse(badges(mine, now), zero) };
     })
     .filter((p) => p.badges.length)
     .sort((a, b) => b.since.localeCompare(a.since));
@@ -65,7 +72,29 @@ export async function personByToken(token: string) {
     await database.execute({ sql: "SELECT person_id, source, source_id, rows, items, created_at FROM list_claims WHERE person_id = ?", args: [String(p.id)] }),
   ).map((r) => ({ ...toClaim(r), personId: String(p.id) }));
   const paid = new Set((await paidOnly(claims)).map((c) => c.sourceId));
-  return { id: String(p.id), name: String(p.name), claims: claims.map((c) => ({ items: c.items, createdAt: c.createdAt, source: c.source, paid: paid.has(c.sourceId) })) };
+  return {
+    id: String(p.id),
+    name: String(p.name),
+    claims: claims
+      .filter((c) => c.source !== "zero")
+      .map((c) => ({ items: c.items, createdAt: c.createdAt, source: c.source, paid: paid.has(c.sourceId) })),
+    zeroUse: zeroOf(claims),
+  };
+}
+
+/**
+ * Replaces the items a listed person uses none of: names only, checked against the store by
+ * the caller (`parseZeroUse`). Kept as the person's one "zero" claim, so leaving deletes it too.
+ */
+export async function setZeroUse(personId: string, ids: string[], now = new Date()) {
+  const database = await db();
+  await database.execute({ sql: "DELETE FROM list_claims WHERE source = 'zero' AND source_id = ?", args: [personId] });
+  if (!ids.length) return;
+  const items: ListItem[] = ids.map((productId) => ({ productId, until: null, zero: true }));
+  await database.execute({
+    sql: "INSERT INTO list_claims (person_id, source, source_id, rows, items, created_at) VALUES (?, 'zero', ?, '[]', ?, ?)",
+    args: [personId, personId, JSON.stringify(items), now.toISOString()],
+  });
 }
 
 /**
@@ -83,12 +112,15 @@ export async function addClaim(token: string, name: string, claim: Claim, now = 
     sql: "INSERT OR IGNORE INTO list_claims (person_id, source, source_id, rows, items, created_at) VALUES (?, ?, ?, ?, ?, ?)",
     args: [id, claim.source, claim.sourceId, JSON.stringify(claim.rows), JSON.stringify(claim.items), claim.createdAt],
   });
+  return id;
 }
 
-export async function renamePerson(token: string, name: string): Promise<boolean> {
+/** Changes a listing's name, its zero-use items, or both. */
+export async function updatePerson(token: string, change: { name?: string; zeroUse?: string[] }): Promise<boolean> {
   const p = await personByToken(token);
   if (!p) return false;
-  await (await db()).execute({ sql: "UPDATE list_people SET name = ? WHERE id = ?", args: [name, p.id] });
+  if (change.name) await (await db()).execute({ sql: "UPDATE list_people SET name = ? WHERE id = ?", args: [change.name, p.id] });
+  if (change.zeroUse) await setZeroUse(p.id, change.zeroUse);
   return true;
 }
 

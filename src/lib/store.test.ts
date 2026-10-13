@@ -247,9 +247,9 @@ describe("lifestyle choices", async () => {
   const { lifestyleBadge } = await import("./store");
   const meat = productById("meat")!;
   it("badges cards a choice covers", () => {
-    expect(lifestyleBadge(meat, "vegan")).toBe("Covered by eating vegan");
+    expect(lifestyleBadge(meat, "vegan")).toBe("Offset by eating vegan");
     expect(lifestyleBadge(meat, "average")).toBeNull();
-    expect(lifestyleBadge(productById("car")!, 0)).toBe("Covered by not driving");
+    expect(lifestyleBadge(productById("car")!, 0)).toBe("Offset by not driving");
     expect(meat.cost("vegan", "monthly", C)).toBeLessThan(0.005);
   });
   it("prices past use at the old diet until the year it changed", () => {

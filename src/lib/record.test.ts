@@ -5,6 +5,11 @@ const NOW = Date.parse("2026-10-12T12:00:00Z");
 
 describe("recordStatus", () => {
   it("is none with nothing covered", () => expect(recordStatus({}, NOW)).toEqual({ kind: "none" }));
+  it("never asks to renew an item now at zero use, and does once use is back", () => {
+    const covered = { ai: { kind: "life" as const }, "ai-video": { kind: "period" as const, until: "2026-10-01T00:00:00Z" } };
+    expect(recordStatus(covered, NOW, [], ["ai-video"])).toEqual({ kind: "life" });
+    expect(recordStatus(covered, NOW)).toMatchObject({ kind: "due", ids: ["ai-video"] });
+  });
   it("is life when everything is for life", () => expect(recordStatus({ ai: { kind: "life" } }, NOW)).toEqual({ kind: "life" }));
   it("is covered until the earliest end", () =>
     expect(
