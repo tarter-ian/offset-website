@@ -1,6 +1,6 @@
 import * as F from "./factors";
 import { monthAsYear } from "./history";
-import { aiCoolingWater, aiImpacts, coolingWater, dataCenterImpacts, electronicsMaking, gridImpacts, IMPACT_KEYS, MARGINS, type Impacts } from "./footprint";
+import { aiCoolingWater, aiImpacts, coolingWater, dataCenterImpacts, electronicsMaking, gridImpacts, IMPACT_FIELDS, MARGINS, type Impacts } from "./footprint";
 import {
   impactCost,
   paymentFee,
@@ -101,8 +101,8 @@ export interface LifetimeOffset {
 }
 
 const add = (a: Impacts, b: Impacts, k = 1): Impacts =>
-  Object.fromEntries(IMPACT_KEYS.map((x) => [x, a[x] + b[x] * k])) as Impacts;
-const zero: Impacts = { carbon: 0, air: 0, water: 0, land: 0, ewaste: 0 };
+  Object.fromEntries(IMPACT_FIELDS.map((x) => [x, a[x] + b[x] * k])) as Impacts;
+const zero: Impacts = { carbon: 0, air: 0, water: 0, land: 0, ewaste: 0, smogL: 0, sootG: 0 };
 const nonNeg = (n: number) => (Number.isFinite(n) && n > 0 ? n : 0);
 const part = (impacts: Impacts): LifetimePart => {
   const c = impactCost(impacts, "expected");
@@ -154,6 +154,8 @@ export function lifetimeOffset(
     water: (perYear.water - cooling) * power + cooling * ahead,
     land: perYear.land * ahead,
     ewaste: perYear.ewaste * ahead,
+    smogL: perYear.smogL * air,
+    sootG: perYear.sootG * air,
   });
 
   // Internet: hours a day for each activity, with a wider margin on the rough ones.

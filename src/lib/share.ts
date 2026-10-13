@@ -59,7 +59,7 @@ export function aiMonthTotals(amounts: { prompts: number; images: number; videos
 /** The card's two figures as text, e.g. "1.2 kg CO₂e" and "3 sec". */
 export function shareLines(t: ShareTotals) {
   return {
-    carbon: IMPACT_INFO.carbon.format(t.carbon),
+    carbon: IMPACT_INFO.carbon.format(t.carbon, { smogL: 0, sootG: 0 }),
     life: lifeText(t.lifeMinutes / F.MINUTES_OF_LIFE_PER_DAMAGE_USD),
   };
 }

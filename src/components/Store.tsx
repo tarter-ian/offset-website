@@ -15,9 +15,9 @@ import { AiQuickPick } from "./AiQuickPick";
 import { AI_LEVELS } from "@/lib/ai/levels";
 import { NumberInput, Select } from "./fields";
 import { STATE_OPTIONS, STATES, type StateCode } from "@/lib/data/states";
-import { airShort, IMPACT_INFO, lifeText, sootGrams } from "@/lib/impacts";
+import { airShort, IMPACT_INFO, lifeText } from "@/lib/impacts";
 import { CHARITIES } from "@/lib/charities";
-import { IMPACT_KEYS, sumImpacts, type Impacts } from "@/lib/footprint";
+import { IMPACT_KEYS, type ImpactKey, sumImpacts, type Impacts } from "@/lib/footprint";
 import { howEstimated, whereItGoes } from "@/lib/methods";
 import { PROVIDERS, type ProviderId } from "@/lib/providers";
 import {
@@ -146,15 +146,15 @@ function tilePrice(price: { once: number; monthly: number }, cover: Cover, billi
   return { big: once(price.once), note: cover.past ? "once, for life" : "once, for all future use" };
 }
 /** Every kind of harm covered, skipping ones too small to show, e.g. "181 kg CO₂e · air 7.7 min · 947 L water". */
-const MIN_SHOWN: Impacts = { carbon: 0.005, air: 0.0005, water: 0.05, land: 0.001, ewaste: 0.01 };
+const MIN_SHOWN: Record<ImpactKey, number> = { carbon: 0.005, air: 0.0005, water: 0.05, land: 0.001, ewaste: 0.01 };
 const coversText = (i: Impacts, long = false) =>
   IMPACT_KEYS.filter((k) => i[k] >= MIN_SHOWN[k])
     .map((k) =>
       k !== "air"
-        ? IMPACT_INFO[k].format(i[k])
+        ? IMPACT_INFO[k].format(i[k], i)
         : long
-          ? `${sootGrams(i[k])} soot-equivalent air pollution (about ${lifeText(i[k])} of healthy life)`
-          : `air ${airShort(i[k])}`,
+          ? `${airShort(i)} (about ${lifeText(i[k])} of healthy life)`
+          : `air ${airShort(i)}`,
     )
     .join(" · ");
 
@@ -163,14 +163,14 @@ const coversText = (i: Impacts, long = false) =>
  * "Keeps 151 kg of CO₂ out of the air, plus clean air, water and nature". The full
  * figures are in the tile's (i) (Ian, 2026-10-12).
  */
-const OUTCOME: Record<keyof Impacts, (i: Impacts) => string> = {
-  carbon: (i) => `Keeps ${IMPACT_INFO.carbon.format(i.carbon).replace(" CO₂e", "")} of CO₂ out of the air`,
+const OUTCOME: Record<ImpactKey, (i: Impacts) => string> = {
+  carbon: (i) => `Keeps ${IMPACT_INFO.carbon.format(i.carbon, i).replace(" CO₂e", "")} of CO₂ out of the air`,
   air: () => "Pays for cleaner air where the pollution lands",
-  water: (i) => `Puts ${IMPACT_INFO.water.format(i.water).replace(" L water", " L")} of water back in dry rivers`,
-  land: (i) => `Protects ${IMPACT_INFO.land.format(i.land).replace(" land", "")} of forest`,
-  ewaste: (i) => `Recycles ${IMPACT_INFO.ewaste.format(i.ewaste).replace(" e-waste", "")} of old electronics`,
+  water: (i) => `Puts ${IMPACT_INFO.water.format(i.water, i).replace(" L water", " L")} of water back in dry rivers`,
+  land: (i) => `Protects ${IMPACT_INFO.land.format(i.land, i).replace(" land", "")} of forest`,
+  ewaste: (i) => `Recycles ${IMPACT_INFO.ewaste.format(i.ewaste, i).replace(" e-waste", "")} of old electronics`,
 };
-const OUTCOME_SHORT: Record<keyof Impacts, string> = { carbon: "climate", air: "clean air", water: "water", land: "nature", ewaste: "e-waste" };
+const OUTCOME_SHORT: Record<ImpactKey, string> = { carbon: "climate", air: "clean air", water: "water", land: "nature", ewaste: "e-waste" };
 const outcomeText = (i: Impacts) => {
   const cost = impactCost(i);
   const shown = IMPACT_KEYS.filter((k) => i[k] >= MIN_SHOWN[k]);
@@ -708,6 +708,8 @@ export function Store() {
             water: c.monthly.water * k,
             land: c.monthly.land * k,
             ewaste: c.monthly.ewaste * k,
+            smogL: c.monthly.smogL * k,
+            sootG: c.monthly.sootG * k,
           },
           long,
         ),
@@ -722,7 +724,15 @@ export function Store() {
     const c = coverImpacts(p, amountOf(p), cover, ctx);
     if (cover.ahead === "lifetime") return c.once;
     const k = billing === "annual" ? 12 : 1;
-    return { carbon: c.monthly.carbon * k, air: c.monthly.air * k, water: c.monthly.water * k, land: c.monthly.land * k, ewaste: c.monthly.ewaste * k };
+    return {
+      carbon: c.monthly.carbon * k,
+      air: c.monthly.air * k,
+      water: c.monthly.water * k,
+      land: c.monthly.land * k,
+      ewaste: c.monthly.ewaste * k,
+      smogL: c.monthly.smogL * k,
+      sootG: c.monthly.sootG * k,
+    };
   };
 
   /** The (i) panel over a tile: how the item is estimated and who gets the money. */
@@ -1075,7 +1085,7 @@ export function Store() {
         <aside id="ai-chat" aria-label="AI chat, itemized" className="self-start border-t-2 border-rule pt-4">
           <dl className="amount -mt-2 divide-y divide-border text-sm">
             {[
-              ...(["carbon", "air", "water", "land"] as const).map((k) => [IMPACT_INFO[k].label, IMPACT_INFO[k].format(aiImpacts[k])]),
+              ...(["carbon", "air", "water", "land"] as const).map((k) => [IMPACT_INFO[k].label, IMPACT_INFO[k].format(aiImpacts[k], aiImpacts)]),
             ].map(([k, v]) => (
               <div key={k} className="flex justify-between gap-4 py-2">
                 <dt className="text-muted">{k}</dt>

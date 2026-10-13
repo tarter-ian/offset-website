@@ -54,7 +54,7 @@ export const coverCost = (i: Impacts) => {
 /** Each harm plus the margin we add to estimates, which is what gets covered. */
 const withMargin = (i: Impacts): Impacts => {
   const k = 1 + MARGINS.estimated;
-  return { carbon: i.carbon * k, air: i.air * k, water: i.water * k, land: i.land * k, ewaste: i.ewaste * k };
+  return { carbon: i.carbon * k, air: i.air * k, water: i.water * k, land: i.land * k, ewaste: i.ewaste * k, smogL: i.smogL * k, sootG: i.sootG * k };
 };
 
 /** Liters of water consumed for server energy (kWh), not weighted by scarcity: cooling on site, and the power plants. */

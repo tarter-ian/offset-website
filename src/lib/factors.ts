@@ -208,11 +208,13 @@ export const POWER_USD_PER_TON_SO2 = 57_000;
 export const GROUND_USD_PER_TON_NOX = 7_100;
 export const GROUND_USD_PER_TON_PM25 = 700_000;
 
-// Air pollution is shown in grams of soot-equivalent (Ian, 2026-10-13): each
-// pollutant counted by its harm against fine soot released at street level, the
-// way CO2e counts other gases against CO2. A gram of power plant NOx or SO2 counts
-// as a fraction of a gram, so the figure is the soot that would do the same harm.
-export const SOOT_EQ_G_PER_DAMAGE_USD = 907_185 / GROUND_USD_PER_TON_PM25;
+// Air pollution is shown as liters of smog gases released (Ian, 2026-10-13): NOx
+// (as NO2), SO2 and farm ammonia, at 24.45 L a mole (25 °C, sea level). Soot is
+// particles, not gas, so it is shown in grams beside them.
+const L_PER_MOL = 24.45;
+export const L_PER_G_NO2 = L_PER_MOL / 46.01;
+export const L_PER_G_SO2 = L_PER_MOL / 64.07;
+export const L_PER_G_NH3 = L_PER_MOL / 17.03;
 
 // Gasoline car tailpipe, EPA420-F-08-024 (2008). Overstates today's cars;
 // replace with current MOVES rates (BTS NTS Table 4-43).
@@ -296,6 +298,10 @@ export const FOOD_SHARES = {
 export const FOOD_AIR_DEATHS_PER_YEAR = 15_900;
 export const US_POPULATION = 332_000_000;
 export const FOOD_AIR_SHARES = { meat: 0.76, dairy: 0.07, plants: 0.17 } as const;
+// Farm ammonia: about 3.4 million short tons a year in the US, from livestock
+// manure and fertilizer (EPA National Emissions Inventory 2017). Split across food
+// groups like the damage above. Approximate.
+export const FOOD_NH3_TONS_PER_YEAR = 3_400_000;
 
 // Water used to drill and refine fuel: about 1.5 gallons per gallon of gasoline
 // or jet fuel (Wu et al. 2009, Argonne; range 0.5 to 2.5). Per kg of CO2 burned.
@@ -308,6 +314,9 @@ export const FUEL_WATER_L_PER_KG_CO2 = (1.5 * 3.785) / KG_CO2_PER_GAL_GASOLINE;
 export const FLIGHT_AIR_DEATHS_PER_YEAR = 16_000;
 export const JET_FUEL_TONNES_PER_YEAR = 188_000_000;
 export const KG_CO2_PER_KG_JET_FUEL = 3.16;
+// Jet engines give off about 14 g of NOx per kg of fuel over a whole flight,
+// cruise included (fleet average; Lee et al. 2021, Atmospheric Environment). Approximate.
+export const FLIGHT_G_NOX_PER_KG_CO2 = 14 / KG_CO2_PER_KG_JET_FUEL;
 
 // Making electronics, per kg of manufacturing CO2e, applied to every device type.
 // Water is fresh water consumed (not returned), from the Fairphone 5 LCA: 223 L

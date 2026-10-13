@@ -91,10 +91,10 @@ const IMPACTS = [
   },
   {
     name: "Air pollution",
-    unit: "grams of soot-equivalent",
+    unit: "liters of smog gases, or grams of soot",
     priceShort: `${Math.round(AIR_DAMAGE_SHARE * 100)}% of the health damage, to clean-air work`,
     measure:
-      `The harm to health from the NOx, SO₂ and fine particles released by power plants, cars, home furnaces, jet engines and farms (mostly ammonia from manure and fertilizer), using EPA's per-ton estimates and published death counts for flights and farms. We show it in grams of soot-equivalent: each pollutant counted by its harm against fine soot from a tailpipe (EPA: about $${(F.GROUND_USD_PER_TON_PM25 / 1000).toFixed(0)},000 of damage a ton), the way CO₂e counts other gases against CO₂. A gram of power plant NOx counts as about ${((F.POWER_USD_PER_TON_NOX / F.GROUND_USD_PER_TON_PM25)).toFixed(2)} g. Each item's details also give it as healthy life lost, since almost all of the harm is early deaths: EPA values a statistical life at about $${(F.VSL_USD / 1e6).toFixed(0)} million, and each early death from fine particles costs about ${F.LIFE_YEARS_PER_AIR_DEATH} years of life, so $1 of damage is about ${F.MINUTES_OF_LIFE_PER_DAMAGE_USD.toFixed(2)} minutes.`,
+      `The harm to health from the NOx, SO₂ and fine particles released by power plants, cars, home furnaces, jet engines and farms (mostly ammonia from manure and fertilizer), using EPA's per-ton estimates and published death counts for flights and farms. We show how much is released: liters of the smog gases (NOx, SO₂ and farm ammonia, at room temperature), or grams of soot where there's next to no gas, as with making clothes and electronics. Jet engines are counted at about 14 g of NOx per kg of fuel, and farms at EPA's 3.4 million tons of ammonia a year. The price follows the harm, not the amount, since a gram of soot does far more harm than a gram of NOx. Each item's details also give it as healthy life lost, since almost all of the harm is early deaths: EPA values a statistical life at about $${(F.VSL_USD / 1e6).toFixed(0)} million, and each early death from fine particles costs about ${F.LIFE_YEARS_PER_AIR_DEATH} years of life, so $1 of damage is about ${F.MINUTES_OF_LIFE_PER_DAMAGE_USD.toFixed(2)} minutes.`,
     price: `We donate ${Math.round(AIR_DAMAGE_SHARE * 100)}% of that damage to clean-air work: the middle of what US pollution controls cost per ton of fine particles (EPA puts the next ton at about $15,000, against about $113,000 of health damage).`,
   },
   {
@@ -201,7 +201,7 @@ export default function MethodPage() {
         <Step n={2} title="The harm it does">
           <ul className="figures space-y-1">
             {IMPACT_KEYS.filter((k) => EX_IMPACTS[k] > 0).map((k) => (
-              <li key={k}>{IMPACT_INFO[k].format(EX_IMPACTS[k])}</li>
+              <li key={k}>{IMPACT_INFO[k].format(EX_IMPACTS[k], EX_IMPACTS)}</li>
             ))}
           </ul>
           <p className="mt-2 text-muted">Your state&apos;s grid rates, plus a safety margin.</p>

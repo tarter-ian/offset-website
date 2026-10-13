@@ -174,7 +174,7 @@ export function Results({
           {IMPACT_KEYS.filter((k) => !single || totals[k] > 0).map((k) => (
             <div key={k} className="rounded-xl border border-border bg-card p-4">
               <div className="text-sm text-muted">{IMPACT_INFO[k].label}</div>
-              <div className="mt-1 text-lg font-semibold">{IMPACT_INFO[k].format(totals[k])}</div>
+              <div className="mt-1 text-lg font-semibold">{IMPACT_INFO[k].format(totals[k], totals)}</div>
             </div>
           ))}
         </div>
@@ -342,7 +342,7 @@ export function Results({
                                   key={k}
                                   className={`whitespace-nowrap ${impacts.includes(k) ? "" : "text-muted line-through"}`}
                                 >
-                                  {IMPACT_INFO[k].format(c.impacts[k])}
+                                  {IMPACT_INFO[k].format(c.impacts[k], c.impacts)}
                                 </li>
                               ))}
                             </ul>

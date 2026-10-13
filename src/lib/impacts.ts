@@ -1,5 +1,5 @@
-import type { ImpactKey } from "./footprint";
-import { MINUTES_OF_LIFE_PER_DAMAGE_USD, SOOT_EQ_G_PER_DAMAGE_USD } from "./factors";
+import type { ImpactKey, Impacts } from "./footprint";
+import { MINUTES_OF_LIFE_PER_DAMAGE_USD } from "./factors";
 
 // How each kind of impact is named and shown.
 
@@ -15,17 +15,22 @@ function lifeLost(min: number): string {
 /** Healthy life lost to air pollution damage (dollars), e.g. "3.9 min", kept for the (i) details and question pages. */
 export const lifeText = (usdDamage: number) => lifeLost(usdDamage * MINUTES_OF_LIFE_PER_DAMAGE_USD);
 
-/** Grams of soot-equivalent for air pollution damage (dollars), e.g. "11 g". */
-export function sootGrams(usdDamage: number): string {
-  const g = usdDamage * SOOT_EQ_G_PER_DAMAGE_USD;
-  if (g >= 1000) return `${(g / 1000).toFixed(g < 10_000 ? 1 : 0)} kg`;
-  return `${g < 10 ? g.toFixed(1).replace(/\.0$/, "") : Math.round(g)} g`;
+const num = (x: number) => (x < 10 ? x.toFixed(1).replace(/\.0$/, "") : Math.round(x).toLocaleString("en-US"));
+
+/**
+ * The air row (Ian, 2026-10-13): liters of smog gases released, e.g. "52 L smog", or
+ * grams of soot where there's next to no gas (making clothes and electronics).
+ */
+export function airAmount(i: Pick<Impacts, "smogL" | "sootG">): string {
+  if (i.smogL >= 0.05 || i.sootG < 0.05) return `${i.smogL >= 10_000 ? `${num(i.smogL / 1000)} m³` : `${num(i.smogL)} L`} smog`;
+  return `${i.sootG >= 1000 ? `${num(i.sootG / 1000)} kg` : `${num(i.sootG)} g`} soot`;
 }
 
-/** Air pollution on tiles and the receipt, e.g. "11 g"; minutes of healthy life are in each item's (i). */
-export const airShort = sootGrams;
+/** Air on tiles and the receipt, e.g. "52 L smog"; healthy life lost is in each item's (i). */
+export const airShort = airAmount;
 
-export const IMPACT_INFO: Record<ImpactKey, { label: string; short: string; format: (n: number) => string }> = {
+/** How each harm reads. `format` takes the harm's amount, and the air row also reads smog and soot from `i`. */
+export const IMPACT_INFO: Record<ImpactKey, { label: string; short: string; format: (n: number, i: Pick<Impacts, "smogL" | "sootG">) => string }> = {
   carbon: {
     label: "Climate",
     short: "CO₂e",
@@ -33,8 +38,8 @@ export const IMPACT_INFO: Record<ImpactKey, { label: string; short: string; form
   },
   air: {
     label: "Air pollution",
-    short: "soot",
-    format: (usdDamage) => `${sootGrams(usdDamage)} soot`,
+    short: "smog",
+    format: (_usdDamage, i) => airAmount(i),
   },
   water: {
     label: "Water",
