@@ -11,8 +11,9 @@ import {
   type Span,
 } from "./lifetime";
 import type { ProviderId } from "./providers";
-import type { AiLevel } from "./ai/levels";
+import { AI_LEVELS, type AiLevel } from "./ai/levels";
 import type { CodeEstimate, UsageSummary } from "./ai/exportParser";
+import { monthAsYear, type CardPast } from "./history";
 import {
   type Billing,
   DEFAULT_BILLING,
@@ -67,6 +68,8 @@ export interface Context {
   before?: Record<string, Before>;
   /** Video hours watched to date, from YouTube and Netflix whole history. */
   videoPast?: { hours: number; since: string };
+  /** Deliveries and ride miles to date, from DoorDash, Uber Eats and Uber's orders and rides by month. */
+  measuredPast?: Partial<Record<"delivery" | "rideshare", CardPast>>;
   /** The year everyday items' past use counts from, when the person picks one. */
   pastSinceYear?: number;
 }
@@ -202,6 +205,25 @@ function everydaySpan(m: Impacts, span: Span, ctx: Context, keys: CategoryKey | 
   };
 }
 
+const ZERO: Impacts = { carbon: 0, air: 0, water: 0, land: 0, ewaste: 0, smogL: 0, sootG: 0 };
+const add = (a: Impacts, b: Impacts) => Object.fromEntries(IMPACT_KEYS.map((k) => [k, a[k] + b[k]])) as Impacts;
+
+/**
+ * Past use counted from an account's history, for a card whose amount is a
+ * weekly count (deliveries, ride miles): only the years past use counts from.
+ * Before the account's first order or ride there's nothing to count, unless the
+ * count stopped short of it; then those months are priced at today's habits.
+ */
+function measuredPast(m: CardPast, a: number | string, month: (a: number | string, ctx: Context) => Impacts, ctx: Context, now = new Date()): Impacts {
+  const from = everydaySince(ctx);
+  const total = Object.entries(m.byYear).reduce((s, [y, n]) => s + (Number(y) >= from ? n : 0), 0);
+  const gap = m.whole ? 0 : Math.min(everydayPastMonths(ctx, now), Math.max(0, Math.round((monthAsYear(m.since) - from) * 12)));
+  // One month at total ÷ weeks-a-month a week adds up to the total.
+  const counted = month(total / F.WEEKS_PER_MONTH, ctx);
+  const today = month(a, ctx);
+  return Object.fromEntries(IMPACT_KEYS.map((k) => [k, counted[k] + today[k] * gap])) as Impacts;
+}
+
 function lifeItem(
   id: string,
   section: SectionKey,
@@ -214,6 +236,8 @@ function lifeItem(
   const month = (a: number | string, ctx: Context) => monthly(keys, { ...DEFAULT_ANSWERS, state: ctx.state, ...answers(a, ctx) });
   const impacts = (a: number | string, span: Span, ctx: Context): Impacts => {
     const now = month(a, ctx);
+    const measured = (span === "past" || span === "lifetime") && ctx.measuredPast?.[id as "delivery" | "rideshare"];
+    if (measured) return add(measuredPast(measured, a, month, ctx), span === "lifetime" ? everydaySpan(now, "future", ctx, keys) : ZERO);
     const used = everydaySpan(now, span, ctx, keys);
     const b = ctx.before?.[id];
     if (!b || (span !== "past" && span !== "lifetime")) return used;
@@ -287,6 +311,17 @@ const aiChat = (a: number | string, span: Span, ctx: Context) =>
 /** Coding hours to count: none when a linked Claude or ChatGPT account already measured coding in with chat. */
 /** Coding measured from a linked account: Claude's weekly limit (which covers Claude Code) or ChatGPT's agent and Codex tokens. */
 export const codingMeasured = (ctx: Context) => Boolean(ctx.aiFromExport && (ctx.aiCode || ctx.aiAgent));
+
+export const HOURS_PER_WEEK = 168;
+/**
+ * How coding's amount reads on its card. Measured through Claude's weekly limit it shows that basis,
+ * since the limit's energy in agent hours can pass the 168 hours a week has; any other figure over a
+ * week's hours is shown as an equivalent, capped. Null keeps the plain "N hours a week".
+ */
+export function codingAmountText(hours: number, ctx: Context): string | null {
+  if (ctx.aiCode) return `${Math.round(ctx.aiCode.limitPercent)}% of your ${ctx.aiCode.plan} weekly limit`;
+  return hours > HOURS_PER_WEEK ? `the same as ${HOURS_PER_WEEK} hours a week or more` : null;
+}
 const codingHours = (a: number | string) => num(a);
 const aiCoding = (a: number | string, span: Span, ctx: Context) =>
   lifetimeOffset({ ...base(ctx), aiCodingHoursPerWeek: num(a), aiCodingPastWh: ctx.aiCodingPastWh }, ["ai"], undefined, span).parts.ai.impacts;
@@ -297,7 +332,8 @@ export const PRODUCTS: Product[] = [
     section: "ai",
     name: "AI chat",
     blurb: "ChatGPT, Claude, Gemini and the rest, plus the AI built into search and other apps, including training the models and building the data centers.",
-    amount: { kind: "number", label: "AI prompts a day", unit: "prompts a day", default: 10, step: 1 },
+    // AI starts on Medium's exact numbers, so the Medium shown as picked at load is the price tapping it gives (Ian, 2026-10-13).
+    amount: { kind: "number", label: "AI prompts a day", unit: "prompts a day", default: AI_LEVELS.medium.promptsPerDay, step: 1 },
     oneTime: true,
     cost: (a, span, ctx) => costOf(aiChat(a, span, ctx)),
     impacts: (a, span, ctx) => aiChat(a, span, ctx),
@@ -309,9 +345,9 @@ export const PRODUCTS: Product[] = [
     section: "ai",
     name: "AI images",
     blurb: "Pictures you make with AI.",
-    // Default 1 a week. Google reported 50 billion Nano Banana images by May 2026, up from 5 billion in mid-October 2025:
-    // about 1.5 a week for each of Gemini's 900 million monthly users, a mean pulled up by heavy users.
-    amount: { kind: "number", label: "AI images a week", unit: "images a week", default: 1, step: 1 },
+    // Medium's images a week, just above the 1.5 a week that Google's 50 billion Nano Banana images by May 2026 give each of
+    // Gemini's 900 million monthly users, a mean pulled up by heavy users.
+    amount: { kind: "number", label: "AI images a week", unit: "images a week", default: AI_LEVELS.medium.imagesPerWeek, step: 1 },
     oneTime: true,
     cost: (a, span, ctx) => costOf(lifetimeOffset({ ...base(ctx), aiMediaPerWeek: num(a) }, ["ai"], undefined, span).parts.ai.impacts),
     impacts: (a, span, ctx) => lifetimeOffset({ ...base(ctx), aiMediaPerWeek: num(a) }, ["ai"], undefined, span).parts.ai.impacts,
@@ -322,7 +358,7 @@ export const PRODUCTS: Product[] = [
     section: "ai",
     name: "AI video",
     blurb: "Short clips you make with Sora, Veo and the like. Each one takes far more power than a picture.",
-    amount: { kind: "number", label: "AI videos a week", unit: "videos a week", default: 0, step: 1 },
+    amount: { kind: "number", label: "AI videos a week", unit: "videos a week", default: AI_LEVELS.medium.videosPerWeek, step: 1 },
     oneTime: true,
     cost: (a, span, ctx) => costOf(lifetimeOffset({ ...base(ctx), aiVideoPerWeek: num(a) }, ["ai"], undefined, span).parts.ai.impacts),
     impacts: (a, span, ctx) => lifetimeOffset({ ...base(ctx), aiVideoPerWeek: num(a) }, ["ai"], undefined, span).parts.ai.impacts,
@@ -445,7 +481,7 @@ export const PRODUCTS: Product[] = [
   lifeItem("electronics", "shopping", "Electronics", "Gadgets beyond your main devices.", dollars(F.GOODS_USD_PER_MONTH.electronics), (a) => ({ shoppingUsd: { electronics: num(a) } }), "electronics"),
   lifeItem("household", "shopping", "Home goods", "Furniture, kitchen and things for the house.", dollars(F.GOODS_USD_PER_MONTH.household), (a) => ({ shoppingUsd: { household: num(a) } }), "household"),
   // Toys, books, beauty, pets and the rest: priced like home goods, the closest of the EPA's groups.
-  lifeItem("othergoods", "shopping", "Everything else", "Books, toys, beauty, pet supplies and the rest.", dollars(F.GOODS_USD_PER_MONTH.other), (a) => ({ shoppingUsd: { household: num(a) } }), "household"),
+  lifeItem("othergoods", "shopping", "Books, toys and more", "Books, toys, beauty, pet supplies and the rest.", dollars(F.GOODS_USD_PER_MONTH.other), (a) => ({ shoppingUsd: { household: num(a) } }), "household"),
   lifeItem("services", "shopping", "Services", "Eating out, subscriptions and other services.", level("How much you buy"), (a) => ({ shopping: a as Shopping }), "services"),
 ];
 
@@ -463,6 +499,11 @@ export function yearlyLine(p: Product, amount: number | string, ctx: Context): s
 }
 
 export const productById = (id: string) => PRODUCTS.find((p) => p.id === id);
+/** Whether these items hold anything outside the AI aisle, which is what opens the other aisles. */
+export const hasNonAi = (ids: string[]) => ids.some((id) => {
+  const p = productById(id);
+  return !!p && p.section !== "ai";
+});
 
 /** Accounts that fill in each item's amount. Online time and devices have no account to read yet, so they stay typed in. */
 const AI_SOURCES: ProviderId[] = ["chatgpt", "claude", "gemini", "openai-api", "anthropic-api"];
@@ -660,4 +701,28 @@ export function harmSplit(totals: PlanTotals, ctx: Context, billing: Billing = D
     add(lifetime ? l.aheadCost : l.aheadCost * (billing === "annual" ? 12 : 1), ahead, lifetime ? "once" : "perPeriod");
   }
   return out;
+}
+
+/**
+ * What a plan asks for, split the way checkout charges it: each month's ongoing
+ * items, past use spread into instalments, past use paid once, and lifetime items
+ * (their past use included). Each dollar shows in exactly one place.
+ */
+export function chargeParts(t: PlanTotals) {
+  const life = t.lines.filter((l) => l.cover.ahead === "lifetime");
+  const monthlyLines = t.lines.filter((l) => l.cover.ahead === "monthly");
+  return {
+    monthly: monthlyLines.reduce((s, l) => s + l.aheadCost, 0),
+    spread: t.pastSpread,
+    pastOnce: t.pastSpread ? 0 : monthlyLines.reduce((s, l) => s + l.pastCost, 0),
+    lifeOnce: life.reduce((s, l) => s + l.pastCost + l.aheadCost, 0),
+  };
+}
+
+/** A plan and its picks once these items are added on monthly, as Add everything does. */
+export function addedMonthly(plan: string[], picked: Record<string, Partial<Cover>>, ids: string[]) {
+  return {
+    plan: [...plan, ...ids.filter((id) => !plan.includes(id))],
+    picked: { ...picked, ...Object.fromEntries(ids.map((id) => [id, { ...picked[id], ahead: "monthly" as const }])) },
+  };
 }

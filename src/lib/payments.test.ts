@@ -105,7 +105,7 @@ describe("fees in Every.org mode", () => {
 
 describe("payment rows", () => {
   it("skips charities with nothing to give", () => {
-    const rows = payRows(split({ carbon: [10, 0], water: [0, 0], ewaste: [0.001, 0] }), "monthly", false);
+    const rows = payRows(split({ carbon: [10, 0], water: [0, 0], ewaste: [0, 0] }), "monthly", false);
     expect(rows.map((r) => r.charity)).toEqual(["carbon"]);
     expect(payRows(split({}), "monthly", false)).toEqual([]);
   });
@@ -127,6 +127,14 @@ describe("payment rows", () => {
     expect(rows.map((r) => [r.charity, r.harms, r.donation])).toEqual([
       ["carbon", ["carbon"], 10],
       ["land", ["land"], 1],
+    ]);
+  });
+
+  it("never drops a harm worth more than nothing: a share under half a cent still gets the $1 minimum", () => {
+    const rows = payRows(split({ carbon: [10, 0], land: [0.002, 0], ewaste: [0, 0] }), "monthly", false);
+    expect(rows.map((r) => [r.charity, r.donation])).toEqual([
+      ["carbon", 10],
+      ["land", 1],
     ]);
   });
 
@@ -204,16 +212,17 @@ describe("Endaoment mode", async () => {
     expect(feeFor(100, "every")).toBe(cardFee(100));
   });
 
-  it("makes one gift, each harm kept to the cent with no dollar minimum, harms sharing a charity together", () => {
+  it("makes one gift, each harm kept to the cent with no dollar minimum, harms sharing a charity together, none dropped", () => {
     const g = fundGift({ carbon: 1.234, air: 0.111, water: 0.004, land: 2.5, ewaste: 0.333 });
     expect(g.parts).toEqual([
       { charity: "carbon", harms: ["carbon", "air"], amount: 1.36 },
+      { charity: "water", harms: ["water"], amount: 0.01 },
       { charity: "land", harms: ["land"], amount: 2.5 },
       { charity: "ewaste", harms: ["ewaste"], amount: 0.34 },
     ]);
-    expect(g.donation).toBe(4.2);
+    expect(g.donation).toBe(4.21);
     expect(g.fee).toBe(0.51);
-    expect(g.total).toBe(4.71);
+    expect(g.total).toBe(4.72);
     expect(g.endaoment).toBe(0.07);
     expect(g.card).toBe(0.44);
     expect(g.card + g.endaoment).toBeCloseTo(g.fee, 10);

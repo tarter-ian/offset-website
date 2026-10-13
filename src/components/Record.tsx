@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { type Covered, STORAGE_KEY } from "@/lib/covered";
 import { AccountBar } from "./Account";
+import { Seal } from "./Badge";
+import { badgesFor, PAST } from "@/lib/badges";
 import { pullCovered, pushCovered } from "@/lib/accountClient";
 import { canInstallExtension, savedResults } from "@/lib/extension";
 import { AI_CHAT_SERVICES, type AiChatService, inForce, monthlyUse, monthTotal, type MonthUse, recordStatus } from "@/lib/record";
@@ -123,12 +125,13 @@ export function Record() {
       <section aria-labelledby="covered-heading" className="mt-12">
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
           <h2 id="covered-heading" className="text-2xl font-bold">
-            What&apos;s covered
+            What&apos;s offset
           </h2>
           <Link href="/?store=1" className="text-sm underline underline-offset-4 hover:text-muted">
             Cover something else
           </Link>
         </div>
+        <Seals covered={covered} now={now} />
         <CoveredList covered={covered} now={now} repeating={repeating} />
       </section>
 
@@ -232,6 +235,23 @@ function UseChart({ use, computer }: { use: MonthUse[] | null; computer: boolean
         ))}
       </p>
     </>
+  );
+}
+
+/** The badges what's in force earns, plus past use paid for on a cover that has ended: the same seals the public list and gift cards show. */
+function Seals({ covered, now }: { covered: Record<string, Covered>; now: number }) {
+  const seals = badgesFor(
+    Object.entries(covered)
+      .filter(([, c]) => inForce(c, now) || c.past)
+      .map(([productId, c]) => ({ productId, until: c.kind === "life" ? null : inForce(c, now) ? c.until : PAST })),
+  );
+  if (!seals.length) return null;
+  return (
+    <div className="mt-4 mb-2 flex flex-wrap gap-3">
+      {seals.map((b) => (
+        <Seal key={b.key} kind={b.kind} name={b.name} until={b.until} size={104} />
+      ))}
+    </div>
   );
 }
 

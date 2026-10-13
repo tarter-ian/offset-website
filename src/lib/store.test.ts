@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aheadFor, defaultPastYears, everydayPastMonths, everydaySince, yearlyLine, coverBadge, coverPrice, DEFAULT_CONTEXT as C, defaultAmount, effectiveCover, planTotals, PRODUCTS, productById } from "./store";
+import { addedMonthly, chargeParts, codingAmountText, hasNonAi, HOURS_PER_WEEK, aheadFor, defaultPastYears, everydayPastMonths, everydaySince, yearlyLine, coverBadge, coverPrice, DEFAULT_CONTEXT as C, defaultAmount, effectiveCover, planTotals, PRODUCTS, productById } from "./store";
 import {
   ANNUAL_MIN_DONATION_USD,
   DEFAULT_BILLING,
@@ -8,6 +8,9 @@ import {
   paymentFee,
   MIN_DONATION_USD,
 } from "./pricing";
+import { digitalFromExport } from "./ai/exportParser";
+import { summaryFromSignIn } from "./ai/signin";
+import { usageFromQuickCount } from "./ai/quickCount";
 
 const p = (id: string) => productById(id)!;
 
@@ -258,5 +261,60 @@ describe("lifestyle choices", async () => {
     expect(twoYearsVegan).toBeGreaterThan(0);
     expect(twoYearsVegan).toBeLessThan(allMeat);
     expect(meat.cost("vegan", "monthly", switched)).toBeLessThan(0.005);
+  });
+});
+
+describe("persona review fixes (2026-10-13)", () => {
+  // 60 Claude chats a week on Max 20x at 85% of the weekly limit, from the quick count.
+  const heavy = () => {
+    const d = digitalFromExport(summaryFromSignIn("claude", usageFromQuickCount({ chatsPerWeek: 60, plan: "max_20x", weeklyLimitUsedPercent: 85 })));
+    const ctx = { ...C, aiWhPerPrompt: d.aiWhPerPrompt, aiFromExport: true, aiPastWh: d.aiPastWh, aiCode: d.aiCode, aiCodingPastWh: d.aiCodingPastWh };
+    return { d, ctx };
+  };
+
+  it("opens the other aisles only for an item outside AI", () => {
+    expect(hasNonAi(["ai", "ai-media", "ai-coding"])).toBe(false);
+    expect(hasNonAi([])).toBe(false);
+    expect(hasNonAi(["ai-media", "video"])).toBe(true);
+    expect(hasNonAi(["not-a-product"])).toBe(false);
+  });
+
+  it("splits a plan the way checkout does, so spread past use is never also counted once", () => {
+    const { d, ctx } = heavy();
+    const plan = [
+      { productId: "ai", amount: d.aiPromptsPerDay, cover: { past: true, ahead: "lifetime" as const } },
+      { productId: "ai-coding", amount: d.aiCodingHoursPerWeek, cover: { past: true, ahead: "monthly" as const } },
+    ];
+    const parts = chargeParts(planTotals(plan, ctx, "monthly", 1));
+    const chat = coverPrice(p("ai"), d.aiPromptsPerDay, plan[0].cover, ctx);
+    const coding = coverPrice(p("ai-coding"), d.aiCodingHoursPerWeek, plan[1].cover, ctx);
+    // Chat's lifetime price already holds its past use: no separate past line.
+    expect(parts.lifeOnce).toBeCloseTo(chat.once, 6);
+    expect(parts.pastOnce).toBe(0);
+    // Coding's past is spread, not in the once figure.
+    expect(parts.spread?.total).toBeCloseTo(coding.once, 6);
+    expect(parts.monthly).toBeCloseTo(coding.monthly, 6);
+    // Each dollar shows once.
+    expect(parts.lifeOnce + parts.pastOnce + (parts.spread?.total ?? 0)).toBeCloseTo(chat.once + coding.once, 6);
+    // Not spread: past use is paid once, alongside lifetime.
+    const unspread = chargeParts(planTotals(plan, ctx, "monthly", 0));
+    expect(unspread.pastOnce).toBeCloseTo(coding.once, 6);
+    expect(unspread.spread).toBeNull();
+  });
+
+  it("shows measured coding by its basis, never more hours than a week has", () => {
+    const { d, ctx } = heavy();
+    expect(d.aiCodingHoursPerWeek).toBeGreaterThan(HOURS_PER_WEEK);
+    expect(codingAmountText(d.aiCodingHoursPerWeek, ctx)).toBe("85% of your Max 20x weekly limit");
+    // The quick count is an estimate, not an export, but its basis is still the weekly limit.
+    expect(codingAmountText(d.aiCodingHoursPerWeek, { ...ctx, aiFromExport: false })).toBe("85% of your Max 20x weekly limit");
+    expect(codingAmountText(200, C)).toBe("the same as 168 hours a week or more");
+    expect(codingAmountText(20, C)).toBeNull();
+  });
+
+  it("adds items on monthly, keeping each item's other picks and the plan's order", () => {
+    const next = addedMonthly(["ai"], { ai: { ahead: "lifetime", past: true }, car: { past: false } }, ["ai", "car", "video"]);
+    expect(next.plan).toEqual(["ai", "car", "video"]);
+    expect(next.picked).toEqual({ ai: { ahead: "monthly", past: true }, car: { ahead: "monthly", past: false }, video: { ahead: "monthly" } });
   });
 });

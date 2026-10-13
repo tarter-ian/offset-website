@@ -25,7 +25,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             <Link href="/" className="font-display text-xl font-extrabold tracking-tight [font-stretch:80%]">
               My Offset
             </Link>
-            <div className="flex gap-5 text-sm">
+            <div className="flex gap-4 text-sm sm:gap-5">
               <Link href="/method" className="hidden text-muted hover:text-foreground sm:inline">
                 How we calculate
               </Link>
@@ -34,6 +34,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               </Link>
               <Link href="/promises" className="text-muted hover:text-foreground">
                 Our promises
+              </Link>
+              {/* Public list in the header (Ian, 2026-10-13); "List" on phones so it fits beside Sign in. */}
+              <Link href="/list" className="text-muted hover:text-foreground">
+                <span className="sm:hidden">List</span>
+                <span className="hidden sm:inline">Public list</span>
               </Link>
               <AccountNav />
             </div>

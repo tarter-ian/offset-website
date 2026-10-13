@@ -10,11 +10,16 @@ import { payRows, PLAN_ID, type PayRow } from "./payments";
 
 export const LIST_NAME_MAX = 40;
 
+/** The term of an item whose dated cover has ended but whose past use was paid for. */
+export const PAST = "past";
+
 /** A covered item on the list: for life, or through a date. */
 export interface ListItem {
   productId: string;
-  /** ISO date the cover ends, or null for life. */
+  /** ISO date the cover ends, or null for life. On a person's badges, "past" once only past use is left. */
   until: string | null;
+  /** Whether past use was paid for in full, so a badge stays after the date. Missing on claims saved before 2026-10-13. */
+  past?: boolean;
 }
 
 /** One paid-for checkout or gift behind a listing. */
@@ -43,12 +48,19 @@ export async function hashToken(token: string): Promise<string> {
 
 export const TOKEN = /^[0-9a-f]{48}$/;
 
-/** What covered items a checkout pays for: lifetime items for life, the rest for the billing period from when it was made. */
-export function planItems(lines: PlanLine[], billing: Billing, createdAt: string): ListItem[] {
+/**
+ * What covered items a checkout pays for: lifetime items for life, the rest for the billing period from when it was made.
+ * A dated item notes past use only when this checkout paid all of it, not when it is spread over years.
+ */
+export function planItems(lines: PlanLine[], billing: Billing, createdAt: string, pastYears: PastYears = 0): ListItem[] {
   const until = new Date(createdAt);
   if (billing === "annual") until.setFullYear(until.getFullYear() + 1);
   else until.setMonth(until.getMonth() + 1);
-  return lines.map((l) => ({ productId: l.productId, until: l.cover.ahead === "lifetime" ? null : until.toISOString() }));
+  return lines.map((l) =>
+    l.cover.ahead === "lifetime"
+      ? { productId: l.productId, until: null }
+      : { productId: l.productId, until: until.toISOString(), ...(l.cover.past && pastYears === 0 ? { past: true } : {}) },
+  );
 }
 
 export function giftItems(gift: Gift): ListItem[] {
@@ -95,15 +107,20 @@ export function sameRows(a: PayRow[], b: unknown): boolean {
   return a.every((r) => (b as PayRow[]).some((x) => x?.key === r.key && Math.abs(Number(x.donation) - r.donation) < 0.011));
 }
 
-/** A person's badges: the best cover for each item across their paid claims, dropping covers that have ended. */
+/**
+ * A person's badges: the best cover for each item across their paid claims. A cover that has ended
+ * leaves a past-use badge when its past use was paid for, and nothing otherwise.
+ */
 export function badges(claims: Claim[], now = new Date()): ListItem[] {
   const best = new Map<string, string | null>();
+  const rank = (u: string | null | undefined) => (u === undefined ? 0 : u === PAST ? 1 : u === null ? 3 : 2);
   for (const c of claims)
     for (const i of c.items) {
-      if (i.until !== null && Date.parse(i.until) < now.getTime()) continue;
+      const ended = i.until !== null && Date.parse(i.until) < now.getTime();
+      if (ended && !i.past) continue;
+      const until = ended ? PAST : i.until;
       const had = best.get(i.productId);
-      if (had === null) continue;
-      best.set(i.productId, i.until === null || had === undefined || i.until > had ? i.until : had);
+      if (rank(until) > rank(had) || (rank(until) === 2 && rank(had) === 2 && until! > had!)) best.set(i.productId, until);
     }
   return [...best].map(([productId, until]) => ({ productId, until }));
 }
