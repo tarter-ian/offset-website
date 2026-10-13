@@ -47,6 +47,7 @@ import {
 import { digitalFromExport } from "@/lib/ai/exportParser";
 import { aiMonthTotals, shareLines, shareQuery, type ShareTotals } from "@/lib/share";
 import { SOURCE_NAMES, type ActivitySource } from "@/lib/activity";
+import { monthName } from "@/lib/history";
 import { ONLINE_FROM_AGE } from "@/lib/factors";
 import {
   LIFETIME_GROWTH_BUFFER,
@@ -631,6 +632,12 @@ export function Store() {
       return ctx.aiStartYear && ctx.aiStartYear > 2022
         ? `growing steadily to today's rate since you started in ${ctx.aiStartYear}`
         : "growing steadily to today's rate since ChatGPT launched in late 2022";
+    const measured = ctx.measuredPast?.[p.id as "delivery" | "rideshare"];
+    if (measured) {
+      const what = p.id === "delivery" ? "your orders" : "your rides";
+      if (Number(measured.since.slice(0, 4)) < everydaySince(ctx)) return `${what} since ${everydaySince(ctx)}`;
+      return measured.whole ? `${what} since ${monthName(measured.since)}` : `${what} back to ${monthName(measured.since)}, today's habits before`;
+    }
     if (!p.oneTime)
       return ctx.before?.[p.id] && ctx.before[p.id].until > everydaySince(ctx)
         ? `your old habits from ${everydaySince(ctx)}, today's since ${ctx.before[p.id].until}`
@@ -1345,6 +1352,8 @@ export function Store() {
               onVideoPast={(videoPast) => setCtx((c) => ({ ...c, videoPast }))}
               onRides={(n) => measuredAmount("rideshare", n, ["uber"])}
               onDelivery={(n) => measuredAmount("delivery", n, ["doordash", "ubereats"])}
+              onRidesPast={(rideshare) => setCtx((c) => ({ ...c, measuredPast: { ...c.measuredPast, rideshare } }))}
+              onDeliveryPast={(delivery) => setCtx((c) => ({ ...c, measuredPast: { ...c.measuredPast, delivery } }))}
               onShopping={amazonShopping}
               onMeasured={(s, note) => {
                 const d = digitalFromExport(s);

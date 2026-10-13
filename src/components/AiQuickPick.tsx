@@ -9,7 +9,18 @@ import { activityAmounts, amazonShopping, NETFLIX_MIN_PER_TITLE, youtubeDays } f
 import { canInstallExtension, detectExtension, isPhone, EXTENSION_SERVICES, EXTENSION_URL, measure, measuredAtOf, savedResults, type ExtensionError, type ExtensionService, type SavedResult } from "@/lib/extension";
 import { SIGN_IN_READS } from "@/lib/signinReads";
 import { AiPhoneExport } from "./AiPhoneExport";
-import { combineVideoPast, monthName, videoHistoryHours, type HistoryTotal, type VideoPast } from "@/lib/history";
+import {
+  combinePast,
+  combineVideoPast,
+  deliveryPast,
+  monthName,
+  ridePast,
+  usdSpend,
+  videoHistoryHours,
+  type CardPast,
+  type HistoryTotal,
+  type VideoPast,
+} from "@/lib/history";
 
 const AI_NAMES: Record<QuickService, string> = { chatgpt: "ChatGPT", claude: "Claude", gemini: "Gemini" };
 const SERVICES = Object.keys(AI_NAMES) as QuickService[];
@@ -55,8 +66,10 @@ export function AiQuickPick({
   onMeasured,
   onVideo,
   onDelivery,
+  onDeliveryPast,
   onVideoPast,
   onRides,
+  onRidesPast,
   onShopping,
 }: {
   level: AiLevel | null;
@@ -74,6 +87,10 @@ export function AiQuickPick({
   onShopping?: (usdPerMonth: ReturnType<typeof amazonShopping>) => void;
   /** Deliveries a week, measured from DoorDash and Uber Eats together. */
   onDelivery?: (perWeek: number) => void;
+  /** Deliveries to date, from DoorDash and Uber Eats orders by month. */
+  onDeliveryPast?: (past: CardPast | undefined) => void;
+  /** Ride miles to date, from Uber rides by month. */
+  onRidesPast?: (past: CardPast | undefined) => void;
   /** Video hours watched to date, from YouTube and Netflix whole history. */
   onVideoPast?: (past: VideoPast | undefined) => void;
 }) {
@@ -86,6 +103,7 @@ export function AiQuickPick({
   /** Read each account's whole history, not just 30 days. Slower, so off unless asked for. */
   const [whole, setWhole] = useState(false);
   const [, setFood] = useState<Partial<Record<FoodService, number>>>({});
+  const [, setFoodPast] = useState<Partial<Record<FoodService, CardPast | null>>>({});
   const [aiSummaries, setAiSummaries] = useState<Partial<Record<QuickService, UsageSummary>>>({});
   const summariesRef = useRef<Partial<Record<QuickService, UsageSummary>>>({});
   // Read at the moment saved counts arrive, after the page has restored the person's last pick.
@@ -130,9 +148,14 @@ export function AiQuickPick({
       }
       setRows((r) => ({
         ...r,
-        [service]: { state: "done", raw: usage, text: `${plural(d.deliveries, "delivery", "deliveries")}${d.pickups ? `, ${plural(d.pickups, "pickup")}` : ""} in ${d.days} days` },
+        [service]: {
+          state: "done",
+          raw: usage,
+          text: `${plural(d.deliveries, "delivery", "deliveries")}${d.pickups ? `, ${plural(d.pickups, "pickup")}` : ""}${spentText(usage)} in ${d.days} days`,
+        },
       }));
       reportFood(service, (d.deliveries / d.days) * 7);
+      reportFoodPast(service, deliveryPast(usage));
       return;
     }
     if (service === "youtube") {
@@ -177,8 +200,9 @@ export function AiQuickPick({
         setRows((r) => ({ ...r, uber: { state: "error", error: "unavailable", raw: usage } }));
         return;
       }
-      setRows((r) => ({ ...r, uber: { state: "done", raw: usage, text: `${plural(rides, "ride")}, ${Math.round(m.total)} miles in ${m.days} days` } }));
+      setRows((r) => ({ ...r, uber: { state: "done", raw: usage, text: `${plural(rides, "ride")}, ${Math.round(m.total)} miles${spentText(usage)} in ${m.days} days` } }));
       onRides?.(Math.round((m.total / m.days) * 7));
+      onRidesPast?.(ridePast(usage) ?? undefined);
       return;
     }
     if (service === "amazon") {
@@ -267,14 +291,29 @@ export function AiQuickPick({
     });
   }
 
+  /** Deliveries to date from DoorDash and Uber Eats add up as the delivery card's past use. */
+  function reportFoodPast(service: FoodService, past: CardPast | null) {
+    setFoodPast((prev) => {
+      const next = { ...prev, [service]: past };
+      onDeliveryPast?.(combinePast(Object.values(next)));
+      return next;
+    });
+  }
+
   /** The extension brings each service's tab to the front to log in, counts once you have, and comes back here. */
   const logIn = ([first, ...rest]: ExtensionService[]) => first && run([first], true, rest.length ? () => logIn(rest) : undefined);
 
   /** Someone who doesn't use a service: nothing to count, and for food delivery that's zero orders. */
   function skip(x: ExtensionService) {
     setRows((r) => ({ ...r, [x]: { state: "skipped" } }));
-    if (x === "doordash" || x === "ubereats") reportFood(x, 0);
-    if (x === "uber") onRides?.(0);
+    if (x === "doordash" || x === "ubereats") {
+      reportFood(x, 0);
+      reportFoodPast(x, null);
+    }
+    if (x === "uber") {
+      onRides?.(0);
+      onRidesPast?.(undefined);
+    }
   }
 
   const signedOut = EXTENSION_SERVICES.filter((x) => rows[x]?.state === "error" && rows[x]?.error === "signed-out");
@@ -631,6 +670,12 @@ function resultText(u: SignInUsage): string {
     (u.agentTokens ? ` · ${millions(u.agentTokens.lifetime)} ${agent[u.agentTokens.tool]} tokens to date (on Coding with AI)` : "")
   );
 }
+
+/** ", $142" when the extension sent what the orders or rides cost in dollars (0.20.0 on). */
+const spentText = (usage: unknown) => {
+  const usd = usdSpend(usage);
+  return usd === null ? "" : `, $${Math.round(usd).toLocaleString("en-US")}`;
+};
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString("en-US")} ${n === 1 ? one : many}`;
 const millions = (n: number) => (n >= 1e6 ? `${(n / 1e6).toLocaleString("en-US", { maximumFractionDigits: 1 })} million` : n.toLocaleString("en-US"));
