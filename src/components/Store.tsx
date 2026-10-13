@@ -1094,7 +1094,11 @@ export function Store() {
         </div>
           <div className="mt-10">
             <AiQuickPick
-              level={ctx.aiFromExport || entered.ai ? null : (ctx.aiEstimate?.level ?? null)}
+              level={
+                ctx.aiFromExport || entered.ai
+                  ? null
+                  : (ctx.aiEstimate?.level ?? (aiAmount === AI_LEVELS.medium.promptsPerDay ? "medium" : null))
+              }
               onPick={(level, from) => {
                 setCtx((c) => ({ ...c, aiEstimate: { level, from }, aiFromExport: false, aiWhPerPrompt: undefined, aiPastWh: undefined, aiCode: undefined, aiAgent: undefined, aiCodingPastWh: undefined }));
                 // Images and video follow the pick too, unless the person typed their own.
