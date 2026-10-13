@@ -37,7 +37,7 @@ export function DataControls() {
       <div className="border-2 border-rule p-4">
         <p className="font-display text-lg font-bold">Clear this browser</p>
         <p className="mt-1 text-sm text-muted">
-          Removes your plan, your answers, any gift in progress and your link to change a public listing from this device{ext}. The page
+          Removes your plan, your answers, any gift in progress and your link to change your name on Who&apos;s offsetting from this device{ext}. The page
           starts fresh.{" "}
           {signedIn
             ? "Your account keeps what you've offset, so signing in again brings it back."

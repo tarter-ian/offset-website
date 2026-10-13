@@ -49,7 +49,7 @@ export function ListEdit() {
   if (!token || (!listing && !note))
     return (
       <p className="mt-6">
-        This browser isn&apos;t on the <Link href="/list" className="underline">public list</Link>. You join it when you give, by ticking &ldquo;List me
+        This browser isn&apos;t on <Link href="/list" className="underline">Who&apos;s offsetting</Link>. You join it when you give, by ticking &ldquo;List me
         publicly&rdquo;. If you joined in another browser, open this page there.
       </p>
     );
@@ -113,7 +113,7 @@ export function ListEdit() {
           <button
             type="button"
             onClick={async () => {
-              if (!window.confirm("Leave the public list? Your name and what it showed are deleted.")) return;
+              if (!window.confirm("Leave Who's offsetting? Your name and what it showed are deleted.")) return;
               if (await send("DELETE", {})) {
                 forgetListing();
                 setLeft(true);

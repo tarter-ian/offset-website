@@ -197,7 +197,7 @@ export function Record() {
         {listed && (
           <p className="mb-2 text-sm">
             <Link href="/list#you" className="underline underline-offset-4 hover:text-muted">
-              See yourself on the list
+              See yourself on Who&apos;s offsetting
             </Link>
           </p>
         )}

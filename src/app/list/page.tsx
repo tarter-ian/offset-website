@@ -9,7 +9,7 @@ import { paymentsOn } from "@/lib/payments";
 import { PRODUCTS, productById, SECTIONS } from "@/lib/store";
 
 export const metadata: Metadata = {
-  title: "The public list | My Offset",
+  title: "Who’s offsetting | My Offset",
   description: "People who chose to show what they've offset: a name they picked and their badges. No amounts.",
 };
 export const dynamic = "force-dynamic";
@@ -75,7 +75,7 @@ export default async function ListPage({ searchParams }: { searchParams: Promise
     ) : null;
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
-      <h1 className="text-4xl font-bold tracking-tight">The public list</h1>
+      <h1 className="text-4xl font-bold tracking-tight">Who’s offsetting</h1>
       <p className="mt-3 text-lg text-muted">
         People who chose to show what they&apos;ve offset, under a name or initials they picked. Each one is here only after Every.org confirmed every gift
         they made. No amounts, and anyone can leave anytime.

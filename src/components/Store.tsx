@@ -15,8 +15,7 @@ import { joinList, ListInvite, ListOptIn } from "./ListOptIn";
 import { AiExportUpload } from "./AiExportUpload";
 import { AiQuickPick } from "./AiQuickPick";
 import { OffsetTimeline } from "./OffsetTimeline";
-import { Seal } from "./Badge";
-import { badgeKey, fullBadges, termPhrase, zeroUse } from "@/lib/badges";
+import { fullBadges, zeroUse } from "@/lib/badges";
 import { AI_LEVELS, levelOf } from "@/lib/ai/levels";
 import { NumberInput, Select } from "./fields";
 import { STATE_OPTIONS, STATES, type StateCode } from "@/lib/data/states";
@@ -52,7 +51,7 @@ import { digitalFromExport } from "@/lib/ai/exportParser";
 import { aiMonthTotals, shareLines, shareQuery, type ShareTotals } from "@/lib/share";
 import { SOURCE_NAMES, type ActivitySource } from "@/lib/activity";
 import { monthName } from "@/lib/history";
-import { ONLINE_FROM_AGE } from "@/lib/factors";
+import { INTERNET_START_YEAR, ONLINE_FROM_AGE } from "@/lib/factors";
 import {
   LIFETIME_GROWTH_BUFFER,
   BILLING,
@@ -677,6 +676,17 @@ export function Store() {
     return `today's rate since you were ${ONLINE_FROM_AGE}, or 1995`;
   };
 
+  /** The year the past-use figure starts, as `pastNote` tells it; undefined when it's the person's real history. */
+  const pastSince = (p: Product): number | undefined => {
+    if (p.id === "ai" && ctx.aiPastWh !== undefined) return undefined;
+    if (p.section === "ai") return ctx.aiStartYear && ctx.aiStartYear > 2022 ? ctx.aiStartYear : 2022;
+    const measured = ctx.measuredPast?.[p.id as "delivery" | "rideshare"];
+    const since = Number(measured?.since.slice(0, 4));
+    if (measured?.whole && since >= everydaySince(ctx)) return since;
+    if (!p.oneTime) return everydaySince(ctx);
+    return Math.max(ctx.birthYear + ONLINE_FROM_AGE, INTERNET_START_YEAR);
+  };
+
   /** Past use is a checkbox; going forward is ongoing or lifetime, one or the other. */
   const coverControls = (p: Product, withPast = false) => {
     if (!p.oneTime && !withPast) return null;
@@ -1182,6 +1192,14 @@ export function Store() {
     const c = coverImpacts(l.p, l.amount, life ? { past: true, ahead: "lifetime" } : { past: false, ahead: "monthly" }, ctx);
     return life ? c.once : c.monthly;
   };
+  const heroCovered = Object.fromEntries(Object.entries(covered).filter(([, c]) => paidCover(c)));
+  // The timeline's left end: the year the earliest paid past use starts (Ian, 2026-10-13).
+  const heroSince = Object.entries(heroCovered)
+    .filter(([, c]) => c.past)
+    .map(([id]) => PRODUCTS.find((p) => p.id === id))
+    .flatMap((p) => (p ? [pastSince(p)] : []))
+    .filter((y): y is number => y !== undefined)
+    .sort((a, b) => a - b)[0];
   const aiImpacts = heroPaid
     ? sumImpacts(paidLines.map(paidImpacts))
     : sumImpacts(dueLines.flatMap((l) => Object.values(coverImpacts(l.p, l.amount, l.cover, ctx))));
@@ -1216,21 +1234,6 @@ export function Store() {
             <div aria-hidden="true" className="hero-band" />
             <div className="border-t-[6px] border-rule bg-background px-5 pt-5 pb-3 shadow-[0_10px_30px_rgba(0,0,0,0.25)] sm:px-8">
               {/* What the money does, in the same amounts the box showed before paying (Ian, 2026-10-13). */}
-              <p className="mb-2 text-sm font-semibold text-life-ink">
-                ✓ {paidLife ? "Your AI use, offset for life" : `Your AI use, offset through ${shortDate(paidUntil ?? "")}`}
-                {paidGift && `, a gift from ${paidGift}`}
-              </p>
-              {full.length > 0 && (
-                <div className="mb-5 flex flex-wrap items-center gap-4 border-b border-border pb-5">
-                  {full.map((b) => (
-                    <Seal key={badgeKey(b)} kind="full" name={b.name} until={b.until} size={104} />
-                  ))}
-                  <p>
-                    <span className="block font-display text-2xl font-semibold">Fully Offset</span>
-                    <span className="text-muted">Everything there is to offset for you is offset {termPhrase(full.map((b) => b.until))}.</span>
-                  </p>
-                </div>
-              )}
               <dl className="mb-6 grid grid-cols-2 gap-x-6 gap-y-4 border-b border-border pb-5 lg:grid-cols-4">
                 {(
                   [
@@ -1249,7 +1252,7 @@ export function Store() {
                   </div>
                 ))}
               </dl>
-              <OffsetTimeline covered={Object.fromEntries(Object.entries(covered).filter(([, c]) => paidCover(c)))} />
+              <OffsetTimeline covered={heroCovered} full={full.map((b) => b.until)} since={heroSince} />
               <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
                 <button
                   type="button"
@@ -1497,7 +1500,8 @@ export function Store() {
       )}
 
       <nav aria-label="Other things you can do" className="mb-10 flex flex-col text-sm sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3">
-        {recordStatus(covered).kind !== "none" && !previewing && (
+        {/* Paid AI: the hero already has the record's button, so the line doesn't link it twice (Ian, 2026-10-13). */}
+        {recordStatus(covered).kind !== "none" && !previewing && !heroPaid && (
           <>
             <Link href="/record" className="inline-flex min-h-10 items-center font-semibold underline underline-offset-4 hover:text-muted">
               Your record
@@ -1505,7 +1509,8 @@ export function Store() {
             <span aria-hidden className="hidden text-muted sm:inline">·</span>
           </>
         )}
-        <span className="hidden text-muted sm:inline">Not sure yet?</span>
+        {/* Someone who has paid isn't "not sure yet" (Ian, 2026-10-13). */}
+        {!heroPaid && <span className="hidden text-muted sm:inline">Not sure yet?</span>}
         <Link href="/ledger" className="inline-flex min-h-10 items-center underline underline-offset-4 hover:text-muted">
           Where the money goes
         </Link>
@@ -2262,7 +2267,7 @@ function PaySection({
                 setPayState(c);
                 if (listName && !saved)
                   joinList(listName, { source: "plan", planId: c.id, billing, autopay, pastYears: listing.pastYears, lines: listing.lines, ctx: listing.ctx, rows }).then(
-                    (err) => setListNote(err ?? `You'll show on the public list as ${listName} once Every.org confirms every gift.`),
+                    (err) => setListNote(err ?? `You'll show on Who's offsetting as ${listName} once Every.org confirms every gift.`),
                   );
               }}
             />
@@ -2379,7 +2384,7 @@ function FundPaySection({
                 // The list checks the same one gift to the fund, so the listing shows once it's confirmed.
                 if (listName)
                   joinList(listName, { source: "plan", planId: c.id, billing, autopay: false, ...listing, rows: fundOwed(gift) }).then((err) =>
-                    setListNote(err ?? `You'll show on the public list as ${listName} once your gift is confirmed.`),
+                    setListNote(err ?? `You'll show on Who's offsetting as ${listName} once your gift is confirmed.`),
                   );
               }}
               className="inline-flex min-h-11 cursor-pointer items-center rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-strong"

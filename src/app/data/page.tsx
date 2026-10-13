@@ -46,7 +46,7 @@ const KEPT: { where: string; what: string; computer?: boolean }[] = [
   },
   {
     where: "Passes through, not kept",
-    what: "If you paste an API key, it goes through our server once, to ask OpenAI or Anthropic for your usage totals, which come straight back to this page. We don't save or log the key or the totals. If you join the public list, your browser sends the amounts on your plan with your birth year and state, so our server can work out the gifts and check that Every.org confirmed them. It keeps only the name you pick, the items and dates, and those gifts, never the amounts you entered. It also gets the names of the items you use none of, which count as offset on the list, but no amounts or counts.",
+    what: "If you paste an API key, it goes through our server once, to ask OpenAI or Anthropic for your usage totals, which come straight back to this page. We don't save or log the key or the totals. If you join Who's offsetting, your browser sends the amounts on your plan with your birth year and state, so our server can work out the gifts and check that Every.org confirmed them. It keeps only the name you pick, the items and dates, and those gifts, never the amounts you entered. It also gets the names of the items you use none of, which count as offset on the list, but no amounts or counts.",
   },
 ];
 

@@ -35,10 +35,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               <Link href="/promises" className="text-muted hover:text-foreground">
                 Our promises
               </Link>
-              {/* Public list in the header (Ian, 2026-10-13); "List" on phones so it fits beside Sign in. */}
+              {/* Who's offsetting, the public list, in the header (Ian, 2026-10-13); "List" on phones so it fits beside Sign in. */}
               <Link href="/list" className="text-muted hover:text-foreground">
                 <span className="sm:hidden">List</span>
-                <span className="hidden sm:inline">Public list</span>
+                <span className="hidden sm:inline">Who&apos;s offsetting</span>
               </Link>
               <AccountNav />
             </div>

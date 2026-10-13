@@ -93,7 +93,7 @@ export function ListOptIn({ label, onChange }: { label: string; onChange: (name:
         <span>
           <span className="font-medium">{label}</span>
           <span className="block text-muted">
-            Off unless you tick it. The <Link href="/list" className="underline">public list</Link> shows the name you pick and the badges for what you&apos;ve offset,
+            Off unless you tick it. <Link href="/list" className="underline">Who&apos;s offsetting</Link> shows the name you pick and the badges for what you&apos;ve offset,
             never amounts. Items you use none of count as offset, so it gets their names, not your numbers. You can change your name or leave anytime.
           </span>
         </span>
@@ -105,7 +105,7 @@ export function ListOptIn({ label, onChange }: { label: string; onChange: (name:
           maxLength={LIST_NAME_MAX}
           onChange={(e) => setName(e.target.value)}
           placeholder="A name or initials"
-          aria-label="Name on the public list"
+          aria-label="Your name on Who's offsetting"
           className="ml-6 mt-1 min-h-10 w-64 max-w-[calc(100%-1.5rem)] rounded-md border-2 border-rule bg-background px-3"
         />
       )}
@@ -131,7 +131,7 @@ export function ListInvite({ join, what }: { join?: (name: string) => Promise<st
     setBusy(true);
     const err = await join(n);
     setBusy(false);
-    setNote(err ?? `You'll show on the public list as ${n} once Every.org confirms every gift.`);
+    setNote(err ?? `You'll show on Who's offsetting as ${n} once Every.org confirms every gift.`);
   };
   const edit = (
     <Link href="/list/edit" className="underline">
@@ -147,7 +147,7 @@ export function ListInvite({ join, what }: { join?: (name: string) => Promise<st
   if (listing)
     return (
       <p className="mt-3 text-sm text-muted">
-        You&apos;re on the <Link href="/list" className="underline">public list</Link> as {listing.name}.{" "}
+        You&apos;re on <Link href="/list" className="underline">Who&apos;s offsetting</Link> as {listing.name}.{" "}
         {join && what && (
           <>
             <button type="button" disabled={busy} onClick={() => send(listing.name)} className="cursor-pointer underline hover:text-foreground">
@@ -165,14 +165,14 @@ export function ListInvite({ join, what }: { join?: (name: string) => Promise<st
   if (!join)
     return (
       <p className="mt-3 text-sm text-muted">
-        You can join the <Link href="/list" className="underline">public list</Link> when you give for your own plan. It shows a name you pick and badges, never
+        You can join <Link href="/list" className="underline">Who&apos;s offsetting</Link> when you give for your own plan. It shows a name you pick and badges, never
         amounts.
       </p>
     );
   if (!open)
     return (
       <p className="mt-3 text-sm text-muted">
-        Want to show on the <Link href="/list" className="underline">public list</Link>?{" "}
+        Want to show on <Link href="/list" className="underline">Who&apos;s offsetting</Link>?{" "}
         <button type="button" onClick={() => setOpen(true)} className="cursor-pointer font-medium text-foreground underline">
           Join it
         </button>{" "}
@@ -193,7 +193,7 @@ export function ListInvite({ join, what }: { join?: (name: string) => Promise<st
         maxLength={LIST_NAME_MAX}
         onChange={(e) => setName(e.target.value)}
         placeholder="A name or initials"
-        aria-label="Name on the public list"
+        aria-label="Your name on Who's offsetting"
         className="min-h-10 w-64 max-w-full rounded-md border-2 border-rule bg-background px-3"
       />
       <button
