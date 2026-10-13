@@ -1,5 +1,5 @@
-import { unzipSync, strFromU8 } from "fflate";
 import * as F from "../factors";
+import { listZip, readZipText } from "./zipEntry";
 
 // Reads the data export people can download from ChatGPT (Settings > Data
 // controls > Export data), Claude (Settings > Privacy > Export data) or Gemini
@@ -192,19 +192,21 @@ export function parseExport(data: unknown): ExportUsage | null {
   return null;
 }
 
-/** Accepts the export's .zip, its conversations.json, or Google Takeout's Gemini MyActivity.json. */
-export async function readExportFile(file: File): Promise<ExportUsage | null> {
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  let text: string | undefined;
+/** The file in an export's .zip that holds the chats. */
+const isChatsFile = (name: string) => name.endsWith("conversations.json") || (/gemini/i.test(name) && name.endsWith(".json"));
+
+/**
+ * Accepts the export's .zip, its conversations.json, or Google Takeout's Gemini MyActivity.json.
+ * From a .zip only the chats file is read, so an export of many GB still fits in a phone's memory.
+ */
+export async function readExportFile(file: Blob & { name: string }): Promise<ExportUsage | null> {
+  let text: string;
   if (file.name.toLowerCase().endsWith(".zip")) {
-    const entries = unzipSync(bytes, {
-      filter: (f) => f.name.endsWith("conversations.json") || (/gemini/i.test(f.name) && f.name.endsWith(".json")),
-    });
-    const entry = Object.values(entries)[0];
+    const entry = (await listZip(file)).find((e) => isChatsFile(e.name));
     if (!entry) return null;
-    text = strFromU8(entry);
+    text = await readZipText(file, entry);
   } else {
-    text = strFromU8(bytes);
+    text = await file.text();
   }
   try {
     return parseExport(JSON.parse(text));
