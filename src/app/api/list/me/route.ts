@@ -22,7 +22,7 @@ export async function POST(req: Request) {
   try {
     const p = await personByToken(t.token);
     if (!p) return NextResponse.json({ error: "Not on the list." }, { status: 404, headers });
-    return NextResponse.json({ name: p.name, claims: p.claims, zeroUse: p.zeroUse }, { headers });
+    return NextResponse.json({ id: p.id, name: p.name, claims: p.claims, zeroUse: p.zeroUse }, { headers });
   } catch {
     return NextResponse.json({ error: "Couldn't look it up." }, { status: 503, headers });
   }

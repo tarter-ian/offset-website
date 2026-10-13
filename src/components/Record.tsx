@@ -15,7 +15,7 @@ import { itemName } from "@/lib/reminders";
 import { type SteadyPlan, steadyIds, steadyPlan } from "@/lib/steady";
 import { SteadyCheck } from "./SteadyCheck";
 import { productById } from "@/lib/store";
-import { syncZeroUse } from "./ListOptIn";
+import { savedListing, syncZeroUse } from "./ListOptIn";
 
 // The page a returning visitor lands on: whether anything needs doing, their AI
 // use month by month (read from the extension on this computer, never sent to
@@ -61,6 +61,8 @@ export function Record() {
   const [zero, setZero] = useState<string[]>([]);
   /** Signed in with reminders on: only then does a link come by email. */
   const [reminded, setReminded] = useState(false);
+  /** This browser joined the public list: only then is there a row to jump to. */
+  const [listed, setListed] = useState(false);
 
   useEffect(() => {
     setCovered(loadCovered());
@@ -70,6 +72,7 @@ export function Record() {
     setNeeded(use.needed);
     setZero(use.zero);
     if (use.saved) void syncZeroUse(use.zero);
+    setListed(!!savedListing());
     setComputer(canInstallExtension());
     fetchAccount().then((a) => setReminded(a.signedIn && a.reminders !== false));
     // Signed in: bring in what the account covers (from another device), then send up anything this browser adds.
@@ -191,6 +194,13 @@ export function Record() {
           </Link>
         </div>
         <Seals covered={covered} now={now} zero={zero} />
+        {listed && (
+          <p className="mb-2 text-sm">
+            <Link href="/list#you" className="underline underline-offset-4 hover:text-muted">
+              See yourself on the list
+            </Link>
+          </p>
+        )}
         <CoveredList covered={covered} now={now} />
       </section>
 

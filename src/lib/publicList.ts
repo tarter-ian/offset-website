@@ -165,3 +165,12 @@ export function withZeroUse(paid: ListItem[], zero: string[]): ListItem[] {
   const added = PRODUCTS.filter((p) => zero.includes(p.id) && !has.has(p.id)).map((p) => ({ productId: p.id, until: null, zero: true as const }));
   return [...paid, ...added];
 }
+
+/** The list shows its "Find a name" box from this many people up (Ian, 2026-10-13). */
+export const SEARCH_FROM = 20;
+
+/** Folds case and accents, so "zoe" finds "Zoë". */
+const fold = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ").trim();
+
+/** Whether a listed name fits what was typed in "Find a name": anywhere in it, case and accents aside. Nothing typed fits everyone. */
+export const nameMatches = (name: string, query: string) => fold(name).includes(fold(query));

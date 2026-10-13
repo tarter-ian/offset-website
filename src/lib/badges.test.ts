@@ -122,26 +122,27 @@ describe("badges", () => {
     expect(zeroUse({ meat: "vegan", car: 0 }, DEFAULT_CONTEXT)).toEqual(expect.arrayContaining(["meat", "car"]));
     expect(zeroUse({ car: 50 }, DEFAULT_CONTEXT)).not.toContain("car");
   });
-  it("filters by color, with green under past paid and future paid too", () => {
+  it("filters by color, with green under past paid too", () => {
     const green = [{ productId: "ai", until: null, past: true }];
     const blue = [{ productId: "video", until: "2027-01-01" }];
     const rest = [{ productId: "video", until: null }];
     const yellow = [{ productId: "car", until: PAST, past: true }];
     const pair = [{ productId: "car", until: "2027-01-01", past: true }];
     const people = { green, blue, rest, yellow, pair };
-    const who = (status: "life" | "past" | "future") =>
+    const who = (status: "life" | "past") =>
       Object.entries(people)
         .filter(([, items]) => matches(items, { kind: "status", status }))
         .map(([k]) => k);
     expect(who("life")).toEqual(["green"]);
     expect(who("past")).toEqual(["green", "yellow", "pair"]);
-    expect(who("future")).toEqual(["green", "blue", "rest", "pair"]);
     // Zero use is green.
     expect(matches([...blue, { productId: "ai-video", until: null, zero: true }], { kind: "status", status: "past" })).toBe(true);
-    expect(parseFilter({ status: "future" })).toEqual({ kind: "status", status: "future" });
+    expect(parseFilter({ status: "past" })).toEqual({ kind: "status", status: "past" });
+    // "Future paid" was dropped: an old address with it falls back to everyone.
+    expect(parseFilter({ status: "future" })).toEqual({ kind: "everyone" });
     expect(parseFilter({ status: "nope" })).toEqual({ kind: "everyone" });
     const c = filterCounts(Object.values(people));
-    expect([c["status:life"], c["status:past"], c["status:future"]]).toEqual([1, 3, 4]);
+    expect([c["status:life"], c["status:past"], c["status:future"]]).toEqual([1, 3, undefined]);
   });
   it("earns every lower badge inside a higher one, in the higher one's color", () => {
     const all = badgesFor(life(PRODUCTS.map((p) => p.id)));
@@ -165,9 +166,8 @@ describe("badges", () => {
     expect(matches(full, { kind: "aisle", key: "travel" })).toBe(true);
     expect(matches(online, { kind: "item", key: "video" })).toBe(true);
     expect(matches(online, { kind: "item", key: "car" })).toBe(false);
-    // And with the colors: green Fully Offset shows under past paid and future paid.
+    // And with the colors: green Fully Offset shows under past paid.
     expect(matches(full, { kind: "status", status: "past" })).toBe(true);
-    expect(matches(full, { kind: "status", status: "future" })).toBe(true);
     expect(filterCounts([full, online])["item:video"]).toBe(2);
   });
   it("words the term", () => {

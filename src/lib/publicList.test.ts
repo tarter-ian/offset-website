@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { badges, cleanName, PAST, parsePlanClaim, parseZeroUse, planRows, sameRows, planItems, withZeroUse } from "./publicList";
+import { badges, cleanName, nameMatches, PAST, parsePlanClaim, parseZeroUse, planRows, sameRows, planItems, withZeroUse } from "./publicList";
 import { DEFAULT_CONTEXT as C, PRODUCTS } from "./store";
 
 const ID = "abcdef0123456789abcd";
@@ -75,4 +75,15 @@ describe("public list", () => {
     expect(withZeroUse(paid, ["ai-video", "ai-coding"])).toEqual([...paid, { productId: "ai-coding", until: null, zero: true }]);
   });
   it("cleans names", () => expect(cleanName("  Ian   T ".padEnd(80, "x"))).toHaveLength(40));
+});
+
+describe("Find a name", () => {
+  it("matches anywhere in the name, ignoring case, accents and extra spaces", () => {
+    expect(nameMatches("Rosa M.", "rosa")).toBe(true);
+    expect(nameMatches("Rosa M.", "SA M")).toBe(true);
+    expect(nameMatches("Zoë K", "zoe")).toBe(true);
+    expect(nameMatches("Rosa M.", "  rosa   m ")).toBe(true);
+    expect(nameMatches("Rosa M.", "rosie")).toBe(false);
+    expect(nameMatches("Rosa M.", "")).toBe(true);
+  });
 });
