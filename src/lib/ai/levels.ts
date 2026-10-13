@@ -17,12 +17,13 @@ export type AiLevel = "light" | "medium" | "heavy";
  * May 2026, up from 5 billion in mid-October 2025: about 1.5 a week for each of
  * Gemini's 900 million monthly users, an average pulled up by heavy users, so
  * most people make none. Medium sits just above that average; heavy is our
- * estimate. AI video is still rare, so only heavy includes it.
+ * estimate. AI video is still rare and one clip outweighs weeks of chat, so no
+ * level includes it; people who make videos add them on the video card (Ian, 2026-10-13).
  */
 export const AI_LEVELS: Record<AiLevel, { label: string; promptsPerDay: number; imagesPerWeek: number; videosPerWeek: number; who: string }> = {
   light: { label: "Light", promptsPerDay: 3, imagesPerWeek: 0, videosPerWeek: 0, who: "a few questions a day, like most people" },
   medium: { label: "Medium", promptsPerDay: 10, imagesPerWeek: 2, videosPerWeek: 0, who: "every day, for work or school" },
-  heavy: { label: "Heavy", promptsPerDay: 40, imagesPerWeek: 10, videosPerWeek: 1, who: "hours a day, long chats" },
+  heavy: { label: "Heavy", promptsPerDay: 40, imagesPerWeek: 10, videosPerWeek: 0, who: "hours a day, long chats" },
 };
 
 /** Maps a subscription name like "ChatGPT Plus", "pro", "max_5x" or "free" to a usage level. */
