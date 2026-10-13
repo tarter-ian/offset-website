@@ -51,14 +51,14 @@ export default function Page() {
           <p>
             The {energy(F.WH_PER_AI_PROMPT)} is <Cite s={SOURCES.epoch} />
             &apos;s estimate for a typical ChatGPT reply of a few hundred words. Long chats cost more, because each turn re-reads the whole
-            conversation, and reasoning models write hidden thinking before they answer. When you link your account we measure your own
+            conversation, and reasoning models write hidden thinking before they answer. When you link your account I measure your own
             chats instead.
           </p>
           <p>
             About {Math.round(F.AI_TRAINING_SHARE * 100)}% of machine learning energy goes to training models rather than answering prompts (
-            <Cite s={SOURCES.patterson} />, from Google), so each prompt carries its share. AI is new demand on the grid, so we count its
+            <Cite s={SOURCES.patterson} />, from Google), so each prompt carries its share. AI is new demand on the grid, so I count its
             carbon at the power plants that ramp up to meet it, mostly gas, at about {F.AI_NEW_POWER_LB_PER_MWH.toLocaleString("en-US")} lb
-            of CO₂ a MWh (<Cite s={SOURCES.avert} />). We add {Math.round(F.GRID_UPSTREAM_SHARE * 100)}% for getting the fuel to the plant,{" "}
+            of CO₂ a MWh (<Cite s={SOURCES.avert} />). I add {Math.round(F.GRID_UPSTREAM_SHARE * 100)}% for getting the fuel to the plant,{" "}
             {Math.round(F.GRID_LINE_LOSS * 100)}% for power lost on the wires, and a quarter for making the chips and building the data
             centers.
           </p>
@@ -70,8 +70,8 @@ export default function Page() {
       cover={
         <>
           <p>
-            A month at {TYPICAL_PROMPTS_PER_DAY} prompts a day comes to {usd(month.donation)} in donations, including our margin for an
-            estimate. That&apos;s below our {usd(month.monthly.donation)} smallest payment, so most people pay once instead. For someone
+            A month at {TYPICAL_PROMPTS_PER_DAY} prompts a day comes to {usd(month.donation)} in donations, including my margin for an
+            estimate. That&apos;s below the {usd(month.monthly.donation)} smallest payment, so most people pay once instead. For someone
             born in {DEFAULT_CONTEXT.birthYear}, {usd(month.lifetime.total)} with fees covers everything since late 2022 and every year to
             age {F.LIFETIME_TO_AGE}, with room for use to grow.
           </p>

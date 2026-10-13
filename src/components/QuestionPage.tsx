@@ -71,7 +71,7 @@ export function QuestionPage({
 
       <div className="mt-8 grid gap-6 sm:grid-cols-2">{receipts}</div>
 
-      <h2 className="mt-10 text-xl font-semibold">How we got this</h2>
+      <h2 className="mt-10 text-xl font-semibold">How I got this</h2>
       <div className="mt-2 space-y-3 text-muted">{how}</div>
 
       <h2 className="mt-10 text-xl font-semibold">What it costs to cover</h2>

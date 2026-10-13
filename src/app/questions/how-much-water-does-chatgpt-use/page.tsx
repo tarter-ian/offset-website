@@ -48,7 +48,7 @@ export default function Page() {
       how={
         <>
           <p>
-            We start from the energy: about {F.WH_PER_AI_PROMPT} Wh to answer a prompt (<Cite s={SOURCES.epoch} />), plus its share of
+            I start from the energy: about {F.WH_PER_AI_PROMPT} Wh to answer a prompt (<Cite s={SOURCES.epoch} />), plus its share of
             training the model, which is about {Math.round(F.AI_TRAINING_SHARE * 100)}% of machine learning energy (
             <Cite s={SOURCES.patterson} />
             ). <Cite s={SOURCES.google} /> imply about {F.DATACENTER_L_PER_KWH} liters of cooling water per kWh of server power. Power
@@ -57,8 +57,8 @@ export default function Page() {
           </p>
           <p>
             These are liters consumed, meaning evaporated or otherwise not returned, not liters withdrawn and given back. Where the water comes
-            from matters more than the amount, and we assume about {Math.round(F.STRESSED_WATER_SHARE.datacenter * 100)}% of data center
-            water and {Math.round(F.STRESSED_WATER_SHARE.grid * 100)}% of power plant water comes from water-stressed areas. When we price
+            from matters more than the amount, and I assume about {Math.round(F.STRESSED_WATER_SHARE.datacenter * 100)}% of data center
+            water and {Math.round(F.STRESSED_WATER_SHARE.grid * 100)}% of power plant water comes from water-stressed areas. When I price
             it, a liter from a stressed basin counts in full and a liter from a well-watered one counts{" "}
             {Math.round(F.UNSTRESSED_WATER_WEIGHT * 100)}%, which brings a prompt to {volume(one.impacts.water)} of scarce water.
           </p>
@@ -75,7 +75,7 @@ export default function Page() {
             air pollution, comes to {usd(month.donation)} in donations.
           </p>
           <p>
-            That&apos;s below our {usd(month.monthly.donation)} smallest payment, so most people pay once: {usd(month.lifetime.total)} with
+            That&apos;s below the {usd(month.monthly.donation)} smallest payment, so most people pay once: {usd(month.lifetime.total)} with
             fees covers past use and every year ahead.
           </p>
         </>

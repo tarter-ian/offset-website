@@ -100,7 +100,7 @@ export function EstimateWizard() {
 
         {step === 1 && (
           <>
-            <Field label="Your electricity use" hint="A recent bill gives a better number. Otherwise we use your state's average.">
+            <Field label="Your electricity use" hint="A recent bill gives a better number. Otherwise I use your state's average.">
               <Choice
                 value={answers.electricity.mode}
                 onChange={(mode) => set("electricity", { ...answers.electricity, mode })}

@@ -183,7 +183,7 @@ const coversText = (i: Impacts, long = false) =>
 
 /**
  * One plain outcome for a tile, led by the harm (other than air) that takes most of the money, e.g.
- * "Keeps 151 kg of CO₂ out of the air, plus clean air, water and nature". The full
+ * "Keeps 151 kg of CO₂ out of the air and more". The full
  * figures are in the tile's (i) (Ian, 2026-10-12).
  */
 const OUTCOME: Record<ImpactKey, (i: Impacts) => string> = {
@@ -193,7 +193,6 @@ const OUTCOME: Record<ImpactKey, (i: Impacts) => string> = {
   land: (i) => `Protects ${IMPACT_INFO.land.format(i.land, i).replace(" land", "")} of forest`,
   ewaste: (i) => `Recycles ${IMPACT_INFO.ewaste.format(i.ewaste, i).replace(" e-waste", "")} of old electronics`,
 };
-const OUTCOME_SHORT: Record<ImpactKey, string> = { carbon: "climate", air: "clean air", water: "water", land: "nature", ewaste: "e-waste" };
 const outcomeText = (i: Impacts) => {
   const cost = impactCost(i);
   const shown = IMPACT_KEYS.filter((k) => i[k] >= MIN_SHOWN[k]);
@@ -202,9 +201,8 @@ const outcomeText = (i: Impacts) => {
   const leads = shown.filter((k) => k !== "air");
   if (!leads.length) return `${OUTCOME.air(i)}`;
   const lead = leads.reduce((a, b) => (cost[b] > cost[a] ? b : a));
-  const rest = shown.filter((k) => k !== lead).map((k) => OUTCOME_SHORT[k]);
-  const tail = rest.length > 1 ? `${rest.slice(0, -1).join(", ")} and ${rest.at(-1)}` : rest[0];
-  return OUTCOME[lead](i) + (tail ? `, plus ${tail}` : "");
+  // Only the main outcome on the tile, with "and more" when there are others (Ian, 2026-10-13); the (i) lists them all.
+  return OUTCOME[lead](i) + (shown.some((k) => k !== lead) ? " and more" : "");
 };
 
 const amountText = (p: Product, amount: number | string) =>
@@ -649,7 +647,7 @@ export function Store() {
         </span>
         {waiting && (
           <span className="block text-muted">
-            Linking your {providerName(waiting).toLowerCase()} opens at launch. Until then we use the typical amount.
+            Linking your {providerName(waiting).toLowerCase()} opens at launch. Until then I use the typical amount.
           </span>
         )}
       </div>
@@ -842,7 +840,7 @@ export function Store() {
             ))}
         </details>
         <details className="border-t border-border py-2">
-          <summary className={summaryCls}>How we estimate it</summary>
+          <summary className={summaryCls}>How it&apos;s estimated</summary>
           <ul className="mt-2 list-disc space-y-1 pl-4 text-muted">
             {howEstimated(p).map((line) => (
               <li key={line}>{line}</li>
@@ -1592,14 +1590,6 @@ export function Store() {
               {items.map((p) => tile(p))}
             </ul>
             {openItem && detailPanel(openItem)}
-            {(s.key === "online" || s.key === "devices") && (
-              <p className="mt-2 text-xs text-muted">
-                {s.key === "online"
-                  ? "Video and music can be measured from your YouTube, Netflix or Spotify history; the rest start from typical use."
-                  : "No account can measure this yet, so it starts from typical use."}
-                {s.key === "devices" && " Includes paying to reuse or recycle each one when you replace it."}
-              </p>
-            )}
           </section>
         );
       })}
@@ -1640,11 +1630,6 @@ export function Store() {
               Add everything
             </button>
           )}
-          <p className="mt-3 text-sm">
-            <Link href="/gift" className="cursor-pointer font-semibold underline underline-offset-4 hover:text-muted">
-              Give an offset to someone else
-            </Link>
-          </p>
         </section>
       )}
       </>
@@ -1849,7 +1834,7 @@ export function Store() {
                     <p className="mt-2 text-xs text-muted">
                       Each charity is paid separately through Every.org, which charges card payments 2.2% + 30¢ and bank payments
                       nothing. Each gift includes its card fee so the whole donation arrives; pay by bank and the charity keeps the fee
-                      too. Every.org may ask for a tip for itself; you can set it to $0 on its page. We never see it. The smallest gift is {usd(MIN_DONATION_USD)}; a
+                      too. Every.org may ask for a tip for itself; you can set it to $0 on its page. I never see it. The smallest gift is {usd(MIN_DONATION_USD)}; a
                       charity&apos;s share under that is rounded up, so each part&apos;s money stays with its own charity. Every.org emails you a
                       receipt for each gift.
                     </p>
@@ -1908,7 +1893,7 @@ export function Store() {
                     <p className="mt-2 text-xs text-muted">
                       You give once, to My Offset&apos;s fund at Endaoment, a nonprofit that runs charitable funds. Endaoment grants each
                       charity its part above, keeping {ENDAOMENT_IN_LABEL} as the gift comes in and {ENDAOMENT_GRANT_LABEL} as it goes
-                      out. Both fees and the card fee are added on top, so the whole donation arrives. The card fee is our estimate (
+                      out. Both fees and the card fee are added on top, so the whole donation arrives. The card fee is my estimate (
                       {ENDAOMENT_CARD_LABEL}) until Endaoment confirms it. There&apos;s no smallest gift, so each part goes to its own
                       charity to the cent. Endaoment emails you the tax receipt.
                     </p>
@@ -1968,8 +1953,8 @@ export function Store() {
                   )}
                   {payChoices(" (one 30¢ charge a year)")}
                   <p className="mt-2 text-xs text-muted">
-                    The smallest donation is {usd(MIN_DONATION_USD)}. We pool small donations and send each charity one payment a
-                    month, so none is lost to extra card fees. You approve each payment yourself, unless you choose autopay, and even then we email you before every charge.
+                    The smallest donation is {usd(MIN_DONATION_USD)}. Small donations are pooled and each charity gets one payment a
+                    month, so none is lost to extra card fees. You approve each payment yourself, unless you choose autopay, and even then I email you before every charge.
                   </p>
                   </>
                 )}
@@ -2079,9 +2064,9 @@ function GiveDirectly({ totals, ctx, billing }: { totals: ReturnType<typeof plan
         {forMode({
           every: "You can give these amounts on each charity's own site instead.",
           endaoment: "You can skip Endaoment's fees by giving these amounts on each charity's own site.",
-          sponsor: "You can skip our fees by giving these amounts on each charity's own site.",
+          sponsor: "You can skip these fees by giving these amounts on each charity's own site.",
         })}{" "}
-        We can&apos;t see those gifts, so they won&apos;t
+        I can&apos;t see those gifts, so they won&apos;t
         count toward your Fully Offset badge or mark items as covered here, and some charities have a minimum gift.
       </p>
       <dl className="figures mt-2 space-y-1 border-t border-border pt-2">
@@ -2216,7 +2201,7 @@ function PaySection({
                 <span className="font-medium">Repeat these gifts automatically {BILLING[billing].approve}</span>
                 <span className="block text-muted">
                   Off unless you tick it. With it on, Every.org charges your card {BILLING[billing].approve} until you cancel in your
-                  Every.org account. We can&apos;t email you first or hold a charge back, so leave it off to approve each one yourself.
+                  Every.org account. I can&apos;t email you first or hold a charge back, so leave it off to approve each one yourself.
                 </span>
               </span>
             </label>
@@ -2306,7 +2291,7 @@ function FundPaySection({
               <span aria-hidden>✓ </span>Given <span className="figures">{usd(given.fund!.total)}</span>, pending confirmation
             </span>
             <span className="block text-muted">
-              Endaoment emails your tax receipt. Items are marked offset here once we can confirm gifts with Endaoment.
+              Endaoment emails your tax receipt. Items are marked offset here once I can confirm gifts with Endaoment.
             </span>
           </p>
           {listNote && (
@@ -2377,7 +2362,7 @@ function FundPaySection({
             </p>
             <ListOptIn label="List me publicly" onChange={setListName} />
             <p className="mt-2 text-muted">
-              Before you give: <Link href="/ledger">where the money goes</Link>, <Link href="/promises">what we promise</Link> and{" "}
+              Before you give: <Link href="/ledger">where the money goes</Link>, <Link href="/promises">what I promise</Link> and{" "}
               <Link href="/method">how each price is worked out</Link>. None of it passes through My Offset.
             </p>
           </div>

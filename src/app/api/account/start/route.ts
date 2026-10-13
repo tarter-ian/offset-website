@@ -12,9 +12,9 @@ export async function POST(req: Request) {
     const email = normalizeEmail(body?.email);
     if (!email) return json({ error: "That doesn't look like an email address." }, 400);
     const started = await startSignIn(email);
-    if (!started) return json({ error: "We just sent one. Check your inbox, or wait a minute to send another." }, 429);
+    if (!started) return json({ error: "I just sent one. Check your inbox, or wait a minute to send another." }, 429);
     const sent = await sendSignIn(email, new URL(req.url).origin, started.code, started.token);
-    if (!sent) return json({ error: "We couldn't send the email. Try again in a minute." }, 502);
+    if (!sent) return json({ error: "I couldn't send the email. Try again in a minute." }, 502);
     return json({ ok: true });
   });
 }

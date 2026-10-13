@@ -507,8 +507,8 @@ export function GiftView({ id }: { id: string }) {
   }, [id]);
 
   if (!state) return <p className="text-muted">Loading the gift…</p>;
-  if (state === "missing") return <p>We couldn&apos;t find this gift. Check the link is complete.</p>;
-  if (state === "error") return <p>We couldn&apos;t load this gift just now. Try again in a minute.</p>;
+  if (state === "missing") return <p>I couldn&apos;t find this gift. Check the link is complete.</p>;
+  if (state === "error") return <p>I couldn&apos;t load this gift just now. Try again in a minute.</p>;
   const { gift } = state;
   const names = recipients(gift);
   const paid = state.paid || (mine ? allConfirmed(mine) : false);
@@ -578,7 +578,7 @@ export function GiftView({ id }: { id: string }) {
             >
               Save to this browser
             </button>
-            {accepted === false && <p className="mt-2 text-sm">This browser won&apos;t let us save it. Try another browser.</p>}
+            {accepted === false && <p className="mt-2 text-sm">This browser won&apos;t let the site save it. Try another browser.</p>}
             <p className="mt-2 text-sm text-muted">Saved only here. Nothing signs you up or is sent anywhere.</p>
           </div>
         )

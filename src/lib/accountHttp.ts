@@ -29,7 +29,7 @@ export async function guarded(req: Request, run: () => Promise<Response>): Promi
     return await run();
   } catch (e) {
     console.error("account:", e instanceof NoDatabaseError ? "no database" : e);
-    return json({ error: "Something went wrong on our side. Try again in a minute." }, 503);
+    return json({ error: "Something went wrong on my side. Try again in a minute." }, 503);
   }
 }
 

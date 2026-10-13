@@ -14,7 +14,7 @@ export async function POST(req: Request) {
     return NextResponse.json(await fetchApiUsage(provider, key));
   } catch (e) {
     const status = e instanceof UsageApiError ? e.status : 502;
-    const error = e instanceof UsageApiError ? e.message : "We couldn't reach the provider. Try again in a minute.";
+    const error = e instanceof UsageApiError ? e.message : "I couldn't reach the provider. Try again in a minute.";
     return NextResponse.json({ error }, { status });
   }
 }

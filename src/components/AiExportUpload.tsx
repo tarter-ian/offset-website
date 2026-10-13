@@ -39,7 +39,7 @@ export function AiExportUpload({ onResult, showApi = true }: { onResult: (s: Usa
     try {
       const counts = (await Promise.all([...files].map(readExportFile))).filter((c) => c !== null);
       if (!counts.length) {
-        setStatus({ kind: "error", text: "We couldn't find any conversations in that file." });
+        setStatus({ kind: "error", text: "I couldn't find any conversations in that file." });
         return;
       }
       const s = summarize(counts);
@@ -49,7 +49,7 @@ export function AiExportUpload({ onResult, showApi = true }: { onResult: (s: Usa
         text: describeExport(s),
       });
     } catch {
-      setStatus({ kind: "error", text: "We couldn't read that file. Try the .zip exactly as you downloaded it." });
+      setStatus({ kind: "error", text: "I couldn't read that file. Try the .zip exactly as you downloaded it." });
     }
   }
 
@@ -68,7 +68,7 @@ export function AiExportUpload({ onResult, showApi = true }: { onResult: (s: Usa
         </li>
       </ul>
       <p className="mt-1 text-sm text-muted">
-        Add the .zip you get by email. We measure how much you use AI right in your browser; the file never leaves your
+        Add the .zip you get by email. I measure how much you use AI right in your browser; the file never leaves your
         device.
       </p>
       <input

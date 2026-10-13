@@ -35,7 +35,7 @@ export const PROVIDERS: Provider[] = [
     id: "bank",
     name: "Bank or card",
     covers: ["flights", "clothing", "electronics", "household", "services"],
-    blurb: "Spending by category, read-only. We never see your login.",
+    blurb: "Spending by category, read-only. I never see your login.",
     via: { service: "Plaid", envKey: "PLAID_SECRET" },
   },
   {

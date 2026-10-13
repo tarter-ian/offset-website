@@ -25,7 +25,7 @@ export default function QuestionsPage() {
     <article className="mx-auto max-w-3xl px-4 py-12">
       <h1 className="text-4xl font-extrabold [font-stretch:85%]">Questions</h1>
       <p className="mt-4 text-lg text-muted">
-        Short answers, worked out from the same figures our calculator uses. Each one shows how we got there.
+        Short answers, worked out from the same figures the calculator uses. Each one shows how I got there.
       </p>
       <ul className="mt-8 divide-y divide-border border-y-2 border-rule">
         {QUESTIONS.map((q) => (

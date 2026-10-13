@@ -228,7 +228,7 @@ export function AiQuickPick({
     if (u.missedChats) {
       // A short count would under-price the offset, so it isn't used.
       const missed = u.missedChats > 0 ? `${u.missedChats.toLocaleString("en-US")} chats` : "some chats";
-      const text = `${EXT_NAMES[service]} only let us read part of your history so far (${missed} skipped), so we haven't used this count yet. Measure again later and it carries on from where it stopped.`;
+      const text = `${EXT_NAMES[service]} only let me read part of your history so far (${missed} skipped), so I haven't used this count yet. Measure again later and it carries on from where it stopped.`;
       setRows((r) => ({ ...r, [service]: { state: "incomplete", text, raw: usage } }));
       return;
     }
@@ -381,11 +381,11 @@ export function AiQuickPick({
               <p className="font-semibold">
                 {signedOut.length === 1
                   ? `Log in to ${EXT_NAMES[signedOut[0]]} to count it`
-                  : `${signedOut.length} to log in to before we can count them`}
+                  : `${signedOut.length} to log in to before I can count them`}
               </p>
               <p className="mt-1 text-muted">
                 The extension brings each one to the front. Log in there and it counts, then brings you back here. If you don&apos;t use
-                one, say so and we&apos;ll leave it out.
+                one, say so and I&apos;ll leave it out.
               </p>
               <ul className="mt-2 space-y-2">
                 {signedOut.map((x) => (
@@ -498,7 +498,7 @@ export function AiQuickPick({
                 summariesRef.current = {};
                 setAiSummaries({});
                 setRows({});
-                onPick("medium", "you removed your measured numbers, so we use medium");
+                onPick("medium", "you removed your measured numbers, so I use medium");
               }}
               className="mt-2 text-sm underline hover:text-muted"
             >
@@ -534,7 +534,7 @@ export function AiQuickPick({
             setOpen(null);
             onMeasured(s);
           }}
-          onRemove={() => onPick("medium", "you removed your measured numbers, so we use medium")}
+          onRemove={() => onPick("medium", "you removed your measured numbers, so I use medium")}
           onCount={(s) => setOpen(s)}
         />
       ) : (
@@ -555,7 +555,7 @@ export function AiQuickPick({
           {!open && (
             <p className="mt-2 text-sm text-muted">
               {installable
-                ? "Exact numbers with our free browser extension, or count your chats yourself in under a minute."
+                ? "Exact numbers with the free My Offset extension, or count your chats yourself in under a minute."
                 : "Count your chats yourself in under a minute, no login needed."}
             </p>
           )}
@@ -598,7 +598,7 @@ export function AiQuickPick({
             onClick={() => {
               const name = AI_NAMES[status.service ?? "chatgpt"];
               setStatus({ kind: "idle" });
-              onPick("medium", `you removed your ${name} numbers, so we use medium`);
+              onPick("medium", `you removed your ${name} numbers, so I use medium`);
             }}
             className="mt-1 underline hover:text-muted"
           >
@@ -620,7 +620,7 @@ function progressText(usage: unknown): string | null {
   const read = Number(u.chatsRead);
   const total = Number(u.chatsTotal);
   if (!Number.isFinite(prompts) || !(total > 0) || !Number.isFinite(read)) return null;
-  return `About ${Math.round(prompts).toLocaleString("en-US")} prompts so far (read ${read} of ${total} chats). Still counting; we price only the final figure.`;
+  return `About ${Math.round(prompts).toLocaleString("en-US")} prompts so far (read ${read} of ${total} chats). Still counting; I price only the final figure.`;
 }
 
 /** "just now", "3 hours ago", "2 days ago". */

@@ -20,14 +20,14 @@ const ROWS: Row[] = [
   {
     topic: "How your footprint is found",
     usual: "A questionnaire about your home, car and diet, matched to national averages.",
-    ours: "Measured from your accounts. Link your ChatGPT, Claude, YouTube and other services and we count what you actually used. The questions are there only if you'd rather not link.",
+    ours: "Measured from your accounts. Link your ChatGPT, Claude, YouTube and other services and I count what you actually used. The questions are there only if you'd rather not link.",
     link: { href: "/", text: "See your real numbers" },
   },
   {
     topic: "Your AI use",
     usual: "Left out, or one line for \"digital\".",
     ours: "Counted prompt by prompt, along with images, video, the AI built into search and apps, and the share of training the models.",
-    computer: { text: "Our free browser extension does the counting on your computer.", link: { href: "/extension", text: "About the extension" } },
+    computer: { text: "The free browser extension I made does the counting on your computer.", link: { href: "/extension", text: "About the extension" } },
   },
   {
     topic: "What counts as harm",
@@ -41,10 +41,10 @@ const ROWS: Row[] = [
     source: { href: "https://blog.wren.co/posts/wren-financial-report-year-two", text: "Wren, year two report" },
     ours: forMode({
       every:
-        "All of it. You give to each charity through Every.org, and the only fee is its card fee, shown for each charity. Ian pays for running the site himself.",
-      endaoment: `All of it. You give once through Endaoment, and the only fees are the card payment and Endaoment's ${ENDAOMENT_IN_LABEL} in and ${ENDAOMENT_GRANT_LABEL} out, each on its own line. Ian pays for running the site himself.`,
+        "All of it. You give to each charity through Every.org, and the only fee is its card fee, shown for each charity. I pay for running the site myself.",
+      endaoment: `All of it. You give once through Endaoment, and the only fees are the card payment and Endaoment's ${ENDAOMENT_IN_LABEL} in and ${ENDAOMENT_GRANT_LABEL} out, each on its own line. I pay for running the site myself.`,
       sponsor:
-        "All of it. The only fees are the card payment and our charity sponsor's share, each on its own line. Ian pays for running the site himself.",
+        "All of it. The only fees are the card payment and my charity sponsor's share, each on its own line. I pay for running the site myself.",
     }),
     link: { href: "/ledger", text: "Where the money goes" },
   },
@@ -75,7 +75,7 @@ const ROWS: Row[] = [
     ours: forMode({
       every: "Charities chosen on evidence, and no carbon credits. Every month's totals are public, and Every.org emails you the receipt for each gift.",
       endaoment: "Charities chosen on evidence, and no carbon credits. Every month's totals are public, and Endaoment emails you the receipt.",
-      sponsor: "Charities chosen on evidence, and no carbon credits. Every month's totals are public, and our charity sponsor emails you the receipt.",
+      sponsor: "Charities chosen on evidence, and no carbon credits. Every month's totals are public, and my charity sponsor emails you the receipt.",
     }),
   },
   {
@@ -88,7 +88,7 @@ const ROWS: Row[] = [
     usual: "Linked accounts and answers kept on the company's servers.",
     ours: "Counts are made in your browser and kept there.",
     computer: { text: "The extension's code is public, and you can see exactly what it sent." },
-    link: { href: "/data", text: "What we read and keep" },
+    link: { href: "/data", text: "What I read and keep" },
   },
 ];
 
@@ -97,7 +97,7 @@ export default function DifferentPage() {
     <article className="mx-auto max-w-4xl px-4 py-12">
       <h1 className="text-4xl font-extrabold [font-stretch:85%]">What&apos;s different here</h1>
       <p className="mt-4 text-lg text-muted">
-        Offset apps usually ask a few questions, guess a carbon number and charge you each month. Here is what we do instead.
+        Offset apps usually ask a few questions, guess a carbon number and charge you each month. Here is what I do instead.
       </p>
       <div aria-hidden="true" className="mt-8 hidden border-t-2 border-b border-t-rule border-b-border py-2 text-sm text-muted sm:grid sm:grid-cols-[12rem_minmax(0,1fr)_minmax(0,1.4fr)] sm:gap-6">
         <span />
@@ -152,7 +152,7 @@ export default function DifferentPage() {
       <p className="mt-8 text-muted">
         It&apos;s made by one person, not a company with investors to pay back.{" "}
         <Link href="/promises" className="text-accent underline underline-offset-4">
-          Read our promises
+          Read my promises
         </Link>{" "}
         or{" "}
         <Link href="/promises#who" className="text-accent underline underline-offset-4">

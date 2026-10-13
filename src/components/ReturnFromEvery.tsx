@@ -36,7 +36,7 @@ export function ReturnFromEvery() {
       <div className="border-t-4 border-rule pt-4">
         <h1 className="text-3xl font-extrabold [font-stretch:85%]">Thank you</h1>
         <p className="mt-3">
-          We couldn&apos;t find this list of gifts in this browser, so we can&apos;t show what&apos;s left. Any gift you made went to the
+          I couldn&apos;t find this list of gifts in this browser, so I can&apos;t show what&apos;s left. Any gift you made went to the
           charity, and Every.org has emailed you its receipt.
         </p>
         <p className="mt-4">

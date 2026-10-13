@@ -35,7 +35,7 @@ export function AiApiLink({ provider, onResult }: { provider: ApiProvider; onRes
         ).toLocaleString("en-US")} short chats.`,
       });
     } catch {
-      setStatus({ kind: "error", text: "We couldn't reach the server. Try again." });
+      setStatus({ kind: "error", text: "I couldn't reach the server. Try again." });
     }
   }
 
@@ -47,7 +47,7 @@ export function AiApiLink({ provider, onResult }: { provider: ApiProvider; onRes
         <a href={info.keyUrl} target="_blank" rel="noreferrer" className="underline underline-offset-4">
           {info.keyHelp}
         </a>
-        . It goes to our server once, which asks for your last 90 days of token totals and then drops it. We never
+        . It goes to my server once, which asks for your last 90 days of token totals and then drops it. I never
         save or log it. An admin key can do a lot, so delete it once you&apos;re done.
       </p>
       <div className="mt-3 flex flex-col gap-2 sm:flex-row">

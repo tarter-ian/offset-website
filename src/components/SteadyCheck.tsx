@@ -150,7 +150,7 @@ export function SteadyCheck({ plan, use: given, inStore = false }: { plan: Stead
           </div>
         )
       )}
-      <p className="mt-3 max-w-2xl text-sm text-muted">Worked out on this computer from your counts. We never see them.</p>
+      <p className="mt-3 max-w-2xl text-sm text-muted">Worked out on this computer from your counts. I never see them.</p>
     </section>
   );
 }

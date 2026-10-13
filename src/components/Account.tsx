@@ -78,8 +78,8 @@ export function AccountDelete() {
   async function run() {
     const r = await deleteAccount();
     setConfirming(false);
-    if (r.deleted) setResult("Deleted. We've emailed you to say so. This browser still has its own copy of your plan until you clear it.");
-    else if (r.emailed) setResult(`To make sure it's you, we've emailed ${a!.email} a link. Open it, then delete from here.`);
+    if (r.deleted) setResult("Deleted. I've emailed you to say so. This browser still has its own copy of your plan until you clear it.");
+    else if (r.emailed) setResult(`To make sure it's you, I've emailed ${a!.email} a link. Open it, then delete from here.`);
     else setResult(r.error ?? "Something went wrong.");
   }
 
@@ -87,7 +87,7 @@ export function AccountDelete() {
     <div id="account" className="scroll-mt-16 border-2 border-rule p-4">
       <p className="font-display text-lg font-bold">Delete my account</p>
       <p className="mt-1 text-sm text-muted">
-        Removes your email and what you&apos;ve offset from our server. Your gifts stay with the charities, without your name.
+        Removes your email and what you&apos;ve offset from my server. Your gifts stay with the charities, without your name.
       </p>
       {result ? (
         <p className="mt-3 text-sm" role="status">

@@ -86,21 +86,21 @@ const IMPACTS = [
     unit: "kg of greenhouse gases",
     priceShort: `${usd(CARBON_MODES[DEFAULT_CARBON_MODE].perTonne)} a tonne, to climate policy charities`,
     measure: "Greenhouse gases in kg of CO₂e, which counts methane and nitrous oxide as well as CO₂.",
-    price: `We give ${usd(CARBON_MODES[DEFAULT_CARBON_MODE].perTonne)} a tonne to climate policy charities. They are estimated to avert a tonne for $0.10 to $10, and we use the middle, but those tonnes can't be measured. Certified removal is measured per tonne but costs far more, so we don't buy it.`,
+    price: `Your donation gives ${usd(CARBON_MODES[DEFAULT_CARBON_MODE].perTonne)} a tonne to climate policy charities. They are estimated to avert a tonne for $0.10 to $10, and I use the middle, but those tonnes can't be measured. Certified removal is measured per tonne but costs far more, so I don't buy it.`,
   },
   {
     name: "Air pollution",
     unit: "liters of smog gases, or grams of soot",
     priceShort: `${Math.round(AIR_DAMAGE_SHARE * 100)}% of the health damage, to clean-air work`,
     measure:
-      `The harm to health from the NOx, SO₂ and fine particles released by power plants, cars, home furnaces, jet engines and farms (mostly ammonia from manure and fertilizer), using EPA's per-ton estimates and published death counts for flights and farms. We show how much is released: liters of the smog gases (NOx, SO₂ and farm ammonia, at room temperature), or grams of soot where there's next to no gas, as with making clothes and electronics. Jet engines are counted at about 14 g of NOx per kg of fuel, and farms at EPA's 3.4 million tons of ammonia a year. The price follows the harm, not the amount, since a gram of soot does far more harm than a gram of NOx. Each item's details also give it as healthy life lost, since almost all of the harm is early deaths: EPA values a statistical life at about $${(F.VSL_USD / 1e6).toFixed(0)} million, and each early death from fine particles costs about ${F.LIFE_YEARS_PER_AIR_DEATH} years of life, so $1 of damage is about ${F.MINUTES_OF_LIFE_PER_DAMAGE_USD.toFixed(2)} minutes.`,
-    price: `We donate ${Math.round(AIR_DAMAGE_SHARE * 100)}% of that damage to clean-air work: the middle of what US pollution controls cost per ton of fine particles (EPA puts the next ton at about $15,000, against about $113,000 of health damage).`,
+      `The harm to health from the NOx, SO₂ and fine particles released by power plants, cars, home furnaces, jet engines and farms (mostly ammonia from manure and fertilizer), using EPA's per-ton estimates and published death counts for flights and farms. I show how much is released: liters of the smog gases (NOx, SO₂ and farm ammonia, at room temperature), or grams of soot where there's next to no gas, as with making clothes and electronics. Jet engines are counted at about 14 g of NOx per kg of fuel, and farms at EPA's 3.4 million tons of ammonia a year. The price follows the harm, not the amount, since a gram of soot does far more harm than a gram of NOx. Each item's details also give it as healthy life lost, since almost all of the harm is early deaths: EPA values a statistical life at about $${(F.VSL_USD / 1e6).toFixed(0)} million, and each early death from fine particles costs about ${F.LIFE_YEARS_PER_AIR_DEATH} years of life, so $1 of damage is about ${F.MINUTES_OF_LIFE_PER_DAMAGE_USD.toFixed(2)} minutes.`,
+    price: `Your donation gives ${Math.round(AIR_DAMAGE_SHARE * 100)}% of that damage to clean-air work: the middle of what US pollution controls cost per ton of fine particles (EPA puts the next ton at about $15,000, against about $113,000 of health damage).`,
   },
   {
     name: "Water",
     unit: "liters used up, weighted by scarcity",
     priceShort: `${usd(WATER_MODES[DEFAULT_WATER_MODE].per1000Gal)} per 1,000 gallons, to put water back in dry rivers`,
-    measure: `Fresh water consumed, in liters, to generate your electricity, cool data centers, grow your food, refine your fuel and make your electronics, weighted by scarcity: a liter from a water-stressed area counts in full and a liter from a well-watered one counts ${F.UNSTRESSED_WATER_WEIGHT * 100}%. We assume ${Math.round(F.STRESSED_WATER_SHARE.food * 100)}% of food water, ${Math.round(F.STRESSED_WATER_SHARE.datacenter * 100)}% of data center water and ${Math.round(F.STRESSED_WATER_SHARE.grid * 100)}% of power plant water come from stressed areas.`,
+    measure: `Fresh water consumed, in liters, to generate your electricity, cool data centers, grow your food, refine your fuel and make your electronics, weighted by scarcity: a liter from a water-stressed area counts in full and a liter from a well-watered one counts ${F.UNSTRESSED_WATER_WEIGHT * 100}%. I assume ${Math.round(F.STRESSED_WATER_SHARE.food * 100)}% of food water, ${Math.round(F.STRESSED_WATER_SHARE.datacenter * 100)}% of data center water and ${Math.round(F.STRESSED_WATER_SHARE.grid * 100)}% of power plant water come from stressed areas.`,
     price: `You choose how: ${(Object.keys(WATER_MODES) as WaterMode[])
       .map((m) => `${WATER_MODES[m].label.toLowerCase()} at ${usd(WATER_MODES[m].per1000Gal)} per 1,000 gallons`)
       .join(", or ")}. Expected impact, the default, goes to Colorado Water Trust, which leases water back into dry rivers for about $0.29 per 1,000 gallons all-in. Restoration certificates from Bonneville Environmental Foundation return every gallon to a stressed river.`,
@@ -110,7 +110,7 @@ const IMPACTS = [
     unit: "square meters of land, for a year",
     priceShort: "About $2 an acre, to protect threatened forest",
     measure: "Land used to grow your food, to mine and make your electronics, and for the power plants and data centers behind your electricity and online use, in square meters. Power and data centers are a sliver of it: about 0.005 m² a year per kWh for power plants and their fuel (Lovering et al. 2022, weighted by the US mix) and 0.0005 for data centers.",
-    price: "We fund protecting the same area of threatened forest through Rainforest Trust. Its projects cost $1 to $1,178 an acre, mostly legal protection at the low end and land purchases at the high end; across its projects it averages about $2 an acre.",
+    price: "Your donation protects the same area of threatened forest through Rainforest Trust. Its projects cost $1 to $1,178 an acre, mostly legal protection at the low end and land purchases at the high end; across its projects it averages about $2 an acre.",
   },
   {
     name: "E-waste",
@@ -118,7 +118,7 @@ const IMPACTS = [
     priceShort: `${usd(EWASTE_USD_PER_KG)} a kg, to reuse and proper recycling`,
     measure:
       "What your phones, laptops, tablets, computers, TVs and consoles weigh when you replace them, plus the electronics you buy. Only about a fifth of the world's e-waste is recycled properly (Global E-waste Monitor 2024); the rest is dumped or burned, leaking lead, mercury and flame retardants.",
-    price: `We pay ${usd(EWASTE_USD_PER_KG)} a kg to a charity that refurbishes devices and recycles the rest responsibly. Nonprofit refurbishers spend about $8 to $14 for each kg they handle, so we take the low end.`,
+    price: `Your donation pays ${usd(EWASTE_USD_PER_KG)} a kg to a charity that refurbishes devices and recycles the rest responsibly. Nonprofit refurbishers spend about $8 to $14 for each kg they handle, so I take the low end.`,
   },
 ];
 
@@ -126,7 +126,7 @@ const ROWS = [
   {
     category: "Home electricity",
     method:
-      `Your bill or your state's average use, times your state's grid rates for greenhouse gases, NOx, SO₂ and water. Those rates count only what leaves the power plant, so we add ${Math.round(F.GRID_UPSTREAM_SHARE * 100)}% to carbon for getting the fuel there (drilling, processing and methane leaking from gas lines) and ${Math.round(F.GRID_LINE_LOSS * 100)}% to everything for power lost on the wires. The same applies to all electricity on this page.`,
+      `Your bill or your state's average use, times your state's grid rates for greenhouse gases, NOx, SO₂ and water. Those rates count only what leaves the power plant, so I add ${Math.round(F.GRID_UPSTREAM_SHARE * 100)}% to carbon for getting the fuel there (drilling, processing and methane leaking from gas lines) and ${Math.round(F.GRID_LINE_LOSS * 100)}% to everything for power lost on the wires. The same applies to all electricity on this page.`,
   },
   {
     category: "Home heating",
@@ -156,7 +156,7 @@ const ROWS = [
   },
   {
     category: "AI",
-    method: `About ${F.WH_PER_AI_PROMPT} Wh a chatbot prompt, plus its share of training the model, plus data center cooling water. Because AI is new demand on the grid, its carbon is counted at the plants that ramp up to meet new demand, mostly gas, at about ${F.AI_NEW_POWER_LB_PER_MWH.toLocaleString()} lb CO₂ a MWh (EPA AVERT, rough) instead of the ${F.US_GRID_LB_PER_MWH} average. If you add your ChatGPT, Claude or Gemini data export, we measure each prompt instead (longer conversations, reasoning models and images all use more), and your past use is your real history. The extension does the same from your ChatGPT and Claude chat list: each chat you've started since your first counts at the energy your recent chats use. With nothing linked, past use grows steadily from when you say you started (late 2022 at the earliest) to today's rate, which works out to half of today's rate over that time. Gemini's export lists prompts without their conversations, so long Gemini chats count as if each prompt started fresh.`,
+    method: `About ${F.WH_PER_AI_PROMPT} Wh a chatbot prompt, plus its share of training the model, plus data center cooling water. Because AI is new demand on the grid, its carbon is counted at the plants that ramp up to meet new demand, mostly gas, at about ${F.AI_NEW_POWER_LB_PER_MWH.toLocaleString()} lb CO₂ a MWh (EPA AVERT, rough) instead of the ${F.US_GRID_LB_PER_MWH} average. If you add your ChatGPT, Claude or Gemini data export, I measure each prompt instead (longer conversations, reasoning models and images all use more), and your past use is your real history. The extension does the same from your ChatGPT and Claude chat list: each chat you've started since your first counts at the energy your recent chats use. With nothing linked, past use grows steadily from when you say you started (late 2022 at the earliest) to today's rate, which works out to half of today's rate over that time. Gemini's export lists prompts without their conversations, so long Gemini chats count as if each prompt started fresh.`,
   },
   {
     category: "Video streaming",
@@ -186,7 +186,7 @@ export default function MethodPage() {
     <article className="mx-auto max-w-3xl px-4 py-12">
       <h1 className="text-4xl font-extrabold [font-stretch:85%]">How your footprint is calculated</h1>
       <p className="mt-4 text-lg text-muted">
-        We estimate five kinds of harm for each part of your life, add a margin that depends on how good the data is,
+        I estimate five kinds of harm for each part of your life, add a margin that depends on how good the data is,
         and turn the result into donations to charities that work on each kind.
       </p>
 
@@ -268,7 +268,7 @@ export default function MethodPage() {
       <h2 className="mt-10 text-xl font-semibold">Fees</h2>
       {PAYMENT_MODE === "every" ? (
         <p className="mt-2 text-muted">
-          We make nothing on fees. Each charity is paid separately through Every.org, which charges card payments 2.2% + 30¢ and bank
+          I make nothing on fees. Each charity is paid separately through Every.org, which charges card payments 2.2% + 30¢ and bank
           payments nothing. The card fee is worked out on the whole gift and added on top, so the donation arrives in full, and checkout
           shows it for each charity. Paying yearly means one 30¢ fee per charity a year instead of twelve. Each harm&apos;s
           share always goes to its own charity; a share under {usd(MIN_DONATION_USD)} is rounded up to {usd(MIN_DONATION_USD)} rather than
@@ -276,7 +276,7 @@ export default function MethodPage() {
         </p>
       ) : PAYMENT_MODE === "endaoment" ? (
         <p className="mt-2 text-muted">
-          We make nothing on fees. You make one gift to My Offset&apos;s fund at Endaoment, which grants each charity its part. The
+          I make nothing on fees. You make one gift to My Offset&apos;s fund at Endaoment, which grants each charity its part. The
           gift carries the card fee and Endaoment&apos;s {ENDAOMENT_IN_LABEL} as it comes in and {ENDAOMENT_GRANT_LABEL} as it is
           granted out, worked out on the whole gift and added on top, so the donation arrives in full. Endaoment has no smallest gift
           or grant, so each harm&apos;s share goes to its own charity to the cent, with no rounding up to a dollar. Paying yearly means one card
@@ -284,8 +284,8 @@ export default function MethodPage() {
         </p>
       ) : (
         <p className="mt-2 text-muted">
-        We make nothing on fees. Each payment carries two, passed on at cost and worked out on the whole payment so the
-        donation arrives in full: the card fee, {CARD_FEE_LABEL}, and our charity sponsor&apos;s {SPONSOR_FEE_LABEL}. The sponsor is the
+        I make nothing on fees. Each payment carries two, passed on at cost and worked out on the whole payment so the
+        donation arrives in full: the card fee, {CARD_FEE_LABEL}, and my charity sponsor&apos;s {SPONSOR_FEE_LABEL}. The sponsor is the
         registered charity that holds the money, sends tax receipts and pays the charities. Paying yearly means one 30¢ charge a year instead of twelve. Donations
         under {usd(MIN_DONATION_USD)} are rounded up. Small donations are pooled and each charity gets one payment a month, so card
         fees don&apos;t eat them, and all of it goes to the charities.
@@ -309,10 +309,10 @@ export default function MethodPage() {
         The one-time lifetime offsets count from age {F.ONLINE_FROM_AGE} (or {F.INTERNET_START_YEAR}, whichever is later), and from late 2022 for AI (or when you started),
         through age {F.LIFETIME_TO_AGE}. Past years count at today&apos;s rates, except AI, which most people took up gradually: unless your
         chat history is linked, its past use grows steadily to today&apos;s rate. Future years count at today&apos;s amount of use, since networks
-        get more efficient about as fast as use grows, but the power for it gets cleaner. We assume the US grid&apos;s carbon and power plant water
+        get more efficient about as fast as use grows, but the power for it gets cleaner. I assume the US grid&apos;s carbon and power plant water
         per kWh fall {Math.round(F.GRID_CLEANER_PER_YEAR * 100)}% a year until {F.GRID_CLEANER_UNTIL}, then hold steady. That&apos;s a cautious pace;
         the EIA&apos;s outlooks range from about 2% to 6% a year depending on clean-power policy. Power plant air pollution falls faster, since
-        coal is its main source and retires first (in 2023 sulfur dioxide fell 24% and NOx 15%, against 7% for carbon), so we take{" "}
+        coal is its main source and retires first (in 2023 sulfur dioxide fell 24% and NOx 15%, against 7% for carbon), so I take{" "}
         {Math.round(F.GRID_AIR_CLEANER_PER_YEAR * 100)}% a year for air. Data center cooling water and making devices, mostly overseas, aren&apos;t
         discounted. Future AI use counts {LIFETIME_GROWTH_BUFFER} times over in case it keeps growing. Prices use
         expected-impact climate pricing, plus fees.
@@ -345,17 +345,17 @@ export default function MethodPage() {
       <h2 className="mt-10 text-xl font-semibold">What &ldquo;Fully Offset&rdquo; means</h2>
       <p className="mt-2 text-muted">
         A Fully Offset month is one where you approved donations covering the estimate plus its margin for every kind of
-        harm we count. Covering an item or a whole area earns its badge; covering everything for all five kinds of harm earns the
+        harm I count. Covering an item or a whole area earns its badge; covering everything for all five kinds of harm earns the
         complete badge. Donations fund charity work, not carbon credits. If you lower an estimate by hand by
         more than its margin, the badge pauses until a linked account confirms the new number.
       </p>
 
-      <h2 className="mt-10 text-xl font-semibold">What we don&apos;t count yet</h2>
+      <h2 className="mt-10 text-xl font-semibold">What I don&apos;t count yet</h2>
       <p className="mt-2 text-muted">
-        Some harms are real but have no reliable price per prompt or per purchase yet, so we name them rather than guess: toxic waste and
+        Some harms are real but have no reliable price per prompt or per purchase yet, so I name them rather than guess: toxic waste and
         working conditions in mining the metals for chips and devices; &ldquo;forever chemicals&rdquo; (PFAS) used in chip factories; noise and
         diesel generators near data centers, and higher power bills for their neighbors; and toxic harm from e-waste beyond paying to recycle it.
-        Making the hardware is counted for carbon, water, land and e-waste. Tell us what&apos;s missing.
+        Making the hardware is counted for carbon, water, land and e-waste. Tell me what&apos;s missing.
       </p>
 
       <h2 id="sources" className="mt-10 text-xl font-semibold">Sources</h2>

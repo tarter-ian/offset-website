@@ -123,7 +123,7 @@ export default function ExtensionPage() {
         <a href="https://github.com/tarter-ian/offset-extension" target="_blank" rel="noreferrer" className="text-accent underline underline-offset-4">
           github.com/tarter-ian/offset-extension
         </a>
-        . More on what we keep and how to delete it on{" "}
+        . More on what I keep and how to delete it on{" "}
         <Link href="/data" className="text-accent underline underline-offset-4">
           Your data
         </Link>

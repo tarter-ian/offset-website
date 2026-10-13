@@ -110,7 +110,7 @@ export function SignIn() {
       {step.kind === "code" && (
         <form onSubmit={check} className="grid gap-3">
           <p>
-            We sent a code to <b>{step.email}</b>. Type it here, or tap the link in the email.
+            I sent a code to <b>{step.email}</b>. Type it here, or tap the link in the email.
           </p>
           <label htmlFor="signin-code" className="font-semibold">
             6-digit code

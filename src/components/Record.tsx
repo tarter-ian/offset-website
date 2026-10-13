@@ -157,7 +157,7 @@ export function Record() {
                 <>
                   Nothing due until {day(status.until)}.{" "}
                   {reminded ? (
-                    "We'll send you a link then."
+                    "I'll send you a link then."
                   ) : accountsOn() ? (
                     <Link href="/signin" className="underline underline-offset-4 hover:text-foreground">
                       Sign in to get a reminder.
@@ -183,7 +183,7 @@ export function Record() {
         <UseChart use={use} computer={computer} />
         {computer && (
           <p className="mt-3 max-w-2xl text-sm text-muted">
-            These counts stay on this computer, in the My Offset extension. We never receive them, so another computer or your phone won&apos;t show them.
+            These counts stay on this computer, in the My Offset extension. I never receive them, so another computer or your phone won&apos;t show them.
           </p>
         )}
       </section>
@@ -258,7 +258,7 @@ function UseChart({ use, computer }: { use: MonthUse[] | null; computer: boolean
   if (!computer && !use?.length)
     return (
       <p className="mt-4 max-w-2xl">
-        Your monthly counts stay on the computer you measure with, so they show there, not here. We never receive them.
+        Your monthly counts stay on the computer you measure with, so they show there, not here. I never receive them.
       </p>
     );
   if (!use) return <p className="mt-4 text-muted">Looking for your counts on this computer…</p>;
