@@ -33,8 +33,8 @@ export const IMPACT_INFO: Record<ImpactKey, { label: string; short: string; form
   },
   air: {
     label: "Air pollution",
-    short: "soot-equivalent",
-    format: (usdDamage) => `${sootGrams(usdDamage)} soot-equivalent`,
+    short: "soot",
+    format: (usdDamage) => `${sootGrams(usdDamage)} soot`,
   },
   water: {
     label: "Water",

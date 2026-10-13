@@ -15,7 +15,7 @@ import { AiQuickPick } from "./AiQuickPick";
 import { AI_LEVELS } from "@/lib/ai/levels";
 import { NumberInput, Select } from "./fields";
 import { STATE_OPTIONS, STATES, type StateCode } from "@/lib/data/states";
-import { airShort, IMPACT_INFO, lifeText } from "@/lib/impacts";
+import { airShort, IMPACT_INFO, lifeText, sootGrams } from "@/lib/impacts";
 import { CHARITIES } from "@/lib/charities";
 import { IMPACT_KEYS, sumImpacts, type Impacts } from "@/lib/footprint";
 import { howEstimated, whereItGoes } from "@/lib/methods";
@@ -153,7 +153,7 @@ const coversText = (i: Impacts, long = false) =>
       k !== "air"
         ? IMPACT_INFO[k].format(i[k])
         : long
-          ? `${IMPACT_INFO.air.format(i[k])} air pollution (about ${lifeText(i[k])} of healthy life)`
+          ? `${sootGrams(i[k])} soot-equivalent air pollution (about ${lifeText(i[k])} of healthy life)`
           : `air ${airShort(i[k])}`,
     )
     .join(" · ");
