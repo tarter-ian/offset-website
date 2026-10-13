@@ -308,9 +308,11 @@ export function AiQuickPick({
           className={`min-h-14 cursor-pointer rounded-md border-2 border-rule px-3 py-2 text-left ${showConnect ? "bg-foreground text-background" : "hover:bg-card"}`}
         >
           <span className="block font-semibold">Connect your data</span>
-          <span className={`block text-sm ${showConnect ? "opacity-80" : "text-muted"}`}>
-            {ext && busy ? "Counting…" : ext && lastMeasured ? `Updated ${ago(lastMeasured)}. Update again` : "your real count"}
-          </span>
+          {ext && (busy || lastMeasured) && (
+            <span className={`block text-sm ${showConnect ? "opacity-80" : "text-muted"}`}>
+              {busy ? "Counting…" : `Updated ${ago(lastMeasured!)}`}
+            </span>
+          )}
         </button>
       </div>
       {showConnect && (
