@@ -32,9 +32,9 @@ const day = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: 
 export function reminderEmail(r: Reminder, origin: string, stopToken: string) {
   const what = list(r.ids.map(itemName));
   return {
-    subject: "Your next month is ready to cover",
+    subject: "Your next month is ready to offset",
     text:
-      `Your ${what} ${r.ids.length > 1 ? "were" : "was"} covered through ${day(r.ended)}.\n\n` +
+      `Your ${what} ${r.ids.length > 1 ? "were" : "was"} offset through ${day(r.ended)}.\n\n` +
       `When you have a minute, open your record on the computer you measure with. It counts this month's use there and shows the price before anything is charged:\n${origin}/record\n\n` +
       `Nothing is charged unless you choose to give. If you'd rather not get these, one tap stops them:\n${origin}/reminders/stop?t=${stopToken}\n\nMy Offset`,
   };

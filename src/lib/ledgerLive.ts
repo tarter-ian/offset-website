@@ -11,7 +11,18 @@ export interface MonthTotal {
   month: string;
   slug: string;
   gifts: number;
+  /** What people gave, card fees included. */
   usd: number;
+  /** What reached the charity after Every.org's card fees. */
+  net: number;
+}
+
+/** What arrived at the charities and what went to card fees, for one charity or all of them. */
+export function arrivedAndFees(rows: MonthTotal[], slug?: string): { arrived: number; fees: number } {
+  const mine = slug ? rows.filter((r) => r.slug === slug) : rows;
+  const arrived = mine.reduce((sum, r) => sum + r.net, 0);
+  const gross = mine.reduce((sum, r) => sum + r.usd, 0);
+  return { arrived, fees: Math.max(0, Math.round((gross - arrived) * 100) / 100) };
 }
 
 /** Each Every.org charity we pay: its name and the harms it covers, in the store's order. */
@@ -29,10 +40,10 @@ export function everyCharities(): { slug: string; name: string; url: string; har
 export async function confirmedTotals(): Promise<MonthTotal[]> {
   try {
     const result = await (await db()).execute({
-      sql: `SELECT substr(created_at, 1, 7) AS month, nonprofit, COUNT(*) AS gifts, SUM(amount) AS usd
-            FROM donations GROUP BY month, nonprofit ORDER BY month DESC, usd DESC`,
+      sql: `SELECT substr(created_at, 1, 7) AS month, nonprofit, COUNT(*) AS gifts, SUM(amount) AS usd, SUM(net_amount) AS net
+            FROM donations GROUP BY month, nonprofit ORDER BY month DESC, net DESC`,
     });
-    return rowsOf(result).map((r) => ({ month: String(r.month), slug: String(r.nonprofit), gifts: Number(r.gifts) || 0, usd: Number(r.usd) || 0 }));
+    return rowsOf(result).map((r) => ({ month: String(r.month), slug: String(r.nonprofit), gifts: Number(r.gifts) || 0, usd: Number(r.usd) || 0, net: Number(r.net) || 0 }));
   } catch {
     return [];
   }

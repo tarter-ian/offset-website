@@ -36,6 +36,24 @@ export function recordStatus(covered: Record<string, Covered>, now: number = Dat
   return entries.some(([, c]) => c.kind === "life") ? { kind: "life" } : { kind: "none" };
 }
 
+/**
+ * Which of `all` are offset right now (for life, a stretch that hasn't ended, or a steady
+ * gift that repeats on Every.org), and how many are still open, so the record never says
+ * "done" while things are left (Ian, 2026-10-13).
+ */
+export function offsetCount(
+  covered: Record<string, Covered>,
+  all: string[],
+  now: number = Date.now(),
+  steady: string[] = [],
+): { offset: string[]; open: number } {
+  const offset = all.filter((id) => {
+    const c = covered[id];
+    return inForce(c, now) || (!!c && c.kind === "period" && !c.giftFrom && steady.includes(id));
+  });
+  return { offset, open: all.length - offset.length };
+}
+
 export const AI_CHAT_SERVICES = ["chatgpt", "claude", "gemini"] as const;
 export type AiChatService = (typeof AI_CHAT_SERVICES)[number];
 

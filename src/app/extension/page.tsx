@@ -120,15 +120,15 @@ export default function ExtensionPage() {
 
       <p className="mt-8 text-muted">
         The extension&apos;s code is public, so anyone can check what it does:{" "}
-        <a href="https://github.com/tarter-ian/offset-extension" target="_blank" rel="noreferrer" className="text-accent hover:underline">
+        <a href="https://github.com/tarter-ian/offset-extension" target="_blank" rel="noreferrer" className="text-accent underline underline-offset-4">
           github.com/tarter-ian/offset-extension
         </a>
         . More on what we keep and how to delete it on{" "}
-        <Link href="/data" className="text-accent hover:underline">
+        <Link href="/data" className="text-accent underline underline-offset-4">
           Your data
         </Link>
         . Made by{" "}
-        <Link href="/promises#who" className="text-accent hover:underline">
+        <Link href="/promises#who" className="text-accent underline underline-offset-4">
           Ian Tarter
         </Link>
         .

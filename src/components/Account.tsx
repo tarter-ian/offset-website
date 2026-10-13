@@ -25,7 +25,7 @@ export function AccountBar() {
             Sign out
           </button>
           <span className="mt-1 block">
-            Monthly email when something&apos;s ready to cover: {a.reminders === false ? "off" : "on"}.{" "}
+            Monthly email when something&apos;s ready to offset: {a.reminders === false ? "off" : "on"}.{" "}
             <button
               type="button"
               onClick={() => {
@@ -44,7 +44,7 @@ export function AccountBar() {
           <Link href="/signin" className="font-semibold text-foreground underline underline-offset-4">
             Sign in with your email
           </Link>
-          . Only what you&apos;ve covered goes with you, never your use.
+          . Only what you&apos;ve offset goes with you, never your use.
         </>
       )}
     </p>
@@ -87,7 +87,7 @@ export function AccountDelete() {
     <div id="account" className="scroll-mt-16 border-2 border-rule p-4">
       <p className="font-display text-lg font-bold">Delete my account</p>
       <p className="mt-1 text-sm text-muted">
-        Removes your email and what you&apos;ve covered from our server. Your gifts stay with the charities, without your name.
+        Removes your email and what you&apos;ve offset from our server. Your gifts stay with the charities, without your name.
       </p>
       {result ? (
         <p className="mt-3 text-sm" role="status">

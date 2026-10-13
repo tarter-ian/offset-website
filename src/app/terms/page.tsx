@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ComputerOnly } from "@/components/ComputerOnly";
 import { ContactLink } from "@/components/ContactLink";
 import { forMode, PAYMENT_MODE } from "@/lib/payments";
 
@@ -7,7 +8,8 @@ export const metadata: Metadata = { title: "Terms | My Offset" };
 
 const UPDATED = "October 12, 2026";
 
-const SECTIONS: { title: string; body: React.ReactNode }[] = [
+// `computer` sections mention the extension, so phones never see them (Ian, 2026-10-13).
+const SECTIONS: { title: string; body: React.ReactNode; computer?: boolean }[] = [
   {
     title: "The deal",
     body: "By using this site you agree to these terms. My Offset is run by Ian Tarter. It estimates the harm from things you use and lets you donate to charities working on that harm. It's for people in the United States, and you must be 18 or older to pay.",
@@ -17,7 +19,7 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
     body: (
       <>
         Every figure here is an estimate from published sources, shown with its source on{" "}
-        <Link href="/method" className="text-accent hover:underline">
+        <Link href="/method" className="text-accent underline underline-offset-4">
           How we calculate
         </Link>
         . Counts from your accounts come from your own browser and aren&apos;t verified by anyone. Nothing on this site is a certified
@@ -32,7 +34,7 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
         Each gift goes from you to the charity through Every.org, a nonprofit donation platform; we never hold it ourselves. Every.org
         sends the receipt, decides what is tax-deductible, and its own terms cover the payment. If a charity closes or stops qualifying,
         Every.org decides where the gift goes under its rules, and{" "}
-        <Link href="/ledger" className="text-accent hover:underline">
+        <Link href="/ledger" className="text-accent underline underline-offset-4">
           Where the money goes
         </Link>{" "}
         will say so. Refunds are up to Every.org. If you were charged by mistake, tell us within 30 days and we&apos;ll help you ask
@@ -43,7 +45,7 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
         Your gift goes to My Offset&apos;s fund at Endaoment, a nonprofit that runs charitable funds, and Endaoment grants it on to the
         charities checkout shows; we never hold it ourselves. Endaoment sends the receipt, decides what is tax-deductible, and its own
         terms cover the payment. If a charity closes or stops qualifying, Endaoment decides where its part goes under its rules, and{" "}
-        <Link href="/ledger" className="text-accent hover:underline">
+        <Link href="/ledger" className="text-accent underline underline-offset-4">
           Where the money goes
         </Link>{" "}
         will say so. Refunds are up to Endaoment. If you were charged by mistake, tell us within 30 days and we&apos;ll help you ask
@@ -54,7 +56,7 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
         Your donation is held by our charity sponsor, a registered charity that runs My Offset as one of its projects, and paid to the
         charities on your summary; we never hold it ourselves. The sponsor sends the receipt and decides what is tax-deductible. If a charity closes or stops qualifying, your money goes to the nearest one working on the same
         harm, and{" "}
-        <Link href="/ledger" className="text-accent hover:underline">
+        <Link href="/ledger" className="text-accent underline underline-offset-4">
           Where the money goes
         </Link>{" "}
         will say so. A donation is final once it&apos;s been paid out to the charity. If you were charged by mistake, tell us within 30 days
@@ -82,7 +84,7 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
   },
   {
     title: "Lifetime plans",
-    body: "A lifetime payment covers the items it lists, at the use you entered, up to age 85. If you later use a lot more than you entered, the extra isn't covered. If we close, the donation has already reached the charities and stays there.",
+    body: "A lifetime gift offsets the items it lists, at the use you entered, up to age 85. If you later use a lot more than you entered, the extra isn't offset. If we close, the donation has already reached the charities and stays there.",
   },
   {
     title: "The badge",
@@ -90,6 +92,7 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
   },
   {
     title: "The extension",
+    computer: true,
     body: "The browser extension is free and its code is public. It only reads your accounts when you press Measure. It may break when a service changes its website; we'll fix it when we can, but can't promise it always works.",
   },
   {
@@ -120,22 +123,25 @@ export default function TermsPage() {
       <h1 className="text-4xl font-extrabold [font-stretch:85%]">Terms</h1>
       <p className="mt-4 text-lg text-muted">
         Updated {UPDATED}. Written to be read. See also{" "}
-        <Link href="/promises" className="text-accent hover:underline">
+        <Link href="/promises" className="text-accent underline underline-offset-4">
           our promises
         </Link>{" "}
         and the{" "}
-        <Link href="/privacy" className="text-accent hover:underline">
+        <Link href="/privacy" className="text-accent underline underline-offset-4">
           privacy policy
         </Link>
         .
       </p>
       <dl className="mt-8 border-t-2 border-rule">
-        {SECTIONS.map((s) => (
-          <div key={s.title} className="grid gap-1 border-b border-border py-5 sm:grid-cols-[13rem_minmax(0,1fr)] sm:gap-8">
-            <dt className="font-display text-lg font-bold">{s.title}</dt>
-            <dd>{s.body}</dd>
-          </div>
-        ))}
+        {SECTIONS.map((s) => {
+          const row = (
+            <div key={s.title} className="grid gap-1 border-b border-border py-5 sm:grid-cols-[13rem_minmax(0,1fr)] sm:gap-8">
+              <dt className="font-display text-lg font-bold">{s.title}</dt>
+              <dd>{s.body}</dd>
+            </div>
+          );
+          return s.computer ? <ComputerOnly key={s.title}>{row}</ComputerOnly> : row;
+        })}
       </dl>
     </article>
   );
