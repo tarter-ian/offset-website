@@ -258,6 +258,9 @@ export function Store() {
   const [info, setInfo] = useState<string | null>(null);
   /** The aisles stay folded until someone asks for them, so the first visit is about AI alone. */
   const [shelvesOpen, setShelvesOpen] = useState(false);
+  // Nothing is saved until the saved plan has loaded, so the first render's empty state never
+  // overwrites it, and nothing at all while the page is leaving for the record.
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const s = load();
@@ -277,7 +280,10 @@ export function Store() {
       setShelvesOpen(true);
       setTimeout(() => document.getElementById(hash)?.scrollIntoView(), 150);
     }
-    if (!s) return;
+    if (!s) {
+      setReady(true);
+      return;
+    }
     // Anyone who has covered something lands on their record, unless they came to the store on purpose.
     const q = new URLSearchParams(window.location.search);
     if (!q.has("store") && !q.has("preview") && recordStatus(s.covered ?? {}).kind !== "none") {
@@ -304,6 +310,7 @@ export function Store() {
     setPastEverydayState(s.pastEveryday ?? false);
     setLinkedFrom(s.linkedFrom ?? {});
     setCovered(s.covered ?? {});
+    setReady(true);
     // From the record page's "Cover the next month": just the items whose month ran out, straight to checkout.
     const renew = (q.get("renew") ?? "").split(",").filter((id) => productById(id));
     if (renew.length) {
@@ -364,6 +371,7 @@ export function Store() {
   }, []);
 
   useEffect(() => {
+    if (!ready) return;
     try {
       localStorage.setItem(
         STORAGE_KEY,
@@ -372,7 +380,7 @@ export function Store() {
     } catch {
       // Storage can be unavailable (private mode); the page still works.
     }
-  }, [ctx, amounts, entered, picked, anyway, plan, billingPick, pastAll, pastYears, pastEveryday, linkedFrom, covered, previewing]);
+  }, [ready, ctx, amounts, entered, picked, anyway, plan, billingPick, pastAll, pastYears, pastEveryday, linkedFrom, covered, previewing]);
 
   const amountOf = (p: Product) => amounts[p.id] ?? defaultAmount(p, ctx);
   const coverOf = (p: Product) => effectiveCover(p, amountOf(p), ctx, { past: p.oneTime ? pastAll : pastEveryday, ...picked[p.id] }, anyway[p.id]);
