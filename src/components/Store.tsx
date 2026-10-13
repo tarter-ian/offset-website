@@ -465,7 +465,6 @@ export function Store() {
   };
 
   const linkLabel = (p: Product, src: ProviderId) => {
-    if (p.section === "ai") return "Link your AI account";
     if (src !== "activity") return `Link your ${providerName(src).toLowerCase()}`;
     if (p.id === "music") return "Add your Spotify or YouTube history";
     if (p.id === "video") return "Add your YouTube or Netflix history";
@@ -554,7 +553,7 @@ export function Store() {
             <span className="font-semibold tabular-nums">{amountText(p, amount)}</span>
             <span className="text-muted"> · {sourceNote(p)}</span>
           </span>
-          {sources.length > 0 && !fromAccount && (
+          {sources.length > 0 && !fromAccount && p.section !== "ai" && (
             <button
               type="button"
               onClick={() => link(sources[0])}
@@ -1042,65 +1041,14 @@ export function Store() {
 
   return (
     <div className="pb-20">
-      <section className="grid gap-10 pt-10 pb-12 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-14 lg:pt-14">
+      <section className="pt-10 pb-12 lg:pt-14">
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-14">
         <div>
           <h1 className="font-display text-4xl leading-[1.08] font-semibold sm:text-6xl">
             {aiLeadsLifetime(aiAmount, ctx)
               ? `Your AI use, covered for life: about ${once(coverPrice(ai, aiAmount, { past: true, ahead: "lifetime" }, ctx).once)}.`
               : `Your AI use, covered: about ${once(coverPrice(ai, aiAmount, { past: false, ahead: "monthly" }, ctx).monthly)} a month.`}
           </h1>
-          <div className="mt-8 max-w-xl">
-            <AiQuickPick
-              level={ctx.aiFromExport || entered.ai ? null : (ctx.aiEstimate?.level ?? null)}
-              onPick={(level, from) => {
-                setCtx((c) => ({ ...c, aiEstimate: { level, from }, aiFromExport: false, aiWhPerPrompt: undefined, aiPastWh: undefined, aiCode: undefined, aiAgent: undefined, aiCodingPastWh: undefined }));
-                // Images and video follow the pick too, unless the person typed their own.
-                setAmounts((a) => ({
-                  ...a,
-                  ai: AI_LEVELS[level].promptsPerDay,
-                  ...(entered["ai-media"] ? {} : { "ai-media": AI_LEVELS[level].imagesPerWeek }),
-                  ...(entered["ai-video"] ? {} : { "ai-video": AI_LEVELS[level].videosPerWeek }),
-                }));
-                resetAiCover();
-                setEntered((e) => ({ ...e, ai: false }));
-              }}
-              onExact={() => setMeasuring(true)}
-              onVideo={(h, from) => measuredAmount("video", h, from)}
-              onVideoPast={(videoPast) => setCtx((c) => ({ ...c, videoPast }))}
-              onRides={(n) => measuredAmount("rideshare", n, ["uber"])}
-              onDelivery={(n) => measuredAmount("delivery", n, ["doordash", "ubereats"])}
-              onShopping={amazonShopping}
-              onMeasured={(s, note) => {
-                const d = digitalFromExport(s);
-                setCtx((c) => ({
-                  ...c,
-                  aiWhPerPrompt: d.aiWhPerPrompt,
-                  aiCode: d.aiCode,
-                  aiAgent: d.aiAgent,
-                  aiFromExport: !note,
-                  aiPastWh: note ? undefined : d.aiPastWh,
-                  aiCodingPastWh: note ? undefined : d.aiCodingPastWh,
-                  aiEstimate: note ? { from: note } : undefined,
-                }));
-                setAmounts((a) => ({ ...a, ai: d.aiPromptsPerDay, "ai-media": d.aiMediaPerWeek, ...(d.aiCodingPastWh !== undefined ? { "ai-coding": d.aiCodingHoursPerWeek } : {}) }));
-                resetAiCover();
-                setEntered((e) => ({ ...e, ai: false, "ai-media": false, ...(d.aiCodingPastWh !== undefined ? { "ai-coding": false } : {}) }));
-              }}
-            />
-          </div>
-          {measuring && (
-            <div className="mt-6 max-w-xl">
-              <AiExportUpload
-                onResult={(s) => {
-                  const d = digitalFromExport(s);
-                  setCtx((c) => ({ ...c, aiWhPerPrompt: d.aiWhPerPrompt, aiCode: d.aiCode, aiAgent: d.aiAgent, aiFromExport: true, aiPastWh: d.aiPastWh, aiCodingPastWh: d.aiCodingPastWh, aiEstimate: undefined }));
-                  setAmounts((a) => ({ ...a, ai: d.aiPromptsPerDay, "ai-media": d.aiMediaPerWeek, ...(d.aiCodingPastWh !== undefined ? { "ai-coding": d.aiCodingHoursPerWeek } : {}) }));
-                  resetAiCover();
-                  setEntered((e) => ({ ...e, ai: false, "ai-media": false, ...(d.aiCodingPastWh !== undefined ? { "ai-coding": false } : {}) }));
-                }}
-              />
-            </div>
-          )}
         </div>
 
         <aside id="ai-chat" aria-label="AI chat, itemized" className="self-start border-t-2 border-rule pt-4">
@@ -1152,6 +1100,59 @@ export function Store() {
             </button>
           )}
         </aside>
+        </div>
+          <div className="mt-10">
+            <AiQuickPick
+              level={ctx.aiFromExport || entered.ai ? null : (ctx.aiEstimate?.level ?? null)}
+              onPick={(level, from) => {
+                setCtx((c) => ({ ...c, aiEstimate: { level, from }, aiFromExport: false, aiWhPerPrompt: undefined, aiPastWh: undefined, aiCode: undefined, aiAgent: undefined, aiCodingPastWh: undefined }));
+                // Images and video follow the pick too, unless the person typed their own.
+                setAmounts((a) => ({
+                  ...a,
+                  ai: AI_LEVELS[level].promptsPerDay,
+                  ...(entered["ai-media"] ? {} : { "ai-media": AI_LEVELS[level].imagesPerWeek }),
+                  ...(entered["ai-video"] ? {} : { "ai-video": AI_LEVELS[level].videosPerWeek }),
+                }));
+                resetAiCover();
+                setEntered((e) => ({ ...e, ai: false }));
+              }}
+              onExact={() => setMeasuring(true)}
+              onVideo={(h, from) => measuredAmount("video", h, from)}
+              onVideoPast={(videoPast) => setCtx((c) => ({ ...c, videoPast }))}
+              onRides={(n) => measuredAmount("rideshare", n, ["uber"])}
+              onDelivery={(n) => measuredAmount("delivery", n, ["doordash", "ubereats"])}
+              onShopping={amazonShopping}
+              onMeasured={(s, note) => {
+                const d = digitalFromExport(s);
+                setCtx((c) => ({
+                  ...c,
+                  aiWhPerPrompt: d.aiWhPerPrompt,
+                  aiCode: d.aiCode,
+                  aiAgent: d.aiAgent,
+                  aiFromExport: !note,
+                  aiPastWh: note ? undefined : d.aiPastWh,
+                  aiCodingPastWh: note ? undefined : d.aiCodingPastWh,
+                  aiEstimate: note ? { from: note } : undefined,
+                }));
+                setAmounts((a) => ({ ...a, ai: d.aiPromptsPerDay, "ai-media": d.aiMediaPerWeek, ...(d.aiCodingPastWh !== undefined ? { "ai-coding": d.aiCodingHoursPerWeek } : {}) }));
+                resetAiCover();
+                setEntered((e) => ({ ...e, ai: false, "ai-media": false, ...(d.aiCodingPastWh !== undefined ? { "ai-coding": false } : {}) }));
+              }}
+            />
+          </div>
+          {measuring && (
+            <div className="mt-6 max-w-xl">
+              <AiExportUpload
+                onResult={(s) => {
+                  const d = digitalFromExport(s);
+                  setCtx((c) => ({ ...c, aiWhPerPrompt: d.aiWhPerPrompt, aiCode: d.aiCode, aiAgent: d.aiAgent, aiFromExport: true, aiPastWh: d.aiPastWh, aiCodingPastWh: d.aiCodingPastWh, aiEstimate: undefined }));
+                  setAmounts((a) => ({ ...a, ai: d.aiPromptsPerDay, "ai-media": d.aiMediaPerWeek, ...(d.aiCodingPastWh !== undefined ? { "ai-coding": d.aiCodingHoursPerWeek } : {}) }));
+                  resetAiCover();
+                  setEntered((e) => ({ ...e, ai: false, "ai-media": false, ...(d.aiCodingPastWh !== undefined ? { "ai-coding": false } : {}) }));
+                }}
+              />
+            </div>
+          )}
       </section>
 
       {activityOpen && (
