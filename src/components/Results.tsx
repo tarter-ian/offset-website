@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Seal } from "./Badge";
 import { CARBON_REMOVAL, CHARITIES, type Charity } from "@/lib/charities";
@@ -497,11 +496,7 @@ export function Results({
             {everything
               ? "Offsetting everything, for all five kinds of impact, earns the complete Fully Offset badge."
               : "Offset everything for all five kinds of impact to earn the complete Fully Offset badge."}{" "}
-            Badges count approved months and build a streak you can share. Each links to{" "}
-            <Link href="/method" className="text-accent hover:underline">
-              how we calculate
-            </Link>
-            .
+            Your badges show on your record page once your gifts are confirmed.
           </p>
         </section>
       )}
