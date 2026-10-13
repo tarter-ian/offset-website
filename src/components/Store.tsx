@@ -1015,12 +1015,6 @@ export function Store() {
   const aiCover = coverOf(ai);
   const aiPrice = coverPrice(ai, aiAmount, aiCover, ctx);
   const ab = aiBreakdown(typeof aiAmount === "number" ? aiAmount : 0, ctx, aiCover);
-  const covers =
-    aiCover.ahead === "lifetime"
-      ? aiCover.past
-        ? "Lifetime"
-        : "All future use"
-      : `${aiCover.past ? "Past use + " : ""}${billing === "annual" ? "each year" : "each month"}`;
   /** The hero's green button: puts AI chat in the plan if it isn't, then opens checkout. */
   const reviewAndPay = () => {
     setPlan((cur) => (cur.includes(ai.id) ? cur : [...cur, ai.id]));
@@ -1043,7 +1037,7 @@ export function Store() {
     <div className="pb-20">
       <section className="pt-10 pb-12 lg:pt-14">
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-14">
-        <div>
+        <div className="self-center">
           <h1 className="font-display text-4xl leading-[1.08] font-semibold sm:text-6xl">
             {aiLeadsLifetime(aiAmount, ctx)
               ? `Your AI use, covered for life: about ${once(coverPrice(ai, aiAmount, { past: true, ahead: "lifetime" }, ctx).once)}.`
@@ -1054,7 +1048,6 @@ export function Store() {
         <aside id="ai-chat" aria-label="AI chat, itemized" className="self-start border-t-2 border-rule pt-4">
           <div className="flex items-baseline justify-between">
             <h2 className="text-xl font-bold">AI chat</h2>
-            <span className="text-sm text-muted">ChatGPT, Claude, Gemini and the rest</span>
           </div>
           <div className="mt-3 border-b border-border pb-3">
             {amountLine(ai)}
@@ -1062,7 +1055,6 @@ export function Store() {
           <dl className="amount divide-y divide-border text-sm">
             {[
               ["Based on", aiBasis],
-              ["Covers", covers],
               ...(["carbon", "air", "water", "land"] as const).map((k) => [IMPACT_INFO[k].label, k === "air" ? airShort(ab.impacts[k]) : IMPACT_INFO[k].format(ab.impacts[k])]),
             ].map(([k, v]) => (
               <div key={k} className="flex justify-between gap-4 py-2">
@@ -1081,7 +1073,6 @@ export function Store() {
               </Link>
             </p>
           </details>
-          <div className="mt-4">{coverControls(ai, true)}</div>
           <div className="mt-4 flex items-center justify-between gap-4 border-t border-border pt-3">
             <span className="amount text-2xl font-semibold">{priceText(aiPrice, aiCover, billing)}</span>
             {paidCover(covered.ai) ? null : (

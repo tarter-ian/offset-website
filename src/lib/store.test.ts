@@ -44,8 +44,8 @@ describe("why lines", () => {
 
 describe("covers", () => {
   it("offers every item monthly, leading with lifetime only for AI and items under $1 a month", () => {
-    expect(aheadFor(p("ai"), 10, C)).toEqual(["monthly", "lifetime"]);
-    expect(effectiveCover(p("ai"), 10, C).ahead).toBe("lifetime");
+    expect(aheadFor(p("ai"), 200, C)).toEqual(["monthly", "lifetime"]);
+    expect(effectiveCover(p("ai"), 200, C).ahead).toBe("lifetime");
     // Heavy AI use leads with monthly once lifetime passes $100.
     expect(effectiveCover(p("ai"), 10, { ...C, aiWhPerPrompt: 300, aiFromExport: true }).ahead).toBe("monthly");
     expect(effectiveCover(p("video"), 2, C).ahead).toBe("lifetime");
@@ -59,6 +59,9 @@ describe("covers", () => {
     expect(aheadFor(p("desktop"), 1, C)).toEqual(["monthly"]);
     expect(aheadFor(p("ai"), 20000, C)).toEqual(["monthly"]);
     expect(aheadFor(p("ai"), 20000, C, true)).toEqual(["monthly", "lifetime"]);
+    // Under a cent a month: lifetime only.
+    expect(aheadFor(p("ai"), 0.01, C)).toEqual(["lifetime"]);
+    expect(effectiveCover(p("ai"), 0.01, C, { ahead: "monthly" }).ahead).toBe("lifetime");
     expect(effectiveCover(p("ai"), 20000, C, { ahead: "lifetime" }).ahead).toBe("monthly");
   });
 
