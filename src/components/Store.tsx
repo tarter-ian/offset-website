@@ -1022,17 +1022,6 @@ export function Store() {
     setCheckout(true);
     setTimeout(() => document.getElementById("pay-steps")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
   };
-  // Says plainly whether the AI numbers were counted or guessed (Ian, 2026-10-12: accurate tracking is the appeal).
-  const aiBasis = ctx.aiFromExport
-    ? "Measured"
-    : entered.ai
-      ? "Your number"
-      : ctx.aiEstimate?.level
-        ? `Your guess (${AI_LEVELS[ctx.aiEstimate.level].label.toLowerCase()})`
-        : ctx.aiEstimate
-          ? "Your count"
-          : "Typical use";
-
   return (
     <div className="pb-20">
       <section className="pt-10 pb-12 lg:pt-14">
@@ -1046,15 +1035,8 @@ export function Store() {
         </div>
 
         <aside id="ai-chat" aria-label="AI chat, itemized" className="self-start border-t-2 border-rule pt-4">
-          <div className="flex items-baseline justify-between">
-            <h2 className="text-xl font-bold">AI chat</h2>
-          </div>
-          <div className="mt-3 border-b border-border pb-3">
-            {amountLine(ai)}
-          </div>
-          <dl className="amount divide-y divide-border text-sm">
+          <dl className="amount -mt-2 divide-y divide-border text-sm">
             {[
-              ["Based on", aiBasis],
               ...(["carbon", "air", "water", "land"] as const).map((k) => [IMPACT_INFO[k].label, k === "air" ? airShort(ab.impacts[k]) : IMPACT_INFO[k].format(ab.impacts[k])]),
             ].map(([k, v]) => (
               <div key={k} className="flex justify-between gap-4 py-2">
@@ -1134,6 +1116,15 @@ export function Store() {
                 setEntered((e) => ({ ...e, ai: false, "ai-media": false, ...(d.aiCodingPastWh !== undefined ? { "ai-coding": false } : {}) }));
               }}
             />
+            <div className="mt-3 text-sm">
+              {editing === ai.id ? (
+                amountLine(ai)
+              ) : (
+                <button type="button" onClick={() => setEditing(ai.id)} className="min-h-10 cursor-pointer text-muted underline underline-offset-4 hover:text-foreground">
+                  {entered.ai ? `Using your number, ${aiAmount} prompts a day. Change it` : "Or type in your own number"}
+                </button>
+              )}
+            </div>
           </div>
           {measuring && (
             <div className="mt-6 max-w-xl">
