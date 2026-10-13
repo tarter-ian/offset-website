@@ -6,19 +6,21 @@ import { type Covered, STORAGE_KEY } from "@/lib/covered";
 import { AccountBar } from "./Account";
 import { Seal } from "./Badge";
 import { badgesFor, PAST } from "@/lib/badges";
-import { pullCovered, pushCovered } from "@/lib/accountClient";
+import { accountsOn } from "@/lib/account";
+import { fetchAccount, pullCovered, pushCovered } from "@/lib/accountClient";
 import { canInstallExtension, savedResults } from "@/lib/extension";
-import { AI_CHAT_SERVICES, type AiChatService, inForce, monthlyUse, monthTotal, type MonthUse, recordStatus } from "@/lib/record";
-import { loadCheckout } from "@/lib/payments";
+import { AI_CHAT_SERVICES, type AiChatService, inForce, monthlyUse, monthTotal, type MonthUse, offsetCount, recordStatus } from "@/lib/record";
+import { loadCheckout, PAYMENT_MODE } from "@/lib/payments";
 import { itemName } from "@/lib/reminders";
 import { type SteadyPlan, steadyIds, steadyPlan } from "@/lib/steady";
 import { SteadyCheck } from "./SteadyCheck";
-import { productById } from "@/lib/store";
+import { productById, PRODUCTS } from "@/lib/store";
 
 // The page a returning visitor lands on: whether anything needs doing, their AI
 // use month by month (read from the extension on this computer, never sent to
-// us), and what's covered over time.
+// us), and what's offset over time.
 
+const EVERY_GIVING = "https://www.every.org/my-giving";
 const NAMES: Record<AiChatService, string> = { chatgpt: "ChatGPT", claude: "Claude", gemini: "Gemini" };
 const SHADE: Record<AiChatService, string> = { chatgpt: "bg-accent", claude: "bg-period-ink", gemini: "bg-muted" };
 
@@ -42,11 +44,14 @@ export function Record() {
   const [use, setUse] = useState<MonthUse[] | null>(null);
   const [computer, setComputer] = useState(true);
   const [steady, setSteady] = useState<SteadyPlan | null>(null);
+  /** Signed in with reminders on: only then does a link come by email. */
+  const [reminded, setReminded] = useState(false);
 
   useEffect(() => {
     setCovered(loadCovered());
     setSteady(steadyPlan(loadCheckout()));
     setComputer(canInstallExtension());
+    fetchAccount().then((a) => setReminded(a.signedIn && a.reminders !== false));
     // Signed in: bring in what the account covers (from another device), then send up anything this browser adds.
     pullCovered().then((merged) => {
       if (merged) {
@@ -61,6 +66,11 @@ export function Record() {
   const now = Date.now();
   const repeating = steadyIds(steady);
   const status = recordStatus(covered, now, repeating);
+  // Count what's offset against every item, so one item for life never reads as done (Ian, 2026-10-13).
+  const { offset, open } = offsetCount(covered, PRODUCTS.map((p) => p.id), now, repeating);
+  const all = open === 0;
+  const subject = offset.length === 1 ? `${nameOf(offset[0])} is` : `${offset.length} things are`;
+  const more = open > 0 && <> {open} more {open === 1 ? "thing" : "things"} you could offset.</>;
 
   return (
     <div className="pb-20">
@@ -77,14 +87,14 @@ export function Record() {
                 href={`/?store=1&renew=${encodeURIComponent(status.ids.join(","))}`}
                 className="inline-flex min-h-11 items-center justify-center rounded-md bg-accent px-5 font-semibold text-on-accent hover:bg-accent-strong"
               >
-                Cover the next month
+                Offset the next month
               </Link>
             </div>
           </>
         ) : status.kind === "none" ? (
           <>
-            <h1 className="font-display text-4xl leading-[1.05] font-extrabold [font-stretch:85%] sm:text-5xl">Nothing covered yet.</h1>
-            <p className="mt-4 max-w-xl text-lg text-muted">Once you cover something, it shows up here with the date it started.</p>
+            <h1 className="font-display text-4xl leading-[1.05] font-extrabold [font-stretch:85%] sm:text-5xl">Nothing offset yet.</h1>
+            <p className="mt-4 max-w-xl text-lg text-muted">Once you offset something, it shows up here with the date it started.</p>
             <p className="mt-6">
               <Link href="/?store=1" className="inline-flex min-h-11 items-center rounded-md bg-accent px-5 font-semibold text-on-accent hover:bg-accent-strong">
                 See your AI use
@@ -93,13 +103,33 @@ export function Record() {
           </>
         ) : (
           <>
-            <h1 className="font-display text-4xl leading-[1.05] font-extrabold [font-stretch:85%] sm:text-5xl">You&apos;re covered.</h1>
+            <h1 className="font-display text-4xl leading-[1.05] font-extrabold [font-stretch:85%] sm:text-5xl">
+              {all ? "You're fully offset." : `${subject} offset${status.kind === "life" ? " for life" : ""}.`}
+            </h1>
             <p className="mt-4 max-w-xl text-lg text-muted">
-              {status.kind === "life"
-                ? "Everything here is covered for life. There's nothing more to do."
-                : status.kind === "steady"
-                  ? "Your steady gift repeats on its own through Every.org until you stop it there. There's nothing to do."
-                  : `Nothing to do until ${day(status.until)}. We'll send you a link then.`}
+              {status.kind === "life" ? (
+                all ? (
+                  "Everything is offset for life. There's nothing more to do."
+                ) : (
+                  more
+                )
+              ) : status.kind === "steady" ? (
+                <>
+                  Your steady gift repeats on its own through Every.org until you stop it there.{more}
+                </>
+              ) : (
+                <>
+                  Nothing due until {day(status.until)}.{" "}
+                  {reminded ? (
+                    "We'll send you a link then."
+                  ) : accountsOn() ? (
+                    <Link href="/signin" className="underline underline-offset-4 hover:text-foreground">
+                      Sign in to get a reminder.
+                    </Link>
+                  ) : null}
+                  {more}
+                </>
+              )}
             </p>
           </>
         )}
@@ -128,7 +158,7 @@ export function Record() {
             What&apos;s offset
           </h2>
           <Link href="/?store=1" className="text-sm underline underline-offset-4 hover:text-muted">
-            Cover something else
+            Offset something else
           </Link>
         </div>
         <Seals covered={covered} now={now} />
@@ -145,16 +175,30 @@ export function Record() {
           {[
             ["/gift", "Give an offset as a gift", "For a year or for life, with a link to send."],
             ["/ledger", "Where the money goes", "Every charity, and what each gift pays for."],
-            // Repeating gifts are stopped in the person's Every.org account, not on /data.
-            ["/data", "See or clear your data", "What this browser and your account keep. What you offset stays offset."],
-          ].map(([href, title, note]) => (
-            <li key={href} className="border-b border-border py-3 pr-4">
-              <Link href={href} className="group block">
+            // Repeating gifts are stopped in the person's Every.org account, not here (Ian, 2026-10-13).
+            ...(PAYMENT_MODE === "every" ? [[EVERY_GIVING, "Manage repeating gifts", "Stop or change autopay on Every.org."]] : []),
+            ["/data", "See or clear your data", "What this browser and your account keep, and how to clear it."],
+          ].map(([href, title, note]) => {
+            const inner = (
+              <>
                 <span className="font-semibold underline underline-offset-4 group-hover:text-accent">{title}</span>
                 <span className="mt-0.5 block text-sm text-muted">{note}</span>
-              </Link>
-            </li>
-          ))}
+              </>
+            );
+            return (
+              <li key={href} className="border-b border-border py-3 pr-4">
+                {href.startsWith("http") ? (
+                  <a href={href} target="_blank" rel="noreferrer" className="group block">
+                    {inner}
+                  </a>
+                ) : (
+                  <Link href={href} className="group block">
+                    {inner}
+                  </Link>
+                )}
+              </li>
+            );
+          })}
         </ul>
       </section>
       <AccountBar />
@@ -255,7 +299,7 @@ function Seals({ covered, now }: { covered: Record<string, Covered>; now: number
   );
 }
 
-/** Each covered item with a line over the last twelve months and the next: green for life, blue for a set stretch. */
+/** Each offset item with a line over the last twelve months and the next: green for life, blue for a set stretch. */
 function CoveredList({ covered, now, repeating }: { covered: Record<string, Covered>; now: number; repeating: string[] }) {
   const entries = Object.entries(covered).sort(([, a], [, b]) => (a.kind === b.kind ? 0 : a.kind === "life" ? -1 : 1));
   if (!entries.length) return <p className="mt-3 text-muted">Nothing yet.</p>;

@@ -31,7 +31,7 @@ const PROMISES = [
       endaoment:
         "You give to My Offset's fund at Endaoment, a nonprofit that sends you the tax receipt and grants the money on to each charity in the amounts checkout shows. We never hold the money ourselves.",
       sponsor:
-        "Your donation is held by our charity sponsor, a registered charity, which sends you the tax receipt and pays the charities on your summary each month. We never hold the money ourselves. Every month's totals and receipts are public.",
+        "Your donation is held by our charity sponsor, a registered charity, which sends you the tax receipt and pays the charities on your summary each month. We never hold the money ourselves. Every month's totals are public.",
     }),
     link: { href: "/ledger", text: "Where the money goes" },
   },
@@ -47,7 +47,7 @@ const PROMISES = [
   },
   {
     title: "No cheap, unverified carbon credits",
-    body: "Many cheap carbon credits have turned out not to deliver what they claimed. We give to charities chosen on evidence of impact, and the only credits we buy are certified carbon removal, measured per tonne. We only say tonnes were removed when they were measured.",
+    body: "Many cheap carbon credits have turned out not to deliver what they claimed. We give to charities chosen on evidence of impact, and we buy no carbon credits. We never say tonnes were removed, because policy work can't be measured that way.",
   },
   {
     title: "Every number is explained",
@@ -84,7 +84,7 @@ export default function PromisesPage() {
               {"link" in p && p.link && (
                 <>
                   {" "}
-                  <Link href={p.link.href} className="text-accent hover:underline">
+                  <Link href={p.link.href} className="text-accent underline underline-offset-4">
                     {p.link.text}
                   </Link>
                 </>
@@ -108,7 +108,7 @@ export default function PromisesPage() {
           <p className="mt-1">
             My Offset is made by Ian Tarter, a Master of Human-Computer Interaction student at Carnegie Mellon University. It&apos;s one person, not a company with a
             marketing team, and every number on this site traces back to a source you can check.{" "}
-            <a href="https://iantarter.com" target="_blank" rel="noreferrer" className="text-accent hover:underline">
+            <a href="https://iantarter.com" target="_blank" rel="noreferrer" className="text-accent underline underline-offset-4">
               iantarter.com
             </a>
           </p>
@@ -118,7 +118,7 @@ export default function PromisesPage() {
         </div>
       </section>
       <p className="mt-8 text-muted">
-        See <Link href="/method" className="text-accent hover:underline">how we calculate</Link> for every factor and
+        See <Link href="/method" className="text-accent underline underline-offset-4">how we calculate</Link> for every factor and
         source.
       </p>
     </article>

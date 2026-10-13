@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { monthlyUse, monthTotal, recordStatus } from "./record";
+import { monthlyUse, monthTotal, offsetCount, recordStatus } from "./record";
 
 const NOW = Date.parse("2026-10-12T12:00:00Z");
 
@@ -49,4 +49,21 @@ describe("monthlyUse", () => {
     const rec = Array.from({ length: 12 }, (_, i) => ({ date: `2026-${String(i + 1).padStart(2, "0")}-01`, prompts: 1 }));
     expect(monthlyUse({ chatgpt: rec }, 3).map((x) => x.month)).toEqual(["2026-10", "2026-11", "2026-12"]);
   });
+});
+
+describe("offsetCount", () => {
+  const all = ["ai", "video", "car", "flights"];
+  it("counts what's still open, so one item for life isn't done", () =>
+    expect(offsetCount({ ai: { kind: "life" } }, all, NOW)).toEqual({ offset: ["ai"], open: 3 }));
+  it("leaves out ended stretches and counts steady gifts", () =>
+    expect(
+      offsetCount(
+        { ai: { kind: "life" }, video: { kind: "period", until: "2026-10-01T00:00:00Z" }, car: { kind: "period", until: "2026-10-01T00:00:00Z" } },
+        all,
+        NOW,
+        ["car"],
+      ),
+    ).toEqual({ offset: ["ai", "car"], open: 2 }));
+  it("is zero open when everything is offset", () =>
+    expect(offsetCount(Object.fromEntries(all.map((id) => [id, { kind: "life" as const }])), all, NOW).open).toBe(0));
 });

@@ -1,12 +1,6 @@
-import type { Metadata } from "next";
-import { EstimateWizard } from "@/components/EstimateWizard";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Your footprint estimate | My Offset" };
-
+// The old footprint wizard, with its own prices and carbon modes. The store on the home page replaced it.
 export default function EstimatePage() {
-  return (
-    <div className="mx-auto max-w-5xl px-4 py-12">
-      <EstimateWizard />
-    </div>
-  );
+  redirect("/");
 }
