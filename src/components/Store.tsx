@@ -55,6 +55,7 @@ import {
 import {
   aheadFor,
   SMALL_MONTHLY_USD,
+  AI_LIFETIME_FIRST_MAX_USD,
   BEFORE_GROUPS,
   lifestyleBadge,
   codingMeasured,
@@ -1010,9 +1011,18 @@ export function Store() {
 
   const ai = PRODUCTS.find((p) => p.id === "ai")!;
   const aiAmount = amountOf(ai);
-  const aiCover = coverOf(ai);
-  // The hero covers all AI use, not just chat (Ian, 2026-10-13): chat plus any images, video and coding, on chat's cover.
-  const heroLines = PRODUCTS.filter((p) => p.section === "ai" && (p.id === ai.id || Number(amountOf(p)) > 0)).map((p) => ({
+  // The hero covers all AI use, not just chat (Ian, 2026-10-13): chat plus any images, video and coding, on one cover.
+  const aiParts = PRODUCTS.filter((p) => p.section === "ai" && (p.id === ai.id || Number(amountOf(p)) > 0));
+  // It leads with lifetime only while the whole AI total for life stays small; heavier use leads monthly.
+  const heroLifetime = aiParts.reduce((t, p) => t + coverPrice(p, amountOf(p), { past: true, ahead: "lifetime" }, ctx).once, 0);
+  const aiCover = effectiveCover(
+    ai,
+    aiAmount,
+    ctx,
+    { past: pastAll, ...picked.ai, ahead: picked.ai?.ahead ?? (heroLifetime <= AI_LIFETIME_FIRST_MAX_USD ? "lifetime" : "monthly") },
+    anyway.ai,
+  );
+  const heroLines = aiParts.map((p) => ({
     p,
     amount: amountOf(p),
     cover: p.id === ai.id ? aiCover : effectiveCover(p, amountOf(p), ctx, { ahead: aiCover.ahead, past: aiCover.past }, anyway[p.id]),
@@ -1032,7 +1042,7 @@ export function Store() {
   /** The hero's green button: puts every AI part in the plan on the hero's cover, then opens checkout. */
   const reviewAndPay = () => {
     setPlan((cur) => [...cur, ...heroIds.filter((id) => !cur.includes(id) && !paidCover(covered[id]))]);
-    setPicked((x) => ({ ...x, ...Object.fromEntries(heroLines.filter((l) => l.p.id !== ai.id).map((l) => [l.p.id, { ...x[l.p.id], ...l.cover }])) }));
+    setPicked((x) => ({ ...x, ...Object.fromEntries(heroLines.map((l) => [l.p.id, { ...x[l.p.id], ...l.cover }])) }));
     setOpen(true);
     setCheckout(true);
     setTimeout(() => document.getElementById("pay-steps")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
@@ -1045,7 +1055,7 @@ export function Store() {
           <h1 className="font-display text-4xl leading-[1.08] font-semibold sm:text-6xl">
             {aiCover.ahead === "lifetime"
               ? `Your AI use, covered for life: about ${once(aiPrice.once)}.`
-              : `Your AI use, covered: about ${once(aiPrice.monthly)} a month.`}
+              : `Your AI use, covered: about ${per(aiPrice.monthly, billing)}.`}
           </h1>
         </div>
 
