@@ -1,5 +1,7 @@
+import type { Covered } from "./covered";
 import { type ListItem, PAST } from "./publicList";
-import { PRODUCTS, SECTIONS, type SectionKey } from "./store";
+import { inForce, untilOf } from "./record";
+import { type Context, defaultAmount, type Product, PRODUCTS, SECTIONS, type SectionKey } from "./store";
 
 export { PAST };
 
@@ -41,20 +43,50 @@ function shortest(untils: (string | null)[]): string | null {
 /**
  * The badges a set of offset items earns, biggest first: Fully Offset when every item
  * in the store is offset, then each whole aisle, then items outside a whole aisle.
+ * `needed` narrows "every item" to the ones there is something to offset for this
+ * person (see `toOffset`); by default it's the whole store.
  */
-export function badgesFor(items: ListItem[]): BadgeInfo[] {
+export function badgesFor(items: ListItem[], needed?: string[]): BadgeInfo[] {
   const until = new Map(items.map((i) => [i.productId, i.until]));
   const has = (id: string) => until.has(id);
-  if (PRODUCTS.every((p) => has(p.id))) return [{ kind: "full", key: "full", name: FULL_NAME, until: shortest(PRODUCTS.map((p) => until.get(p.id)!)) }];
+  const need = needed ? new Set(needed) : null;
+  const wanted = (ps: Product[]) => (need ? ps.filter((p) => need.has(p.id)) : ps);
+  const whole = (ps: Product[]) => wanted(ps).length > 0 && wanted(ps).every((p) => has(p.id));
+  const term = (ps: Product[]) => shortest(ps.filter((p) => has(p.id)).map((p) => until.get(p.id)!));
+  if (whole(PRODUCTS)) return [{ kind: "full", key: "full", name: FULL_NAME, until: term(wanted(PRODUCTS)) }];
   const out: BadgeInfo[] = [];
   const loose: BadgeInfo[] = [];
   for (const s of SECTIONS) {
     const inAisle = itemsIn(s.key);
-    if (inAisle.every((p) => has(p.id))) out.push({ kind: "aisle", key: s.key, name: s.title, until: shortest(inAisle.map((p) => until.get(p.id)!)) });
+    if (whole(inAisle)) out.push({ kind: "aisle", key: s.key, name: s.title, until: term(wanted(inAisle)) });
     else for (const p of inAisle) if (has(p.id)) loose.push({ kind: "item", key: p.id, name: p.name, until: until.get(p.id)! });
   }
   return [...out, ...loose];
 }
+
+/**
+ * The items there is something to offset at a person's own amounts: what Fully Offset
+ * asks of them. An item at nothing, like AI video for someone who makes none, can't be
+ * added to a plan, so it never stands between them and the badge.
+ */
+export function toOffset(amounts: Record<string, number | string>, ctx: Context): string[] {
+  return PRODUCTS.filter((p) => {
+    const a = amounts[p.id];
+    const amount = a !== undefined && (p.amount.kind === "number") === (typeof a === "number") ? a : defaultAmount(p, ctx);
+    return p.cost(amount, "monthly", ctx) > 0;
+  }).map((p) => p.id);
+}
+
+/** What's offset now, as badges read it: in force (autopay rolled on to its next renewal), or past use paid for on a cover that has ended. */
+export function offsetItems(covered: Record<string, Covered>, now: number): ListItem[] {
+  return Object.entries(covered)
+    .filter(([, c]) => inForce(c, now) || c.past)
+    .map(([productId, c]) => ({ productId, until: c.kind === "life" ? null : inForce(c, now) ? untilOf(c, now) : PAST }));
+}
+
+/** The Fully Offset badge, when everything there is to offset is; null otherwise. */
+export const fullBadge = (covered: Record<string, Covered>, needed: string[], now: number): BadgeInfo | null =>
+  badgesFor(offsetItems(covered, now), needed).find((b) => b.kind === "full") ?? null;
 
 /** A filter on the public list: everyone, Fully Offset, an aisle, or one item. */
 export type ListFilter = { kind: "everyone" } | { kind: "full" } | { kind: "aisle"; key: SectionKey } | { kind: "item"; key: string };

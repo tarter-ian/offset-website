@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { badgesFor, filterCounts, matches, PAST, parseFilter, termLabel, toneOf } from "./badges";
-import { PRODUCTS } from "./store";
+import { badgesFor, filterCounts, fullBadge, matches, offsetItems, PAST, parseFilter, termLabel, toneOf, toOffset } from "./badges";
+import { DEFAULT_CONTEXT, PRODUCTS } from "./store";
 
 const AI = ["ai", "ai-media", "ai-video", "ai-coding"];
 const life = (ids: string[]) => ids.map((productId) => ({ productId, until: null }));
@@ -37,6 +37,25 @@ describe("badges", () => {
     const b = badgesFor([...life(AI.slice(1)), { productId: "ai", until: PAST }]);
     expect(b[0]).toMatchObject({ kind: "aisle", until: PAST });
     expect(badgesFor([...life(AI.slice(2)), { productId: "ai", until: PAST }, { productId: "ai-media", until: "2027-01-01" }])[0].until).toBe(PAST);
+  });
+  it("gives Fully Offset for everything there is to offset at the person's own amounts", () => {
+    const needed = toOffset({}, DEFAULT_CONTEXT);
+    // Nothing to offset at no use: typical use makes no AI video or coding.
+    expect(needed).not.toContain("ai-video");
+    expect(needed).toContain("ai");
+    expect(toOffset({ "ai-coding": 5 }, DEFAULT_CONTEXT)).toContain("ai-coding");
+    const NOW = Date.parse("2026-10-13T00:00:00Z");
+    const all = Object.fromEntries(needed.map((id) => [id, { kind: "life" as const }]));
+    expect(fullBadge(all, needed, NOW)).toEqual({ kind: "full", key: "full", name: "Fully Offset", until: null });
+    // Not without one of them, and not on the whole store's terms.
+    const most = Object.fromEntries(Object.entries(all).filter(([id]) => id !== "ai"));
+    expect(fullBadge(most, needed, NOW)).toBeNull();
+    expect(badgesFor(offsetItems(all, NOW)).some((b) => b.kind === "full")).toBe(false);
+    // Autopay keeps a monthly item offset past its first month, through its next renewal.
+    const auto = { ...all, car: { kind: "period" as const, until: "2026-09-20T00:00:00Z", autopay: "monthly" as const } };
+    expect(fullBadge(auto, needed, NOW)?.until).toBe("2026-10-20T00:00:00.000Z");
+    expect(fullBadge({ ...all, car: { kind: "period", until: "2026-09-20T00:00:00Z", past: true } }, needed, NOW)?.until).toBe(PAST);
+    expect(fullBadge({ ...all, car: { kind: "period", until: "2026-09-20T00:00:00Z", past: false } }, needed, NOW)).toBeNull();
   });
   it("words the term", () => {
     expect(termLabel(PAST)).toBe("past use");

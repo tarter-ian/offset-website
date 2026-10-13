@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { NoDatabaseError } from "@/lib/db";
 import { loadGift } from "@/lib/giftStore";
-import { giftRows, recipients } from "@/lib/gifts";
+import { recipients } from "@/lib/gifts";
 import { addClaim, listedPeople } from "@/lib/listStore";
 import { paymentsOn } from "@/lib/payments";
 import { cleanName, giftItems, newToken, parsePlanClaim, planItems, planRows, sameRows, TOKEN, type Claim } from "@/lib/publicList";
@@ -44,7 +44,7 @@ export async function POST(req: Request) {
       const count = recipients(g).length;
       const n = typeof body.for === "number" && Number.isInteger(body.for) && body.for >= 0 && body.for < count ? body.for : 0;
       const sourceId = count > 1 ? `${g.id}/${n}` : g.id;
-      claim = { source: "gift", sourceId, rows: giftRows(g.items, g.birthYear, count), items: giftItems(g), createdAt: g.createdAt };
+      claim = { source: "gift", sourceId, rows: found.owed, items: giftItems(g), createdAt: g.createdAt };
     } else {
       const input = parsePlanClaim(body);
       if (!input) return NextResponse.json({ error: "That plan doesn't add up." }, { status: 400 });

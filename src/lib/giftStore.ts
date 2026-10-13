@@ -1,6 +1,6 @@
 import { db, rowsOf } from "./db";
-import { type Gift, GIFT_SPANS, type GiftItem, giftPaid, giftRows, recipients } from "./gifts";
-import { PLAN_ID } from "./payments";
+import { type Gift, GIFT_SPANS, type GiftItem, giftOwed, giftPaidMode } from "./gifts";
+import { type Owed, PLAN_ID } from "./payments";
 import { DEFAULT_CONTEXT, productById } from "./store";
 
 // Reading a gift back from the database, for its page, its API and its preview image. Server only.
@@ -16,8 +16,11 @@ function storedItems(items: unknown, productId: unknown, span: unknown): GiftIte
   return [{ productId: String(productId), span: span === "life" ? "life" : "year" }];
 }
 
-/** A gift and whether every charity's gift for it has arrived; null when there's no such gift. Throws when the database can't be reached. */
-export async function loadGift(id: string): Promise<{ gift: Gift; paid: boolean } | null> {
+/**
+ * A gift, whether what it owes has arrived, and what that is (in the mode it was paid in,
+ * else the site's own); null when there's no such gift. Throws when the database can't be reached.
+ */
+export async function loadGift(id: string): Promise<{ gift: Gift; paid: boolean; owed: Owed[] } | null> {
   if (!PLAN_ID.test(id)) return null;
   const database = await db();
   const [row] = rowsOf(
@@ -39,5 +42,6 @@ export async function loadGift(id: string): Promise<{ gift: Gift; paid: boolean 
   const donations = rowsOf(
     await database.execute({ sql: "SELECT partner_donation_id, amount FROM donations WHERE partner_donation_id LIKE ?", args: [`${id}.%`] }),
   ).map((d) => ({ partnerDonationId: typeof d.partner_donation_id === "string" ? d.partner_donation_id : null, amount: Number(d.amount) || 0 }));
-  return { gift, paid: giftPaid(id, giftRows(gift.items, gift.birthYear, recipients(gift).length), donations) };
+  const mode = giftPaidMode(gift, donations);
+  return { gift, paid: !!mode, owed: giftOwed(gift, mode ?? undefined) };
 }

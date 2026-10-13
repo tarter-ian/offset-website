@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Seal } from "./Badge";
-import { CheckoutSteps } from "./Checkout";
+import { CheckoutSteps, FundSteps } from "./Checkout";
 import { joinList, ListInvite, ListOptIn, savedListing } from "./ListOptIn";
 import { type Covered, STORAGE_KEY } from "@/lib/covered";
 import { IMPACT_KEYS } from "@/lib/footprint";
 import {
   andList,
+  chargeTotal,
   defaultGiftSpan,
   GIFT_CONFIRM_OVER_USD,
   GIFT_LIMITS,
@@ -16,12 +17,12 @@ import {
   GIFT_SPANS,
   GIFTABLE,
   type Gift,
+  giftCharge,
   giftCharities,
   giftContext,
   giftImpacts,
   type GiftItem,
   giftPath,
-  giftRows,
   giftSentence,
   type GiftSpan,
   giftSteps,
@@ -33,7 +34,7 @@ import {
 } from "@/lib/gifts";
 import { badgesFor } from "@/lib/badges";
 import { IMPACT_INFO } from "@/lib/impacts";
-import { allConfirmed, type Checkout, newPlanId, PAYMENT_MODE, paymentsOn, PLAN_ID, sumTotal } from "@/lib/payments";
+import { allConfirmed, type Checkout, forMode, newPlanId, PAYMENT_MODE, paymentsOn, PLAN_ID } from "@/lib/payments";
 import { usd } from "@/lib/pricing";
 import { DEFAULT_CONTEXT, defaultAmount, type Product, productById, SECTIONS } from "@/lib/store";
 
@@ -197,9 +198,13 @@ export function GiftMaker() {
   const birthYear = birth && birth > 1900 && birth <= new Date().getFullYear() ? birth : DEFAULT_CONTEXT.birthYear;
   const items = toItems(picks);
   const people = Math.max(1, names.filter((n) => n.trim()).length);
-  const rows = items.length ? giftRows(items, birthYear, people) : [];
+  // Every.org rows, or one gift to the fund: the same switch as the store's checkout (Ian, 2026-10-13).
+  const charge = giftCharge(items, birthYear, people);
+  const { rows, fund } = charge;
+  const ready = rows.length > 0 || !!fund;
+  const gifts = fund ? 1 : rows.length;
   const everydayForLife = items.some((i) => i.span === "life" && !productById(i.productId)?.oneTime);
-  const total = sumTotal(rows);
+  const total = chargeTotal(charge);
   const forPeople = people > 1 ? ` for ${people} people` : "";
   const checking = total > GIFT_CONFIRM_OVER_USD && checked === total;
   const start = async () => {
@@ -213,7 +218,7 @@ export function GiftMaker() {
         body: JSON.stringify({ id, items, birthYear, from, to: names.map((n) => n.trim()).filter(Boolean), note }),
       });
       if (!r.ok) throw new Error(((await r.json().catch(() => null)) as { error?: string } | null)?.error ?? "Couldn't save the gift.");
-      const c: Checkout = { id, created: new Date().toISOString(), billing: "monthly", rows, lines: [], done: {}, confirmed: {}, returnPath: `/gift/${id}` };
+      const c: Checkout = { id, created: new Date().toISOString(), billing: "monthly", rows, lines: [], done: {}, confirmed: {}, returnPath: `/gift/${id}`, ...(fund ? { fund } : {}) };
       saveGift(c);
       window.location.assign(`/gift/${id}`);
     } catch (e) {
@@ -244,7 +249,7 @@ export function GiftMaker() {
                 onClick={() => setPicks(Object.fromEntries(chosen.map((i) => [i.productId, i.span])))}
                 className="min-h-10 cursor-pointer text-left font-semibold underline underline-offset-4 hover:text-muted"
               >
-                {preset.label} · <span className="figures">{usd(sumTotal(giftRows(chosen, birthYear)))}</span>
+                {preset.label} · <span className="figures">{usd(chargeTotal(giftCharge(chosen, birthYear)))}</span>
               </button>
             );
           })}
@@ -372,8 +377,13 @@ export function GiftMaker() {
       <GiftCard gift={{ items, from, to: names.find((n) => n.trim()) ?? "", note, birthYear }} />
       {people > 1 && <p className="-mt-3 text-sm text-muted">Each person gets a card like this with their own name.</p>}
       <p className="text-sm text-muted">
-        Every.org emails you a receipt for each charity. The names and note are kept with the gift so its link can show them; nothing is sent
-        to anyone.
+        {forMode({
+          every: "Every.org emails you a receipt for each charity.",
+          sponsor: "Each charity emails you a receipt.",
+          endaoment: "Endaoment emails you the tax receipt.",
+        })}{" "}
+        The names and note
+        are kept with the gift so its link can show them; nothing is sent to anyone.
       </p>
       {error && (
         <p role="alert" className="font-semibold">
@@ -382,14 +392,17 @@ export function GiftMaker() {
       )}
       {paymentsOn() ? (
         <div>
-          {rows.length > 0 && <p className="mb-3">{giftSteps(rows.length, people, PAYMENT_MODE)}</p>}
+          {ready && <p className="mb-3">{giftSteps(gifts, people, PAYMENT_MODE)}</p>}
           {checking ? (
             <div className="border-y-2 border-rule py-3 text-sm">
               <p className="font-semibold">
                 You&apos;re giving <span className="figures">{usd(total)}</span>
-                {forPeople} to {rows.length} charit{rows.length === 1 ? "y" : "ies"}.
+                {forPeople}
+                {fund ? " in one gift to the fund at Endaoment" : ` to ${rows.length} charit${rows.length === 1 ? "y" : "ies"}`}.
               </p>
-              <p className="mt-1 text-muted">A check before anything opens, since it&apos;s a big gift. Each charity&apos;s page shows its own part again.</p>
+              <p className="mt-1 text-muted">
+                A check before anything opens, since it&apos;s a big gift.{fund ? "" : " Each charity's page shows its own part again."}
+              </p>
               <button
                 type="submit"
                 disabled={busy}
@@ -401,16 +414,16 @@ export function GiftMaker() {
           ) : (
             <button
               type="submit"
-              disabled={busy || !rows.length}
+              disabled={busy || !ready}
               className="min-h-11 cursor-pointer rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-strong disabled:opacity-60"
             >
-              {rows.length ? `Give this gift (${usd(total)}${forPeople}, fees included)` : "Pick something to offset"}
+              {ready ? `Give this gift (${usd(total)}${forPeople}, fees included)` : "Pick something to offset"}
             </button>
           )}
         </div>
       ) : (
         <p className="font-semibold">
-          {rows.length ? `This gift comes to ${usd(total)}${forPeople}, fees included. ` : ""}Payments open soon, and gifts with them.
+          {ready ? `This gift comes to ${usd(total)}${forPeople}, fees included. ` : ""}Payments open soon, and gifts with them.
         </p>
       )}
     </form>
@@ -510,9 +523,9 @@ export function GiftView({ id }: { id: string }) {
         <div className="mt-6">
           <GiftCard gift={{ ...gift, to: names[0] ?? "" }} />
         </div>
-        <h2 className="mt-8 text-lg font-bold">{paid ? "Given" : "Give to each charity"}</h2>
+        <h2 className="mt-8 text-lg font-bold">{paid ? "Given" : mine.fund ? "Give through Endaoment" : "Give to each charity"}</h2>
         <div className="mt-2">
-          <CheckoutSteps checkout={mine} save={saveGift} onChange={setMine} />
+          {mine.fund ? <FundSteps checkout={mine} save={saveGift} onChange={setMine} /> : <CheckoutSteps checkout={mine} save={saveGift} onChange={setMine} />}
           {paid && <ListInvite />}
         </div>
         <div className="mt-8 border-t-2 border-rule pt-4">
@@ -520,7 +533,7 @@ export function GiftView({ id }: { id: string }) {
           <p className="mt-1 text-sm text-muted">
             {paid
               ? `Send ${names.length > 1 ? "each person their own link" : `${toAll} this link`} however you like. It shows the card and what it offsets, and lets them save it in their browser.`
-              : `The ${names.length > 1 ? "links work" : "link works"} once every charity's gift is confirmed. Until then ${names.length > 1 ? "they say" : "it says"} the gift is still on its way.`}
+              : `The ${names.length > 1 ? "links work" : "link works"} once ${mine.fund ? "your gift is" : "every charity's gift is"} confirmed. Until then ${names.length > 1 ? "they say" : "it says"} the gift is still on its way.`}
           </p>
           <ul className="mt-2 space-y-2">
             {names.map((name, i) => {

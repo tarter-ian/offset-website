@@ -3,7 +3,7 @@
 import { AGENT_TOOL_NAMES } from "@/lib/ai/signin";
 import Link from "next/link";
 import { type Covered, STORAGE_KEY } from "@/lib/covered";
-import { recordStatus } from "@/lib/record";
+import { inForce, recordStatus, untilOf } from "@/lib/record";
 import { steadyPlan } from "@/lib/steady";
 import { pullCovered, pushCovered } from "@/lib/accountClient";
 import { useEffect, useRef, useState } from "react";
@@ -15,6 +15,8 @@ import { joinList, ListInvite, ListOptIn } from "./ListOptIn";
 import { AiExportUpload } from "./AiExportUpload";
 import { AiQuickPick } from "./AiQuickPick";
 import { OffsetTimeline } from "./OffsetTimeline";
+import { Seal } from "./Badge";
+import { fullBadge, PAST, termLabel, toOffset } from "@/lib/badges";
 import { AI_LEVELS, levelOf } from "@/lib/ai/levels";
 import { NumberInput, Select } from "./fields";
 import { STATE_OPTIONS, STATES, type StateCode } from "@/lib/data/states";
@@ -29,9 +31,11 @@ import {
   charityName,
   type Checkout,
   forMode,
+  FUND_KEY,
   type FundGift,
   fundGifts,
   fundLink,
+  fundOwed,
   harmsText,
   loadCheckout,
   newPlanId,
@@ -122,8 +126,9 @@ function previewCovered(): Record<string, Covered> | null {
   return { ai: { kind: "life" }, phone: { kind: "life" }, video: { kind: "period", until: inDays(30) }, electricity: { kind: "period", until: inDays(300) } };
 }
 
+/** A cover in force now, with a month or year on autopay rolled on to its next renewal, so it never shows as due. */
 const paidCover = (c: Covered | undefined): Covered | null =>
-  !c ? null : c.kind === "life" ? c : Date.parse(c.until) > Date.now() ? c : null;
+  !c || !inForce(c, Date.now()) ? null : c.kind === "life" ? c : { ...c, until: untilOf(c, Date.now()) };
 
 function load(): Saved | null {
   try {
@@ -350,13 +355,18 @@ export function Store() {
     const until = new Date(from);
     if (payState.billing === "annual") until.setFullYear(until.getFullYear() + 1);
     else until.setMonth(until.getMonth() + 1);
+    // Monthly or yearly items on autopay renew on Every.org, so they never come due here (Ian, 2026-10-13).
+    // Checkouts saved before the flag was kept repeat when any of their gifts does.
+    const autopay = payState.autopay ?? payState.rows.some((r) => r.frequency !== "ONCE");
     setCovered((c) => ({
       ...c,
       ...Object.fromEntries(
         payState.lines.map((l): [string, Covered] => [
           l.productId,
           {
-            ...(l.lifetime ? { kind: "life" as const } : { kind: "period" as const, until: until.toISOString() }),
+            ...(l.lifetime
+              ? { kind: "life" as const }
+              : { kind: "period" as const, until: until.toISOString(), ...(autopay ? { autopay: payState.billing } : {}) }),
             since: c[l.productId]?.since ?? payState.created,
             ...(l.past !== undefined ? { past: l.past || !!c[l.productId]?.past } : {}),
           },
@@ -1135,6 +1145,8 @@ export function Store() {
     .flatMap((c) => (c?.kind === "period" ? [c.until] : []))
     .sort()[0];
   const paidGift = paidLines.map((l) => covered[l.p.id]?.giftFrom).find(Boolean);
+  // Everything there is to offset at the person's own amounts, offset: the paid hero shows the badge (Ian, 2026-10-13).
+  const full = heroPaid && !previewing ? fullBadge(covered, toOffset(amounts, ctx), Date.now()) : null;
   // Past use on monthly parts is spread over years, as checkout does, so the box never asks for a big one-time sum (Ian, 2026-10-13).
   // The box is priced by the same totals as the plan, so spread past use isn't also counted once, and a lifetime
   // part's past use, already in its price, gets no line of its own (Ian, 2026-10-13).
@@ -1202,6 +1214,15 @@ export function Store() {
                 ✓ {paidLife ? "Your AI use, offset for life" : `Your AI use, offset through ${shortDate(paidUntil ?? "")}`}
                 {paidGift && `, a gift from ${paidGift}`}
               </p>
+              {full && (
+                <div className="mb-5 flex items-center gap-4 border-b border-border pb-5">
+                  <Seal kind="full" name={full.name} until={full.until} size={104} />
+                  <p>
+                    <span className="block font-display text-2xl font-semibold">Fully Offset</span>
+                    <span className="text-muted">Everything there is to offset for you is offset {full.until === PAST ? "for past use" : termLabel(full.until)}.</span>
+                  </p>
+                </div>
+              )}
               <dl className="mb-6 grid grid-cols-2 gap-x-6 gap-y-4 border-b border-border pb-5 lg:grid-cols-4">
                 {(
                   [
@@ -1904,6 +1925,7 @@ export function Store() {
                     {paymentsOn() && checkout && (
                       <FundPaySection
                         gift={fund.today}
+                        listing={{ lines, ctx, pastYears: spreadYears }}
                         lines={totals.lines.map((l) => ({ productId: l.productId, lifetime: l.cover.ahead === "lifetime", past: l.cover.past }))}
                         billing={billing}
                         payState={payState}
@@ -2142,7 +2164,17 @@ function PaySection({
   const current: Checkout | null =
     saved ??
     (draftId
-      ? { id: draftId, created: new Date().toISOString(), billing, rows, lines, done: {}, confirmed: {}, plan: { lines: listing.lines, ctx: listing.ctx, pastYears: listing.pastYears } }
+      ? {
+          id: draftId,
+          created: new Date().toISOString(),
+          billing,
+          rows,
+          lines,
+          done: {},
+          confirmed: {},
+          autopay: hasRepeat && autopay,
+          plan: { lines: listing.lines, ctx: listing.ctx, pastYears: listing.pastYears },
+        }
       : null);
   return (
     <section id="pay-steps" aria-labelledby="pay-heading" className="mt-4 scroll-mt-4 border-t-2 border-rule pt-3">
@@ -2243,7 +2275,7 @@ function PaySection({
  * Giving through the Endaoment fund: one gift and one Give button, which opens
  * the fund's page in a new tab. With no webhook or reference from Endaoment yet,
  * the gift is kept here as given and pending confirmation, and nothing is marked
- * offset from it.
+ * offset from it. The public list waits on the same confirmation.
  */
 function FundPaySection({
   gift,
@@ -2251,15 +2283,20 @@ function FundPaySection({
   billing,
   payState,
   setPayState,
+  listing,
 }: {
   gift: FundGift;
   lines: Checkout["lines"];
   billing: Billing;
   payState: Checkout | null;
   setPayState: (c: Checkout | null) => void;
+  /** What the server needs to work the gift out again for the public list. */
+  listing: { lines: PlanLine[]; ctx: Context; pastYears: PastYears };
 }) {
   const [draftId, setDraftId] = useState<string | null>(null);
   const [confirmedBig, setConfirmedBig] = useState(false);
+  const [listName, setListName] = useState<string | null>(null);
+  const [listNote, setListNote] = useState("");
   useEffect(() => setDraftId(newPlanId()), []);
   const href = fundLink();
   const given = payState?.fund && payState.done.fund ? payState : null;
@@ -2279,6 +2316,11 @@ function FundPaySection({
               Endaoment emails your tax receipt. Items are marked offset here once we can confirm gifts with Endaoment.
             </span>
           </p>
+          {listNote && (
+            <p role="status" className="mt-2 text-sm">
+              {listNote} <Link href="/list/edit" className="underline">Change or leave</Link>
+            </p>
+          )}
           <button
             type="button"
             onClick={() => {
@@ -2313,9 +2355,24 @@ function FundPaySection({
               target="_blank"
               rel="noopener"
               onClick={() => {
-                const c: Checkout = { id: draftId, created: new Date().toISOString(), billing, rows: [], lines, done: { fund: new Date().toISOString() }, confirmed: {}, fund: gift };
+                const c: Checkout = {
+                  id: draftId,
+                  created: new Date().toISOString(),
+                  billing,
+                  rows: [],
+                  lines,
+                  done: { [FUND_KEY]: new Date().toISOString() },
+                  confirmed: {},
+                  fund: gift,
+                  plan: listing,
+                };
                 saveCheckout(c);
                 setPayState(c);
+                // The list checks the same one gift to the fund, so the listing shows once it's confirmed.
+                if (listName)
+                  joinList(listName, { source: "plan", planId: c.id, billing, autopay: false, ...listing, rows: fundOwed(gift) }).then((err) =>
+                    setListNote(err ?? `You'll show on the public list as ${listName} once your gift is confirmed.`),
+                  );
               }}
               className="inline-flex min-h-11 cursor-pointer items-center rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-strong"
             >
@@ -2325,6 +2382,7 @@ function FundPaySection({
               Opens the My Offset fund on Endaoment in a new tab. Give <span className="figures">{usd(gift.total)}</span> there, and
               Endaoment grants each charity its part.
             </p>
+            <ListOptIn label="List me publicly" onChange={setListName} />
             <p className="mt-2 text-muted">
               Before you give: <Link href="/ledger">where the money goes</Link>, <Link href="/promises">what we promise</Link> and{" "}
               <Link href="/method">how each price is worked out</Link>. None of it passes through My Offset.

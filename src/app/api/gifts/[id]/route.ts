@@ -13,7 +13,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   try {
     const found = await loadGift(id);
     if (!found) return NextResponse.json({ error: "Unknown gift." }, { status: 404, headers });
-    return NextResponse.json(found, { headers });
+    return NextResponse.json({ gift: found.gift, paid: found.paid }, { headers });
   } catch {
     return NextResponse.json({ error: "Couldn't look it up." }, { status: 503, headers });
   }
