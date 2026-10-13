@@ -277,7 +277,7 @@ export function AiQuickPick({
 
   return (
     <div>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="group" aria-label="How much you use AI">
+      <div className="grid grid-cols-2 gap-2" role="group" aria-label="How much you use AI">
         {(Object.keys(AI_LEVELS) as AiLevel[]).map((k) => {
           const l = AI_LEVELS[k];
           const on = level === k;

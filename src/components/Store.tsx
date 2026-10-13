@@ -1042,26 +1042,14 @@ export function Store() {
 
   return (
     <div className="pb-20">
-      <section className="pt-10 pb-10 lg:pt-14">
-        <div className="max-w-4xl">
+      <section className="grid gap-10 pt-10 pb-12 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-14 lg:pt-14">
+        <div>
           <h1 className="font-display text-4xl leading-[1.08] font-semibold sm:text-6xl">
             {aiLeadsLifetime(aiAmount, ctx)
               ? `Your AI use, covered for life: about ${once(coverPrice(ai, aiAmount, { past: true, ahead: "lifetime" }, ctx).once)}.`
               : `Your AI use, covered: about ${once(coverPrice(ai, aiAmount, { past: false, ahead: "monthly" }, ctx).monthly)} a month.`}
           </h1>
-          <p className="mt-8 text-sm text-muted">
-            What your AI use does{" "}
-            {aiCover.ahead === "lifetime" ? (aiCover.past ? "over your life" : "from now on") : billing === "annual" ? "each year" : "each month"}, all of it covered:
-          </p>
-          <dl className="amount mt-2 grid grid-cols-2 gap-x-6 gap-y-4 border-y-2 border-rule py-4 sm:grid-cols-4">
-            {(["carbon", "air", "water", "land"] as const).map((k) => (
-              <div key={k}>
-                <dt className="text-sm text-muted">{IMPACT_INFO[k].label}</dt>
-                <dd className="mt-0.5 text-2xl font-semibold">{k === "air" ? airShort(ab.impacts[k]) : IMPACT_INFO[k].format(ab.impacts[k])}</dd>
-              </div>
-            ))}
-          </dl>
-          <div className="mt-6">
+          <div className="mt-8 max-w-xl">
             <AiQuickPick
               level={ctx.aiFromExport || entered.ai ? null : (ctx.aiEstimate?.level ?? null)}
               onPick={(level, from) => {
@@ -1101,7 +1089,7 @@ export function Store() {
             />
           </div>
           {measuring && (
-            <div className="mt-6 max-w-2xl">
+            <div className="mt-6 max-w-xl">
               <AiExportUpload
                 onResult={(s) => {
                   const d = digitalFromExport(s);
@@ -1114,10 +1102,8 @@ export function Store() {
             </div>
           )}
         </div>
-      </section>
 
-      <section className="pb-12">
-        <aside id="ai-chat" aria-label="AI chat, itemized" className="max-w-xl border-t-2 border-rule pt-4">
+        <aside id="ai-chat" aria-label="AI chat, itemized" className="self-start border-t-2 border-rule pt-4">
           <div className="flex items-baseline justify-between">
             <h2 className="text-xl font-bold">AI chat</h2>
             <span className="text-sm text-muted">ChatGPT, Claude, Gemini and the rest</span>
@@ -1129,6 +1115,7 @@ export function Store() {
             {[
               ["Based on", aiBasis],
               ["Covers", covers],
+              ...(["carbon", "air", "water", "land"] as const).map((k) => [IMPACT_INFO[k].label, k === "air" ? airShort(ab.impacts[k]) : IMPACT_INFO[k].format(ab.impacts[k])]),
             ].map(([k, v]) => (
               <div key={k} className="flex justify-between gap-4 py-2">
                 <dt className="text-muted">{k}</dt>
