@@ -1,6 +1,6 @@
 // Fits a badge's name inside the seal's inner ring (Ian, 2026-10-13: no text may
 // touch a ring). The seal is drawn on a 120 by 120 grid; the name sits inside the
-// ring of radius 39.5, with the small italic "offset" under a short rule.
+// ring of radius 39.5, with the small italic "offset" under it.
 
 /** Fraunces semibold advance widths, in ems, measured in Chromium. Unknown letters count as wide. */
 const EM: Record<string, number> = {
@@ -21,8 +21,8 @@ const CENTER = 60;
 const ASCENT = 0.74;
 const DESCENT = 0.23;
 const LEADING = 1.0;
-/** The rule and italic "offset" under the name: gap, rule, gap, then lettering about 8 tall and 31 wide. */
-const TAIL = { gap: 2.4, below: 9.6, height: 11.4, width: 31 };
+/** The italic "offset" under the name: a gap, then lettering about 8 tall and 31 wide. */
+const TAIL = { gap: 2.4, below: 7.8, height: 9.6, width: 31 };
 
 export interface SealLayout {
   lines: string[];
@@ -30,7 +30,7 @@ export interface SealLayout {
   fs: number;
   /** Baseline of each line. */
   baselines: number[];
-  /** Where the short rule and "offset" go, when there is a tail. */
+  /** Where "offset" goes, when there is a tail: the top of its box, and its baseline. */
   rule?: number;
   tail?: number;
 }

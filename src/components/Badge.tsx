@@ -84,12 +84,9 @@ export function Seal({ kind, name, until, size = 112 }: SealProps) {
           </text>
         ))}
         {fit.rule !== undefined && fit.tail !== undefined && (
-          <>
-            <line x1="50" x2="70" y1={fit.rule} y2={fit.rule} stroke="currentColor" strokeWidth="0.75" />
-            <text x="60" y={fit.tail} fontSize="10.5" fontStyle="italic">
-              offset
-            </text>
-          </>
+          <text x="60" y={fit.tail} fontSize="10.5" fontStyle="italic">
+            offset
+          </text>
         )}
       </g>
     </svg>
