@@ -52,10 +52,10 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
     ),
   },
   {
-    title: "Fees and tips",
+    title: "Fees",
     body: PAYMENT_MODE === "every"
-      ? "Every.org's card fee is shown for each charity, and we don't keep any of it. Tips are optional, paid separately, and pay for running the site, never a salary."
-      : "The card fee and our charity sponsor's fee are listed separately, and we don't keep any of either. Tips are optional and pay for running the site, never a salary.",
+      ? "Every.org's card fee is shown for each charity, and we don't keep any of it. There are no tips or fees for using the site."
+      : "The card fee and our charity sponsor's fee are listed separately, and we don't keep any of either. There are no tips or fees for using the site.",
   },
   {
     title: "Paying again",
@@ -81,7 +81,7 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
   },
   {
     title: "Our responsibility",
-    body: "The site is provided as it is. As far as the law allows, we aren't liable for indirect losses, and our total liability to you is what you paid us in fees and tips over the last 12 months. Nothing here limits rights you have that the law says can't be limited.",
+    body: "The site is provided as it is. As far as the law allows, we aren't liable for indirect losses, and our total liability to you is what you paid us over the last 12 months. Nothing here limits rights you have that the law says can't be limited.",
   },
   {
     title: "Changes",

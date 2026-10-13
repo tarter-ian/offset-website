@@ -17,18 +17,18 @@ const monthName = (m: string) => new Date(`${m}-15T00:00:00Z`).toLocaleDateStrin
 const STEPS = PAYMENT_MODE === "every" ? [
   { title: "You give", body: "You give to each charity on your plan through Every.org, one gift per charity. Each gift shows its own card fee at checkout." },
   { title: "Every.org", body: "Every.org, a nonprofit donation platform, takes the payment, sends you the tax receipt and passes the gift to the charity. We never hold the money ourselves." },
-  { title: "The charities", body: "Each charity gets your gift from Every.org. The card fee goes to the card processor. We keep nothing; tips are separate and pay for running the site." },
+  { title: "The charities", body: "Each charity gets your gift from Every.org. The card fee goes to the card processor. We keep nothing." },
 ] : [
   { title: "You pay", body: "Your donation, the card fee and the sponsor fee are listed separately at checkout." },
   { title: "Our charity sponsor", body: "A registered charity holds your donation and sends you the tax receipt. My Offset is one of its projects, so we never hold the money ourselves. It keeps the sponsor fee for that work." },
-  { title: "The charities", body: "The sponsor pools small donations and pays each charity on your summary once a month. The card fee goes to the card processor. We keep only tips people choose to add, which pay for running the site." },
+  { title: "The charities", body: "The sponsor pools small donations and pays each charity on your summary once a month. The card fee goes to the card processor. We keep nothing." },
 ];
 
-// What tips pay for. Rough monthly costs of keeping the site up; amounts are list prices.
+// What running the site costs, which Ian pays himself (no tips, Ian 2026-10-13); amounts are list prices.
 const RUNNING_COSTS = [
   {
     what: "Covering this site's own footprint: hosting and every page load, worked out the same way as yours (Ian covers the AI used to build it himself)",
-    cost: "first, each month; pennies at our size",
+    cost: "each month; pennies at our size",
   },
   { what: "Hosting the site (Cloudflare)", cost: "free up to 100,000 visits a day, then $5 a month" },
   { what: "The web address", cost: "about $15 a year" },
@@ -157,11 +157,9 @@ export default async function LedgerPage() {
         </>
       )}
 
-      <h2 id="tips" className="mt-12 scroll-mt-6 text-xl font-semibold">What tips pay for</h2>
+      <h2 id="running" className="mt-12 scroll-mt-6 text-xl font-semibold">Running the site</h2>
       <p className="mt-2 text-muted">
-        Tips are optional and separate from your donation.{" "}
-        {PAYMENT_MODE === "every" && "Every.org only pays charities, so tips go through a page of their own, linked at checkout. "}
-        They pay only for keeping My Offset running, starting with covering the site&apos;s own footprint; nobody draws a salary from them.
+        Ian Tarter, who made My Offset, pays these himself. There are no tips, and none of your donation goes to them.
       </p>
       <ul className="mt-3 border-t-2 border-rule">
         {RUNNING_COSTS.map((c) => (
@@ -171,11 +169,6 @@ export default async function LedgerPage() {
           </li>
         ))}
       </ul>
-      <p className="mt-3 text-muted">
-        Tips received and what they were spent on go up here each month, next to the donations. Anything left over after a month&apos;s
-        costs goes to the charities with that month&apos;s donations, split the same way the donations were: a charity that got 40% of
-        the month&apos;s donations gets 40% of the leftover tips.
-      </p>
 
       <p className="mt-10 text-muted">
         See <Link href="/promises" className="text-accent hover:underline">our promises</Link> and{" "}

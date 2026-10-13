@@ -23,8 +23,8 @@ const PROMISES = [
   {
     title: "No cut, just costs passed on",
     body: PAYMENT_MODE === "every"
-      ? "We don't make money on your donation. Each charity is paid separately through Every.org, which charges card payments 2.2% + 30¢ and bank payments nothing; the fee is shown for each charity. Paying yearly means one 30¢ fee per charity instead of twelve. Tips toward running the site are separate and off unless you choose to give one."
-      : "We don't make money on your donation. Two fees are passed on at cost, each on its own line: the card payment (30¢ plus 2.2%) and our charity sponsor's 8%, which pays for holding the money, sending tax receipts and paying the charities. Paying yearly means one 30¢ charge instead of twelve. At checkout you can add a tip toward running the site; it's off unless you pick it.",
+      ? "We don't make money on your donation. Each charity is paid separately through Every.org, which charges card payments 2.2% + 30¢ and bank payments nothing; the fee is shown for each charity. Paying yearly means one 30¢ fee per charity instead of twelve. There are no tips; Ian pays for running the site himself."
+      : "We don't make money on your donation. Two fees are passed on at cost, each on its own line: the card payment (30¢ plus 2.2%) and our charity sponsor's 8%, which pays for holding the money, sending tax receipts and paying the charities. Paying yearly means one 30¢ charge instead of twelve. There are no tips; Ian pays for running the site himself.",
   },
   {
     title: "No cheap, unverified carbon credits",
