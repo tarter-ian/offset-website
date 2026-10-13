@@ -968,9 +968,8 @@ export function Store() {
             : outcomeText(tileImpacts(p))}
         </p>
         {info === p.id && infoPanel(p)}
-        {paid?.kind === "life" ? (
-          <p className="mt-auto pt-3 text-sm text-life-ink">All done. Nothing more to pay for this, ever.</p>
-        ) : !nothing && (
+        {/* An item offset for life shows nothing here: its pale green and "Offset for life" say it (Ian, 2026-10-13). */}
+        {paid?.kind !== "life" && !nothing && (
         <div className="mt-auto flex items-center justify-between gap-3 pt-3">
           <span className="leading-tight">
             <span className="amount block text-lg font-semibold">{tp.big}</span>
@@ -1573,7 +1572,6 @@ export function Store() {
                 <h2 id={`heading-${s.key}`} className="text-2xl font-bold">
                   {s.title}
                 </h2>
-                <p className="text-sm text-muted">{s.blurb}</p>
               </div>
               <div className="flex min-w-0 items-baseline gap-4">
                 {addable(items).length > 1 &&
