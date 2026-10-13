@@ -130,7 +130,7 @@ export function Record() {
         </h2>
         <ul className="mt-3 grid border-t border-rule sm:grid-cols-3">
           {[
-            ["/gift", "Give one to someone", "Cover a friend's AI use for a year or for life."],
+            ["/gift", "Cover a friend's AI use", "As a gift, for a year or for life."],
             ["/ledger", "Where the money goes", "Every charity, and what each gift pays for."],
             ["/data", "Stop or clear", "Ends anything repeating. What you covered stays covered."],
           ].map(([href, title, note]) => (

@@ -689,7 +689,7 @@ export function Store() {
     const cover = coverOf(p);
     const c = coverImpacts(p, amountOf(p), cover, ctx);
     const lines: [string, string][] = [];
-    if (cover.ahead === "lifetime") lines.push([cover.past ? "Covers for life" : "Covers all future use", coversText(c.once)]);
+    if (cover.ahead === "lifetime") lines.push([cover.past ? "Offsets for life" : "Offsets all future use", coversText(c.once)]);
     else {
       if (cover.past) lines.push(["Covers past use", coversText(c.once)]);
       const k = billing === "annual" ? 12 : 1;
@@ -812,8 +812,8 @@ export function Store() {
               <p className={`text-sm font-semibold ${paid.kind === "life" ? "text-life-ink" : "text-period-ink"}`}>
                 ✓{" "}
                 {paid.kind === "life"
-                  ? "Covered for life"
-                  : `Covered through ${shortDate(paid.until)}`}
+                  ? "Offset for life"
+                  : `Offset through ${shortDate(paid.until)}`}
                 {paid.giftFrom && `, a gift from ${paid.giftFrom}`}
               </p>
             )}
@@ -1034,7 +1034,13 @@ export function Store() {
   const aiCover: Cover = { past: heroPast, ahead: aiPrice.monthly > 0 ? "monthly" : "lifetime" };
   const aiImpacts = sumImpacts(heroLines.flatMap((l) => Object.values(coverImpacts(l.p, l.amount, l.cover, ctx))));
   const heroIds = heroLines.map((l) => l.p.id);
-  const heroNames = heroLines.map((l) => ({ ai: "Chat", "ai-media": "images", "ai-video": "video", "ai-coding": "coding" })[l.p.id] ?? l.p.name);
+  const heroPastOnce = heroLines.reduce((t, l) => t + (l.cover.past ? l.p.cost(l.amount, "past", ctx) : 0), 0);
+  const heroName = (id: string, name: string) => ({ ai: "chat", "ai-media": "images", "ai-video": "video", "ai-coding": "coding" })[id] ?? name;
+  const heroLifeNames = heroLines
+    .filter((l) => l.cover.ahead === "lifetime")
+    .map((l) => heroName(l.p.id, l.p.name))
+    .join(" and ");
+  const heroNames = heroLines.map((l) => (l.p.id === "ai" ? "Chat" : heroName(l.p.id, l.p.name)));
   const heroParts = heroNames.length > 1 ? `${heroNames.slice(0, -1).join(", ")} and ${heroNames.at(-1)}` : "Chat";
   const heroInPlan = heroIds.every((id) => plan.includes(id) || paidCover(covered[id]));
   /** The hero's green button: puts every AI part in the plan on the hero's cover, then opens checkout. */
@@ -1052,8 +1058,8 @@ export function Store() {
         <div className="self-center">
           <h1 className="font-display text-4xl leading-[1.08] font-semibold sm:text-6xl">
             {heroAhead === "lifetime" && aiCover.ahead === "lifetime"
-              ? `Your AI use, covered for life: about ${once(aiPrice.once)}.`
-              : `Your AI use, covered: about ${per(aiPrice.monthly, billing)}.`}
+              ? `Your AI use, offset for life: about ${once(aiPrice.once)}.`
+              : `Your AI use, offset: about ${per(aiPrice.monthly, billing)}.`}
           </h1>
         </div>
 
@@ -1079,14 +1085,33 @@ export function Store() {
             </p>
           </details>
           <div className="mt-4 flex items-center justify-between gap-4 border-t border-border pt-3">
-            <span className="amount text-2xl font-semibold">{priceText(aiPrice, aiCover, billing)}</span>
+            {aiPrice.monthly > 0 && aiPrice.once > 0 ? (
+              // Two charges: the monthly leads, and the one-time part says what it pays for (Ian, 2026-10-13).
+              <span>
+                <span className="amount block text-2xl font-semibold">{per(aiPrice.monthly, billing)}</span>
+                <span className="block text-sm text-muted">
+                  {[
+                    heroPastOnce >= 0.005 && `+ ${once(heroPastOnce)} once for past use`,
+                    aiPrice.once - heroPastOnce >= 0.005 && `+ ${once(aiPrice.once - heroPastOnce)} once to offset ${heroLifeNames} for life`,
+                  ]
+                    .filter(Boolean)
+                    .map((t) => (
+                      <span key={String(t)} className="block">
+                        {t}
+                      </span>
+                    ))}
+                </span>
+              </span>
+            ) : (
+              <span className="amount text-2xl font-semibold">{priceText(aiPrice, aiCover, billing)}</span>
+            )}
             {paidCover(covered.ai) ? null : (
               <button
                 type="button"
                 onClick={reviewAndPay}
                 className="min-h-11 shrink-0 cursor-pointer rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-strong"
               >
-                {heroInPlan ? "Review and pay" : "Cover my AI use"}
+                {heroInPlan ? "Review and pay" : "Offset my AI use"}
               </button>
             )}
           </div>
@@ -1181,22 +1206,23 @@ export function Store() {
         </section>
       )}
 
-      <nav aria-label="Other things you can do" className="mb-10 flex flex-wrap gap-x-6 gap-y-1 text-sm">
+      <nav aria-label="Other things you can do" className="mb-10 flex flex-col text-sm sm:flex-row sm:gap-y-1 sm:flex-wrap sm:gap-x-8">
         {recordStatus(covered).kind !== "none" && !previewing && (
           <Link href="/record" className="inline-flex min-h-10 items-center font-semibold underline underline-offset-4 hover:text-muted">
             Your record
           </Link>
         )}
-        <span className="inline-flex min-h-10 items-center text-muted">Not sure yet?</span>
-        <Link href="/ledger" className="inline-flex min-h-10 items-center underline underline-offset-4 hover:text-muted">
-          Where the money goes
-        </Link>
-        <Link href="/method" className="inline-flex min-h-10 items-center underline underline-offset-4 hover:text-muted">
-          How we calculate
-        </Link>
-        <span className="inline-flex min-h-10 items-center text-muted">Giving?</span>
+        <span className="flex flex-col sm:flex-row sm:flex-wrap sm:gap-x-4">
+          <span className="hidden min-h-10 items-center text-muted sm:inline-flex">Not sure yet?</span>
+          <Link href="/ledger" className="inline-flex min-h-10 items-center underline underline-offset-4 hover:text-muted">
+            Where the money goes
+          </Link>
+          <Link href="/method" className="inline-flex min-h-10 items-center underline underline-offset-4 hover:text-muted">
+            How we calculate
+          </Link>
+        </span>
         <Link href="/gift" className="inline-flex min-h-10 items-center underline underline-offset-4 hover:text-muted">
-          Give one to someone
+          Cover a friend&apos;s AI use as a gift
         </Link>
       </nav>
 
