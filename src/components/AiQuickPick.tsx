@@ -269,6 +269,9 @@ export function AiQuickPick({
   const signedOut = EXTENSION_SERVICES.filter((x) => rows[x]?.state === "error" && rows[x]?.error === "signed-out");
   const busy = Object.values(rows).some((r) => r?.state === "counting" || r?.state === "asking");
 
+  const lastMeasured = Object.values(measuredAt).sort().at(-1);
+  const counted = EXTENSION_SERVICES.filter((x) => rows[x]?.state === "done").length;
+
   const showConnect = connecting || Object.keys(rows).length > 0 || open !== null || status.kind !== "idle";
 
   function connect(service: QuickService) {
@@ -299,61 +302,21 @@ export function AiQuickPick({
           aria-expanded={showConnect}
           onClick={() => {
             setConnecting(true);
-            // With the extension there's nothing to choose: count everything straight away.
-            if (ext && !Object.keys(rows).length) run(EXTENSION_SERVICES, false, undefined, REUSE_HOURS);
+            // With the extension there's nothing to choose: every click updates the numbers (Ian, 2026-10-13).
+            if (ext && !busy) run(EXTENSION_SERVICES, false, undefined, REUSE_HOURS);
           }}
           className={`min-h-14 cursor-pointer rounded-md border-2 border-rule px-3 py-2 text-left ${showConnect ? "bg-foreground text-background" : "hover:bg-card"}`}
         >
           <span className="block font-semibold">Connect your data</span>
-          <span className={`block text-sm ${showConnect ? "opacity-80" : "text-muted"}`}>your real count</span>
+          <span className={`block text-sm ${showConnect ? "opacity-80" : "text-muted"}`}>
+            {ext && busy ? "Counting…" : ext && lastMeasured ? `Updated ${ago(lastMeasured)}. Update again` : "your real count"}
+          </span>
         </button>
       </div>
       {showConnect && (
         <div className="mt-4">
       {ext ? (
         <div className="mt-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => run(EXTENSION_SERVICES, false, undefined, REUSE_HOURS)}
-              disabled={busy}
-              className="min-h-11 rounded-md bg-foreground px-5 font-semibold text-background hover:opacity-90 disabled:opacity-60"
-            >
-              Measure everything
-            </button>
-            <span className="text-sm text-muted">or just</span>
-            {EXTENSION_SERVICES.map((x) => (
-              <button
-                key={x}
-                type="button"
-                onClick={() => run([x])}
-                disabled={busy}
-                className="min-h-11 rounded-md border-2 border-rule px-3 text-sm font-semibold hover:bg-foreground hover:text-background disabled:opacity-60"
-              >
-                {EXT_NAMES[x]}
-              </button>
-            ))}
-          </div>
-          <details className="mt-2 text-sm">
-            <summary className="cursor-pointer text-muted underline underline-offset-4 hover:text-foreground">Options and how it works</summary>
-          <label className="mt-2 flex cursor-pointer items-start gap-2 text-sm">
-            <input type="checkbox" className="mt-1" checked={whole} onChange={(e) => setWhole(e.target.checked)} disabled={busy} />
-            <span>
-              <span className="font-semibold">Count my whole history</span>{" "}
-              <span className="text-muted">
-                (slower). YouTube, Netflix and Gemini read back as far as your account goes, so your past use is measured instead of estimated. A long
-                YouTube history can take 10 minutes or more. ChatGPT, Claude and the delivery apps always send their history.
-              </span>
-            </span>
-          </label>
-          <p className="mt-2 text-sm text-muted">
-            The My Offset extension checks ChatGPT, Claude, Gemini, YouTube, Netflix, DoorDash, Uber Eats, Amazon and Uber in the background, where you&apos;re already logged in, and
-            brings back your last 30 days. Only counts come back, never your chats or orders.{" "}
-            <a href="/extension" className="underline hover:text-foreground">
-              How it works
-            </a>
-          </p>
-          </details>
           {signedOut.length > 0 && !busy && (
             <div className="mt-3 border-2 border-rule p-3 text-sm">
               <p className="font-semibold">
@@ -388,6 +351,13 @@ export function AiQuickPick({
               )}
             </div>
           )}
+          <details className="mt-1 text-sm">
+            <summary className="min-h-10 cursor-pointer py-2 font-semibold underline underline-offset-4 hover:text-muted">
+              Your numbers
+              <span className="font-normal text-muted">
+                {busy ? " · counting…" : counted ? ` · ${counted} ${counted === 1 ? "service" : "services"} counted` : ""}
+              </span>
+            </summary>
           {Object.keys(rows).length > 0 && (
             <dl className="mt-3 border-t-2 border-rule text-sm">
               {EXTENSION_SERVICES.filter((x) => rows[x]).map((x) => {
@@ -475,6 +445,27 @@ export function AiQuickPick({
               Remove these numbers
             </button>
           )}
+          <details className="mt-3 text-sm">
+            <summary className="cursor-pointer text-muted underline underline-offset-4 hover:text-foreground">Options and how it works</summary>
+          <label className="mt-2 flex cursor-pointer items-start gap-2 text-sm">
+            <input type="checkbox" className="mt-1" checked={whole} onChange={(e) => setWhole(e.target.checked)} disabled={busy} />
+            <span>
+              <span className="font-semibold">Count my whole history</span>{" "}
+              <span className="text-muted">
+                (slower). YouTube, Netflix and Gemini read back as far as your account goes, so your past use is measured instead of estimated. A long
+                YouTube history can take 10 minutes or more. ChatGPT, Claude and the delivery apps always send their history.
+              </span>
+            </span>
+          </label>
+          <p className="mt-2 text-sm text-muted">
+            The My Offset extension checks ChatGPT, Claude, Gemini, YouTube, Netflix, DoorDash, Uber Eats, Amazon and Uber in the background, where you&apos;re already logged in, and
+            brings back your last 30 days. Only counts come back, never your chats or orders.{" "}
+            <a href="/extension" className="underline hover:text-foreground">
+              How it works
+            </a>
+          </p>
+          </details>
+          </details>
         </div>
       ) : (
         <>
