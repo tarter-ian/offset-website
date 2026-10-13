@@ -72,7 +72,7 @@ const SECTIONS: { title: string; body: React.ReactNode; computer?: boolean }[] =
   },
   {
     title: "The public list",
-    body: "Only if you tick \"List me publicly\" (a gift's recipient decides for themselves). To check your gifts, your browser sends the amounts on your plan with your birth year and state; we work out the gifts from them and keep none of it. We keep the name you pick, which items your checkout or gift offset and when, and the gifts it asked of each charity, so the list can check Every.org confirmed them. Items you use none of count as offset, so your browser also sends their names, like \"AI video\", and updates them when that changes; never how much you use of anything. The list shows the name, the items and since when, never amounts or email. A secret kept in your browser lets you rename or leave; leaving deletes all of it.",
+    body: "Only if you tick \"List me publicly\" (a gift's recipient decides for themselves). To check your gifts, your browser sends the amounts on your plan with your birth year and state; we work out the gifts from them and keep none of it. We keep the name you pick, which items your checkout or gift offset and when, and the gifts it asked of each charity, so the list can check Every.org confirmed them. Items you use none of count as offset, so your browser also sends their names, like \"AI video\", and updates them when that changes; never how much you use of anything. The list shows the name and the badges, never amounts or email. A secret kept in your browser lets you rename or leave; leaving deletes all of it.",
   },
   {
     title: "Who we share it with",

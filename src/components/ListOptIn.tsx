@@ -93,8 +93,8 @@ export function ListOptIn({ label, onChange }: { label: string; onChange: (name:
         <span>
           <span className="font-medium">{label}</span>
           <span className="block text-muted">
-            Off unless you tick it. The <Link href="/list" className="underline">public list</Link> shows the name you pick, the badges for what you&apos;ve offset
-            and since when, never amounts. Items you use none of count as offset, so it gets their names, not your numbers. You can change your name or leave anytime.
+            Off unless you tick it. The <Link href="/list" className="underline">public list</Link> shows the name you pick and the badges for what you&apos;ve offset,
+            never amounts. Items you use none of count as offset, so it gets their names, not your numbers. You can change your name or leave anytime.
           </span>
         </span>
       </label>

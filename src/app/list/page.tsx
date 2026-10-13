@@ -8,11 +8,9 @@ import { PRODUCTS, productById, SECTIONS } from "@/lib/store";
 
 export const metadata: Metadata = {
   title: "The public list | My Offset",
-  description: "People who chose to show what they've offset: a name they picked, their badges and since when. No amounts.",
+  description: "People who chose to show what they've offset: a name they picked and their badges. No amounts.",
 };
 export const dynamic = "force-dynamic";
-
-const month = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
 /**
  * The color chips. Green is past and future both paid, so it also shows under the other two (Ian, 2026-10-13).
@@ -24,16 +22,16 @@ const STATUS_CHIPS: { status: ListStatus; tone: Tone; label: string }[] = [
   { status: "future", tone: "period", label: "Future paid" },
 ];
 
-/** One person's row: the name, since when, and their badges as tags. */
-function Row({ name, since, items, example }: { name: string; since: string; items: ListedPerson["badges"]; example?: boolean }) {
+/**
+ * One person, one row (Ian, 2026-10-13): the name on the left, their badges as tags on the
+ * right, wrapping under the name only on a narrow phone. No date: "since" didn't earn its place.
+ */
+function Row({ name, items, example }: { name: string; items: ListedPerson["badges"]; example?: boolean }) {
   return (
-    <div className="py-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <span className={`font-display text-xl font-semibold ${example ? "italic" : ""}`}>{name}</span>
-        <span className="text-sm text-muted">since {month(since)}</span>
-      </div>
-      <div className="mt-2.5">
-        <BadgeList badges={badgesFor(items)} label={`${name}'s badges`} />
+    <div className="flex flex-col gap-2 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+      <span className={`font-display text-xl leading-8 font-semibold ${example ? "italic" : ""}`}>{name}</span>
+      <div className="sm:flex sm:min-w-0 sm:justify-end">
+        <BadgeList badges={badgesFor(items)} label={`${name}'s badges`} end />
       </div>
     </div>
   );
@@ -63,10 +61,14 @@ export default async function ListPage({ searchParams }: { searchParams: Promise
         they made. No amounts, and anyone can leave anytime.
       </p>
 
-      <nav aria-label="Filter by badge" className="mt-8">
-        <h2 className="text-sm font-semibold">Filter by badge</h2>
-        {/* The filter speaks the badges' language (Ian, 2026-10-13): tags in their colors, filled when chosen. */}
-        <form action="/list" method="get" className="mt-2 flex flex-wrap gap-2">
+      <nav aria-label="Filter the list" className="mt-8">
+        {/* The filter speaks the badges' language (Ian, 2026-10-13): tags in their colors, filled when chosen,
+            in two labeled rows, status then badge. */}
+        <form action="/list" method="get" className="grid gap-x-3 gap-y-2 sm:grid-cols-[4rem_minmax(0,1fr)] sm:items-start">
+          <h2 id="filter-status" className="text-sm font-semibold sm:leading-10">
+            Status
+          </h2>
+          <div role="group" aria-labelledby="filter-status" className="flex flex-wrap gap-2">
           <FilterTag label="Everyone" on={filter.kind === "everyone"} count={people?.length || undefined} />
           {STATUS_CHIPS.map((c) => (
             <FilterTag
@@ -80,6 +82,11 @@ export default async function ListPage({ searchParams }: { searchParams: Promise
               count={counts[`status:${c.status}`] || undefined}
             />
           ))}
+          </div>
+          <h2 id="filter-badge" className="mt-2 text-sm font-semibold sm:mt-0 sm:leading-10">
+            Badge
+          </h2>
+          <div role="group" aria-labelledby="filter-badge" className="flex flex-wrap gap-2">
           <FilterTag kind="full" label="Fully Offset" name="aisle" value="everything" on={filter.kind === "full"} count={counts.everything || undefined} />
           {SECTIONS.map((s) => (
             <FilterTag
@@ -92,9 +99,10 @@ export default async function ListPage({ searchParams }: { searchParams: Promise
               count={counts[s.key] || undefined}
             />
           ))}
+          </div>
         </form>
         {aisle && (
-          <form action="/list" method="get" aria-label={`Items in ${SECTIONS.find((s) => s.key === aisle)?.title}`} className="mt-2 flex flex-wrap gap-2 border-l-2 border-rule pl-3">
+          <form action="/list" method="get" aria-label={`Items in ${SECTIONS.find((s) => s.key === aisle)?.title}`} className="mt-2 flex flex-wrap gap-2 border-l-2 border-rule pl-3 sm:ml-[4.75rem]">
             {PRODUCTS.filter((p) => p.section === aisle).map((p) => (
               <FilterTag
                 key={p.id}
@@ -126,7 +134,6 @@ export default async function ListPage({ searchParams }: { searchParams: Promise
             <Row
               example
               name="Your name"
-              since={now.toISOString()}
               items={[
                 { productId: "ai", until: null, past: true },
                 { productId: "ai-media", until: null, past: true },
@@ -144,7 +151,7 @@ export default async function ListPage({ searchParams }: { searchParams: Promise
         <ul className="mt-8 divide-y divide-border border-y-2 border-rule">
           {shown.map((p) => (
             <li key={p.id}>
-              <Row name={p.name} since={p.since} items={p.badges} />
+              <Row name={p.name} items={p.badges} />
             </li>
           ))}
         </ul>
@@ -176,6 +183,7 @@ export default async function ListPage({ searchParams }: { searchParams: Promise
             { until: nextYear, name: "Video streaming", note: "The future, being offset through a date." },
             { until: REST, name: "AI images", note: "The future, offset for the rest of life; past use not yet." },
             { until: PAST, name: "Car", note: "Past use, fully paid off." },
+            { until: [PAST, nextYear], name: "Flights", note: "Past use paid off, with the future still being offset." },
           ].map((t) => (
             <li key={t.note} className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <BadgeTag kind="item" name={t.name} until={t.until} />
@@ -184,7 +192,7 @@ export default async function ListPage({ searchParams }: { searchParams: Promise
           ))}
         </ul>
         <p className="mt-4 text-sm text-muted">
-          Past use paid off with the future still running shows two badges, yellow and blue. Green replaces both. An aisle or Fully Offset is green
+          Green replaces yellow and blue: a badge shows one color, or yellow and blue together. An aisle or Fully Offset is green
           only when every item in it is. Items someone uses none of, like AI video for someone who makes none, count as green. A badge whose date
           passes drops off the list unless past use was paid.
         </p>
