@@ -1,5 +1,5 @@
 import { db, rowsOf } from "./db";
-import { type Gift, GIFT_SPANS, type GiftItem, giftPaid, giftRows } from "./gifts";
+import { type Gift, GIFT_SPANS, type GiftItem, giftPaid, giftRows, recipients } from "./gifts";
 import { PLAN_ID } from "./payments";
 import { DEFAULT_CONTEXT, productById } from "./store";
 
@@ -39,5 +39,5 @@ export async function loadGift(id: string): Promise<{ gift: Gift; paid: boolean 
   const donations = rowsOf(
     await database.execute({ sql: "SELECT partner_donation_id, amount FROM donations WHERE partner_donation_id LIKE ?", args: [`${id}.%`] }),
   ).map((d) => ({ partnerDonationId: typeof d.partner_donation_id === "string" ? d.partner_donation_id : null, amount: Number(d.amount) || 0 }));
-  return { gift, paid: giftPaid(id, giftRows(gift.items, gift.birthYear), donations) };
+  return { gift, paid: giftPaid(id, giftRows(gift.items, gift.birthYear, recipients(gift).length), donations) };
 }

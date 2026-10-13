@@ -34,7 +34,8 @@ async function paidOnly(claims: (Claim & { personId: string })[]) {
   const donations = rowsOf(await (await db()).execute({ sql: "SELECT partner_donation_id, amount FROM donations WHERE partner_donation_id IS NOT NULL" })).map(
     (d) => ({ partnerDonationId: String(d.partner_donation_id), amount: Number(d.amount) || 0 }),
   );
-  return claims.filter((c) => giftPaid(c.sourceId, c.rows, donations));
+  // A gift for several people lists each of them as "<gift id>/<n>", paid when the gift is.
+  return claims.filter((c) => giftPaid(c.sourceId.split("/")[0], c.rows, donations));
 }
 
 /** Everyone on the public list with at least one confirmed claim and a badge still current, newest first. */

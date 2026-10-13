@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { NoDatabaseError } from "@/lib/db";
 import { loadGift } from "@/lib/giftStore";
-import { giftRows } from "@/lib/gifts";
+import { giftRows, recipients } from "@/lib/gifts";
 import { addClaim, listedPeople } from "@/lib/listStore";
 import { paymentsOn } from "@/lib/payments";
 import { cleanName, giftItems, newToken, parsePlanClaim, planItems, planRows, sameRows, TOKEN, type Claim } from "@/lib/publicList";
@@ -41,7 +41,10 @@ export async function POST(req: Request) {
       const found = typeof body.giftId === "string" ? await loadGift(body.giftId) : null;
       if (!found) return NextResponse.json({ error: "Unknown gift." }, { status: 404 });
       const g = found.gift;
-      claim = { source: "gift", sourceId: g.id, rows: giftRows(g.items, g.birthYear), items: giftItems(g), createdAt: g.createdAt };
+      const count = recipients(g).length;
+      const n = typeof body.for === "number" && Number.isInteger(body.for) && body.for >= 0 && body.for < count ? body.for : 0;
+      const sourceId = count > 1 ? `${g.id}/${n}` : g.id;
+      claim = { source: "gift", sourceId, rows: giftRows(g.items, g.birthYear, count), items: giftItems(g), createdAt: g.createdAt };
     } else {
       const input = parsePlanClaim(body);
       if (!input) return NextResponse.json({ error: "That plan doesn't add up." }, { status: 400 });
