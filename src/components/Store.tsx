@@ -1042,7 +1042,18 @@ export function Store() {
     amount: amountOf(p),
     cover: effectiveCover(p, amountOf(p), ctx, { ahead: heroAhead, past: heroPast }, anyway[p.id]),
   }));
-  const aiPrice = heroLines.reduce(
+  const heroName = (id: string, name: string) => ({ ai: "chat", "ai-media": "images", "ai-video": "video", "ai-coding": "coding" })[id] ?? name;
+  // Parts already paid for drop out of the price; when every part is paid, the box shows what's offset (Ian, 2026-10-13).
+  const paidLines = heroLines.filter((l) => paidCover(covered[l.p.id]));
+  const dueLines = heroLines.filter((l) => !paidCover(covered[l.p.id]));
+  const heroPaid = paidLines.length > 0 && !dueLines.length;
+  const paidLife = paidLines.every((l) => paidCover(covered[l.p.id])?.kind === "life");
+  const paidUntil = paidLines
+    .map((l) => paidCover(covered[l.p.id]))
+    .flatMap((c) => (c?.kind === "period" ? [c.until] : []))
+    .sort()[0];
+  const paidGift = paidLines.map((l) => covered[l.p.id]?.giftFrom).find(Boolean);
+  const aiPrice = dueLines.reduce(
     (t, l) => {
       const c = coverPrice(l.p, l.amount, l.cover, ctx);
       return { once: t.once + c.once, monthly: t.monthly + c.monthly };
@@ -1051,11 +1062,19 @@ export function Store() {
   );
   // What the box shows: "for life" only when nothing is left to pay each month.
   const aiCover: Cover = { past: heroPast, ahead: aiPrice.monthly > 0 ? "monthly" : "lifetime" };
-  const aiImpacts = sumImpacts(heroLines.flatMap((l) => Object.values(coverImpacts(l.p, l.amount, l.cover, ctx))));
+  // Paid for life shows everything it covers; paid for a stretch shows each month of it.
+  const paidImpacts = (l: (typeof heroLines)[number]) => {
+    const life = paidCover(covered[l.p.id])?.kind === "life";
+    const c = coverImpacts(l.p, l.amount, life ? { past: true, ahead: "lifetime" } : { past: false, ahead: "monthly" }, ctx);
+    return life ? c.once : c.monthly;
+  };
+  const aiImpacts = heroPaid
+    ? sumImpacts(paidLines.map(paidImpacts))
+    : sumImpacts(dueLines.flatMap((l) => Object.values(coverImpacts(l.p, l.amount, l.cover, ctx))));
+  const paidNames = paidLines.map((l) => (l.p.id === "ai" ? "Chat" : heroName(l.p.id, l.p.name)));
   const heroIds = heroLines.map((l) => l.p.id);
-  const heroPastOnce = heroLines.reduce((t, l) => t + (l.cover.past ? l.p.cost(l.amount, "past", ctx) : 0), 0);
-  const heroName = (id: string, name: string) => ({ ai: "chat", "ai-media": "images", "ai-video": "video", "ai-coding": "coding" })[id] ?? name;
-  const heroLifeNames = heroLines
+  const heroPastOnce = dueLines.reduce((t, l) => t + (l.cover.past ? l.p.cost(l.amount, "past", ctx) : 0), 0);
+  const heroLifeNames = dueLines
     .filter((l) => l.cover.ahead === "lifetime")
     .map((l) => heroName(l.p.id, l.p.name))
     .join(" and ");
@@ -1076,14 +1095,22 @@ export function Store() {
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-14">
         <div className="self-center">
           <h1 className="font-display text-4xl leading-[1.08] font-semibold sm:text-6xl">
-            {heroAhead === "lifetime" && aiCover.ahead === "lifetime"
-              ? `Your AI use, offset for life: about ${once(aiPrice.once)}.`
-              : `Your AI use, offset: about ${per(aiPrice.monthly, billing)}.`}
+            {heroPaid
+              ? paidLife
+                ? "Your AI use is offset for life."
+                : `Your AI use is offset through ${shortDate(paidUntil ?? "")}.`
+              : `${paidLines.length ? "The rest of your AI use" : "Your AI use"}, offset${heroAhead === "lifetime" && aiCover.ahead === "lifetime" ? ` for life: about ${once(aiPrice.once)}` : `: about ${per(aiPrice.monthly, billing)}`}.`}
           </h1>
         </div>
 
         <aside id="ai-chat" aria-label="AI chat, itemized" className="self-start border-t-2 border-rule pt-4">
-          <dl className="amount -mt-2 divide-y divide-border text-sm">
+          {heroPaid && (
+            <p className={`pb-1 text-sm font-semibold ${paidLife ? "text-life-ink" : "text-period-ink"}`}>
+              ✓ {paidLife ? "What you've offset, for life" : "What you're offsetting each month"}
+              {paidGift && `, a gift from ${paidGift}`}
+            </p>
+          )}
+          <dl className={`amount divide-y divide-border text-sm ${heroPaid ? "" : "-mt-2"}`}>
             {[
               ...(["carbon", "air", "water", "land"] as const).map((k) => [IMPACT_INFO[k].label, IMPACT_INFO[k].format(aiImpacts[k], aiImpacts)]),
             ].map(([k, v]) => (
@@ -1103,28 +1130,43 @@ export function Store() {
               </Link>
             </p>
           </details>
-          <div className="mt-4 flex items-center justify-between gap-4 border-t border-border pt-3">
-            {aiPrice.monthly > 0 && aiPrice.once > 0 ? (
-              // Two charges: the monthly leads, and the one-time part says what it pays for (Ian, 2026-10-13).
-              <span>
-                <span className="amount block text-2xl font-semibold">{per(aiPrice.monthly, billing)}</span>
-                <span className="block text-sm text-muted">
-                  {[
-                    heroPastOnce >= 0.005 && `+ ${once(heroPastOnce)} once for past use`,
-                    aiPrice.once - heroPastOnce >= 0.005 && `+ ${once(aiPrice.once - heroPastOnce)} once to offset ${heroLifeNames} for life`,
-                  ]
-                    .filter(Boolean)
-                    .map((t) => (
-                      <span key={String(t)} className="block">
-                        {t}
-                      </span>
-                    ))}
-                </span>
+          {heroPaid ? (
+            <div className="mt-4 flex items-center justify-between gap-4 border-t border-border pt-3">
+              <span className="text-sm">
+                {paidNames.length > 1 ? `${paidNames.slice(0, -1).join(", ")} and ${paidNames.at(-1)!.toLowerCase()}` : paidNames[0]}, paid.
+                {paidLife ? " Nothing more to do." : ` Renews or ends ${shortDate(paidUntil ?? "")}.`}
               </span>
-            ) : (
-              <span className="amount text-2xl font-semibold">{priceText(aiPrice, aiCover, billing)}</span>
-            )}
-            {paidCover(covered.ai) ? null : (
+              {!previewing && (
+                <Link
+                  href="/record"
+                  className="inline-flex min-h-11 shrink-0 cursor-pointer items-center rounded-md border-2 border-rule px-4 font-semibold hover:bg-foreground hover:text-background"
+                >
+                  Your record
+                </Link>
+              )}
+            </div>
+          ) : (
+            <div className="mt-4 flex items-center justify-between gap-4 border-t border-border pt-3">
+              {aiPrice.monthly > 0 && aiPrice.once > 0 ? (
+                // Two charges: the monthly leads, and the one-time part says what it pays for (Ian, 2026-10-13).
+                <span>
+                  <span className="amount block text-2xl font-semibold">{per(aiPrice.monthly, billing)}</span>
+                  <span className="block text-sm text-muted">
+                    {[
+                      heroPastOnce >= 0.005 && `+ ${once(heroPastOnce)} once for past use`,
+                      aiPrice.once - heroPastOnce >= 0.005 && `+ ${once(aiPrice.once - heroPastOnce)} once to offset ${heroLifeNames} for life`,
+                    ]
+                      .filter(Boolean)
+                      .map((t) => (
+                        <span key={String(t)} className="block">
+                          {t}
+                        </span>
+                      ))}
+                  </span>
+                </span>
+              ) : (
+                <span className="amount text-2xl font-semibold">{priceText(aiPrice, aiCover, billing)}</span>
+              )}
               <button
                 type="button"
                 onClick={reviewAndPay}
@@ -1132,8 +1174,13 @@ export function Store() {
               >
                 {heroInPlan ? "Review and pay" : "Offset my AI use"}
               </button>
-            )}
-          </div>
+            </div>
+          )}
+          {!heroPaid && paidNames.length > 0 && (
+            <p className="mt-2 text-sm text-muted">
+              {paidNames.join(" and ")} {paidNames.length > 1 ? "are" : "is"} already offset.
+            </p>
+          )}
           {heroIds.some((id) => plan.includes(id) && !paidCover(covered[id])) && (
             <button
               type="button"
@@ -1225,23 +1272,26 @@ export function Store() {
         </section>
       )}
 
-      <nav aria-label="Other things you can do" className="mb-10 flex flex-col text-sm sm:flex-row sm:gap-y-1 sm:flex-wrap sm:gap-x-8">
+      <nav aria-label="Other things you can do" className="mb-10 flex flex-col text-sm sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3">
         {recordStatus(covered).kind !== "none" && !previewing && (
-          <Link href="/record" className="inline-flex min-h-10 items-center font-semibold underline underline-offset-4 hover:text-muted">
-            Your record
-          </Link>
+          <>
+            <Link href="/record" className="inline-flex min-h-10 items-center font-semibold underline underline-offset-4 hover:text-muted">
+              Your record
+            </Link>
+            <span aria-hidden className="hidden text-muted sm:inline">·</span>
+          </>
         )}
-        <span className="flex flex-col sm:flex-row sm:flex-wrap sm:gap-x-4">
-          <span className="hidden min-h-10 items-center text-muted sm:inline-flex">Not sure yet?</span>
-          <Link href="/ledger" className="inline-flex min-h-10 items-center underline underline-offset-4 hover:text-muted">
-            Where the money goes
-          </Link>
-          <Link href="/method" className="inline-flex min-h-10 items-center underline underline-offset-4 hover:text-muted">
-            How we calculate
-          </Link>
-        </span>
+        <span className="hidden text-muted sm:inline">Not sure yet?</span>
+        <Link href="/ledger" className="inline-flex min-h-10 items-center underline underline-offset-4 hover:text-muted">
+          Where the money goes
+        </Link>
+        <Link href="/method" className="inline-flex min-h-10 items-center underline underline-offset-4 hover:text-muted">
+          How we calculate
+        </Link>
+        <span aria-hidden className="hidden text-muted sm:inline">·</span>
+        <span className="hidden text-muted sm:inline">Giving?</span>
         <Link href="/gift" className="inline-flex min-h-10 items-center underline underline-offset-4 hover:text-muted">
-          Cover a friend&apos;s AI use as a gift
+          Cover a friend&apos;s AI use
         </Link>
       </nav>
 
