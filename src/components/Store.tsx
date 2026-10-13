@@ -520,7 +520,8 @@ export function Store() {
   /** Amount, where it came from, and the way to replace it: link first, typing second. */
   const amountLine = (p: Product) => {
     const amount = amountOf(p);
-    const sources = sourcesFor(p);
+    // Only links that work today: utility, bank and car linking wait on their providers' keys.
+    const sources = sourcesFor(p).filter((s) => LIVE_LINKS.has(s));
     const fromAccount = ((p.section === "ai" && ctx.aiFromExport) || !!linkedFrom[p.id]) && !entered[p.id];
     const waiting = sources.find((s) => asked.includes(s));
     if (editing === p.id) {
@@ -1147,7 +1148,7 @@ export function Store() {
       <section aria-label="Link accounts" className="mb-6 border-y border-border py-3 text-sm">
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
           <span className="font-semibold">{linkedSomething ? "Link the rest:" : "Fill in your real numbers:"}</span>
-          {LINK_ROW.map((l) => {
+          {LINK_ROW.filter((l) => LIVE_LINKS.has(l.id)).map((l) => {
             const done = (l.id === "chatgpt" && ctx.aiFromExport) || (l.id === "activity" && Object.keys(linkedFrom).length > 0);
             return (
               <button

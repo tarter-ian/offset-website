@@ -1,12 +1,6 @@
-import type { Metadata } from "next";
-import { ConnectAccounts } from "@/components/ConnectAccounts";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Link your accounts | My Offset" };
-
+// The old "Link your accounts" page. Counting real use now starts on the home page.
 export default function StartPage() {
-  return (
-    <div className="mx-auto max-w-5xl px-4 py-12">
-      <ConnectAccounts />
-    </div>
-  );
+  redirect("/");
 }

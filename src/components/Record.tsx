@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { type Covered, STORAGE_KEY } from "@/lib/covered";
 import { AccountBar } from "./Account";
 import { pullCovered, pushCovered } from "@/lib/accountClient";
-import { savedResults } from "@/lib/extension";
+import { canInstallExtension, savedResults } from "@/lib/extension";
 import { AI_CHAT_SERVICES, type AiChatService, inForce, monthlyUse, monthTotal, type MonthUse, recordStatus } from "@/lib/record";
 import { itemName } from "@/lib/reminders";
 import { productById } from "@/lib/store";
@@ -35,9 +35,11 @@ function loadCovered(): Record<string, Covered> {
 export function Record() {
   const [covered, setCovered] = useState<Record<string, Covered> | null>(null);
   const [use, setUse] = useState<MonthUse[] | null>(null);
+  const [computer, setComputer] = useState(true);
 
   useEffect(() => {
     setCovered(loadCovered());
+    setComputer(canInstallExtension());
     // Signed in: bring in what the account covers (from another device), then send up anything this browser adds.
     pullCovered().then((merged) => {
       if (merged) {
@@ -102,10 +104,12 @@ export function Record() {
             Count again
           </Link>
         </div>
-        <UseChart use={use} />
-        <p className="mt-3 max-w-2xl text-sm text-muted">
-          These counts stay on this computer, in the My Offset extension. We never receive them, so another computer or your phone won&apos;t show them.
-        </p>
+        <UseChart use={use} computer={computer} />
+        {computer && (
+          <p className="mt-3 max-w-2xl text-sm text-muted">
+            These counts stay on this computer, in the My Offset extension. We never receive them, so another computer or your phone won&apos;t show them.
+          </p>
+        )}
       </section>
 
       <section aria-labelledby="covered-heading" className="mt-12">
@@ -144,7 +148,13 @@ export function Record() {
   );
 }
 
-function UseChart({ use }: { use: MonthUse[] | null }) {
+function UseChart({ use, computer }: { use: MonthUse[] | null; computer: boolean }) {
+  if (!computer && !use?.length)
+    return (
+      <p className="mt-4 max-w-2xl">
+        Your monthly counts stay on the computer you measure with, so they show there, not here. We never receive them.
+      </p>
+    );
   if (!use) return <p className="mt-4 text-muted">Looking for your counts on this computer…</p>;
   if (!use.length)
     return (

@@ -10,7 +10,7 @@ const ROWS = [
     topic: "How your footprint is found",
     usual: "A questionnaire about your home, car and diet, matched to national averages.",
     ours: "Measured from your accounts. Link your ChatGPT, Claude, YouTube and other services and we count what you actually used. The questions are there only if you'd rather not link.",
-    link: { href: "/start", text: "Link accounts" },
+    link: { href: "/", text: "See your real numbers" },
   },
   {
     topic: "Your AI use",
