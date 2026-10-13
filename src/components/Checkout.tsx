@@ -58,8 +58,8 @@ function StepRow({ row, status, action }: { row: PayRow; status: "next" | "later
           </span>
           {row.frequency !== "ONCE" && `, ${frequencyText(row)} until you stop it`}
         </span>
-        {status === "waiting" && <span className="block pl-6 text-muted">Paid, waiting for confirmation</span>}
-        {status === "confirmed" && <span className="block pl-6 font-semibold text-life-ink">Paid and confirmed by Every.org</span>}
+        {status === "waiting" && <span className="block pl-6 text-muted">Given, waiting for confirmation</span>}
+        {status === "confirmed" && <span className="block pl-6 font-semibold text-life-ink">Given and confirmed by Every.org</span>}
       </span>
       {action ?? (status === "later" && <span className="figures text-muted">{usd(row.total)}</span>)}
     </li>
