@@ -165,12 +165,9 @@ export function offsetItems(covered: Record<string, Covered>, now: number, zero:
 export const fullBadges = (covered: Record<string, Covered>, zero: string[], now: number): BadgeInfo[] =>
   badgesFor(offsetItems(covered, now, zero)).filter((b) => b.kind === "full");
 
-/**
- * What the list's color chips ask for: green, or past paid (yellow or green). "Future paid" was
- * dropped (Ian, 2026-10-13); an old `?status=future` address falls back to everyone.
- */
-export type ListStatus = "life" | "past";
-export const LIST_STATUSES: ListStatus[] = ["life", "past"];
+/** What the list's color chips ask for: green, past paid (yellow or green), or future paid (blue or green). */
+export type ListStatus = "life" | "past" | "future";
+export const LIST_STATUSES: ListStatus[] = ["life", "past", "future"];
 
 /** A filter on the public list: everyone, a color, Fully Offset, an aisle, or one item. */
 export type ListFilter =
@@ -193,14 +190,14 @@ export function parseFilter(q: { aisle?: string; item?: string; status?: string 
 
 /**
  * Whether someone's offset items fit a filter. An aisle matches anyone with something in it; an item, anyone who offset it.
- * Green is past and future both paid, so it shows under past paid too (Ian, 2026-10-13).
+ * Green is past and future both paid, so it shows under past paid and future paid too (Ian, 2026-10-13).
  */
 export function matches(items: ListItem[], f: ListFilter): boolean {
   if (f.kind === "everyone") return true;
   if (f.kind === "status") {
     // By the colors the badges show, so a filter never finds someone without a badge in its color.
     const tones = new Set(badgesFor(items).map((b) => toneOf(b.until)));
-    return tones.has("life") || (f.status === "past" && tones.has("past"));
+    return tones.has("life") || tones.has(f.status === "past" ? "past" : f.status === "future" ? "period" : "life");
   }
   if (f.kind === "full") return badgesFor(items).some((b) => b.kind === "full");
   if (f.kind === "item") return items.some((i) => i.productId === f.key);

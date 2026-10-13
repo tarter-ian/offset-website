@@ -168,13 +168,18 @@ export function Seal({ kind, name, until, size }: SealProps) {
 /**
  * A small mark for the start of a tag, stepped like the seals: outline rings for an item; for an
  * aisle, its own symbol knocked out of a filled circle, as on its seal (Ian, 2026-10-13); filled
- * all over with a star for Fully Offset.
+ * all over with a star for Fully Offset. `big` is the Badge filter's size (Ian, 2026-10-13): a 24px
+ * mark whose aisle symbol is about 14px across, against about 8px on a tag.
  */
-function Mark({ kind, tone, paper, icon }: { kind: BadgeInfo["kind"]; tone: Tone; paper?: string; icon?: string }) {
+function Mark({ kind, tone, paper, icon, big }: { kind: BadgeInfo["kind"]; tone: Tone; paper?: string; icon?: string; big?: boolean }) {
   const symbol = kind === "aisle" && icon ? ICONS[icon] : undefined;
   const knock = paper ?? PAPER[tone];
+  const px = big ? 24 : 16;
+  // The symbol's scale in the 16-unit box, and its line weight there: about 1.6px drawn at 24px.
+  const k = big ? 0.78 : 0.66;
+  const line = big ? 1.07 : 1.3;
   return (
-    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" className="shrink-0">
+    <svg viewBox="0 0 16 16" width={px} height={px} aria-hidden="true" className="shrink-0">
       {kind === "full" ? (
         <>
           <circle cx="8" cy="8" r="7.4" fill="currentColor" />
@@ -185,10 +190,10 @@ function Mark({ kind, tone, paper, icon }: { kind: BadgeInfo["kind"]; tone: Tone
           <circle cx="8" cy="8" r="7.6" fill="currentColor" />
           <path
             d={symbol}
-            transform="translate(8 8) scale(0.66)"
+            transform={`translate(8 8) scale(${k})`}
             fill="none"
             stroke={knock}
-            strokeWidth={1.3 / 0.66}
+            strokeWidth={line / k}
             strokeLinecap="round"
             strokeLinejoin="round"
           />
@@ -264,15 +269,28 @@ function grouped(badges: BadgeInfo[]): Grouped[] {
  * As tags (the list), each badge is one tag, its yellow and blue in one split tag. Fully Offset
  * stands alone; an aisle's items fold under a quiet "N items" at the end of the row. As
  * `seals` (the record, a gift card), the lower ones fold under "and N more inside" below.
- * `end` sets the tags to the right, for a row with the name on the left.
+ * `end` sets the tags to the right, for a row with the name on the left. `topOnly` drops the fold, for
+ * the list, where opening the row shows everything as seals (Ian, 2026-10-13).
  */
-export function BadgeList({ badges, seals, label = "Badges", end }: { badges: BadgeInfo[]; seals?: boolean; label?: string; end?: boolean }) {
+export function BadgeList({
+  badges,
+  seals,
+  label = "Badges",
+  end,
+  topOnly,
+}: {
+  badges: BadgeInfo[];
+  seals?: boolean;
+  label?: string;
+  end?: boolean;
+  topOnly?: boolean;
+}) {
   const parent = (b: BadgeInfo) => (b.within ? badges.find((x) => x.kind !== "item" && x.key === b.within) : undefined);
   const top = badges.filter((b) => !parent(b));
   const lower = badges.filter((b) => !top.includes(b));
   if (!seals) {
     const tops = grouped(top);
-    const more = tops.some((b) => b.kind === "full") ? [] : grouped(lower);
+    const more = topOnly || tops.some((b) => b.kind === "full") ? [] : grouped(lower);
     const tag = (b: Grouped) => <BadgeTag kind={b.kind} name={b.name} until={b.untils} icon={b.kind === "aisle" ? b.key : undefined} />;
     return (
       <ul className={`flex flex-wrap items-center gap-2 ${end ? "sm:justify-end" : ""}`} aria-label={label}>
@@ -318,6 +336,43 @@ export function BadgeList({ badges, seals, label = "Badges", end }: { badges: Ba
         </details>
       )}
     </>
+  );
+}
+
+/** The seals in an opened list row: a step up from the defaults, so about four fit across on a desktop and two on a phone. */
+const OPEN_SIZE: Record<BadgeInfo["kind"], number> = { item: 136, aisle: 144, full: 152 };
+
+/**
+ * A person's badges, opened up on the list (Ian, 2026-10-13): each badge shown up front as its round
+ * seal, yellow and blue side by side, with what it holds named underneath: an aisle's items, or the
+ * aisles inside Fully Offset.
+ */
+export function SealGrid({ badges, label }: { badges: BadgeInfo[]; label: string }) {
+  const inside = (b: Grouped) =>
+    b.kind === "item" ? [] : [...new Set(badges.filter((x) => x.within === b.key && (b.kind === "aisle" || x.kind === "aisle")).map((x) => x.name))];
+  return (
+    <ul className="flex flex-wrap items-start gap-x-6 gap-y-5" aria-label={label}>
+      {grouped(badges.filter((b) => !b.within)).map((b) => {
+        const names = inside(b);
+        return (
+          <li key={`${b.kind}:${b.key}`} className="w-min">
+            <span className="flex gap-2">
+              {b.untils.map((u) => (
+                <Seal key={String(u)} kind={b.kind} name={b.name} until={u} size={OPEN_SIZE[b.kind]} />
+              ))}
+            </span>
+            {names.length > 0 && (
+              // Takes the seals' width without widening it.
+              <ul aria-label={`Inside ${tagLabel(b)}`} className="mt-2 w-0 min-w-full text-center text-xs leading-snug text-muted">
+                {names.map((n) => (
+                  <li key={n}>{n}</li>
+                ))}
+              </ul>
+            )}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -368,7 +423,8 @@ export function FilterTag({
       aria-pressed={on}
       className={`inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-sm border-[1.5px] px-2.5 text-sm leading-none ${on ? CHIP_ON[look] : CHIP_OFF[look]}`}
     >
-      {kind && <Mark kind={kind} icon={icon} tone={tone ?? "life"} paper={tone ? undefined : on ? "var(--foreground)" : "var(--background)"} />}
+      {/* The Badge row's marks are drawn bigger, so the aisle symbols read; the button keeps its 40px height. */}
+      {kind && <Mark kind={kind} icon={icon} big={kind !== "item"} tone={tone ?? "life"} paper={tone ? undefined : on ? "var(--foreground)" : "var(--background)"} />}
       <span className="font-display font-semibold">{label}</span>
       {count !== undefined && <span className="amount text-xs">{count}</span>}
     </button>

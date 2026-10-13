@@ -4,6 +4,7 @@ import { BadgeTag, FilterTag, Seal } from "@/components/Badge";
 import { ListView, Row } from "@/components/ListView";
 import { filterCounts, type ListFilter, type ListStatus, matches, PAST, parseFilter, REST, type Tone } from "@/lib/badges";
 import { listedPeople, type ListedPerson } from "@/lib/listStore";
+import { parseQuery } from "@/lib/publicList";
 import { paymentsOn } from "@/lib/payments";
 import { PRODUCTS, productById, SECTIONS } from "@/lib/store";
 
@@ -14,16 +15,19 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 /**
- * The color chips. Green is past and future both paid, so it also shows under past paid (Ian, 2026-10-13).
- * "Future paid" was dropped (Ian, 2026-10-13).
+ * The color chips. Green is past and future both paid, so it also shows under the other two (Ian, 2026-10-13).
+ * "Future paid" is back (Ian, 2026-10-13): badges turn yellow once people stop paying, so blue is still
+ * offsetting going forward.
  */
 const STATUS_CHIPS: { status: ListStatus; tone: Tone; label: string }[] = [
   { status: "life", tone: "life", label: "For life" },
+  { status: "future", tone: "period", label: "Future paid" },
   { status: "past", tone: "past", label: "Past paid" },
 ];
 
-export default async function ListPage({ searchParams }: { searchParams: Promise<{ aisle?: string; item?: string; status?: string }> }) {
-  const filter: ListFilter = parseFilter(await searchParams);
+export default async function ListPage({ searchParams }: { searchParams: Promise<{ aisle?: string; item?: string; status?: string; q?: string | string[] }> }) {
+  const params = await searchParams;
+  const filter: ListFilter = parseFilter(params);
   let people: ListedPerson[] | null = null;
   try {
     people = await listedPeople();
@@ -77,11 +81,17 @@ export default async function ListPage({ searchParams }: { searchParams: Promise
         they made. No amounts, and anyone can leave anytime.
       </p>
 
-      <ListView people={shown.map((p) => ({ id: p.id, name: p.name, badges: p.badges }))} total={people?.length ?? 0} fallback={fallback}>
+      <ListView
+        people={shown.map((p) => ({ id: p.id, name: p.name, badges: p.badges }))}
+        total={people?.length ?? 0}
+        fallback={fallback}
+        initialQuery={parseQuery(params.q)}
+        forms={["list-filter", "list-items"]}
+      >
         <nav aria-label="Filter the list" className="mt-8">
           {/* The filter speaks the badges' language (Ian, 2026-10-13): tags in their colors, filled when chosen,
               in two labeled rows, status then badge. */}
-          <form action="/list" method="get" className="grid gap-x-3 gap-y-2 sm:grid-cols-[4rem_minmax(0,1fr)] sm:items-start">
+          <form id="list-filter" action="/list" method="get" className="grid gap-x-3 gap-y-2 sm:grid-cols-[4rem_minmax(0,1fr)] sm:items-start">
             <h2 id="filter-status" className="text-sm font-semibold sm:leading-10">
               Status
             </h2>
@@ -120,7 +130,7 @@ export default async function ListPage({ searchParams }: { searchParams: Promise
             </div>
           </form>
           {aisle && (
-            <form action="/list" method="get" aria-label={`Items in ${SECTIONS.find((s) => s.key === aisle)?.title}`} className="mt-2 flex flex-wrap gap-2 border-l-2 border-rule pl-3 sm:ml-[4.75rem]">
+            <form id="list-items" action="/list" method="get" aria-label={`Items in ${SECTIONS.find((s) => s.key === aisle)?.title}`} className="mt-2 flex flex-wrap gap-2 border-l-2 border-rule pl-3 sm:ml-[4.75rem]">
               {PRODUCTS.filter((p) => p.section === aisle).map((p) => (
                 <FilterTag
                   key={p.id}
