@@ -140,7 +140,7 @@ export function recurringPrice(rawMonthlyDonation: number, billing: Billing): Re
 
 export interface MonthlyCost {
   /** Donation for each kind of impact, before the minimum. */
-  byImpact: Impacts;
+  byImpact: Record<ImpactKey, number>;
   donation: number;
   fee: number;
   total: number;
@@ -151,7 +151,7 @@ export function impactCost(
   i: Impacts,
   carbonMode: CarbonMode = DEFAULT_CARBON_MODE,
   waterMode: WaterMode = DEFAULT_WATER_MODE,
-): Impacts {
+): Record<ImpactKey, number> {
   return {
     carbon: (i.carbon / 1000) * CARBON_MODES[carbonMode].perTonne,
     air: i.air * AIR_DAMAGE_SHARE,
@@ -170,7 +170,7 @@ export function monthlyCost(
 ): MonthlyCost {
   const chosen = footprint.categories.filter((c) => covered.includes(c.key));
   const all = impactCost(sumImpacts(chosen.map((c) => c.offset)), carbonMode, waterMode);
-  const byImpact: Impacts = { carbon: 0, air: 0, water: 0, land: 0, ewaste: 0 };
+  const byImpact: Record<ImpactKey, number> = { carbon: 0, air: 0, water: 0, land: 0, ewaste: 0 };
   for (const k of impacts) byImpact[k] = all[k];
   const raw = byImpact.carbon + byImpact.air + byImpact.water + byImpact.land + byImpact.ewaste;
   const active = chosen.length > 0 && impacts.length > 0;

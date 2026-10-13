@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { MINUTES_OF_LIFE_PER_DAMAGE_USD } from "@/lib/factors";
-import { IMPACT_INFO } from "@/lib/impacts";
+import { lifeText } from "@/lib/impacts";
 import { QUESTIONS, type Question } from "@/lib/questions";
 
 // The layout every question page shares: the question, the answer first, the
@@ -19,7 +19,7 @@ export const energy = (wh: number) => (wh < 1000 ? `${wh < 10 ? Number(wh.toFixe
 /** Healthy life lost to air pollution damage (dollars), with tenths of a second when it's small. */
 export const life = (usdDamage: number) => {
   const sec = usdDamage * MINUTES_OF_LIFE_PER_DAMAGE_USD * 60;
-  return sec < 60 ? `${sec < 10 ? sec.toFixed(1) : Math.round(sec)} sec` : IMPACT_INFO.air.format(usdDamage).replace(/ of life$/, "");
+  return sec < 60 ? `${sec < 10 ? sec.toFixed(1) : Math.round(sec)} sec` : lifeText(usdDamage);
 };
 
 export const link = "underline underline-offset-2 hover:text-foreground";

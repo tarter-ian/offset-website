@@ -1,4 +1,4 @@
-import type { ImpactKey } from "./footprint";
+import type { ImpactKey, Impacts } from "./footprint";
 import { MINUTES_OF_LIFE_PER_DAMAGE_USD } from "./factors";
 
 // How each kind of impact is named and shown.
@@ -12,13 +12,25 @@ function lifeLost(min: number): string {
   return `${n(min / 60 / 24)} days`;
 }
 
-/**
- * Air pollution on tiles and the receipt, e.g. "air 2.1 min": the minutes of healthy life
- * are explained in each item's (i), so the tile doesn't lead with them (Ian, 2026-10-12).
- */
-export const airShort = (usdDamage: number) => lifeLost(usdDamage * MINUTES_OF_LIFE_PER_DAMAGE_USD);
+/** Healthy life lost to air pollution damage (dollars), e.g. "3.9 min", kept for the (i) details and question pages. */
+export const lifeText = (usdDamage: number) => lifeLost(usdDamage * MINUTES_OF_LIFE_PER_DAMAGE_USD);
 
-export const IMPACT_INFO: Record<ImpactKey, { label: string; short: string; format: (n: number) => string }> = {
+const num = (x: number) => (x < 10 ? x.toFixed(1).replace(/\.0$/, "") : Math.round(x).toLocaleString("en-US"));
+
+/**
+ * The air row (Ian, 2026-10-13): liters of smog gases released, e.g. "52 L smog", or
+ * grams of soot where there's next to no gas (making clothes and electronics).
+ */
+export function airAmount(i: Pick<Impacts, "smogL" | "sootG">): string {
+  if (i.smogL >= 0.05 || i.sootG < 0.05) return `${i.smogL >= 10_000 ? `${num(i.smogL / 1000)} m³` : `${num(i.smogL)} L`} smog`;
+  return `${i.sootG >= 1000 ? `${num(i.sootG / 1000)} kg` : `${num(i.sootG)} g`} soot`;
+}
+
+/** Air on tiles and the receipt, e.g. "52 L smog"; healthy life lost is in each item's (i). */
+export const airShort = airAmount;
+
+/** How each harm reads. `format` takes the harm's amount, and the air row also reads smog and soot from `i`. */
+export const IMPACT_INFO: Record<ImpactKey, { label: string; short: string; format: (n: number, i: Pick<Impacts, "smogL" | "sootG">) => string }> = {
   carbon: {
     label: "Climate",
     short: "CO₂e",
@@ -26,8 +38,8 @@ export const IMPACT_INFO: Record<ImpactKey, { label: string; short: string; form
   },
   air: {
     label: "Air pollution",
-    short: "life lost",
-    format: (usdDamage) => `${lifeLost(usdDamage * MINUTES_OF_LIFE_PER_DAMAGE_USD)} of life`,
+    short: "smog",
+    format: (_usdDamage, i) => airAmount(i),
   },
   water: {
     label: "Water",

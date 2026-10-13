@@ -26,16 +26,25 @@ export const CONFIDENCE_LABELS: Record<Confidence, string> = {
  * ewaste: kg of electronics thrown away.
  */
 export type ImpactKey = "carbon" | "air" | "water" | "land" | "ewaste";
-export type Impacts = Record<ImpactKey, number>;
+/**
+ * The five harms, plus what's shown on the air row (Ian, 2026-10-13): smogL, liters
+ * of smog gases released (NOx, SO2, farm ammonia), and sootG, grams of fine
+ * particles. Air's dollars of damage are what's priced.
+ */
+export type Impacts = Record<ImpactKey, number> & { smogL: number; sootG: number };
 export const IMPACT_KEYS: ImpactKey[] = ["carbon", "air", "water", "land", "ewaste"];
+/** Every field of Impacts, the harms and the air row's amounts. */
+export const IMPACT_FIELDS: (keyof Impacts)[] = [...IMPACT_KEYS, "smogL", "sootG"];
 
-const zero = (): Impacts => ({ carbon: 0, air: 0, water: 0, land: 0, ewaste: 0 });
+const zero = (): Impacts => ({ carbon: 0, air: 0, water: 0, land: 0, ewaste: 0, smogL: 0, sootG: 0 });
 const scale = (i: Impacts, k: number): Impacts => ({
   carbon: i.carbon * k,
   air: i.air * k,
   water: i.water * k,
   land: i.land * k,
   ewaste: i.ewaste * k,
+  smogL: i.smogL * k,
+  sootG: i.sootG * k,
 });
 export const sumImpacts = (list: Impacts[]): Impacts =>
   list.reduce(
@@ -45,6 +54,8 @@ export const sumImpacts = (list: Impacts[]): Impacts =>
       water: s.water + i.water,
       land: s.land + i.land,
       ewaste: s.ewaste + i.ewaste,
+      smogL: s.smogL + i.smogL,
+      sootG: s.sootG + i.sootG,
     }),
     zero(),
   );
@@ -236,6 +247,8 @@ export function aiImpacts(answerKwh: number): Impacts {
     water: g.water + coolingWater(kwh),
     land: g.land + kwh * F.DATACENTER_M2_YEARS_PER_KWH,
     ewaste: 0,
+    smogL: g.smogL,
+    sootG: 0,
   };
 }
 
@@ -252,12 +265,17 @@ export function gridAirUsdPerKwh(noxLbPerMwh: number, so2LbPerMwh: number): numb
 export function gridImpacts(kwh: number, state?: StateCode): Impacts {
   const s = state ? STATES[state] : undefined;
   const generated = kwh * GENERATED_PER_KWH;
+  const nox = s?.noxLbPerMwh ?? US_NOX_LB_PER_MWH;
+  const so2 = s?.so2LbPerMwh ?? US_SO2_LB_PER_MWH;
   return {
     carbon: kwh * (state ? gridKgPerKwh(state) : US_KG_PER_KWH),
-    air: generated * gridAirUsdPerKwh(s?.noxLbPerMwh ?? US_NOX_LB_PER_MWH, s?.so2LbPerMwh ?? US_SO2_LB_PER_MWH),
+    air: generated * gridAirUsdPerKwh(nox, so2),
     water: generated * F.GRID_L_PER_KWH * F.scarcityWeight("grid"),
     land: generated * F.GRID_M2_YEARS_PER_KWH,
     ewaste: 0,
+    // lb per MWh is g per kWh times 0.4536.
+    smogL: generated * 0.4536 * (nox * F.L_PER_G_NO2 + so2 * F.L_PER_G_SO2),
+    sootG: 0,
   };
 }
 
@@ -277,23 +295,34 @@ export const electronicsMaking = (kgCo2: number) => ({
   air: (kgCo2 * F.ELECTRONICS_PM25_PER_KG_CO2 * 1000 * F.GOODS_USD_PER_TON_PM25) / F.G_PER_SHORT_TON,
   water: kgCo2 * F.ELECTRONICS_L_PER_KG_CO2 * F.scarcityWeight("grid"),
   land: kgCo2 * F.ELECTRONICS_M2_PER_KG_CO2,
+  sootG: kgCo2 * F.ELECTRONICS_PM25_PER_KG_CO2 * 1000,
 });
 
 /** Farm air pollution for one food group on a diet, per person per month. */
 export function foodAirUsdPerMonth(diet: Diet, group: keyof typeof F.FOOD_AIR_SHARES): number {
   const average = (F.FOOD_AIR_DEATHS_PER_YEAR * F.VSL_USD) / F.US_POPULATION / 12;
+  return average * foodAirShare(diet, group);
+}
+
+/** Liters of farm ammonia for one food group on a diet, per person per month. */
+export function foodSmogLPerMonth(diet: Diet, group: keyof typeof F.FOOD_AIR_SHARES): number {
+  const averageG = (F.FOOD_NH3_TONS_PER_YEAR * F.G_PER_SHORT_TON) / F.US_POPULATION / 12;
+  return averageG * F.L_PER_G_NH3 * foodAirShare(diet, group);
+}
+
+function foodAirShare(diet: Diet, group: keyof typeof F.FOOD_AIR_SHARES): number {
   const groupCarbon = (d: Diet) => F.DIET_KG_PER_YEAR[d] * F.FOOD_SHARES[d][group];
   const ratio = groupCarbon("average") > 0 ? groupCarbon(diet) / groupCarbon("average") : 0;
-  return average * F.FOOD_AIR_SHARES[group] * ratio;
+  return F.FOOD_AIR_SHARES[group] * ratio;
 }
 
-function groundAirUsd(gNox: number, gPm25: number): number {
-  return (gNox * F.GROUND_USD_PER_TON_NOX + gPm25 * F.GROUND_USD_PER_TON_PM25) / F.G_PER_SHORT_TON;
+/** Health damage in dollars, liters of NOx and grams of soot from ground-level NOx and PM2.5, in grams. */
+function groundAir(gNox: number, gPm25: number): Pick<Impacts, "air" | "smogL" | "sootG"> {
+  return { air: (gNox * F.GROUND_USD_PER_TON_NOX + gPm25 * F.GROUND_USD_PER_TON_PM25) / F.G_PER_SHORT_TON, smogL: gNox * F.L_PER_G_NO2, sootG: gPm25 };
 }
 
-/** A gas car's tailpipe health damage per kg of CO2, at the default mpg. */
-const CAR_AIR_USD_PER_KG_CO2 =
-  groundAirUsd(F.CAR_G_NOX_PER_MILE, F.CAR_G_PM25_PER_MILE) / (F.KG_CO2_PER_GAL_GASOLINE / F.DEFAULT_MPG);
+/** A gas car's tailpipe pollution per kg of CO2, at the default mpg. */
+const CAR_AIR_PER_KG_CO2 = scale({ ...zero(), ...groundAir(F.CAR_G_NOX_PER_MILE, F.CAR_G_PM25_PER_MILE) }, 1 / (F.KG_CO2_PER_GAL_GASOLINE / F.DEFAULT_MPG));
 
 export function computeFootprint(a: Answers): Footprint {
   const state = STATES[a.state];
@@ -328,17 +357,17 @@ export function computeFootprint(a: Answers): Footprint {
   if (fuel === "gas") {
     const therms = bill > 0 ? bill / F.GAS_PRICE_PER_THERM : F.AVG_THERMS_PER_MONTH;
     heat.carbon = therms * F.KG_CO2_PER_THERM_GAS;
-    heat.air = groundAirUsd(therms * F.GAS_G_NOX_PER_THERM, therms * F.GAS_G_PM25_PER_THERM);
+    Object.assign(heat, groundAir(therms * F.GAS_G_NOX_PER_THERM, therms * F.GAS_G_PM25_PER_THERM));
     heatNote = `${Math.round(therms)} therms of natural gas a month`;
   } else if (fuel === "oil") {
     const gal = bill > 0 ? bill / F.OIL_PRICE_PER_GAL : F.AVG_OIL_GAL_PER_MONTH;
     heat.carbon = gal * F.KG_CO2_PER_GAL_HEATING_OIL;
-    heat.air = groundAirUsd(gal * F.OIL_G_NOX_PER_GAL, gal * F.OIL_G_PM25_PER_GAL);
+    Object.assign(heat, groundAir(gal * F.OIL_G_NOX_PER_GAL, gal * F.OIL_G_PM25_PER_GAL));
     heatNote = `${Math.round(gal)} gallons of heating oil a month`;
   } else if (fuel === "propane") {
     const gal = bill > 0 ? bill / F.PROPANE_PRICE_PER_GAL : F.AVG_PROPANE_GAL_PER_MONTH;
     heat.carbon = gal * F.KG_CO2_PER_GAL_PROPANE;
-    heat.air = groundAirUsd(gal * F.PROPANE_G_NOX_PER_GAL, gal * F.PROPANE_G_PM25_PER_GAL);
+    Object.assign(heat, groundAir(gal * F.PROPANE_G_NOX_PER_GAL, gal * F.PROPANE_G_PM25_PER_GAL));
     heatNote = `${Math.round(gal)} gallons of propane a month`;
   } else if (fuel === "electric") {
     heatNote = "Included in home electricity";
@@ -361,7 +390,7 @@ export function computeFootprint(a: Answers): Footprint {
       "car",
       {
         carbon: (milesPerMonth / mpg) * F.KG_CO2_PER_GAL_GASOLINE,
-        air: groundAirUsd(milesPerMonth * F.CAR_G_NOX_PER_MILE, milesPerMonth * F.CAR_G_PM25_PER_MILE),
+        ...groundAir(milesPerMonth * F.CAR_G_NOX_PER_MILE, milesPerMonth * F.CAR_G_PM25_PER_MILE),
         water: fuelWater((milesPerMonth / mpg) * F.KG_CO2_PER_GAL_GASOLINE),
       },
       "estimated",
@@ -390,6 +419,7 @@ export function computeFootprint(a: Answers): Footprint {
     {
       carbon: flightCo2 * F.FLIGHT_NON_CO2_MULTIPLIER,
       air: flightCo2 * FLIGHT_AIR_USD_PER_KG_CO2,
+      smogL: flightCo2 * F.FLIGHT_G_NOX_PER_KG_CO2 * F.L_PER_G_NO2,
       water: fuelWater(flightCo2),
     },
     "estimated",
@@ -402,7 +432,9 @@ export function computeFootprint(a: Answers): Footprint {
     {
       carbon: transitMiles * F.TRANSIT_KG_PER_MILE,
       // Assumes buses and trains pollute the air like cars do for the same fuel burned (rough).
-      air: transitMiles * F.TRANSIT_KG_PER_MILE * CAR_AIR_USD_PER_KG_CO2,
+      air: transitMiles * F.TRANSIT_KG_PER_MILE * CAR_AIR_PER_KG_CO2.air,
+      smogL: transitMiles * F.TRANSIT_KG_PER_MILE * CAR_AIR_PER_KG_CO2.smogL,
+      sootG: transitMiles * F.TRANSIT_KG_PER_MILE * CAR_AIR_PER_KG_CO2.sootG,
       water: fuelWater(transitMiles * F.TRANSIT_KG_PER_MILE),
     },
     "estimated",
@@ -416,10 +448,12 @@ export function computeFootprint(a: Answers): Footprint {
     water: F.DIET_L_PER_DAY[a.diet] * F.DAYS_PER_MONTH * F.scarcityWeight("food") * personCount,
     land: (F.DIET_M2_PER_YEAR[a.diet] / 12) * personCount,
     ewaste: 0,
+    smogL: 0,
+    sootG: 0,
   };
   const shares = F.FOOD_SHARES[a.diet];
   const food = (["meat", "dairy", "plants"] as const).map((k) =>
-    category(k, { ...scale(foodTotal, shares[k]), air: foodAirUsdPerMonth(a.diet, k) * personCount }, "estimated", undefined),
+    category(k, { ...scale(foodTotal, shares[k]), air: foodAirUsdPerMonth(a.diet, k) * personCount, smogL: foodSmogLPerMonth(a.diet, k) * personCount }, "estimated", undefined),
   );
 
   // Goods and services, split by typical spending shares.
@@ -438,6 +472,7 @@ export function computeFootprint(a: Answers): Footprint {
         water: carbon * g.water * F.scarcityWeight(k === "clothing" ? "food" : "grid"),
         land: carbon * g.land,
         air: (carbon * g.pm25 * 1000 * F.GOODS_USD_PER_TON_PM25) / F.G_PER_SHORT_TON,
+        sootG: carbon * g.pm25 * 1000,
       },
       "estimated",
       undefined,

@@ -197,6 +197,8 @@ function everydaySpan(m: Impacts, span: Span, ctx: Context, keys: CategoryKey | 
     water: m.water * (pastMonths + 12 * power),
     land: m.land * (pastMonths + 12 * ahead),
     ewaste: m.ewaste * (pastMonths + 12 * ahead),
+    smogL: m.smogL * (pastMonths + 12 * air),
+    sootG: m.sootG * (pastMonths + 12 * air),
   };
 }
 
@@ -552,7 +554,7 @@ export function coverPrice(p: Product, amount: number | string, cover: Cover, ct
 
 /** Everything an item covers under a cover: the one-time part and each month of the ongoing part. */
 export function coverImpacts(p: Product, amount: number | string, cover: Cover, ctx: Context) {
-  const zero: Impacts = { carbon: 0, air: 0, water: 0, land: 0, ewaste: 0 };
+  const zero: Impacts = { carbon: 0, air: 0, water: 0, land: 0, ewaste: 0, smogL: 0, sootG: 0 };
   const once = sumImpacts([
     cover.past ? p.impacts(amount, "past", ctx) : zero,
     cover.ahead === "lifetime" ? p.impacts(amount, "future", ctx) : zero,

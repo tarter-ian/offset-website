@@ -1,6 +1,6 @@
 import * as F from "./factors";
 import { aiImpacts } from "./footprint";
-import { IMPACT_INFO } from "./impacts";
+import { IMPACT_INFO, lifeText } from "./impacts";
 import type { Context } from "./store";
 
 // The share card: a month of someone's AI use, as totals only. Nothing in the
@@ -59,7 +59,7 @@ export function aiMonthTotals(amounts: { prompts: number; images: number; videos
 /** The card's two figures as text, e.g. "1.2 kg CO₂e" and "3 sec". */
 export function shareLines(t: ShareTotals) {
   return {
-    carbon: IMPACT_INFO.carbon.format(t.carbon),
-    life: IMPACT_INFO.air.format(t.lifeMinutes / F.MINUTES_OF_LIFE_PER_DAMAGE_USD).replace(/ of life$/, ""),
+    carbon: IMPACT_INFO.carbon.format(t.carbon, { smogL: 0, sootG: 0 }),
+    life: lifeText(t.lifeMinutes / F.MINUTES_OF_LIFE_PER_DAMAGE_USD),
   };
 }
