@@ -75,7 +75,8 @@ function byPayee(amounts: Partial<Record<ImpactKey, number>>) {
   const groups = new Map<ImpactKey, { amount: number; harms: ImpactKey[] }>();
   for (const k of HARM_ORDER) {
     const a = amounts[k] ?? 0;
-    if (!EVERY_SLUGS[k] || a < 0.005) continue;
+    // Any harm worth more than nothing gets its gift, however small (Ian, 2026-10-13).
+    if (!EVERY_SLUGS[k] || !(a > 0)) continue;
     const g = groups.get(payee(k)) ?? { amount: 0, harms: [] };
     g.amount += a;
     g.harms.push(k);
@@ -85,10 +86,11 @@ function byPayee(amounts: Partial<Record<ImpactKey, number>>) {
 }
 
 /**
- * Turns a plan's per-harm amounts into one payment per charity. Harms worth
- * nothing are skipped, and harms paid to the same charity go in one gift. Every
- * harm's money goes to its own charity, even a small share, which is rounded up
- * to the smallest donation (Ian, 2026-10-12: never to another harm's charity).
+ * Turns a plan's per-harm amounts into one payment per charity. Only harms worth
+ * nothing at all are skipped, and harms paid to the same charity go in one gift. Every
+ * harm's money goes to its own charity, even a share under a cent, which is rounded up
+ * to the smallest donation (Ian, 2026-10-12: never to another harm's charity; 2026-10-13:
+ * a harm the hero shows is never dropped).
  */
 function rowsFor(amounts: Record<ImpactKey, number>, frequency: Frequency, suffix: string, mode: PaymentMode): PayRow[] {
   return [...byPayee(amounts)].map(([k, g]) => {
@@ -200,7 +202,7 @@ export function fundGift(amounts: Partial<Record<ImpactKey, number>>): FundGift 
   const groups = new Map<ImpactKey, FundPart>();
   for (const k of HARM_ORDER) {
     const a = amounts[k] ?? 0;
-    if (!(a >= 0.005)) continue;
+    if (!(a > 0)) continue;
     const part = groups.get(payee(k)) ?? { charity: payee(k), harms: [], amount: 0 };
     part.amount = cents(part.amount + upToCent(a));
     part.harms.push(k);

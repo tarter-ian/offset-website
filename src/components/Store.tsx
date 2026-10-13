@@ -15,7 +15,7 @@ import { joinList, ListInvite, ListOptIn } from "./ListOptIn";
 import { AiExportUpload } from "./AiExportUpload";
 import { AiQuickPick } from "./AiQuickPick";
 import { OffsetTimeline } from "./OffsetTimeline";
-import { AI_LEVELS } from "@/lib/ai/levels";
+import { AI_LEVELS, levelOf } from "@/lib/ai/levels";
 import { NumberInput, Select } from "./fields";
 import { STATE_OPTIONS, STATES, type StateCode } from "@/lib/data/states";
 import { airShort, IMPACT_INFO, lifeText } from "@/lib/impacts";
@@ -71,6 +71,10 @@ import {
   BEFORE_GROUPS,
   lifestyleBadge,
   codingMeasured,
+  codingAmountText,
+  addedMonthly,
+  chargeParts,
+  hasNonAi,
   type Cover,
   coverBadge,
   coverPrice,
@@ -92,6 +96,7 @@ import {
   type Context,
   type PastYears,
   type PlanLine,
+  type PlanTotals,
   type Product,
 } from "@/lib/store";
 
@@ -384,7 +389,9 @@ export function Store() {
   }, [ready, ctx, amounts, entered, picked, anyway, plan, billingPick, pastAll, pastYears, pastEveryday, linkedFrom, covered, previewing]);
 
   const amountOf = (p: Product) => amounts[p.id] ?? defaultAmount(p, ctx);
-  const coverOf = (p: Product) => effectiveCover(p, amountOf(p), ctx, { past: p.oneTime ? pastAll : pastEveryday, ...picked[p.id] }, anyway[p.id]);
+  const coverWith = (p: Product, pk: Record<string, Partial<Cover>>) =>
+    effectiveCover(p, amountOf(p), ctx, { past: p.oneTime ? pastAll : pastEveryday, ...pk[p.id] }, anyway[p.id]);
+  const coverOf = (p: Product) => coverWith(p, picked);
   /** Sets past use for a whole kind of item, clearing one-off picks on those items. */
   const clearPast = (oneTime: boolean) =>
     setPicked((x) => Object.fromEntries(Object.entries(x).map(([id, c]) => [id, productById(id)?.oneTime === oneTime ? { ...c, past: undefined } : c])));
@@ -397,16 +404,22 @@ export function Store() {
     clearPast(false);
   };
   const setPast = (id: string, v: boolean) => setPicked((x) => ({ ...x, [id]: { ...x[id], past: v } }));
-  const lines = plan.map((id) => {
-    const p = PRODUCTS.find((x) => x.id === id)!;
-    return { productId: id, amount: amountOf(p), cover: coverOf(p) };
-  });
+  const linesFor = (ids: string[], pk: Record<string, Partial<Cover>>) =>
+    ids.map((id) => {
+      const p = PRODUCTS.find((x) => x.id === id)!;
+      return { productId: id, amount: amountOf(p), cover: coverWith(p, pk) };
+    });
+  const lines = linesFor(plan, picked);
   const billing = billingPick ?? DEFAULT_BILLING;
-  const pastTotal = lines.reduce((sum, l) => sum + (l.cover.past && l.cover.ahead === "monthly" ? productById(l.productId)!.cost(l.amount, "past", ctx) : 0), 0);
+  const pastOf = (ls: PlanLine[]) =>
+    ls.reduce((sum, l) => sum + (l.cover.past && l.cover.ahead === "monthly" ? productById(l.productId)!.cost(l.amount, "past", ctx) : 0), 0);
+  const pastTotal = pastOf(lines);
   // "All now" is only offered while past use stays small; a big past-use sum is always spread (Ian, 2026-10-13).
   const allNowOk = (usd: number) => usd <= PAST_ALL_NOW_MAX_USD;
   const pastPick = (pastUsd: number) => (pastYears === 0 && !allNowOk(pastUsd) ? null : pastYears);
-  const spreadYears = pastPick(pastTotal) ?? bestPastYears(lines, ctx, billing);
+  /** The past-use spread the plan bar and checkout use for these lines. */
+  const spreadFor = (ls: PlanLine[]) => pastPick(pastOf(ls)) ?? bestPastYears(ls, ctx, billing);
+  const spreadYears = spreadFor(lines);
   const totals = planTotals(lines, ctx, billing, spreadYears);
   // When the last past-use instalment is due, for the autopay note.
   const pastEnds = totals.pastSpread
@@ -420,9 +433,11 @@ export function Store() {
   // Through Endaoment, one gift to the fund covers every charity.
   const fund = PAYMENT_MODE === "endaoment" ? fundGifts(split) : null;
   // Everything charged today: the one-time payment and the first ongoing payment.
-  const charged = PAYMENT_MODE === "sponsor" ? null : chargeSummary(split, billing, autopay);
-  const dueToday = charged ? charged.today : (totals.oneTime?.total ?? 0) + (totals.recurring?.total ?? 0);
-  const thenTotal = charged ? charged.then : (totals.recurring?.total ?? 0);
+  const chargesOf = (t: PlanTotals) => {
+    const c = PAYMENT_MODE === "sponsor" ? null : chargeSummary(harmSplit(t, ctx, billing), billing, autopay);
+    return { today: c ? c.today : (t.oneTime?.total ?? 0) + (t.recurring?.total ?? 0), then: c ? c.then : (t.recurring?.total ?? 0) };
+  };
+  const { today: dueToday, then: thenTotal } = chargesOf(totals);
   // Room below the footer for the plan bar, so it never covers the last lines of the page.
   useEffect(() => {
     document.body.style.paddingBottom = plan.length ? "5rem" : "";
@@ -462,19 +477,17 @@ export function Store() {
    * Cover everything starts every item it adds on monthly, small ones too, so it reads as one monthly price,
    * and shows what checkout will: card fees and the past-use instalment included (Ian, 2026-10-12).
    */
+  // It prices the very plan Add everything leaves, the way the plan bar and checkout do, so the
+  // box and checkout agree to the cent (Ian, 2026-10-13).
   const everything = (() => {
-    const evLines = addable(PRODUCTS).map((p) => ({
-      productId: p.id,
-      amount: amountOf(p),
-      cover: { past: coverOf(p).past, ahead: plan.includes(p.id) ? coverOf(p).ahead : ("monthly" as const) },
-    }));
-    const years = pastPick(Infinity) ?? bestPastYears(evLines, ctx, billing);
-    const t = planTotals(evLines, ctx, billing, years);
-    return { ...chargeSummary(harmSplit(t, ctx, billing), billing, autopay), spread: t.pastSpread };
+    const next = addedMonthly(plan, picked, addable(PRODUCTS).map((p) => p.id));
+    const evLines = linesFor(next.plan, next.picked);
+    const t = planTotals(evLines, ctx, billing, spreadFor(evLines));
+    return { ...chargesOf(t), spread: t.pastSpread };
   })();
   const addEverything = () => {
     const ids = addable(PRODUCTS).map((p) => p.id);
-    setPicked((x) => ({ ...x, ...Object.fromEntries(ids.map((id) => [id, { ...x[id], ahead: "monthly" as const }])) }));
+    setPicked((x) => addedMonthly([], x, ids).picked);
     addAll(PRODUCTS);
   };
   /** e.g. "$9 a month, past use spread over 3 years": each item monthly, past use in instalments as checkout would. */
@@ -546,11 +559,16 @@ export function Store() {
     }
   };
 
+  // Measured coding shows what was measured, never more hours than a week has (Ian, 2026-10-13).
+  const shownAmount = (p: Product, amount: number | string) =>
+    (p.id === "ai-coding" && !entered[p.id] && codingAmountText(Number(amount), ctx)) || amountText(p, amount);
+
   const sourceNote = (p: Product) => {
     if (entered[p.id]) return "you entered";
     if (p.id === "ai-coding" && codingMeasured(ctx))
       return [
-        ctx.aiCode && `Claude Code, estimated from ${Math.round(ctx.aiCode.limitPercent)}% of your ${ctx.aiCode.plan} weekly limit`,
+        // The amount already says which share of the weekly limit.
+        ctx.aiCode && "Claude Code",
         ctx.aiAgent && `${AGENT_TOOL_NAMES[ctx.aiAgent.tool ?? "both"]}, from its token total`,
       ]
         .filter(Boolean)
@@ -596,7 +614,7 @@ export function Store() {
       <div className="text-sm">
         <span className="flex flex-wrap items-center gap-x-4">
           <span>
-            <span className="font-semibold tabular-nums">{amountText(p, amount)}</span>
+            <span className="font-semibold tabular-nums">{shownAmount(p, amount)}</span>
             <span className="text-muted"> · {sourceNote(p)}</span>
           </span>
           {sources.length > 0 && !fromAccount && p.section !== "ai" && (
@@ -918,7 +936,7 @@ export function Store() {
           className="inline-flex min-h-9 items-center self-start text-left text-sm"
         >
           <span>
-            <span className="font-medium">{amountText(p, amount)}</span>
+            <span className="font-medium">{shownAmount(p, amount)}</span>
             {(linkedFrom[p.id] || (p.section === "ai" && ctx.aiFromExport)) && !entered[p.id] && <span className="text-muted"> · measured</span>}
             <span className="text-muted"> · </span>
             <span className="underline underline-offset-4">{isOpen ? "Close" : "Change"}</span>
@@ -1117,13 +1135,27 @@ export function Store() {
     .flatMap((c) => (c?.kind === "period" ? [c.until] : []))
     .sort()[0];
   const paidGift = paidLines.map((l) => covered[l.p.id]?.giftFrom).find(Boolean);
-  const aiPrice = dueLines.reduce(
-    (t, l) => {
-      const c = coverPrice(l.p, l.amount, l.cover, ctx);
-      return { once: t.once + c.once, monthly: t.monthly + c.monthly };
-    },
-    { once: 0, monthly: 0 },
-  );
+  // Past use on monthly parts is spread over years, as checkout does, so the box never asks for a big one-time sum (Ian, 2026-10-13).
+  // The box is priced by the same totals as the plan, so spread past use isn't also counted once, and a lifetime
+  // part's past use, already in its price, gets no line of its own (Ian, 2026-10-13).
+  const heroPlan = dueLines.map((l) => ({ productId: l.p.id, amount: l.amount, cover: l.cover }));
+  const heroTotals = planTotals(heroPlan, ctx, billing, spreadFor(heroPlan));
+  const heroCharge = chargeParts(heroTotals);
+  const heroSpread = heroCharge.spread;
+  const aiPrice = { once: heroCharge.pastOnce + heroCharge.lifeOnce, monthly: heroCharge.monthly };
+  // The hero shows what checkout charges, from the same gifts: each charity's $1 minimum and card fees in (Ian, 2026-10-13).
+  const heroBill = chargesOf(heroTotals);
+  const heroUseOnly = [
+    (aiPrice.monthly > 0 || heroSpread) && per(aiPrice.monthly + (heroSpread?.perMonth ?? 0), billing),
+    aiPrice.once >= 0.005 && `${once(aiPrice.once)}${aiPrice.monthly > 0 || heroSpread ? " once" : ""}`,
+  ]
+    .filter(Boolean)
+    .join(" and ");
+  const heroWhy = forMode({
+    every: "card fees and at least $1 to each charity",
+    endaoment: "card fees and Endaoment's fee",
+    sponsor: "card fees and each charity's smallest gift",
+  });
   // What the box shows: "for life" only when nothing is left to pay each month.
   const aiCover: Cover = { past: heroPast, ahead: aiPrice.monthly > 0 ? "monthly" : "lifetime" };
   // Paid for life shows everything it covers; paid for a stretch shows each month of it.
@@ -1137,17 +1169,18 @@ export function Store() {
     : sumImpacts(dueLines.flatMap((l) => Object.values(coverImpacts(l.p, l.amount, l.cover, ctx))));
   const paidNames = paidLines.map((l) => (l.p.id === "ai" ? "Chat" : heroName(l.p.id, l.p.name)));
   const heroIds = heroLines.map((l) => l.p.id);
-  // Past use on monthly parts is spread over years, as checkout does, so the box never asks for a big one-time sum (Ian, 2026-10-13).
-  const heroPlan = dueLines.map((l) => ({ productId: l.p.id, amount: l.amount, cover: l.cover }));
-  const heroSpread = planTotals(heroPlan, ctx, billing, pastPick(Infinity) ?? bestPastYears(heroPlan, ctx, billing)).pastSpread;
-  const heroPastOnce = dueLines.reduce((t, l) => t + (l.cover.past ? l.p.cost(l.amount, "past", ctx) : 0), 0) - (heroSpread?.total ?? 0);
   const heroLifeNames = dueLines
     .filter((l) => l.cover.ahead === "lifetime")
     .map((l) => heroName(l.p.id, l.p.name))
     .join(" and ");
+  const heroOnceWhat = [heroCharge.lifeOnce >= 0.005 && `${heroLifeNames} for life`, heroCharge.pastOnce >= 0.005 && "past use"].filter(
+    (x): x is string => Boolean(x),
+  );
   const heroNames = heroLines.map((l) => (l.p.id === "ai" ? "Chat" : heroName(l.p.id, l.p.name)));
   const heroParts = heroNames.length > 1 ? `${heroNames.slice(0, -1).join(", ")} and ${heroNames.at(-1)}` : "Chat";
   const heroInPlan = heroIds.every((id) => plan.includes(id) || paidCover(covered[id]));
+  // Only something outside AI opens the aisles, so offsetting AI images or coding keeps the page on AI (Ian, 2026-10-13).
+  const aislesOpen = shelvesOpen || hasNonAi(plan) || hasNonAi(Object.keys(covered)) || Object.keys(linkedFrom).length > 0;
   /** The hero's green button: puts every AI part in the plan on the hero's cover, then opens checkout. */
   const reviewAndPay = () => {
     setPlan((cur) => [...cur, ...heroIds.filter((id) => !cur.includes(id) && !paidCover(covered[id]))]);
@@ -1177,7 +1210,9 @@ export function Store() {
                     ["water", "of water put back in dry rivers", " water"],
                     ["land", "of forest protected", " land"],
                   ] as const
-                ).map(([k, what, unit]) => (
+                )
+                  .filter(([k]) => aiImpacts[k] > 0)
+                  .map(([k, what, unit]) => (
                   <div key={k}>
                     <dt className="sr-only">{IMPACT_INFO[k].label}</dt>
                     <dd className="amount text-2xl font-semibold">{IMPACT_INFO[k].format(aiImpacts[k], aiImpacts).replace(unit, "")}</dd>
@@ -1225,7 +1260,9 @@ export function Store() {
                   <>
                     <span className="block">{paidLines.length ? "Your other AI use" : "Your AI use"}, offset</span>
                     <span className="block">
-                      {heroAhead === "lifetime" && aiCover.ahead === "lifetime" ? `for life: ${once(aiPrice.once)}.` : `for ${per(aiPrice.monthly, billing)}.`}
+                      {heroAhead === "lifetime" && aiCover.ahead === "lifetime"
+                        ? `for life: ${usd(heroBill.today)}.`
+                        : `for ${usd(heroBill.then)} ${BILLING[billing].per}.`}
                     </span>
                   </>
                 )}
@@ -1241,7 +1278,10 @@ export function Store() {
           )}
           <dl className={`amount divide-y divide-border text-sm ${heroPaid ? "" : "-mt-2"}`}>
             {[
-              ...(["carbon", "air", "water", "land"] as const).map((k) => [IMPACT_INFO[k].label, IMPACT_INFO[k].format(aiImpacts[k], aiImpacts)]),
+              // A harm shows unless it's truly zero; checkout gives every one shown to its charity (Ian, 2026-10-13).
+              ...(["carbon", "air", "water", "land"] as const)
+                .filter((k) => aiImpacts[k] > 0)
+                .map((k) => [IMPACT_INFO[k].label, IMPACT_INFO[k].format(aiImpacts[k], aiImpacts)]),
             ].map(([k, v]) => (
               <div key={k} className="flex justify-between gap-4 py-2">
                 <dt className="text-muted">{k}</dt>
@@ -1276,16 +1316,19 @@ export function Store() {
             </div>
           ) : (
             <div className="mt-4 flex items-center justify-between gap-4 border-t border-border pt-3">
-              {aiPrice.monthly > 0 && (aiPrice.once > 0 || heroSpread) ? (
-                // Two charges: the monthly leads, and the one-time part says what it pays for (Ian, 2026-10-13).
+              {aiCover.ahead === "monthly" ? (
+                // The monthly gift leads; the first gift today says what it adds (Ian, 2026-10-13).
                 <span>
-                  <span className="amount block text-2xl font-semibold">{per(aiPrice.monthly, billing)}</span>
+                  <span className="amount block text-2xl font-semibold">
+                    {usd(heroBill.then)} {BILLING[billing].per}
+                  </span>
                   <span className="block text-sm text-muted">
                     {[
-                      heroSpread &&
-                        `+ ${per(heroSpread.perMonth, billing)} for ${heroSpread.years === 1 ? "a year" : `${heroSpread.years} years`} for past use`,
-                      heroPastOnce >= 0.005 && `+ ${once(heroPastOnce)} once for past use`,
-                      aiPrice.once - heroPastOnce >= 0.005 && `+ ${once(aiPrice.once - heroPastOnce)} once to offset ${heroLifeNames} for life`,
+                      Math.abs(heroBill.today - heroBill.then) >= 0.005 &&
+                        `${usd(heroBill.today)} today${
+                          heroOnceWhat.length ? `, with ${heroOnceWhat.join(" and ")}` : ""
+                        }`,
+                      heroSpread && `Past use spread over ${heroSpread.years === 1 ? "a year" : `${heroSpread.years} years`}`,
                     ]
                       .filter(Boolean)
                       .map((t) => (
@@ -1296,7 +1339,9 @@ export function Store() {
                   </span>
                 </span>
               ) : (
-                <span className="amount text-2xl font-semibold">{priceText(aiPrice, aiCover, billing)}</span>
+                <span className="amount text-2xl font-semibold">
+                  {usd(heroBill.today)} {aiCover.past ? "for life" : "once"}
+                </span>
               )}
               <button
                 type="button"
@@ -1306,6 +1351,11 @@ export function Store() {
                 {heroInPlan ? "Review and give" : "Offset my AI use"}
               </button>
             </div>
+          )}
+          {!heroPaid && heroUseOnly && (
+            <p className="mt-2 text-xs text-muted">
+              Includes {heroWhy}. Your use alone comes to <span className="amount">{heroUseOnly}</span>.
+            </p>
           )}
           {!heroPaid && paidNames.length > 0 && (
             <p className="mt-2 text-sm text-muted">
@@ -1331,7 +1381,13 @@ export function Store() {
               level={
                 ctx.aiFromExport || entered.ai
                   ? null
-                  : (ctx.aiEstimate?.level ?? (aiAmount === AI_LEVELS.medium.promptsPerDay ? "medium" : null))
+                  : (ctx.aiEstimate?.level ??
+                    levelOf({
+                      promptsPerDay: Number(aiAmount),
+                      imagesPerWeek: Number(amountOf(productById("ai-media")!)),
+                      videosPerWeek: Number(amountOf(productById("ai-video")!)),
+                      codingHoursPerWeek: Number(amountOf(productById("ai-coding")!)),
+                    }))
               }
               onPick={(level, from) => {
                 setCtx((c) => ({ ...c, aiEstimate: { level, from }, aiFromExport: false, aiWhPerPrompt: undefined, aiPastWh: undefined, aiCode: undefined, aiAgent: undefined, aiCodingPastWh: undefined }));
@@ -1435,7 +1491,7 @@ export function Store() {
       </nav>
 
       {(() => {
-        const open = shelvesOpen || plan.some((id) => id !== "ai") || Object.keys(covered).some((id) => id !== "ai") || Object.keys(linkedFrom).length > 0;
+        const open = aislesOpen;
         const openAt = (key: string) => {
           setShelvesOpen(true);
           requestAnimationFrame(() => document.getElementById(`section-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
@@ -1460,7 +1516,7 @@ export function Store() {
         );
       })()}
 
-      {(shelvesOpen || plan.some((id) => id !== "ai") || Object.keys(covered).some((id) => id !== "ai") || Object.keys(linkedFrom).length > 0) && (
+      {aislesOpen && (
       <>
       <div className="mb-4">
         <h2 className="font-display text-3xl font-extrabold [font-stretch:85%]">Cover more than AI</h2>
@@ -1495,14 +1551,15 @@ export function Store() {
         const openItem = items.find((p) => p.id === details);
         return (
           <section key={s.key} id={`section-${s.key}`} className="mb-10 scroll-mt-16" aria-labelledby={`heading-${s.key}`}>
-            <div className="mb-3 flex items-baseline justify-between gap-4">
-              <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-3">
+            {/* The group price wraps under the title when it doesn't fit, so a phone never scrolls sideways. */}
+            <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <div className="flex min-w-0 flex-col sm:flex-row sm:items-baseline sm:gap-3">
                 <h2 id={`heading-${s.key}`} className="text-2xl font-bold">
                   {s.title}
                 </h2>
                 <p className="text-sm text-muted">{s.blurb}</p>
               </div>
-              <div className="flex shrink-0 items-baseline gap-4">
+              <div className="flex min-w-0 items-baseline gap-4">
                 {addable(items).length > 1 &&
                   (addable(items).every((p) => plan.includes(p.id)) ? (
                     <span className="text-sm text-muted">All in your plan</span>
@@ -1510,7 +1567,7 @@ export function Store() {
                     <button
                       type="button"
                       onClick={() => addGroup(items)}
-                      className="min-h-10 cursor-pointer text-sm font-semibold underline underline-offset-4"
+                      className="min-h-10 cursor-pointer text-left text-sm font-semibold underline underline-offset-4"
                     >
                       Add all {addable(items).length} <span className="amount font-normal text-muted">· {groupPrice(items)}</span>
                     </button>

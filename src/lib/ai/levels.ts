@@ -26,6 +26,18 @@ export const AI_LEVELS: Record<AiLevel, { label: string; promptsPerDay: number; 
   heavy: { label: "Heavy", promptsPerDay: 40, imagesPerWeek: 10, videosPerWeek: 0, who: "hours a day, long chats" },
 };
 
+/**
+ * The level these AI amounts are exactly, if any, so a level shows as picked only
+ * when tapping it would change nothing (Ian, 2026-10-13). Picking a level sets coding to none.
+ */
+export function levelOf(a: { promptsPerDay: number; imagesPerWeek: number; videosPerWeek: number; codingHoursPerWeek: number }): AiLevel | null {
+  if (a.codingHoursPerWeek !== 0) return null;
+  const hit = (Object.keys(AI_LEVELS) as AiLevel[]).find(
+    (k) => AI_LEVELS[k].promptsPerDay === a.promptsPerDay && AI_LEVELS[k].imagesPerWeek === a.imagesPerWeek && AI_LEVELS[k].videosPerWeek === a.videosPerWeek,
+  );
+  return hit ?? null;
+}
+
 /** Maps a subscription name like "ChatGPT Plus", "pro", "max_5x" or "free" to a usage level. */
 export function levelForPlan(plan: string): AiLevel {
   const p = plan.toLowerCase();
