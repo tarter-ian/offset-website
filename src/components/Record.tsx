@@ -7,6 +7,7 @@ import { AccountBar } from "./Account";
 import { pullCovered, pushCovered } from "@/lib/accountClient";
 import { savedResults } from "@/lib/extension";
 import { AI_CHAT_SERVICES, type AiChatService, inForce, monthlyUse, monthTotal, type MonthUse, recordStatus } from "@/lib/record";
+import { itemName } from "@/lib/reminders";
 import { productById } from "@/lib/store";
 
 // The page a returning visitor lands on: whether anything needs doing, their AI
@@ -58,7 +59,7 @@ export function Record() {
           <>
             <h1 className="font-display text-4xl leading-[1.05] font-extrabold [font-stretch:85%] sm:text-5xl">Welcome back.</h1>
             <p className="mt-4 max-w-xl text-lg text-muted">
-              Your {list(status.ids.map((id) => nameOf(id).toLowerCase()))} ran through {day(status.ended)}. The next stretch is ready when you are.
+              Your {list(status.ids.map(itemName))} ran through {day(status.ended)}. The next stretch is ready when you are.
             </p>
             <div className="mt-6 grid max-w-2xl gap-4 border-t-2 border-b border-t-rule border-b-border py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
               <p>Priced from your latest counts, card fees included. You see the amount before anything is charged.</p>

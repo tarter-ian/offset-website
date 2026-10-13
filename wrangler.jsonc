@@ -3,7 +3,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "offset-website",
-  "main": ".open-next/worker.js",
+  "main": "custom-worker.ts",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": {
@@ -17,5 +17,7 @@
   "previews": {
     "d1_databases": [{ "binding": "DB", "database_id": "c8712e60-f24e-4e79-a964-7f20b189a18a" }]
   },
+  // Once a day, sends any "your next month is ready" emails that are due (custom-worker.ts).
+  "triggers": { "crons": ["0 15 * * *"] },
   "observability": { "enabled": true }
 }

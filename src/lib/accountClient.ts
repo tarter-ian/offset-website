@@ -9,6 +9,7 @@ export interface AccountState {
   email?: string;
   covered?: Record<string, Covered>;
   fresh?: boolean;
+  reminders?: boolean;
 }
 
 export async function fetchAccount(): Promise<AccountState> {
@@ -77,5 +78,15 @@ export async function deleteAccount(): Promise<{ deleted?: boolean; emailed?: bo
     return (await r.json().catch(() => ({ error: "Something went wrong." }))) as { deleted?: boolean; emailed?: boolean; error?: string };
   } catch {
     return { error: "Couldn't reach My Offset. Check your connection and try again." };
+  }
+}
+
+/** Turns the monthly "your next month is ready" email on or off. */
+export async function setReminders(on: boolean): Promise<boolean> {
+  try {
+    const r = await fetch("/api/account", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ reminders: on }) });
+    return r.ok;
+  } catch {
+    return false;
   }
 }
