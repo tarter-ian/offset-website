@@ -22,25 +22,6 @@ const EXT_NAMES: Record<ExtensionService, string> = {
   uber: "Uber",
 };
 type FoodService = "doordash" | "ubereats";
-/** AI services the person chose to leave out, kept in this browser so a saved count doesn't come back on the next visit. */
-const LEFT_OUT_KEY = "mo_ai_left_out";
-function leftOut(): QuickService[] {
-  try {
-    const v = JSON.parse(localStorage.getItem(LEFT_OUT_KEY) ?? "[]");
-    return Array.isArray(v) ? v.filter((x): x is QuickService => SERVICES.includes(x)) : [];
-  } catch {
-    return [];
-  }
-}
-function setLeftOut(xs: QuickService[]) {
-  try {
-    localStorage.setItem(LEFT_OUT_KEY, JSON.stringify(xs));
-  } catch {
-    // Private windows can refuse storage; leaving out still works until the page is reloaded.
-  }
-}
-const isAi = (x: ExtensionService): x is QuickService => SERVICES.includes(x as QuickService);
-
 /** "Measure everything" reuses a result counted this recently instead of counting again. */
 const REUSE_HOURS = 24;
 /** Saved results older than this are re-counted in the background when the page opens. */
@@ -112,12 +93,7 @@ export function AiQuickPick({
       // Show what the extension saved last time straight away, and quietly re-count anything older than a week.
       savedResults().then((saved) => {
         const stale: ExtensionService[] = [];
-        const out = leftOut();
         for (const [service, r] of Object.entries(saved) as [ExtensionService, SavedResult][]) {
-          if (isAi(service) && out.includes(service)) {
-            setRows((rows) => ({ ...rows, [service]: { state: "skipped" } }));
-            continue;
-          }
           applyUsage(service, r.usage, r.measuredAt);
           if (Date.now() - Date.parse(r.measuredAt) > REFRESH_DAYS * 86400000) stale.push(service);
         }
@@ -228,8 +204,6 @@ export function AiQuickPick({
   }
 
   function run(services: ExtensionService[], inFront = false, then?: () => void, maxAgeHours?: number) {
-    const out = leftOut();
-    if (out.some((x) => services.includes(x))) setLeftOut(out.filter((x) => !services.includes(x)));
     setStatus({ kind: "idle" });
     setOpen(null);
     setRows((r) => ({ ...r, ...Object.fromEntries(services.map((x) => [x, { state: "counting" }])) }));
@@ -290,20 +264,6 @@ export function AiQuickPick({
     if (x === "uber") onRides?.(0);
   }
 
-  /** Takes one AI service's count out of the numbers. With none left, AI goes back to a medium guess. */
-  function leaveOut(x: QuickService) {
-    setLeftOut([...new Set([...leftOut(), x])]);
-    setRows((r) => ({ ...r, [x]: { state: "skipped" } }));
-    setAiSummaries((prev) => {
-      const next = { ...prev };
-      delete next[x];
-      const all = combineSummaries(Object.values(next) as UsageSummary[]);
-      if (all) onMeasured(all);
-      else onPick("medium", `you left out ${AI_NAMES[x]}, so we use medium`);
-      return next;
-    });
-  }
-
   const signedOut = EXTENSION_SERVICES.filter((x) => rows[x]?.state === "error" && rows[x]?.error === "signed-out");
   const busy = Object.values(rows).some((r) => r?.state === "counting" || r?.state === "asking");
 
@@ -319,11 +279,7 @@ export function AiQuickPick({
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => {
-                // Something left out stays out; its own button counts it again.
-                const out = leftOut();
-                run(EXTENSION_SERVICES.filter((x) => !(isAi(x) && out.includes(x))), false, undefined, REUSE_HOURS);
-              }}
+              onClick={() => run(EXTENSION_SERVICES, false, undefined, REUSE_HOURS)}
               disabled={busy}
               className="min-h-11 rounded-md bg-foreground px-5 font-semibold text-background hover:opacity-90 disabled:opacity-60"
             >
@@ -411,20 +367,12 @@ export function AiQuickPick({
                             <button type="button" onClick={() => run([x])} disabled={busy} className="underline hover:text-muted disabled:opacity-60">
                               Count again
                             </button>
-                            {isAi(x) && (
-                              <>
-                                {" · "}
-                                <button type="button" onClick={() => leaveOut(x)} disabled={busy} className="underline hover:text-muted disabled:opacity-60">
-                                  Leave out
-                                </button>
-                              </>
-                            )}
                           </span>
                         </>
                       )}
                       {r.state === "skipped" && (
                         <span>
-                          <span className="text-muted">{isAi(x) ? "Left out of your numbers." : "Left out: you don't use it."}</span>{" "}
+                          <span className="text-muted">Left out: you don&apos;t use it.</span>{" "}
                           <button type="button" onClick={() => run([x])} disabled={busy} className="underline hover:text-muted disabled:opacity-60">
                             Count it
                           </button>
