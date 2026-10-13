@@ -102,6 +102,8 @@ export function AiQuickPick({
   const [aiSummaries, setAiSummaries] = useState<Partial<Record<QuickService, UsageSummary>>>({});
   const [installable, setInstallable] = useState(false);
   const [open, setOpen] = useState<QuickService | null>(null);
+  /** Light, Medium and Heavy stay folded so the first screen has one thing to do; a picked level keeps them open. */
+  const [guessing, setGuessing] = useState(false);
   const [status, setStatus] = useState<{ kind: "idle" | "waiting" | "done" | "error"; text?: string; service?: QuickService }>({ kind: "idle" });
 
   useEffect(() => {
@@ -342,7 +344,9 @@ export function AiQuickPick({
               </button>
             ))}
           </div>
-          <label className="mt-3 flex cursor-pointer items-start gap-2 text-sm">
+          <details className="mt-2 text-sm">
+            <summary className="cursor-pointer text-muted underline underline-offset-4 hover:text-foreground">Options and how it works</summary>
+          <label className="mt-2 flex cursor-pointer items-start gap-2 text-sm">
             <input type="checkbox" className="mt-1" checked={whole} onChange={(e) => setWhole(e.target.checked)} disabled={busy} />
             <span>
               <span className="font-semibold">Count my whole history</span>{" "}
@@ -359,6 +363,7 @@ export function AiQuickPick({
               How it works
             </a>
           </p>
+          </details>
           {signedOut.length > 0 && !busy && (
             <div className="mt-3 border-2 border-rule p-3 text-sm">
               <p className="font-semibold">
@@ -555,6 +560,14 @@ export function AiQuickPick({
         </div>
       )}
       {status.kind === "error" && <p className="mt-2 text-sm text-red-700">{status.text}</p>}
+      {!guessing && !level ? (
+        <p className="mt-5">
+          <button type="button" onClick={() => setGuessing(true)} className="min-h-10 cursor-pointer text-muted underline underline-offset-4 hover:text-foreground">
+            {ext ? "Or take a guess instead" : installable ? "No extension? Take a guess for now" : "Or take a guess"}
+          </button>
+        </p>
+      ) : (
+        <>
       <p className="mt-6 text-muted">{ext ? "Or take a guess instead:" : installable ? "No extension? Take a guess for now:" : "Or take a guess:"}</p>
       <div className="mt-2 grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="How much you use AI">
         {(Object.keys(AI_LEVELS) as AiLevel[]).map((k) => {
@@ -577,6 +590,8 @@ export function AiQuickPick({
           );
         })}
       </div>
+        </>
+      )}
     </div>
   );
 }
