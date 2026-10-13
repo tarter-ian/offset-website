@@ -12,20 +12,27 @@ export type RecordStatus =
   | { kind: "none" }
   /** Everything covered is covered for life. */
   | { kind: "life" }
+  /** Paid by a steady gift that Every.org repeats on its own, with nothing else to do. */
+  | { kind: "steady" }
   /** Covered, with nothing to do until the earliest end date. */
   | { kind: "covered"; until: string }
   /** Some monthly or yearly cover has run out: these items are ready to cover again. */
   | { kind: "due"; ids: string[]; ended: string };
 
-export function recordStatus(covered: Record<string, Covered>, now: number = Date.now()): RecordStatus {
+/** `steady` lists items a steady gift keeps paying for: they never come due here. */
+export function recordStatus(covered: Record<string, Covered>, now: number = Date.now(), steady: string[] = []): RecordStatus {
   const entries = Object.entries(covered);
   if (!entries.length) return { kind: "none" };
-  const periods = entries.filter((e): e is [string, Extract<Covered, { kind: "period" }>] => e[1].kind === "period");
+  const repeating = entries.filter(([id, c]) => c.kind === "period" && !c.giftFrom && steady.includes(id));
+  const periods = entries.filter(
+    (e): e is [string, Extract<Covered, { kind: "period" }>] => e[1].kind === "period" && !repeating.some(([id]) => id === e[0]),
+  );
   // A gift that ran out isn't the person's to renew, so only their own covers come due.
   const lapsed = periods.filter(([, c]) => !c.giftFrom && Date.parse(c.until) <= now);
   if (lapsed.length) return { kind: "due", ids: lapsed.map(([id]) => id), ended: lapsed.map(([, c]) => c.until).sort()[0] };
   const live = periods.filter(([, c]) => Date.parse(c.until) > now);
   if (live.length) return { kind: "covered", until: live.map(([, c]) => c.until).sort()[0] };
+  if (repeating.length) return { kind: "steady" };
   return entries.some(([, c]) => c.kind === "life") ? { kind: "life" } : { kind: "none" };
 }
 

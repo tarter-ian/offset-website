@@ -16,6 +16,16 @@ describe("recordStatus", () => {
       ids: ["ai"],
       ended: "2026-10-01T00:00:00Z",
     }));
+  it("never asks to renew what a steady gift keeps paying for", () => {
+    const ended = { ai: { kind: "period" as const, until: "2026-10-01T00:00:00Z" } };
+    expect(recordStatus(ended, NOW, ["ai"])).toEqual({ kind: "steady" });
+    expect(recordStatus({ ...ended, video: { kind: "period", until: "2026-10-02T00:00:00Z" } }, NOW, ["ai"])).toEqual({
+      kind: "due",
+      ids: ["video"],
+      ended: "2026-10-02T00:00:00Z",
+    });
+    expect(recordStatus({ ...ended, car: { kind: "period", until: "2026-12-01T00:00:00Z" } }, NOW, ["ai"])).toEqual({ kind: "covered", until: "2026-12-01T00:00:00Z" });
+  });
   it("never asks to renew someone else's gift", () =>
     expect(recordStatus({ ai: { kind: "period", until: "2026-10-01T00:00:00Z", giftFrom: "Sam" } }, NOW)).toEqual({ kind: "none" }));
 });
