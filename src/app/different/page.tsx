@@ -30,8 +30,8 @@ const ROWS = [
     source: { href: "https://blog.wren.co/posts/wren-financial-report-year-two", text: "Wren, year two report" },
     ours:
       PAYMENT_MODE === "every"
-        ? "All of it. You give to each charity through Every.org, and the only fee is its card fee, shown for each charity. The site runs on optional tips."
-        : "All of it. The only fees are the card payment and our charity sponsor's share, each on its own line. The site runs on optional tips.",
+        ? "All of it. You give to each charity through Every.org, and the only fee is its card fee, shown for each charity. Ian pays for running the site himself."
+        : "All of it. The only fees are the card payment and our charity sponsor's share, each on its own line. Ian pays for running the site himself.",
     link: { href: "/ledger", text: "Where the money goes" },
   },
   {

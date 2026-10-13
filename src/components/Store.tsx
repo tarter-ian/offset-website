@@ -203,8 +203,6 @@ const COMMON_FIRST: Partial<Record<string, string[]>> = {
 };
 const LIVE_LINKS = new Set<ProviderId>(["chatgpt", "claude", "gemini", "openai-api", "anthropic-api", "activity"]);
 
-// Optional tips toward hosting and upkeep; the default is none.
-const TIPS = [0, 1, 3, 5];
 
 // When someone started using AI, for past use when no history is linked. ChatGPT launched in late 2022.
 const AI_START_OPTIONS = Array.from({ length: new Date().getFullYear() - 2021 }, (_, i) => {
@@ -232,8 +230,6 @@ export function Store() {
   // Progress through paying each charity, kept in this browser.
   const [payState, setPayState] = useState<Checkout | null>(null);
   const [previewing, setPreviewing] = useState(false);
-  // An optional tip toward running the site, added once to the next payment. Off unless chosen.
-  const [tip, setTip] = useState(0);
   const [adjusting, setAdjusting] = useState(false);
   const [measuring, setMeasuring] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
@@ -397,10 +393,9 @@ export function Store() {
   const split = harmSplit(totals, ctx, billing);
   const giftRows = payRows(split, billing, autopay);
   const repeatTotal = sumTotal(repeatRows(split, billing));
-  // Everything charged today: the one-time payment, the first ongoing payment and any tip.
-  const dueToday = every ? sumTotal(giftRows) : (totals.oneTime?.total ?? 0) + (totals.recurring?.total ?? 0) + tip;
+  // Everything charged today: the one-time payment and the first ongoing payment.
+  const dueToday = every ? sumTotal(giftRows) : (totals.oneTime?.total ?? 0) + (totals.recurring?.total ?? 0);
   const thenTotal = every ? repeatTotal : (totals.recurring?.total ?? 0);
-  const tipUrl = process.env.NEXT_PUBLIC_TIP_URL;
   // Room below the footer for the plan bar, so it never covers the last lines of the page.
   useEffect(() => {
     document.body.style.paddingBottom = plan.length ? "5rem" : "";
@@ -1689,18 +1684,6 @@ export function Store() {
                 )}
                 {every ? (
                   <>
-                    {tipUrl && (
-                      <p className="mt-3 border-t border-border pt-3 text-sm text-muted">
-                        Want to help keep My Offset running? Tips are separate from your gifts to the charities.{" "}
-                        <a href={tipUrl} target="_blank" rel="noreferrer" className="cursor-pointer font-semibold text-foreground underline underline-offset-2 hover:text-muted">
-                          Leave a tip
-                        </a>
-                        {" · "}
-                        <a href="/ledger#tips" target="_blank" className="cursor-pointer underline hover:text-foreground">
-                          What tips pay for
-                        </a>
-                      </p>
-                    )}
                     <dl className="figures mt-3 space-y-1 border-t border-border pt-3 text-sm">
                       {giftRows.map((r) => (
                         <div key={r.key} className="flex justify-between gap-4">
@@ -1755,28 +1738,6 @@ export function Store() {
                   </>
                 ) : (
                   <>
-                  <div className="mt-3 flex border-t border-border pt-3 flex-wrap items-center gap-2 text-sm" role="radiogroup" aria-label="Optional tip">
-                    <span className="text-muted">
-                      Add a tip to help keep My Offset running?{" "}
-                      <a href="/ledger#tips" target="_blank" className="underline hover:text-foreground">
-                        What tips pay for
-                      </a>
-                    </span>
-                    {TIPS.map((t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        role="radio"
-                        aria-checked={tip === t}
-                        onClick={() => setTip(t)}
-                        className={`figures min-h-10 rounded-md border px-3 ${
-                          tip === t ? "border-rule bg-foreground text-background" : "border-rule hover:bg-card"
-                        }`}
-                      >
-                        {t ? usd(t).replace(".00", "") : "No tip"}
-                      </button>
-                    ))}
-                  </div>
                   <dl className="figures mt-3 space-y-1 border-t border-border pt-3 text-sm">
                     {totals.oneTime && (
                       <div className="flex justify-between gap-4">
@@ -1803,12 +1764,6 @@ export function Store() {
                       </dt>
                       <dd>{usd(feeParts(totals.oneTime?.donation ?? 0).sponsor + feeParts(totals.recurring?.donation ?? 0).sponsor)}</dd>
                     </div>
-                    {tip > 0 && (
-                      <div className="flex justify-between gap-4">
-                        <dt className="font-sans text-muted">Tip to keep My Offset running</dt>
-                        <dd>{usd(tip)}</dd>
-                      </div>
-                    )}
                     <div className="flex justify-between gap-4 border-t border-border pt-1.5 text-base font-semibold">
                       <dt className="font-sans">Total today</dt>
                       <dd>{usd(dueToday)}</dd>
