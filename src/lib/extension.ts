@@ -201,5 +201,18 @@ export function canInstallExtension(): boolean {
   return /Chrome\//.test(ua) && !/Mobile|Android|CriOS|EdgiOS|OPR\//.test(ua);
 }
 
+/**
+ * A phone or tablet, where the extension can never run, so the data export is the way to measure.
+ * iPads say they're a Mac, so a touch screen without a mouse counts too.
+ */
+export function isPhoneAgent(ua: string, touchOnly: boolean): boolean {
+  return /Mobi|Android|iPhone|iPad|iPod/.test(ua) || (touchOnly && /Macintosh/.test(ua));
+}
+
+export function isPhone(): boolean {
+  if (typeof navigator === "undefined" || typeof window === "undefined") return false;
+  return isPhoneAgent(navigator.userAgent, window.matchMedia?.("(pointer: coarse)").matches && !window.matchMedia?.("(any-pointer: fine)").matches);
+}
+
 /** Chrome Web Store page, once the extension is listed. */
 export const EXTENSION_URL = process.env.NEXT_PUBLIC_EXTENSION_URL || "";
