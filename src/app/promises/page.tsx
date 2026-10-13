@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ContactLink } from "@/components/ContactLink";
-import { PAYMENT_MODE } from "@/lib/payments";
+import { forMode } from "@/lib/payments";
+import { ENDAOMENT_GRANT_LABEL, ENDAOMENT_IN_LABEL } from "@/lib/pricing";
 
 export const metadata: Metadata = { title: "Our promises | My Offset" };
 
@@ -9,22 +10,40 @@ export const metadata: Metadata = { title: "Our promises | My Offset" };
 const PROMISES = [
   {
     title: "Never charged without your say-so",
-    body: PAYMENT_MODE === "every"
-      ? "You approve each gift yourself, on Every.org, one charity at a time. Nothing repeats unless you tick autopay at checkout. If you do, Every.org charges the same gifts each month or year until you cancel them in your Every.org account. We can't email you before those charges or hold one back, so leave autopay off if you want to approve each one."
-      : "By default you approve each payment yourself, once a year or each month. Autopay is off unless you switch it on. If you do, we email you a few days before every charge with the amount and a one-click skip or stop, and a month that comes out more than $5 or 25% higher than the last, whichever is smaller, waits for your approval instead. The email shows the exact limit in dollars.",
+    body: forMode({
+      every:
+        "You approve each gift yourself, on Every.org, one charity at a time. Nothing repeats unless you tick autopay at checkout. If you do, Every.org charges the same gifts each month or year until you cancel them in your Every.org account. We can't email you before those charges or hold one back, so leave autopay off if you want to approve each one.",
+      endaoment:
+        "You approve each gift yourself, on Endaoment's page for the My Offset fund. Nothing repeats on its own: each month or year, you come back and give again.",
+      sponsor:
+        "By default you approve each payment yourself, once a year or each month. Autopay is off unless you switch it on. If you do, we email you a few days before every charge with the amount and a one-click skip or stop, and a month that comes out more than $5 or 25% higher than the last, whichever is smaller, waits for your approval instead. The email shows the exact limit in dollars.",
+    }),
   },
   {
-    title: "Your donation goes straight to charities",
-    body: PAYMENT_MODE === "every"
-      ? "Each gift goes from you to the charity through Every.org, a nonprofit donation platform that sends you the tax receipt. We never hold the money ourselves. Every month's totals are public."
-      : "Your donation is held by our charity sponsor, a registered charity, which sends you the tax receipt and pays the charities on your summary each month. We never hold the money ourselves. Every month's totals and receipts are public.",
+    title: forMode({
+      every: "Your donation goes straight to charities",
+      endaoment: "Your donation goes to the charities",
+      sponsor: "Your donation goes straight to charities",
+    }),
+    body: forMode({
+      every:
+        "Each gift goes from you to the charity through Every.org, a nonprofit donation platform that sends you the tax receipt. We never hold the money ourselves. Every month's totals are public.",
+      endaoment:
+        "You give to My Offset's fund at Endaoment, a nonprofit that sends you the tax receipt and grants the money on to each charity in the amounts checkout shows. We never hold the money ourselves.",
+      sponsor:
+        "Your donation is held by our charity sponsor, a registered charity, which sends you the tax receipt and pays the charities on your summary each month. We never hold the money ourselves. Every month's totals and receipts are public.",
+    }),
     link: { href: "/ledger", text: "Where the money goes" },
   },
   {
     title: "No cut, just costs passed on",
-    body: PAYMENT_MODE === "every"
-      ? "We don't make money on your donation. Each charity is paid separately through Every.org, which charges card payments 2.2% + 30¢ and bank payments nothing; the fee is shown for each charity. Paying yearly means one 30¢ fee per charity instead of twelve. There are no tips; Ian pays for running the site himself."
-      : "We don't make money on your donation. Two fees are passed on at cost, each on its own line: the card payment (30¢ plus 2.2%) and our charity sponsor's 8%, which pays for holding the money, sending tax receipts and paying the charities. Paying yearly means one 30¢ charge instead of twelve. There are no tips; Ian pays for running the site himself.",
+    body: forMode({
+      every:
+        "We don't make money on your donation. Each charity is paid separately through Every.org, which charges card payments 2.2% + 30¢ and bank payments nothing; the fee is shown for each charity. Paying yearly means one 30¢ fee per charity instead of twelve. There are no tips; Ian pays for running the site himself.",
+      endaoment: `We don't make money on your donation. You make one gift, and the fees are passed on at cost, each on its own line: the card payment and Endaoment's ${ENDAOMENT_IN_LABEL} as the gift comes in and ${ENDAOMENT_GRANT_LABEL} as it is granted out. Paying yearly means one card fee instead of twelve. There are no tips; Ian pays for running the site himself.`,
+      sponsor:
+        "We don't make money on your donation. Two fees are passed on at cost, each on its own line: the card payment (30¢ plus 2.2%) and our charity sponsor's 8%, which pays for holding the money, sending tax receipts and paying the charities. Paying yearly means one 30¢ charge instead of twelve. There are no tips; Ian pays for running the site himself.",
+    }),
   },
   {
     title: "No cheap, unverified carbon credits",

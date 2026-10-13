@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { PAYMENT_MODE } from "@/lib/payments";
+import { forMode, PAYMENT_MODE } from "@/lib/payments";
+import { ENDAOMENT_GRANT_LABEL, ENDAOMENT_IN_LABEL } from "@/lib/pricing";
 
 export const metadata: Metadata = { title: "What's different | My Offset" };
 
@@ -28,17 +29,22 @@ const ROWS = [
     topic: "How much reaches charity",
     usual: "A share is kept to run the company. One well-known subscription app reports sending about 80% to projects.",
     source: { href: "https://blog.wren.co/posts/wren-financial-report-year-two", text: "Wren, year two report" },
-    ours:
-      PAYMENT_MODE === "every"
-        ? "All of it. You give to each charity through Every.org, and the only fee is its card fee, shown for each charity. Ian pays for running the site himself."
-        : "All of it. The only fees are the card payment and our charity sponsor's share, each on its own line. Ian pays for running the site himself.",
+    ours: forMode({
+      every:
+        "All of it. You give to each charity through Every.org, and the only fee is its card fee, shown for each charity. Ian pays for running the site himself.",
+      endaoment: `All of it. You give once through Endaoment, and the only fees are the card payment and Endaoment's ${ENDAOMENT_IN_LABEL} in and ${ENDAOMENT_GRANT_LABEL} out, each on its own line. Ian pays for running the site himself.`,
+      sponsor:
+        "All of it. The only fees are the card payment and our charity sponsor's share, each on its own line. Ian pays for running the site himself.",
+    }),
     link: { href: "/ledger", text: "Where the money goes" },
   },
   {
     topic: "Billing",
     usual: "A monthly charge that renews until you cancel.",
     ours:
-      PAYMENT_MODE === "every"
+      PAYMENT_MODE === "endaoment"
+        ? "You approve each gift, monthly or yearly, and can skip any month. Nothing repeats on its own."
+        : PAYMENT_MODE === "every"
         ? "You approve each payment, monthly or yearly, and can skip any month. Autopay through Every.org is there if you want it, off by default."
         : "You approve each payment, monthly or yearly, and can skip any month. Autopay is there if you want it, off by default, with an email before every charge.",
   },

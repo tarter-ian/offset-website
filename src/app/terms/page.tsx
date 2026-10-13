@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ContactLink } from "@/components/ContactLink";
-import { PAYMENT_MODE } from "@/lib/payments";
+import { forMode, PAYMENT_MODE } from "@/lib/payments";
 
 export const metadata: Metadata = { title: "Terms | My Offset" };
 
@@ -38,6 +38,17 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
         will say so. Refunds are up to Every.org. If you were charged by mistake, tell us within 30 days and we&apos;ll help you ask
         for one.
       </>
+    ) : PAYMENT_MODE === "endaoment" ? (
+      <>
+        Your gift goes to My Offset&apos;s fund at Endaoment, a nonprofit that runs charitable funds, and Endaoment grants it on to the
+        charities checkout shows; we never hold it ourselves. Endaoment sends the receipt, decides what is tax-deductible, and its own
+        terms cover the payment. If a charity closes or stops qualifying, Endaoment decides where its part goes under its rules, and{" "}
+        <Link href="/ledger" className="text-accent hover:underline">
+          Where the money goes
+        </Link>{" "}
+        will say so. Refunds are up to Endaoment. If you were charged by mistake, tell us within 30 days and we&apos;ll help you ask
+        for one.
+      </>
     ) : (
       <>
         Your donation is held by our charity sponsor, a registered charity that runs My Offset as one of its projects, and paid to the
@@ -53,15 +64,21 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
   },
   {
     title: "Fees",
-    body: PAYMENT_MODE === "every"
-      ? "Every.org's card fee is shown for each charity, and we don't keep any of it. There are no tips or fees for using the site."
-      : "The card fee and our charity sponsor's fee are listed separately, and we don't keep any of either. There are no tips or fees for using the site.",
+    body: forMode({
+      every: "Every.org's card fee is shown for each charity, and we don't keep any of it. There are no tips or fees for using the site.",
+      endaoment: "The card fee and Endaoment's fees are listed separately, and we don't keep any of them. There are no tips or fees for using the site.",
+      sponsor: "The card fee and our charity sponsor's fee are listed separately, and we don't keep any of either. There are no tips or fees for using the site.",
+    }),
   },
   {
     title: "Paying again",
-    body: PAYMENT_MODE === "every"
-      ? "You approve each gift yourself unless you tick autopay at checkout. With autopay on, Every.org charges the same gifts each month or year until you cancel them in your Every.org account. We can't email you first or hold a charge back."
-      : "You approve each payment yourself unless you switch on autopay. With autopay on, we email you a few days before every charge with the amount and a one-click skip or stop. A charge more than $5 or 25% above the last one, whichever is smaller, waits for your approval. You can stop autopay at any time, and it takes effect before the next charge.",
+    body: forMode({
+      every:
+        "You approve each gift yourself unless you tick autopay at checkout. With autopay on, Every.org charges the same gifts each month or year until you cancel them in your Every.org account. We can't email you first or hold a charge back.",
+      endaoment: "You approve each gift yourself. Nothing repeats on its own: each month or year, you come back and give again.",
+      sponsor:
+        "You approve each payment yourself unless you switch on autopay. With autopay on, we email you a few days before every charge with the amount and a one-click skip or stop. A charge more than $5 or 25% above the last one, whichever is smaller, waits for your approval. You can stop autopay at any time, and it takes effect before the next charge.",
+    }),
   },
   {
     title: "Lifetime plans",

@@ -23,8 +23,13 @@ import { howEstimated, whereItGoes } from "@/lib/methods";
 import { PROVIDERS, type ProviderId } from "@/lib/providers";
 import {
   allConfirmed,
+  chargeSummary,
   charityName,
   type Checkout,
+  forMode,
+  type FundGift,
+  fundGifts,
+  fundLink,
   harmsText,
   loadCheckout,
   newPlanId,
@@ -49,6 +54,9 @@ import {
   MIN_DONATION_USD,
   CARD_FEE_LABEL,
   SPONSOR_FEE_LABEL,
+  ENDAOMENT_CARD_LABEL,
+  ENDAOMENT_GRANT_LABEL,
+  ENDAOMENT_IN_LABEL,
   feeParts,
   impactCost,
   usd,
@@ -398,9 +406,12 @@ export function Store() {
   const split = harmSplit(totals, ctx, billing);
   const giftRows = payRows(split, billing, autopay);
   const repeatTotal = sumTotal(repeatRows(split, billing));
+  // Through Endaoment, one gift to the fund covers every charity.
+  const fund = PAYMENT_MODE === "endaoment" ? fundGifts(split) : null;
   // Everything charged today: the one-time payment and the first ongoing payment.
-  const dueToday = every ? sumTotal(giftRows) : (totals.oneTime?.total ?? 0) + (totals.recurring?.total ?? 0);
-  const thenTotal = every ? repeatTotal : (totals.recurring?.total ?? 0);
+  const charged = PAYMENT_MODE === "sponsor" ? null : chargeSummary(split, billing, autopay);
+  const dueToday = charged ? charged.today : (totals.oneTime?.total ?? 0) + (totals.recurring?.total ?? 0);
+  const thenTotal = charged ? charged.then : (totals.recurring?.total ?? 0);
   // Room below the footer for the plan bar, so it never covers the last lines of the page.
   useEffect(() => {
     document.body.style.paddingBottom = plan.length ? "5rem" : "";
@@ -440,8 +451,7 @@ export function Store() {
     }));
     const years = pastPick(Infinity) ?? bestPastYears(evLines, ctx, billing);
     const t = planTotals(evLines, ctx, billing, years);
-    const evSplit = harmSplit(t, ctx, billing);
-    return { today: sumTotal(payRows(evSplit, billing, autopay)), then: sumTotal(repeatRows(evSplit, billing)), spread: t.pastSpread };
+    return { ...chargeSummary(harmSplit(t, ctx, billing), billing, autopay), spread: t.pastSpread };
   })();
   const addEverything = () => {
     const ids = addable(PRODUCTS).map((p) => p.id);
@@ -1749,6 +1759,61 @@ export function Store() {
                       />
                     )}
                   </>
+                ) : fund ? (
+                  <>
+                    <dl className="figures mt-3 space-y-1 border-t border-border pt-3 text-sm">
+                      {fund.today.parts.map((p) => (
+                        <div key={p.charity} className="flex justify-between gap-4">
+                          <dt className="font-sans text-muted">
+                            {CHARITIES[p.charity].name} ({harmsText(p.harms, (k) => IMPACT_INFO[k].label.toLowerCase())})
+                          </dt>
+                          <dd className="shrink-0 text-right">{usd(p.amount)}</dd>
+                        </div>
+                      ))}
+                      <div className="flex justify-between gap-4">
+                        <dt className="font-sans text-muted">
+                          Endaoment fees ({ENDAOMENT_IN_LABEL} in, {ENDAOMENT_GRANT_LABEL} to grant it out)
+                        </dt>
+                        <dd className="shrink-0 text-right">{usd(fund.today.endaoment)}</dd>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <dt className="font-sans text-muted">Card fee (estimated)</dt>
+                        <dd className="shrink-0 text-right">{usd(fund.today.card)}</dd>
+                      </div>
+                      <div className="flex justify-between gap-4 border-t border-border pt-1.5 text-base font-semibold">
+                        <dt className="font-sans">Total today, one gift</dt>
+                        <dd>{usd(dueToday)}</dd>
+                      </div>
+                      {fund.repeat && (
+                        <p className="font-sans text-muted">
+                          Then {usd(fund.repeat.total)} {BILLING[billing].per} as one gift, fees included. Nothing repeats on its own: you
+                          come back and give again.
+                          {totals.pastSpread &&
+                            ` It includes ${usd(totals.pastSpread.perMonth * (billing === "annual" ? 12 : 1))} toward past use until ${pastEnds}.`}
+                        </p>
+                      )}
+                    </dl>
+                    {payChoices(" (one card fee a year)")}
+                    <p className="mt-2 text-xs text-muted">
+                      You give once, to My Offset&apos;s fund at Endaoment, a nonprofit that runs charitable funds. Endaoment grants each
+                      charity its part above, keeping {ENDAOMENT_IN_LABEL} as the gift comes in and {ENDAOMENT_GRANT_LABEL} as it goes
+                      out. Both fees and the card fee are added on top, so the whole donation arrives. The card fee is our estimate (
+                      {ENDAOMENT_CARD_LABEL}) until Endaoment confirms it. There&apos;s no smallest gift, so each part goes to its own
+                      charity to the cent. Endaoment emails you the tax receipt.
+                    </p>
+                    {!paymentsOn() && (
+                      <p className="mt-3 text-sm font-semibold">Payments open soon. Your plan stays saved in this browser until then.</p>
+                    )}
+                    {paymentsOn() && checkout && (
+                      <FundPaySection
+                        gift={fund.today}
+                        lines={totals.lines.map((l) => ({ productId: l.productId, lifetime: l.cover.ahead === "lifetime", past: l.cover.past }))}
+                        billing={billing}
+                        payState={payState}
+                        setPayState={setPayState}
+                      />
+                    )}
+                  </>
                 ) : (
                   <>
                   <dl className="figures mt-3 space-y-1 border-t border-border pt-3 text-sm">
@@ -1808,7 +1873,7 @@ export function Store() {
                     ctx,
                   )}
                 />
-                {!every && checkout && (
+                {PAYMENT_MODE === "sponsor" && checkout && (
                   <p className="mt-4 text-sm text-muted">Payments aren&apos;t switched on yet. Your plan stays saved in this browser until they are.</p>
                 )}
               </div>
@@ -1899,7 +1964,12 @@ function GiveDirectly({ totals, ctx, billing }: { totals: ReturnType<typeof plan
         Prefer to give to the charities yourself?
       </summary>
       <p className="mt-2 text-muted">
-        {PAYMENT_MODE === "every" ? "You can give these amounts on each charity's own site instead." : "You can skip our fees by giving these amounts on each charity's own site."} We can&apos;t see those gifts, so they won&apos;t
+        {forMode({
+          every: "You can give these amounts on each charity's own site instead.",
+          endaoment: "You can skip Endaoment's fees by giving these amounts on each charity's own site.",
+          sponsor: "You can skip our fees by giving these amounts on each charity's own site.",
+        })}{" "}
+        We can&apos;t see those gifts, so they won&apos;t
         count toward your Fully Offset badge or mark items as covered here, and some charities have a minimum gift.
       </p>
       <dl className="figures mt-2 space-y-1 border-t border-border pt-2">
@@ -2046,6 +2116,103 @@ function PaySection({
             </p>
           )}
         </>
+      )}
+    </section>
+  );
+}
+
+/**
+ * Giving through the Endaoment fund: one gift and one Give button, which opens
+ * the fund's page in a new tab. With no webhook or reference from Endaoment yet,
+ * the gift is kept here as given and pending confirmation, and nothing is marked
+ * offset from it.
+ */
+function FundPaySection({
+  gift,
+  lines,
+  billing,
+  payState,
+  setPayState,
+}: {
+  gift: FundGift;
+  lines: Checkout["lines"];
+  billing: Billing;
+  payState: Checkout | null;
+  setPayState: (c: Checkout | null) => void;
+}) {
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [confirmedBig, setConfirmedBig] = useState(false);
+  useEffect(() => setDraftId(newPlanId()), []);
+  const href = fundLink();
+  const given = payState?.fund && payState.done.fund ? payState : null;
+  if (!href) return null;
+  return (
+    <section id="pay-steps" aria-labelledby="pay-heading" className="mt-4 scroll-mt-4 border-t-2 border-rule pt-3">
+      <h3 id="pay-heading" className="text-base font-bold">
+        Give through Endaoment
+      </h3>
+      {given ? (
+        <>
+          <p className="mt-2 text-sm" role="status">
+            <span className="font-semibold">
+              <span aria-hidden>✓ </span>Given <span className="figures">{usd(given.fund!.total)}</span>, pending confirmation
+            </span>
+            <span className="block text-muted">
+              Endaoment emails your tax receipt. Items are marked offset here once we can confirm gifts with Endaoment.
+            </span>
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              saveCheckout(null);
+              setPayState(null);
+              setDraftId(newPlanId());
+            }}
+            className="mt-2 min-h-10 cursor-pointer text-sm text-muted underline underline-offset-2 hover:text-foreground"
+          >
+            Start a new gift from your plan as it is now
+          </button>
+        </>
+      ) : gift.total > BIG_PAYMENT_USD && !confirmedBig ? (
+        <div className="mt-3 border-y-2 border-rule py-3 text-sm">
+          <p className="font-semibold">
+            You&apos;re giving <span className="figures">{usd(gift.total)}</span> today, in one gift.
+          </p>
+          <p className="mt-1 text-muted">A check before anything opens, since it&apos;s a big gift.</p>
+          <button
+            type="button"
+            onClick={() => setConfirmedBig(true)}
+            className="mt-2 min-h-11 cursor-pointer rounded-md bg-foreground px-4 font-semibold text-background hover:opacity-85"
+          >
+            Confirm
+          </button>
+        </div>
+      ) : (
+        draftId && (
+          <div className="mt-3 text-sm">
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener"
+              onClick={() => {
+                const c: Checkout = { id: draftId, created: new Date().toISOString(), billing, rows: [], lines, done: { fund: new Date().toISOString() }, confirmed: {}, fund: gift };
+                saveCheckout(c);
+                setPayState(c);
+              }}
+              className="inline-flex min-h-11 cursor-pointer items-center rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-strong"
+            >
+              Give {usd(gift.total)}
+            </a>
+            <p className="mt-2 text-muted">
+              Opens the My Offset fund on Endaoment in a new tab. Give <span className="figures">{usd(gift.total)}</span> there, and
+              Endaoment grants each charity its part.
+            </p>
+            <p className="mt-2 text-muted">
+              Before you give: <Link href="/ledger">where the money goes</Link>, <Link href="/promises">what we promise</Link> and{" "}
+              <Link href="/method">how each price is worked out</Link>. None of it passes through My Offset.
+            </p>
+          </div>
+        )
       )}
     </section>
   );

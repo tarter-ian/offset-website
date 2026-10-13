@@ -17,8 +17,11 @@ import {
   type ImpactKey,
 } from "@/lib/footprint";
 import { IMPACT_INFO } from "@/lib/impacts";
-import { PAYMENT_MODE, perCharityFees } from "@/lib/payments";
+import { feeFor, forMode, PAYMENT_MODE, perCharityFees } from "@/lib/payments";
 import {
+  ENDAOMENT_CARD_LABEL,
+  ENDAOMENT_GRANT_LABEL,
+  ENDAOMENT_IN_LABEL,
   CARBON_MODES,
   CARBON_POLICY_SHARE,
   DEFAULT_CARBON_MODE,
@@ -128,11 +131,14 @@ export function Results({
   const lifetimeRaw = lifetimeCost(cost);
   const rawDonation = cost.byImpact.carbon + cost.byImpact.air + cost.byImpact.water + cost.byImpact.land + cost.byImpact.ewaste;
   const billing = billingPick ?? DEFAULT_BILLING;
-  // Through Every.org each charity is its own payment, so the fee is one card fee per charity.
-  const every = PAYMENT_MODE === "every";
+  // Through Every.org each charity is its own payment, so the fee is one card fee per charity;
+  // through Endaoment it is one gift, carrying Endaoment's share and the card fee.
   const withFees = <T extends { donation: number; fee: number; total: number }>(b: T): T => {
-    if (!every || !(rawDonation > 0)) return b;
-    const fee = perCharityFees(Object.fromEntries(IMPACT_KEYS.map((k) => [k, (cost.byImpact[k] / rawDonation) * b.donation])));
+    if (PAYMENT_MODE === "sponsor" || !(rawDonation > 0)) return b;
+    const fee =
+      PAYMENT_MODE === "endaoment"
+        ? feeFor(b.donation)
+        : perCharityFees(Object.fromEntries(IMPACT_KEYS.map((k) => [k, (cost.byImpact[k] / rawDonation) * b.donation])));
     return { ...b, fee, total: Math.round((b.donation + fee) * 100) / 100 };
   };
   const bill = withFees(recurringPrice(rawDonation, billing));
@@ -383,9 +389,11 @@ export function Results({
                 </div>
                 <div className="flex justify-between gap-4">
                   <dt className="text-muted">
-                    {every
-                      ? "Card fees, one per charity paid through Every.org (2.2% + 30¢ each, no profit to us)"
-                      : `Fees (card ${CARD_FEE_LABEL}, charity sponsor ${SPONSOR_FEE_LABEL}, no profit to us)`}
+                    {forMode({
+                      every: "Card fees, one per charity paid through Every.org (2.2% + 30¢ each, no profit to us)",
+                      endaoment: `Fees (Endaoment ${ENDAOMENT_IN_LABEL} in and ${ENDAOMENT_GRANT_LABEL} out, card about ${ENDAOMENT_CARD_LABEL}, no profit to us)`,
+                      sponsor: `Fees (card ${CARD_FEE_LABEL}, charity sponsor ${SPONSOR_FEE_LABEL}, no profit to us)`,
+                    })}
                   </dt>
                   <dd>{usd(bill.fee)}</dd>
                 </div>

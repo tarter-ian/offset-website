@@ -24,7 +24,7 @@ const POLLS = 24;
 /** The green button that opens Every.org for one gift. Never opened for the person: browsers block pop-ups, and it should be their tap. */
 export function GiveButton({ planId, row, onGo, returnPath }: { planId: string; row: PayRow; onGo?: () => void; returnPath?: string }) {
   const [href, setHref] = useState<string | null>(null);
-  useEffect(() => setHref(payLink(planId, row, window.location.origin, undefined, returnPath)), [planId, row, returnPath]);
+  useEffect(() => setHref(payLink(planId, row, window.location.origin, "every", returnPath)), [planId, row, returnPath]);
   if (!href) return null;
   return (
     <a

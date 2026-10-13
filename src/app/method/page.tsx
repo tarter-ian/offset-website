@@ -7,6 +7,8 @@ import { DEFAULT_CONTEXT, PAST_FROM_AGE, PAST_MONTHLY_CAP_USD, PAST_YEARS, PRODU
 import { PAYMENT_MODE } from "@/lib/payments";
 import {
   AIR_DAMAGE_SHARE,
+  ENDAOMENT_GRANT_LABEL,
+  ENDAOMENT_IN_LABEL,
   CARBON_MODES,
   DEFAULT_CARBON_MODE,
   DEFAULT_WATER_MODE,
@@ -274,6 +276,14 @@ export default function MethodPage() {
           shows it for each charity. Paying yearly means one 30¢ fee per charity a year instead of twelve. Each harm&apos;s
           share always goes to its own charity; a share under {usd(MIN_DONATION_USD)} is rounded up to {usd(MIN_DONATION_USD)} rather than
           moved to another charity.
+        </p>
+      ) : PAYMENT_MODE === "endaoment" ? (
+        <p className="mt-2 text-muted">
+          We make nothing on fees. You make one gift to My Offset&apos;s fund at Endaoment, which grants each charity its part. The
+          gift carries the card fee and Endaoment&apos;s {ENDAOMENT_IN_LABEL} as it comes in and {ENDAOMENT_GRANT_LABEL} as it is
+          granted out, worked out on the whole gift and added on top, so the donation arrives in full. Endaoment has no smallest gift
+          or grant, so each harm&apos;s share goes to its own charity to the cent, with no rounding up to a dollar. Paying yearly means one card
+          fee a year instead of twelve.
         </p>
       ) : (
         <p className="mt-2 text-muted">
