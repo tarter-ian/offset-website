@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { accountsOn } from "@/lib/account";
-import { type AccountState, deleteAccount, fetchAccount, signOut } from "@/lib/accountClient";
+import { type AccountState, deleteAccount, fetchAccount, setReminders, signOut } from "@/lib/accountClient";
 
 /** "Signed in as …" with Sign out, or an offer to sign in. Nothing while accounts are off. */
 export function AccountBar() {
@@ -24,6 +24,19 @@ export function AccountBar() {
           >
             Sign out
           </button>
+          <span className="mt-1 block">
+            Monthly email when something&apos;s ready to cover: {a.reminders === false ? "off" : "on"}.{" "}
+            <button
+              type="button"
+              onClick={() => {
+                const on = a.reminders === false;
+                void setReminders(on).then((ok) => ok && setA({ ...a, reminders: on }));
+              }}
+              className="min-h-10 cursor-pointer underline underline-offset-4 hover:text-foreground"
+            >
+              {a.reminders === false ? "Turn on" : "Turn off"}
+            </button>
+          </span>
         </>
       ) : (
         <>

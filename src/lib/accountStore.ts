@@ -122,3 +122,54 @@ export async function deleteAccount(account: Account) {
   await database.execute({ sql: "UPDATE donations SET account_id = NULL, email = NULL WHERE account_id = ? OR email = ?", args: [account.id, account.email] });
   await database.execute({ sql: "DELETE FROM accounts WHERE id = ?", args: [account.id] });
 }
+
+// The monthly email.
+
+export interface ReminderTarget extends Account {
+  remindedFor: string | null;
+  emailToken: string;
+}
+
+/** Everyone who hasn't turned the monthly email off, each with a stop-link token (made the first time). */
+export async function reminderTargets(): Promise<ReminderTarget[]> {
+  const database = await db();
+  const rows = rowsOf(await database.execute({ sql: "SELECT id, email, covered, reminded_for, email_token FROM accounts WHERE reminders_off = 0" }));
+  const out: ReminderTarget[] = [];
+  for (const r of rows) {
+    let token = r.email_token ? String(r.email_token) : "";
+    if (!token) {
+      token = randomHex(24);
+      await database.execute({ sql: "UPDATE accounts SET email_token = ? WHERE id = ?", args: [token, String(r.id)] });
+    }
+    out.push({ ...toAccount(r), remindedFor: r.reminded_for ? String(r.reminded_for) : null, emailToken: token });
+  }
+  return out;
+}
+
+export async function markReminded(accountId: string, ended: string) {
+  await (await db()).execute({ sql: "UPDATE accounts SET reminded_for = ? WHERE id = ?", args: [ended, accountId] });
+}
+
+/** Turns the monthly email off by its stop-link token. True if a token matched. */
+export async function stopRemindersByToken(token: string): Promise<boolean> {
+  if (!/^[0-9a-f]{48}$/.test(token)) return false;
+  const database = await db();
+  const r = rowsOf(await database.execute({ sql: "SELECT id FROM accounts WHERE email_token = ?", args: [token] }))[0];
+  if (!r) return false;
+  await database.execute({ sql: "UPDATE accounts SET reminders_off = 1 WHERE id = ?", args: [String(r.id)] });
+  return true;
+}
+
+export async function setReminders(accountId: string, on: boolean) {
+  await (await db()).execute({ sql: "UPDATE accounts SET reminders_off = ? WHERE id = ?", args: [on ? 0 : 1, accountId] });
+}
+
+export async function remindersOn(accountId: string): Promise<boolean> {
+  try {
+    const r = rowsOf(await (await db()).execute({ sql: "SELECT reminders_off FROM accounts WHERE id = ?", args: [accountId] }))[0];
+    return !r || Number(r.reminders_off) !== 1;
+  } catch {
+    // Before migration 0006 there's no column yet; don't let that break signing in.
+    return true;
+  }
+}

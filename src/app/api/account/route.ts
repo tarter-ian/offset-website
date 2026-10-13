@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { cleanCovered, mergeCovered } from "@/lib/account";
 import { sendDeleted, sendSignIn } from "@/lib/accountEmails";
 import { currentSession, guarded, json, withSessionCookie } from "@/lib/accountHttp";
-import { deleteAccount, saveCovered, startSignIn } from "@/lib/accountStore";
+import { deleteAccount, remindersOn, saveCovered, setReminders, startSignIn } from "@/lib/accountStore";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +11,7 @@ export async function GET(req: Request) {
   return guarded(req, async () => {
     const s = await currentSession(req);
     if (!s) return json({ signedIn: false });
-    return json({ signedIn: true, email: s.account.email, covered: s.account.covered, fresh: s.fresh });
+    return json({ signedIn: true, email: s.account.email, covered: s.account.covered, fresh: s.fresh, reminders: await remindersOn(s.account.id) });
   });
 }
 
@@ -24,6 +24,18 @@ export async function PUT(req: Request) {
     const covered = mergeCovered(s.account.covered, cleanCovered(body?.covered));
     await saveCovered(s.account.id, covered);
     return json({ covered });
+  });
+}
+
+/** Turns the monthly reminder email on or off. */
+export async function PATCH(req: Request) {
+  return guarded(req, async () => {
+    const s = await currentSession(req);
+    if (!s) return json({ error: "Sign in first." }, 401);
+    const body = (await req.json().catch(() => null)) as { reminders?: unknown } | null;
+    if (typeof body?.reminders !== "boolean") return json({ error: "Say on or off." }, 400);
+    await setReminders(s.account.id, body.reminders);
+    return json({ reminders: body.reminders });
   });
 }
 
