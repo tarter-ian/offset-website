@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BadgeList, BadgeTag, FilterTag, Seal } from "@/components/Badge";
-import { badgesFor, filterCounts, type ListFilter, type ListStatus, matches, PAST, parseFilter, REST, type Tone } from "@/lib/badges";
+import { BadgeTag, FilterTag, Seal } from "@/components/Badge";
+import { ListView, Row } from "@/components/ListView";
+import { filterCounts, type ListFilter, type ListStatus, matches, PAST, parseFilter, REST, type Tone } from "@/lib/badges";
 import { listedPeople, type ListedPerson } from "@/lib/listStore";
 import { paymentsOn } from "@/lib/payments";
 import { PRODUCTS, productById, SECTIONS } from "@/lib/store";
@@ -13,29 +14,13 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 /**
- * The color chips. Green is past and future both paid, so it also shows under the other two (Ian, 2026-10-13).
- * Blue reads "Future paid", not "giving now": a future paid for life isn't still being given.
+ * The color chips. Green is past and future both paid, so it also shows under past paid (Ian, 2026-10-13).
+ * "Future paid" was dropped (Ian, 2026-10-13).
  */
 const STATUS_CHIPS: { status: ListStatus; tone: Tone; label: string }[] = [
   { status: "life", tone: "life", label: "For life" },
   { status: "past", tone: "past", label: "Past paid" },
-  { status: "future", tone: "period", label: "Future paid" },
 ];
-
-/**
- * One person, one row (Ian, 2026-10-13): the name on the left, their badges as tags on the
- * right, wrapping under the name only on a narrow phone. No date: "since" didn't earn its place.
- */
-function Row({ name, items, example }: { name: string; items: ListedPerson["badges"]; example?: boolean }) {
-  return (
-    <div className="flex flex-col gap-2 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
-      <span className={`font-display text-xl leading-8 font-semibold ${example ? "italic" : ""}`}>{name}</span>
-      <div className="sm:flex sm:min-w-0 sm:justify-end">
-        <BadgeList badges={badgesFor(items)} label={`${name}'s badges`} end />
-      </div>
-    </div>
-  );
-}
 
 export default async function ListPage({ searchParams }: { searchParams: Promise<{ aisle?: string; item?: string; status?: string }> }) {
   const filter: ListFilter = parseFilter(await searchParams);
@@ -53,6 +38,37 @@ export default async function ListPage({ searchParams }: { searchParams: Promise
   const join = paymentsOn()
     ? "You join by ticking “List me publicly” when you give for your plan, or by adding yourself from a gift someone sent you."
     : "Joining opens when giving does. You’ll tick “List me publicly” at checkout; it’s off unless you do.";
+  // What stands in for the rows: the list didn't load, nobody's on it yet, or the filter finds nobody.
+  const fallback =
+    people === null ? (
+      <p className="mt-8 border-y-2 border-rule py-6">The list couldn&apos;t load just now. Try again in a minute.</p>
+    ) : people.length === 0 ? (
+      <section aria-labelledby="empty-heading" className="mt-8 border-y-2 border-rule py-6">
+        <h2 id="empty-heading" className="text-xl font-semibold">
+          Nobody is on the list yet.
+        </h2>
+        <p className="mt-1">{join}</p>
+        <figure className="mt-6 border-2 border-dashed border-rule px-4">
+          <figcaption className="-mx-4 border-b-2 border-dashed border-rule px-4 py-2 text-xs font-semibold tracking-wider uppercase">
+            This is how you&apos;d appear
+          </figcaption>
+          <Row
+            example
+            name="Your name"
+            items={[
+              { productId: "ai", until: null, past: true },
+              { productId: "ai-media", until: null, past: true },
+              { productId: "ai-video", until: null, past: true },
+              { productId: "ai-coding", until: null, past: true },
+              { productId: "video", until: nextYear },
+            ]}
+          />
+        </figure>
+        <p className="mt-2 text-sm text-muted">An example of your own entry, not a real person. You pick the name; the badges come from what you offset.</p>
+      </section>
+    ) : shown.length === 0 ? (
+      <p className="mt-8 border-y-2 border-rule py-6">Nobody here yet for this badge.</p>
+    ) : null;
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
       <h1 className="text-4xl font-bold tracking-tight">The public list</h1>
@@ -61,101 +77,66 @@ export default async function ListPage({ searchParams }: { searchParams: Promise
         they made. No amounts, and anyone can leave anytime.
       </p>
 
-      <nav aria-label="Filter the list" className="mt-8">
-        {/* The filter speaks the badges' language (Ian, 2026-10-13): tags in their colors, filled when chosen,
-            in two labeled rows, status then badge. */}
-        <form action="/list" method="get" className="grid gap-x-3 gap-y-2 sm:grid-cols-[4rem_minmax(0,1fr)] sm:items-start">
-          <h2 id="filter-status" className="text-sm font-semibold sm:leading-10">
-            Status
-          </h2>
-          <div role="group" aria-labelledby="filter-status" className="flex flex-wrap gap-2">
-          <FilterTag label="Everyone" on={filter.kind === "everyone"} count={people?.length || undefined} />
-          {STATUS_CHIPS.map((c) => (
-            <FilterTag
-              key={c.status}
-              kind="item"
-              tone={c.tone}
-              label={c.label}
-              name="status"
-              value={c.status}
-              on={filter.kind === "status" && filter.status === c.status}
-              count={counts[`status:${c.status}`] || undefined}
-            />
-          ))}
-          </div>
-          <h2 id="filter-badge" className="mt-2 text-sm font-semibold sm:mt-0 sm:leading-10">
-            Badge
-          </h2>
-          <div role="group" aria-labelledby="filter-badge" className="flex flex-wrap gap-2">
-          <FilterTag kind="full" label="Fully Offset" name="aisle" value="everything" on={filter.kind === "full"} count={counts.everything || undefined} />
-          {SECTIONS.map((s) => (
-            <FilterTag
-              key={s.key}
-              kind="aisle"
-              label={s.title}
-              name="aisle"
-              value={s.key}
-              on={(filter.kind === "aisle" && filter.key === s.key) || (filter.kind === "item" && aisle === s.key)}
-              count={counts[s.key] || undefined}
-            />
-          ))}
-          </div>
-        </form>
-        {aisle && (
-          <form action="/list" method="get" aria-label={`Items in ${SECTIONS.find((s) => s.key === aisle)?.title}`} className="mt-2 flex flex-wrap gap-2 border-l-2 border-rule pl-3 sm:ml-[4.75rem]">
-            {PRODUCTS.filter((p) => p.section === aisle).map((p) => (
+      <ListView people={shown.map((p) => ({ id: p.id, name: p.name, badges: p.badges }))} total={people?.length ?? 0} fallback={fallback}>
+        <nav aria-label="Filter the list" className="mt-8">
+          {/* The filter speaks the badges' language (Ian, 2026-10-13): tags in their colors, filled when chosen,
+              in two labeled rows, status then badge. */}
+          <form action="/list" method="get" className="grid gap-x-3 gap-y-2 sm:grid-cols-[4rem_minmax(0,1fr)] sm:items-start">
+            <h2 id="filter-status" className="text-sm font-semibold sm:leading-10">
+              Status
+            </h2>
+            <div role="group" aria-labelledby="filter-status" className="flex flex-wrap gap-2">
+            <FilterTag label="Everyone" on={filter.kind === "everyone"} count={people?.length || undefined} />
+            {STATUS_CHIPS.map((c) => (
               <FilterTag
-                key={p.id}
+                key={c.status}
                 kind="item"
-                label={p.name}
-                name="item"
-                value={p.id}
-                back={["aisle", aisle]}
-                on={filter.kind === "item" && filter.key === p.id}
-                count={counts[`item:${p.id}`] || undefined}
+                tone={c.tone}
+                label={c.label}
+                name="status"
+                value={c.status}
+                on={filter.kind === "status" && filter.status === c.status}
+                count={counts[`status:${c.status}`] || undefined}
               />
             ))}
+            </div>
+            <h2 id="filter-badge" className="mt-2 text-sm font-semibold sm:mt-0 sm:leading-10">
+              Badge
+            </h2>
+            <div role="group" aria-labelledby="filter-badge" className="flex flex-wrap gap-2">
+            <FilterTag kind="full" label="Fully Offset" name="aisle" value="everything" on={filter.kind === "full"} count={counts.everything || undefined} />
+            {SECTIONS.map((s) => (
+              <FilterTag
+                key={s.key}
+                kind="aisle"
+                icon={s.key}
+                label={s.title}
+                name="aisle"
+                value={s.key}
+                on={(filter.kind === "aisle" && filter.key === s.key) || (filter.kind === "item" && aisle === s.key)}
+                count={counts[s.key] || undefined}
+              />
+            ))}
+            </div>
           </form>
-        )}
-      </nav>
-
-      {people === null ? (
-        <p className="mt-8 border-y-2 border-rule py-6">The list couldn&apos;t load just now. Try again in a minute.</p>
-      ) : people.length === 0 ? (
-        <section aria-labelledby="empty-heading" className="mt-8 border-y-2 border-rule py-6">
-          <h2 id="empty-heading" className="text-xl font-semibold">
-            Nobody is on the list yet.
-          </h2>
-          <p className="mt-1">{join}</p>
-          <figure className="mt-6 border-2 border-dashed border-rule px-4">
-            <figcaption className="-mx-4 border-b-2 border-dashed border-rule px-4 py-2 text-xs font-semibold tracking-wider uppercase">
-              This is how you&apos;d appear
-            </figcaption>
-            <Row
-              example
-              name="Your name"
-              items={[
-                { productId: "ai", until: null, past: true },
-                { productId: "ai-media", until: null, past: true },
-                { productId: "ai-video", until: null, past: true },
-                { productId: "ai-coding", until: null, past: true },
-                { productId: "video", until: nextYear },
-              ]}
-            />
-          </figure>
-          <p className="mt-2 text-sm text-muted">An example of your own entry, not a real person. You pick the name; the badges come from what you offset.</p>
-        </section>
-      ) : shown.length === 0 ? (
-        <p className="mt-8 border-y-2 border-rule py-6">Nobody here yet for this badge.</p>
-      ) : (
-        <ul className="mt-8 divide-y divide-border border-y-2 border-rule">
-          {shown.map((p) => (
-            <li key={p.id}>
-              <Row name={p.name} items={p.badges} />
-            </li>
-          ))}
-        </ul>
-      )}
+          {aisle && (
+            <form action="/list" method="get" aria-label={`Items in ${SECTIONS.find((s) => s.key === aisle)?.title}`} className="mt-2 flex flex-wrap gap-2 border-l-2 border-rule pl-3 sm:ml-[4.75rem]">
+              {PRODUCTS.filter((p) => p.section === aisle).map((p) => (
+                <FilterTag
+                  key={p.id}
+                  kind="item"
+                  label={p.name}
+                  name="item"
+                  value={p.id}
+                  back={["aisle", aisle]}
+                  on={filter.kind === "item" && filter.key === p.id}
+                  count={counts[`item:${p.id}`] || undefined}
+                />
+              ))}
+            </form>
+          )}
+        </nav>
+      </ListView>
 
       <section aria-labelledby="badges-heading" className="mt-12">
         <h2 id="badges-heading" className="text-2xl font-bold">

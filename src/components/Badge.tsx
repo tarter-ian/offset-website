@@ -165,14 +165,33 @@ export function Seal({ kind, name, until, size }: SealProps) {
   );
 }
 
-/** A small mark for the start of a tag, stepped like the seals: outline rings for an item, a filled center for an aisle, filled all over for Fully Offset. */
-function Mark({ kind, tone, paper }: { kind: BadgeInfo["kind"]; tone: Tone; paper?: string }) {
+/**
+ * A small mark for the start of a tag, stepped like the seals: outline rings for an item; for an
+ * aisle, its own symbol knocked out of a filled circle, as on its seal (Ian, 2026-10-13); filled
+ * all over with a star for Fully Offset.
+ */
+function Mark({ kind, tone, paper, icon }: { kind: BadgeInfo["kind"]; tone: Tone; paper?: string; icon?: string }) {
+  const symbol = kind === "aisle" && icon ? ICONS[icon] : undefined;
+  const knock = paper ?? PAPER[tone];
   return (
     <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" className="shrink-0">
       {kind === "full" ? (
         <>
           <circle cx="8" cy="8" r="7.4" fill="currentColor" />
-          <path d={star(8, 8.3, 3.2)} fill={paper ?? PAPER[tone]} />
+          <path d={star(8, 8.3, 3.2)} fill={knock} />
+        </>
+      ) : symbol ? (
+        <>
+          <circle cx="8" cy="8" r="7.6" fill="currentColor" />
+          <path
+            d={symbol}
+            transform="translate(8 8) scale(0.66)"
+            fill="none"
+            stroke={knock}
+            strokeWidth={1.3 / 0.66}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </>
       ) : (
         <>
@@ -188,20 +207,24 @@ function Mark({ kind, tone, paper }: { kind: BadgeInfo["kind"]; tone: Tone; pape
   );
 }
 
+/** A tag's name: just the badge's name, "AI" not "AI offset" (Ian, 2026-10-13); Fully Offset says it already. */
+const tagLabel = (b: Pick<BadgeInfo, "kind" | "name">) => (b.kind === "full" ? FULL_NAME : b.name);
+
 /**
  * The badge as a tag for lists and tight spaces: the same rings, the name, and the term after a rule.
+ * `icon` is an aisle's key, for its symbol.
  * A badge showing yellow and blue together is one split tag (Ian, 2026-10-13): the name in the first
  * color, then each term in its own color, "PAST USE" then "THROUGH AUG 2027".
  */
-export function BadgeTag({ kind, name, until }: Omit<SealProps, "size" | "until"> & { until: Term | Term[] }) {
+export function BadgeTag({ kind, name, until, icon }: Omit<SealProps, "size" | "until"> & { until: Term | Term[]; icon?: string }) {
   const full = kind === "full";
   const untils = Array.isArray(until) ? until : [until];
   const tone = toneFor(untils[0]);
   return (
     <span className="inline-flex items-stretch text-sm leading-none">
       <span className={`inline-flex items-center gap-1.5 rounded-l-sm border-[1.5px] py-1.5 pr-2 pl-1.5 ${TAG[tone]}`}>
-        <Mark kind={kind} tone={tone} />
-        <span className="font-display font-semibold">{badgeLabel({ kind, name })}</span>
+        <Mark kind={kind} tone={tone} icon={icon} />
+        <span className="font-display font-semibold">{tagLabel({ kind, name })}</span>
       </span>
       {untils.map((u, i) => {
         const t = toneFor(u);
@@ -239,7 +262,7 @@ function grouped(badges: BadgeInfo[]): Grouped[] {
  * (Ian, 2026-10-13), so a Fully Offset person doesn't see 38 at once.
  *
  * As tags (the list), each badge is one tag, its yellow and blue in one split tag. Fully Offset
- * stands alone; an aisle's items fold under a quiet "and N more" at the end of the row. As
+ * stands alone; an aisle's items fold under a quiet "N items" at the end of the row. As
  * `seals` (the record, a gift card), the lower ones fold under "and N more inside" below.
  * `end` sets the tags to the right, for a row with the name on the left.
  */
@@ -250,7 +273,7 @@ export function BadgeList({ badges, seals, label = "Badges", end }: { badges: Ba
   if (!seals) {
     const tops = grouped(top);
     const more = tops.some((b) => b.kind === "full") ? [] : grouped(lower);
-    const tag = (b: Grouped) => <BadgeTag kind={b.kind} name={b.name} until={b.untils} />;
+    const tag = (b: Grouped) => <BadgeTag kind={b.kind} name={b.name} until={b.untils} icon={b.kind === "aisle" ? b.key : undefined} />;
     return (
       <ul className={`flex flex-wrap items-center gap-2 ${end ? "sm:justify-end" : ""}`} aria-label={label}>
         {tops.map((b) => (
@@ -260,7 +283,7 @@ export function BadgeList({ badges, seals, label = "Badges", end }: { badges: Ba
           <li className="has-[details[open]]:basis-full">
             <details className={end ? "sm:text-right" : ""}>
               <summary className="inline-flex min-h-8 cursor-pointer items-center text-xs text-muted underline underline-offset-4 hover:text-foreground">
-                and {more.length} more
+                {more.length === 1 ? "1 item" : `${more.length} items`}
               </summary>
               <ul className={`mt-1 flex flex-wrap gap-2 ${end ? "sm:justify-end" : ""}`} aria-label={`${label} inside`}>
                 {more.map((b) => (
@@ -320,8 +343,11 @@ export function FilterTag({
   name,
   value,
   back,
+  icon,
 }: {
   label: string;
+  /** An aisle's key, for its symbol. */
+  icon?: string;
   tone?: Tone;
   /** The badge mark to show, if any. */
   kind?: BadgeInfo["kind"];
@@ -342,7 +368,7 @@ export function FilterTag({
       aria-pressed={on}
       className={`inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-sm border-[1.5px] px-2.5 text-sm leading-none ${on ? CHIP_ON[look] : CHIP_OFF[look]}`}
     >
-      {kind && <Mark kind={kind} tone={tone ?? "life"} paper={tone ? undefined : on ? "var(--foreground)" : "var(--background)"} />}
+      {kind && <Mark kind={kind} icon={icon} tone={tone ?? "life"} paper={tone ? undefined : on ? "var(--foreground)" : "var(--background)"} />}
       <span className="font-display font-semibold">{label}</span>
       {count !== undefined && <span className="amount text-xs">{count}</span>}
     </button>
