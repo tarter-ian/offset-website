@@ -25,7 +25,7 @@ export function ActivityUpload({
     setSources(next);
     const result = activityAmounts(Object.values(next).flat());
     if (!result) {
-      setStatus({ kind: "error", text: "We didn't find any listening, watching, travel or energy history." });
+      setStatus({ kind: "error", text: "I didn't find any listening, watching, travel or energy history." });
       return;
     }
     const from: Partial<Record<keyof ActivityAmounts["amounts"], ActivitySource[]>> = {};
@@ -46,14 +46,14 @@ export function ActivityUpload({
     try {
       const found = (await Promise.all([...files].map(readActivityFile))).flat();
       if (!found.some((f) => f.events.length)) {
-        setStatus({ kind: "error", text: "We couldn't find any listening, watching, travel or energy history in that file." });
+        setStatus({ kind: "error", text: "I couldn't find any listening, watching, travel or energy history in that file." });
         return;
       }
       const next = { ...sources };
       for (const f of found) next[f.source] = f.events;
       apply(next);
     } catch {
-      setStatus({ kind: "error", text: "We couldn't read that file. Try the .zip exactly as you downloaded it." });
+      setStatus({ kind: "error", text: "I couldn't read that file. Try the .zip exactly as you downloaded it." });
     }
   }
 
@@ -70,7 +70,7 @@ export function ActivityUpload({
           <a href="https://takeout.google.com" target="_blank" rel="noreferrer" className="underline">
             Google Takeout
           </a>
-          , pick only YouTube, then history, in JSON. It lists videos but not how long you watched, so we assume{" "}
+          , pick only YouTube, then history, in JSON. It lists videos but not how long you watched, so I assume{" "}
           about {YOUTUBE_MIN_PER_VIDEO} minutes each.
         </li>
         <li>Netflix: Account, Download your personal information. Or the Viewing activity page&apos;s Download all.</li>
@@ -83,7 +83,7 @@ export function ActivityUpload({
           usage page, and pick a year. Most US utilities offer it, as XML or CSV.
         </li>
       </ul>
-      <p className="mt-1 text-sm text-muted">Add the .zip, .json, .csv or .xml. We read it in your browser; the file never leaves your device.</p>
+      <p className="mt-1 text-sm text-muted">Add the .zip, .json, .csv or .xml. I read it in your browser; the file never leaves your device.</p>
       <input
         type="file"
         accept=".zip,.json,.csv,.xml,application/zip,application/json,text/csv,application/xml,text/xml"

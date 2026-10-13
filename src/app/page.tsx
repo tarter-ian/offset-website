@@ -16,41 +16,41 @@ export default function Home() {
           <p>
             {forMode({
               every:
-                "You give to each charity on your plan directly, through Every.org, a nonprofit donation platform that sends you the tax receipt. We never hold your money.",
+                "You give to each charity on your plan directly, through Every.org, a nonprofit donation platform that sends you the tax receipt. I never hold your money.",
               endaoment:
-                "You make one gift to My Offset's fund at Endaoment, a nonprofit that grants it on to each charity on your plan and sends you the tax receipt. We never hold your money.",
+                "You make one gift to My Offset's fund at Endaoment, a nonprofit that grants it on to each charity on your plan and sends you the tax receipt. I never hold your money.",
               sponsor:
-                "Your donation is held by our charity sponsor, a registered charity, which pays the charities listed on your plan and sends you the tax receipt. We never hold it ourselves.",
+                "Your donation is held by my charity sponsor, a registered charity, which pays the charities listed on your plan and sends you the tax receipt. I never hold it myself.",
             })}{" "}
             Most of it funds groups that push for cleaner power and protect
-            water in dry regions, because that does the most per dollar. We buy no carbon credits.
+            water in dry regions, because that does the most per dollar. I buy no carbon credits.
           </p>
           {PAYMENT_MODE === "every" ? (
             <p>
-              We don&apos;t take a cut. Each charity is paid separately through Every.org, which charges card payments 2.2% + 30¢ and
+              I don&apos;t take a cut. Each charity is paid separately through Every.org, which charges card payments 2.2% + 30¢ and
               bank payments nothing. The card fee is shown for each charity and added on top, so the whole donation arrives. Nothing is
               charged until you approve it.
             </p>
           ) : PAYMENT_MODE === "endaoment" ? (
             <p>
-              We don&apos;t take a cut. The only fees are the card payment and Endaoment&apos;s {ENDAOMENT_IN_LABEL} in and{" "}
+              I don&apos;t take a cut. The only fees are the card payment and Endaoment&apos;s {ENDAOMENT_IN_LABEL} in and{" "}
               {ENDAOMENT_GRANT_LABEL} out, each shown separately and added on top, so the whole donation arrives. Nothing is charged
               until you approve it.
             </p>
           ) : (
             <p>
-              We don&apos;t take a cut. The only fees are the card payment ({CARD_FEE_LABEL}) and our charity sponsor&apos;s{" "}
+              I don&apos;t take a cut. The only fees are the card payment ({CARD_FEE_LABEL}) and my charity sponsor&apos;s{" "}
               {SPONSOR_FEE_LABEL}, each shown separately, so the whole donation arrives. Nothing is charged until you
               approve it.
             </p>
           )}
           <p>
             <Link href="/promises" className="font-semibold text-accent underline underline-offset-4">
-              Read our promises
+              Read my promises
             </Link>{" "}
             or{" "}
             <Link href="/method" className="font-semibold text-accent underline underline-offset-4">
-              check every number we use
+              check every number I use
             </Link>
             .
           </p>

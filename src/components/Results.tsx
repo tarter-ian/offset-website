@@ -389,9 +389,9 @@ export function Results({
                 <div className="flex justify-between gap-4">
                   <dt className="text-muted">
                     {forMode({
-                      every: "Card fees, one per charity paid through Every.org (2.2% + 30¢ each, no profit to us)",
-                      endaoment: `Fees (Endaoment ${ENDAOMENT_IN_LABEL} in and ${ENDAOMENT_GRANT_LABEL} out, card about ${ENDAOMENT_CARD_LABEL}, no profit to us)`,
-                      sponsor: `Fees (card ${CARD_FEE_LABEL}, charity sponsor ${SPONSOR_FEE_LABEL}, no profit to us)`,
+                      every: "Card fees, one per charity paid through Every.org (2.2% + 30¢ each, no profit to me)",
+                      endaoment: `Fees (Endaoment ${ENDAOMENT_IN_LABEL} in and ${ENDAOMENT_GRANT_LABEL} out, card about ${ENDAOMENT_CARD_LABEL}, no profit to me)`,
+                      sponsor: `Fees (card ${CARD_FEE_LABEL}, charity sponsor ${SPONSOR_FEE_LABEL}, no profit to me)`,
                     })}
                   </dt>
                   <dd>{usd(bill.fee)}</dd>
@@ -421,7 +421,7 @@ export function Results({
               </div>
               {bill.minimumApplied && (
                 <p className="mt-3 text-sm text-muted">
-                  Covering this costs {usd(billing === "annual" ? rawDonation * 12 : rawDonation)}, so we round the
+                  Covering this costs {usd(billing === "annual" ? rawDonation * 12 : rawDonation)}, so I round the
                   donation up to {usd(bill.donation)}. All of it goes to the charities.
                 </p>
               )}
@@ -434,7 +434,7 @@ export function Results({
                   <p className="mt-1 text-sm text-muted">
                     A {usd(lifetime.donation)} donation plus a {usd(lifetime.fee)} fee covers {LIFETIME_YEARS} years of
                     today&apos;s use, {LIFETIME_GROWTH_BUFFER} times over in case it grows. Your badges stay on for
-                    life. Once a year we&apos;ll check your use and only ask again if it passes what you covered.
+                    life. Once a year I&apos;ll check your use and only ask again if it passes what you covered.
                   </p>
                 </div>
               )}
@@ -474,7 +474,7 @@ export function Results({
             <p className="mt-4 text-muted">Nothing selected yet.</p>
           )}
           <p className="mt-4 text-sm text-muted">
-            Example charities; the final list is being vetted. You&apos;ll get a receipt from our donation partner.
+            Example charities; the final list is being vetted. You&apos;ll get a receipt from the donation partner.
           </p>
         </div>
       </section>

@@ -47,7 +47,7 @@ export default function Page() {
         <>
           <p>
             <Cite s={SOURCES.iea} /> puts an hour of streaming at about {Math.round(F.KG_PER_STREAMING_HOUR * 1000)} g of CO₂ and{" "}
-            {F.STREAMING_KWH_PER_HOUR} kWh for the data centers and networks. To that we add {Math.round(F.GRID_UPSTREAM_SHARE * 100)}% for
+            {F.STREAMING_KWH_PER_HOUR} kWh for the data centers and networks. To that I add {Math.round(F.GRID_UPSTREAM_SHARE * 100)}% for
             getting fuel to the power plants, {Math.round(F.GRID_LINE_LOSS * 100)}% for power lost on the wires, and a quarter for building
             the servers and the buildings they sit in. Cooling water and the water used at power plants come from the same power figure.
           </p>
@@ -60,8 +60,8 @@ export default function Page() {
       cover={
         <>
           <p>
-            A month at {TYPICAL_STREAMING_HOURS_PER_DAY} hours a day comes to {usd(month.donation)} in donations, including our margin for an
-            estimate. That&apos;s below our {usd(month.monthly.donation)} smallest payment, so you can add it to a plan with other items, or
+            A month at {TYPICAL_STREAMING_HOURS_PER_DAY} hours a day comes to {usd(month.donation)} in donations, including my margin for an
+            estimate. That&apos;s below the {usd(month.monthly.donation)} smallest payment, so you can add it to a plan with other items, or
             pay once. For someone born in {DEFAULT_CONTEXT.birthYear}, {usd(month.lifetime.total)} with fees covers every hour since age{" "}
             {F.ONLINE_FROM_AGE} and every year to age {F.LIFETIME_TO_AGE}, on a grid that gets cleaner each year.
           </p>

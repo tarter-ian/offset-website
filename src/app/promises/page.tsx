@@ -12,11 +12,11 @@ const PROMISES = [
     title: "Never charged without your say-so",
     body: forMode({
       every:
-        "You approve each gift yourself, on Every.org, one charity at a time. Nothing repeats unless you tick autopay at checkout. If you do, Every.org charges the same gifts each month or year until you cancel them in your Every.org account. We can't email you before those charges or hold one back, so leave autopay off if you want to approve each one.",
+        "You approve each gift yourself, on Every.org, one charity at a time. Nothing repeats unless you tick autopay at checkout. If you do, Every.org charges the same gifts each month or year until you cancel them in your Every.org account. I can't email you before those charges or hold one back, so leave autopay off if you want to approve each one.",
       endaoment:
         "You approve each gift yourself, on Endaoment's page for the My Offset fund. Nothing repeats on its own: each month or year, you come back and give again.",
       sponsor:
-        "By default you approve each payment yourself, once a year or each month. Autopay is off unless you switch it on. If you do, we email you a few days before every charge with the amount and a one-click skip or stop, and a month that comes out more than $5 or 25% higher than the last, whichever is smaller, waits for your approval instead. The email shows the exact limit in dollars.",
+        "By default you approve each payment yourself, once a year or each month. Autopay is off unless you switch it on. If you do, I email you a few days before every charge with the amount and a one-click skip or stop, and a month that comes out more than $5 or 25% higher than the last, whichever is smaller, waits for your approval instead. The email shows the exact limit in dollars.",
     }),
   },
   {
@@ -27,11 +27,11 @@ const PROMISES = [
     }),
     body: forMode({
       every:
-        "Each gift goes from you to the charity through Every.org, a nonprofit donation platform that sends you the tax receipt. We never hold the money ourselves. Every month's totals are public.",
+        "Each gift goes from you to the charity through Every.org, a nonprofit donation platform that sends you the tax receipt. I never hold the money myself. Every month's totals are public.",
       endaoment:
-        "You give to My Offset's fund at Endaoment, a nonprofit that sends you the tax receipt and grants the money on to each charity in the amounts checkout shows. We never hold the money ourselves.",
+        "You give to My Offset's fund at Endaoment, a nonprofit that sends you the tax receipt and grants the money on to each charity in the amounts checkout shows. I never hold the money myself.",
       sponsor:
-        "Your donation is held by our charity sponsor, a registered charity, which sends you the tax receipt and pays the charities on your summary each month. We never hold the money ourselves. Every month's totals are public.",
+        "Your donation is held by my charity sponsor, a registered charity, which sends you the tax receipt and pays the charities on your summary each month. I never hold the money myself. Every month's totals are public.",
     }),
     link: { href: "/ledger", text: "Where the money goes" },
   },
@@ -39,32 +39,32 @@ const PROMISES = [
     title: "No cut, just costs passed on",
     body: forMode({
       every:
-        "We don't make money on your donation. Each charity is paid separately through Every.org, which charges card payments 2.2% + 30¢ and bank payments nothing; the fee is shown for each charity. Paying yearly means one 30¢ fee per charity instead of twelve. There are no tips; Ian pays for running the site himself.",
-      endaoment: `We don't make money on your donation. You make one gift, and the fees are passed on at cost, each on its own line: the card payment and Endaoment's ${ENDAOMENT_IN_LABEL} as the gift comes in and ${ENDAOMENT_GRANT_LABEL} as it is granted out. Paying yearly means one card fee instead of twelve. There are no tips; Ian pays for running the site himself.`,
+        "I don't make money on your donation. Each charity is paid separately through Every.org, which charges card payments 2.2% + 30¢ and bank payments nothing; the fee is shown for each charity. Paying yearly means one 30¢ fee per charity instead of twelve. There are no tips; I pay for running the site myself.",
+      endaoment: `I don't make money on your donation. You make one gift, and the fees are passed on at cost, each on its own line: the card payment and Endaoment's ${ENDAOMENT_IN_LABEL} as the gift comes in and ${ENDAOMENT_GRANT_LABEL} as it is granted out. Paying yearly means one card fee instead of twelve. There are no tips; I pay for running the site myself.`,
       sponsor:
-        "We don't make money on your donation. Two fees are passed on at cost, each on its own line: the card payment (30¢ plus 2.2%) and our charity sponsor's 8%, which pays for holding the money, sending tax receipts and paying the charities. Paying yearly means one 30¢ charge instead of twelve. There are no tips; Ian pays for running the site himself.",
+        "I don't make money on your donation. Two fees are passed on at cost, each on its own line: the card payment (30¢ plus 2.2%) and my charity sponsor's 8%, which pays for holding the money, sending tax receipts and paying the charities. Paying yearly means one 30¢ charge instead of twelve. There are no tips; I pay for running the site myself.",
     }),
   },
   {
     title: "No cheap, unverified carbon credits",
-    body: "Many cheap carbon credits have turned out not to deliver what they claimed. We give to charities chosen on evidence of impact, and we buy no carbon credits. We never say tonnes were removed, because policy work can't be measured that way.",
+    body: "Many cheap carbon credits have turned out not to deliver what they claimed. I give to charities chosen on evidence of impact, and I buy no carbon credits. I never say tonnes were removed, because policy work can't be measured that way.",
   },
   {
     title: "Every number is explained",
-    body: "Each line of your footprint shows where it came from and how sure we are. You can see every factor we use and correct any estimate.",
+    body: "Each line of your footprint shows where it came from and how sure I am. You can see every factor I use and correct any estimate.",
   },
   {
     title: "Your data stays yours",
-    body: "Linked accounts are read-only and we take only what the estimate needs. Unlink or delete everything with one click. We will never sell your data.",
-    link: { href: "/data", text: "What we read and keep" },
+    body: "Linked accounts are read-only and I take only what the estimate needs. Unlink or delete everything with one click. I will never sell your data.",
+    link: { href: "/data", text: "What I read and keep" },
   },
   {
     title: "Giving is not a substitute for cutting back",
     body: "Your summary shows the changes that would shrink your footprint most. Donations fund climate work alongside those changes, not instead of them.",
   },
   {
-    title: "If we ever close",
-    body: "Donations already made stay with the charities. You'll be able to download all your data, and we'll delete it after that.",
+    title: "If I ever close the site",
+    body: "Donations already made stay with the charities. You'll be able to download all your data, and I'll delete it after that.",
   },
 ];
 
@@ -73,7 +73,7 @@ export default function PromisesPage() {
     <article className="mx-auto max-w-4xl px-4 py-12">
       <h1 className="text-4xl font-extrabold [font-stretch:85%]">Promises</h1>
       <p className="mt-4 text-lg text-muted">
-        People have good reasons to distrust offset apps. Here is how we handle each one.
+        People have good reasons to distrust offset apps. Here is how I handle each one.
       </p>
       <dl className="mt-8 border-t-2 border-rule">
         {PROMISES.map((p) => (
@@ -118,7 +118,7 @@ export default function PromisesPage() {
         </div>
       </section>
       <p className="mt-8 text-muted">
-        See <Link href="/method" className="text-accent underline underline-offset-4">how we calculate</Link> for every factor and
+        See <Link href="/method" className="text-accent underline underline-offset-4">how it&apos;s calculated</Link> for every factor and
         source.
       </p>
     </article>

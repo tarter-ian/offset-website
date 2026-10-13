@@ -23,7 +23,7 @@ export default function Page() {
       q={q}
       answer={
         <p>
-          We estimate about {energy(F.WH_PER_CLAUDE_CODE_HOUR)} for an hour of Claude Code, or {energy(hour.totalWh)} with its share of
+          I estimate about {energy(F.WH_PER_CLAUDE_CODE_HOUR)} for an hour of Claude Code, or {energy(hour.totalWh)} with its share of
           training. That&apos;s as much as {prompts.toLocaleString("en-US")} typical chat prompts, and about {mass(hour.impacts.carbon)} of
           CO₂e. The real figure could be anywhere from {low} to {high} Wh an hour, depending on the model and how much code it reads.
         </p>
@@ -55,15 +55,15 @@ export default function Page() {
         <>
           <p>
             A coding agent works very differently from a chat. Each step re-reads a large part of your code and the conversation so far,
-            most of it from a cache, and an hour can run to millions of tokens. We priced a typical day of tokens at the per-token energy
+            most of it from a cache, and an hour can run to millions of tokens. I priced a typical day of tokens at the per-token energy
             worked back from <Cite s={SOURCES.epoch} /> and <Cite s={SOURCES.google} />, which gives about {F.WH_PER_CLAUDE_CODE_HOUR} Wh an
             hour. Nobody outside the AI companies has measured it directly, so treat it as rough.
           </p>
           <p>
-            Claude&apos;s apps don&apos;t list Claude Code sessions, so when you link a Claude account we read how much of your weekly limit you
-            used. Each plan&apos;s limit is a number of hours a week; we take the low end: {F.CLAUDE_WEEKLY_HOURS.pro} for Pro,{" "}
+            Claude&apos;s apps don&apos;t list Claude Code sessions, so when you link a Claude account I read how much of your weekly limit you
+            used. Each plan&apos;s limit is a number of hours a week; I take the low end: {F.CLAUDE_WEEKLY_HOURS.pro} for Pro,{" "}
             {F.CLAUDE_WEEKLY_HOURS.max_5x} for Max 5x and {F.CLAUDE_WEEKLY_HOURS.max_20x} for Max 20x. ChatGPT&apos;s Codex and agent report
-            tokens instead, which we count at about {F.WH_PER_MILLION_AGENT_TOKENS} Wh a million.
+            tokens instead, which I count at about {F.WH_PER_MILLION_AGENT_TOKENS} Wh a million.
           </p>
           <p>
             Carbon, training and water are counted the same way as for chat: power at the plants that ramp up for new demand (

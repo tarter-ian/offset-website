@@ -11,20 +11,25 @@ import type { Product } from "./store";
 const g = (kg: number) => `${Math.round(kg * 1000)} g`;
 
 const ONLINE_NOTE =
-  `Hours a day times the energy of the data centers and networks behind it, on the US grid, plus the water to cool them and a share of building the servers and buildings (+${Math.round(F.DATACENTER_BUILD_SHARE * 100)}% carbon). Your own device's power is counted under Devices. These figures are rough, so we add a wider margin.`;
+  `Hours a day times the energy of the data centers and networks behind it, on the US grid, plus the water to cool them and a share of building the servers and buildings (+${Math.round(F.DATACENTER_BUILD_SHARE * 100)}% carbon). Your own device's power is counted under Devices. These figures are rough, so I add a wider margin.`;
+
+// What the aisle notes under Online and Devices used to say, now in each item's (i) (Ian, 2026-10-13).
+const TYPICAL_NOTE = "No account can measure this yet, so it starts from typical use.";
 
 const DEVICE_NOTE = (id: keyof typeof F.DEVICES) => {
   const d = F.DEVICES[id];
   return [
-    `Making one takes about ${d.kgToMake} kg of CO₂e, and we assume you replace it every ${d.yearsKept} years.`,
+    `Making one takes about ${d.kgToMake} kg of CO₂e, and I assume you replace it every ${d.yearsKept} years.`,
     `Running it uses about ${d.kwhPerYear} kWh a year on the US grid.`,
+    "Includes paying to reuse or recycle each one when you replace it.",
+    TYPICAL_NOTE,
     "Water consumed and land used to mine and make it are scaled from studies of smartphones by the carbon to make each device. Air pollution from the factories uses the EPA's supply-chain rate for manufactured goods, likely an underestimate.",
     `Lifetime covers every one you'll go through until age ${F.LIFETIME_TO_AGE}, with their power on a grid getting cleaner each year to ${F.GRID_CLEANER_UNTIL}.`,
   ];
 };
 
 const GOODS_USD_NOTE = (k: keyof typeof F.GOODS_KG_CO2_PER_USD) =>
-  `About ${F.GOODS_KG_CO2_PER_USD[k]} kg CO₂e for each dollar spent, from the EPA's supply-chain model. The default, $${F.GOODS_USD_PER_MONTH[k]} a month, is a typical American's spending (BLS, 2024). If the My Offset extension finds you spend more than that on Amazon alone, we use your Amazon figure instead. Amazon splits an order's cost evenly over its items, so a mixed order is rough.`;
+  `About ${F.GOODS_KG_CO2_PER_USD[k]} kg CO₂e for each dollar spent, from the EPA's supply-chain model. The default, $${F.GOODS_USD_PER_MONTH[k]} a month, is a typical American's spending (BLS, 2024). If the My Offset extension finds you spend more than that on Amazon alone, I use your Amazon figure instead. Amazon splits an order's cost evenly over its items, so a mixed order is rough.`;
 
 const FOOD_NOTE = (what: string) => [
   `Yearly per-person carbon, water and land for your type of diet, with ${what} taking its typical share.`,
@@ -40,7 +45,7 @@ const GOODS_NOTE = "Water, land and air pollution scale with the carbon, using t
 export const HOW_ESTIMATED: Record<string, string[]> = {
   ai: [
     `About ${F.WH_PER_AI_PROMPT} Wh a prompt, or each prompt measured from your ChatGPT, Claude or Gemini export if you link it.`,
-    `How many prompts: the light (${AI_LEVELS.light.promptsPerDay} a day), medium (${AI_LEVELS.medium.promptsPerDay}) or heavy (${AI_LEVELS.heavy.promptsPerDay}) you pick, the real count from the My Offset extension or your export, or your own count of chats (${F.PROMPTS_PER_CHAT} prompts a chat, the middle of published chatbot logs). Light is the average ChatGPT user and medium the average daily user, from OpenAI's prompt and user counts; heavy is our estimate for people who use it for hours a day.`,
+    `How many prompts: the light (${AI_LEVELS.light.promptsPerDay} a day), medium (${AI_LEVELS.medium.promptsPerDay}) or heavy (${AI_LEVELS.heavy.promptsPerDay}) you pick, the real count from the My Offset extension or your export, or your own count of chats (${F.PROMPTS_PER_CHAT} prompts a chat, the middle of published chatbot logs). Light is the average ChatGPT user and medium the average daily user, from OpenAI's prompt and user counts; heavy is my estimate for people who use it for hours a day.`,
     `Also counts the AI built into search and other apps, such as Google's AI answers and email summaries, as ${F.AI_BUILT_IN_PROMPTS_PER_DAY} typical prompts a day since mid-2024.`,
     `Adds each prompt's share of training the models (${Math.round(F.AI_TRAINING_SHARE * 100)}% of AI energy) and of making the chips and buildings (+${Math.round(F.AI_HARDWARE_SHARE * 100)}% carbon).`,
     "Power is on the US grid; water is the power plants' plus data center cooling.",
@@ -54,6 +59,7 @@ export const HOW_ESTIMATED: Record<string, string[]> = {
   video: [
     `About ${F.STREAMING_KWH_PER_HOUR} kWh and ${g(F.KG_PER_STREAMING_HOUR)} of CO₂ an hour, from the IEA.`,
     "If the extension counts your whole history, past watching is measured from YouTube's hours and Netflix's titles (about 40 minutes each), and only the years before that history starts are estimated.",
+    "Can be measured from your YouTube or Netflix history; otherwise it starts from typical use.",
     ONLINE_NOTE,
   ],
   "ai-coding": [
@@ -62,11 +68,11 @@ export const HOW_ESTIMATED: Record<string, string[]> = {
     "Cursor, Copilot and coding through an API key can't be seen from your accounts, so add those hours yourself.",
     "Same training, hardware and water as chat. Past use counts from 2025, when coding agents took off.",
   ],
-  social: [ONLINE_NOTE],
-  gaming: [ONLINE_NOTE],
-  calls: [ONLINE_NOTE],
-  music: [ONLINE_NOTE],
-  browsing: [ONLINE_NOTE],
+  social: [ONLINE_NOTE, TYPICAL_NOTE],
+  gaming: [ONLINE_NOTE, TYPICAL_NOTE],
+  calls: [ONLINE_NOTE, TYPICAL_NOTE],
+  music: ["Can be measured from your Spotify history; otherwise it starts from typical use.", ONLINE_NOTE],
+  browsing: [ONLINE_NOTE, TYPICAL_NOTE],
   phone: DEVICE_NOTE("phone"),
   laptop: DEVICE_NOTE("laptop"),
   tablet: DEVICE_NOTE("tablet"),

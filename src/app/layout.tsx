@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Fraunces, IBM_Plex_Mono, Public_Sans } from "next/font/google";
 import Link from "next/link";
 import { AccountNav } from "@/components/Account";
+import { FooterMoneyLink } from "@/components/FooterMoneyLink";
 import "./globals.css";
 
 // Fraunces, a soft serif, for headings, Public Sans (made for US government
@@ -61,9 +62,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               <Link href="/different" className="underline hover:text-foreground sm:hidden">
                 What&apos;s different
               </Link>
-              <Link href="/ledger" className="underline hover:text-foreground">
-                Where the money goes
-              </Link>
+              <FooterMoneyLink />
               <Link href="/questions" className="underline hover:text-foreground">
                 Questions
               </Link>

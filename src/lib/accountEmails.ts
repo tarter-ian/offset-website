@@ -17,6 +17,6 @@ export function sendDeleted(email: string) {
   return sendEmail(
     email,
     "Your My Offset account was deleted",
-    `Your My Offset account and everything it held (this email address and what you'd offset) were deleted just now.\n\nYour gifts already went to the charities, and Every.org keeps its own receipts.\n\nIf this wasn't you, reply to this email and tell us.\n\nMy Offset`,
+    `Your My Offset account and everything it held (this email address and what you'd offset) were deleted just now.\n\nYour gifts already went to the charities, and Every.org keeps its own receipts.\n\nIf this wasn't you, reply to this email and tell me.\n\nMy Offset`,
   );
 }

@@ -39,7 +39,7 @@ export const QUESTIONS: Question[] = [
     slug: "claude-code-energy-use",
     question: "What is the footprint of Claude Code and other AI coding agents?",
     title: "What is the footprint of Claude Code and AI coding agents? | My Offset",
-    description: "An hour of an AI coding agent uses far more energy than a chat prompt. Our estimate per hour and per month, and what it costs to cover.",
+    description: "An hour of an AI coding agent uses far more energy than a chat prompt. My estimate per hour and per month, and what it costs to cover.",
   },
 ];
 

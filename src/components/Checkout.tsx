@@ -133,7 +133,7 @@ export function FundSteps({ checkout, onChange, save }: { checkout: Checkout; on
           <span className="font-semibold">
             <span aria-hidden>✓ </span>Given <span className="figures">{usd(gift.total)}</span>, pending confirmation
           </span>
-          <span className="block text-muted">Endaoment emails your tax receipt. The gift link works once we can confirm the gift with Endaoment.</span>
+          <span className="block text-muted">Endaoment emails your tax receipt. The gift link works once I can confirm the gift with Endaoment.</span>
         </p>
       ) : href ? (
         <div className="mt-3">
@@ -159,7 +159,7 @@ export function FundSteps({ checkout, onChange, save }: { checkout: Checkout; on
         <p className="mt-3 font-semibold">Giving through Endaoment opens soon.</p>
       )}
       <p className="mt-2 text-muted">
-        Before you give: <Link href="/ledger">where the money goes</Link>, <Link href="/promises">what we promise</Link> and{" "}
+        Before you give: <Link href="/ledger">where the money goes</Link>, <Link href="/promises">what I promise</Link> and{" "}
         <Link href="/method">how each price is worked out</Link>. None of it passes through My Offset.
       </p>
     </div>
@@ -241,7 +241,7 @@ export function CheckoutSteps({
             : "All given. Confirmations from Every.org can take a few minutes; this page checks for them."}
       </p>
       <p className="mt-2 text-sm text-muted">
-        Before you give: <Link href="/ledger">where the money goes</Link>, <Link href="/promises">what we promise</Link> and{" "}
+        Before you give: <Link href="/ledger">where the money goes</Link>, <Link href="/promises">what I promise</Link> and{" "}
         <Link href="/method">how each price is worked out</Link>. Every gift goes straight to the charity through Every.org; none of it passes through My Offset.
       </p>
     </div>

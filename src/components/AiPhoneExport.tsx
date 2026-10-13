@@ -58,7 +58,7 @@ export function AiPhoneExport({
     try {
       const found = (await Promise.all(files.map(readExportFile))).filter((u) => u !== null);
       if (!found.length) {
-        setStatus({ kind: "error", text: "We couldn't find any chats in that file. Add the .zip exactly as you downloaded it." });
+        setStatus({ kind: "error", text: "I couldn't find any chats in that file. Add the .zip exactly as you downloaded it." });
         return;
       }
       // One export per service; adding the same service again replaces it.
@@ -68,7 +68,7 @@ export function AiPhoneExport({
       onMeasured(combineSummaries(Object.values(next))!);
       setStatus({ kind: "done", text: describeExport(summarize(found)) });
     } catch {
-      setStatus({ kind: "error", text: "We couldn't read that file. Add the .zip exactly as you downloaded it." });
+      setStatus({ kind: "error", text: "I couldn't read that file. Add the .zip exactly as you downloaded it." });
     }
   }
 
