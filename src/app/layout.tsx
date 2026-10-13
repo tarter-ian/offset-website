@@ -36,9 +36,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                 Our promises
               </Link>
               <AccountNav />
-              <Link href="/start" className="font-semibold text-accent underline underline-offset-4 hover:text-accent-strong">
-                Link accounts
-              </Link>
             </div>
           </nav>
         </header>
