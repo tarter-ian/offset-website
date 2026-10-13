@@ -321,9 +321,9 @@ function Seals({ covered, now, needed }: { covered: Record<string, Covered>; now
   const seals = badgesFor(offsetItems(covered, now), needed).filter((b) => b.kind !== "full");
   if (!seals.length) return null;
   return (
-    <div className="mt-4 mb-2 flex flex-wrap gap-3">
+    <div className="mt-4 mb-2 flex flex-wrap items-center gap-3">
       {seals.map((b) => (
-        <Seal key={b.key} kind={b.kind} name={b.name} until={b.until} size={104} />
+        <Seal key={b.key} kind={b.kind} name={b.name} until={b.until} />
       ))}
     </div>
   );
