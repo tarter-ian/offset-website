@@ -1054,13 +1054,22 @@ export function Store() {
   const aiParts = PRODUCTS.filter((p) => p.section === "ai" && (p.id === ai.id || Number(amountOf(p)) > 0));
   // It leads with lifetime only while the whole AI total for life stays small; heavier use leads monthly.
   const heroLifetime = aiParts.reduce((t, p) => t + coverPrice(p, amountOf(p), { past: true, ahead: "lifetime" }, ctx).once, 0);
-  const heroAhead = picked.ai?.ahead ?? (heroLifetime <= AI_LIFETIME_FIRST_MAX_USD ? "lifetime" : "monthly");
+  const heroAhead = heroLifetime <= AI_LIFETIME_FIRST_MAX_USD ? "lifetime" : "monthly";
   const heroPast = picked.ai?.past ?? pastAll;
   // Each part takes the hero's cover where it's offered: a part too big for lifetime stays monthly, one under a cent a month is paid once.
+  // When heavy use puts the hero on monthly, the smallest parts are still paid once for life, as long as everything paid
+  // once stays within the lifetime limit, so chat doesn't trail 3¢ a month behind coding (Ian, 2026-10-13).
+  const partLife = (p: Product) => coverPrice(p, amountOf(p), { past: true, ahead: "lifetime" }, ctx).once;
+  const lifeParts = new Set<string>();
+  if (heroAhead === "monthly")
+    [...aiParts]
+      .sort((a, b) => partLife(a) - partLife(b))
+      .reduce((sum, p) => (sum + partLife(p) <= AI_LIFETIME_FIRST_MAX_USD ? (lifeParts.add(p.id), sum + partLife(p)) : AI_LIFETIME_FIRST_MAX_USD + 1), 0);
+  const partAhead = (p: Product) => (lifeParts.has(p.id) ? "lifetime" : heroAhead);
   const heroLines = aiParts.map((p) => ({
     p,
     amount: amountOf(p),
-    cover: effectiveCover(p, amountOf(p), ctx, { ahead: heroAhead, past: heroPast }, anyway[p.id]),
+    cover: effectiveCover(p, amountOf(p), ctx, { ahead: partAhead(p), past: heroPast }, anyway[p.id]),
   }));
   const heroName = (id: string, name: string) => ({ ai: "chat", "ai-media": "images", "ai-video": "video", "ai-coding": "coding" })[id] ?? name;
   // Parts already paid for drop out of the price; when every part is paid, the box shows what's offset (Ian, 2026-10-13).
