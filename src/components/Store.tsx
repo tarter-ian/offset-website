@@ -1099,9 +1099,7 @@ export function Store() {
               ? paidLife
                 ? "Your AI use is offset for life."
                 : `Your AI use is offset through ${shortDate(paidUntil ?? "")}.`
-              : heroAhead === "lifetime" && aiCover.ahead === "lifetime"
-              ? `Your AI use, offset for life: about ${once(aiPrice.once)}.`
-              : `Your AI use, offset: about ${per(aiPrice.monthly, billing)}.`}
+              : `${paidLines.length ? "The rest of your AI use" : "Your AI use"}, offset${heroAhead === "lifetime" && aiCover.ahead === "lifetime" ? ` for life: about ${once(aiPrice.once)}` : `: about ${per(aiPrice.monthly, billing)}`}.`}
           </h1>
         </div>
 
