@@ -41,6 +41,7 @@ const TAG: Record<Tone, string> = {
   past: "border-past-ink bg-past text-past-ink",
 };
 const INK_BG: Record<Tone, string> = { life: "bg-life-ink", period: "bg-period-ink", past: "bg-past-ink" };
+const INK_BORDER: Record<Tone, string> = { life: "border-life-ink", period: "border-period-ink", past: "border-past-ink" };
 const PAPER_TEXT: Record<Tone, string> = { life: "text-life", period: "text-period", past: "text-past" };
 
 export const badgeLabel = (b: Pick<BadgeInfo, "kind" | "name">) => (b.kind === "full" ? FULL_NAME : `${b.name} offset`);
@@ -187,42 +188,97 @@ function Mark({ kind, tone, paper }: { kind: BadgeInfo["kind"]; tone: Tone; pape
   );
 }
 
-/** The badge as a tag for lists and tight spaces: the same rings, the name, and the term after a rule. */
-export function BadgeTag({ kind, name, until }: Omit<SealProps, "size">) {
+/**
+ * The badge as a tag for lists and tight spaces: the same rings, the name, and the term after a rule.
+ * A badge showing yellow and blue together is one split tag (Ian, 2026-10-13): the name in the first
+ * color, then each term in its own color, "PAST USE" then "THROUGH AUG 2027".
+ */
+export function BadgeTag({ kind, name, until }: Omit<SealProps, "size" | "until"> & { until: Term | Term[] }) {
   const full = kind === "full";
-  const tone = toneFor(until);
+  const untils = Array.isArray(until) ? until : [until];
+  const tone = toneFor(untils[0]);
   return (
-    <span className={`inline-flex items-stretch rounded-sm border-[1.5px] text-sm leading-none ${TAG[tone]}`}>
-      <span className="inline-flex items-center gap-1.5 py-1.5 pr-2 pl-1.5">
+    <span className="inline-flex items-stretch text-sm leading-none">
+      <span className={`inline-flex items-center gap-1.5 rounded-l-sm border-[1.5px] py-1.5 pr-2 pl-1.5 ${TAG[tone]}`}>
         <Mark kind={kind} tone={tone} />
         <span className="font-display font-semibold">{badgeLabel({ kind, name })}</span>
       </span>
-      {/* Fully Offset's term is printed solid, like its seal. */}
-      <span
-        className={`inline-flex items-center border-l border-current px-2 text-[11px] font-semibold tracking-wider whitespace-nowrap uppercase ${
-          full ? `${INK_BG[tone]} ${PAPER_TEXT[tone]}` : ""
-        }`}
-      >
-        {termLabel(until)}
-      </span>
+      {untils.map((u, i) => {
+        const t = toneFor(u);
+        return (
+          // Fully Offset's term is printed solid, like its seal.
+          <span
+            key={String(u)}
+            className={`inline-flex items-center border-y-[1.5px] border-r-[1.5px] px-2 text-[11px] font-semibold tracking-wider whitespace-nowrap uppercase ${
+              full ? `${INK_BORDER[t]} ${INK_BG[t]} ${PAPER_TEXT[t]}` : TAG[t]
+            } ${i === untils.length - 1 ? "rounded-r-sm" : ""}`}
+          >
+            {termLabel(u)}
+          </span>
+        );
+      })}
     </span>
   );
 }
 
+/** One badge with all the terms it shows: one, or yellow then blue. */
+type Grouped = Omit<BadgeInfo, "until"> & { untils: (string | null)[] };
+
+function grouped(badges: BadgeInfo[]): Grouped[] {
+  const out: Grouped[] = [];
+  for (const b of badges) {
+    const g = out.find((x) => x.kind === b.kind && x.key === b.key);
+    if (g) g.untils.push(b.until);
+    else out.push({ ...b, untils: [b.until] });
+  }
+  return out;
+}
+
 /**
- * A row of badges, highest tier up front, with the lower ones earned inside it folded
- * under "and N more" (Ian, 2026-10-13), so a Fully Offset person doesn't see 38 at once.
- * `seals` draws round seals; otherwise tags.
+ * A row of badges, highest tier up front, with the lower ones earned inside it folded away
+ * (Ian, 2026-10-13), so a Fully Offset person doesn't see 38 at once.
+ *
+ * As tags (the list), each badge is one tag, its yellow and blue in one split tag. Fully Offset
+ * stands alone; an aisle's items fold under a quiet "and N more" at the end of the row. As
+ * `seals` (the record, a gift card), the lower ones fold under "and N more inside" below.
+ * `end` sets the tags to the right, for a row with the name on the left.
  */
-export function BadgeList({ badges, seals, label = "Badges" }: { badges: BadgeInfo[]; seals?: boolean; label?: string }) {
-  const top = badges.filter((b) => !b.within || !badges.some((x) => x.key === b.within));
+export function BadgeList({ badges, seals, label = "Badges", end }: { badges: BadgeInfo[]; seals?: boolean; label?: string; end?: boolean }) {
+  const parent = (b: BadgeInfo) => (b.within ? badges.find((x) => x.kind !== "item" && x.key === b.within) : undefined);
+  const top = badges.filter((b) => !parent(b));
   const lower = badges.filter((b) => !top.includes(b));
+  if (!seals) {
+    const tops = grouped(top);
+    const more = tops.some((b) => b.kind === "full") ? [] : grouped(lower);
+    const tag = (b: Grouped) => <BadgeTag kind={b.kind} name={b.name} until={b.untils} />;
+    return (
+      <ul className={`flex flex-wrap items-center gap-2 ${end ? "sm:justify-end" : ""}`} aria-label={label}>
+        {tops.map((b) => (
+          <li key={`${b.kind}:${b.key}`}>{tag(b)}</li>
+        ))}
+        {more.length > 0 && (
+          <li className="has-[details[open]]:basis-full">
+            <details className={end ? "sm:text-right" : ""}>
+              <summary className="inline-flex min-h-8 cursor-pointer items-center text-xs text-muted underline underline-offset-4 hover:text-foreground">
+                and {more.length} more
+              </summary>
+              <ul className={`mt-1 flex flex-wrap gap-2 ${end ? "sm:justify-end" : ""}`} aria-label={`${label} inside`}>
+                {more.map((b) => (
+                  <li key={`${b.kind}:${b.key}`}>{tag(b)}</li>
+                ))}
+              </ul>
+            </details>
+          </li>
+        )}
+      </ul>
+    );
+  }
   const n = new Set(lower.map((b) => b.key)).size;
   const row = (bs: BadgeInfo[], aria: string) => (
-    <ul className={`flex flex-wrap items-center ${seals ? "gap-3" : "gap-2"}`} aria-label={aria}>
+    <ul className="flex flex-wrap items-center gap-3" aria-label={aria}>
       {bs.map((b) => (
         <li key={badgeKey(b)}>
-          {seals ? <Seal kind={b.kind} name={b.name} until={b.until} /> : <BadgeTag kind={b.kind} name={b.name} until={b.until} />}
+          <Seal kind={b.kind} name={b.name} until={b.until} />
         </li>
       ))}
     </ul>
