@@ -4,10 +4,12 @@ import { AGENT_TOOL_NAMES } from "@/lib/ai/signin";
 import Link from "next/link";
 import { type Covered, STORAGE_KEY } from "@/lib/covered";
 import { recordStatus } from "@/lib/record";
+import { steadyPlan } from "@/lib/steady";
 import { pullCovered, pushCovered } from "@/lib/accountClient";
 import { useEffect, useState } from "react";
 import { ActivityUpload } from "./ActivityUpload";
 import { CheckoutSteps } from "./Checkout";
+import { SteadyCheck } from "./SteadyCheck";
 import { LIFETIME_TO_AGE } from "@/lib/factors";
 import { joinList, ListOptIn } from "./ListOptIn";
 import { AiExportUpload } from "./AiExportUpload";
@@ -1968,7 +1970,10 @@ function PaySection({
   // A list saved by tapping Give but not come back from keeps its id, so a gift made then still counts.
   const saved = payState && JSON.stringify(payState.rows) === JSON.stringify(rows) ? payState : null;
   const current: Checkout | null =
-    saved ?? (draftId ? { id: draftId, created: new Date().toISOString(), billing, rows, lines, done: {}, confirmed: {} } : null);
+    saved ??
+    (draftId
+      ? { id: draftId, created: new Date().toISOString(), billing, rows, lines, done: {}, confirmed: {}, plan: { lines: listing.lines, ctx: listing.ctx, pastYears: listing.pastYears } }
+      : null);
   return (
     <section id="pay-steps" aria-labelledby="pay-heading" className="mt-4 scroll-mt-4 border-t-2 border-rule pt-3">
       <h3 id="pay-heading" className="text-base font-bold">
@@ -1977,6 +1982,7 @@ function PaySection({
       {started ? (
         <>
           <CheckoutSteps checkout={started} onChange={setPayState} />
+          <SteadyCheck plan={steadyPlan(started)} inStore />
           <button
             type="button"
             onClick={() => {
