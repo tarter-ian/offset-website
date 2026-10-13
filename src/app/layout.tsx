@@ -46,26 +46,26 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         </header>
         <main className="flex-1">{children}</main>
         <footer className="border-t border-border">
+          {/* Trimmed footer (Ian, 2026-10-13): no links the header already shows, except the two it hides on phones. */}
           <div className="mx-auto flex max-w-5xl flex-col gap-2 px-4 py-6 text-sm text-muted sm:flex-row sm:justify-between">
             <span>
-              Figures come from the EPA, EIA, IEA and published AI energy studies, listed on{" "}
-              <Link href="/method" className="underline hover:text-foreground">
-                How we calculate
+              <Link href="/promises#who" className="underline hover:text-foreground">
+                Made by Ian Tarter
               </Link>
-              .
+              {" · US only"}
             </span>
             <span className="flex flex-wrap gap-x-4 gap-y-1">
-              <Link href="/different" className="underline hover:text-foreground">
-                What&apos;s different
+              <Link href="/method" className="underline hover:text-foreground sm:hidden">
+                How we calculate
               </Link>
-              <Link href="/questions" className="underline hover:text-foreground">
-                Questions
+              <Link href="/different" className="underline hover:text-foreground sm:hidden">
+                What&apos;s different
               </Link>
               <Link href="/ledger" className="underline hover:text-foreground">
                 Where the money goes
               </Link>
-              <Link href="/list" className="underline hover:text-foreground">
-                Public list
+              <Link href="/questions" className="underline hover:text-foreground">
+                Questions
               </Link>
               <Link href="/data" className="underline hover:text-foreground">
                 Your data
@@ -76,10 +76,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               <Link href="/terms" className="underline hover:text-foreground">
                 Terms
               </Link>
-              <Link href="/promises#who" className="underline hover:text-foreground">
-                Made by Ian Tarter
-              </Link>
-              <span>US only.</span>
             </span>
           </div>
         </footer>
