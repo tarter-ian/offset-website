@@ -9,11 +9,12 @@ import { badgeKey, badgesFor, fullBadges, offsetItems, savedUse } from "@/lib/ba
 import { accountsOn } from "@/lib/account";
 import { fetchAccount, pullCovered, pushCovered } from "@/lib/accountClient";
 import { canInstallExtension, savedResults } from "@/lib/extension";
-import { AI_CHAT_SERVICES, type AiChatService, inForce, monthlyUse, monthTotal, type MonthUse, offsetCount, onAutopay, recordStatus } from "@/lib/record";
+import { AI_CHAT_SERVICES, type AiChatService, monthlyUse, monthTotal, type MonthUse, offsetCount, recordStatus, untilOf } from "@/lib/record";
 import { loadCheckout, PAYMENT_MODE } from "@/lib/payments";
 import { itemName } from "@/lib/reminders";
 import { type SteadyPlan, steadyIds, steadyPlan } from "@/lib/steady";
 import { SteadyCheck } from "./SteadyCheck";
+import { OffsetTimeline } from "./OffsetTimeline";
 import { productById } from "@/lib/store";
 import { savedListing, syncZeroUse } from "./ListOptIn";
 
@@ -26,7 +27,6 @@ const NAMES: Record<AiChatService, string> = { chatgpt: "ChatGPT", claude: "Clau
 const SHADE: Record<AiChatService, string> = { chatgpt: "bg-accent", claude: "bg-period-ink", gemini: "bg-muted" };
 
 const day = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "long", day: "numeric" });
-const monthYear = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "long", year: "numeric" });
 const monthShort = (ym: string) => new Date(`${ym}-15T00:00:00Z`).toLocaleDateString("en-US", { month: "short", timeZone: "UTC" });
 const nameOf = (id: string) => productById(id)?.name ?? id;
 const list = (xs: string[]) => (xs.length < 2 ? (xs[0] ?? "") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
@@ -51,6 +51,10 @@ function withSteady(covered: Record<string, Covered>, steady: SteadyPlan | null)
     Object.entries(covered).map(([id, c]) => [id, c.kind === "period" && !c.giftFrom && !c.autopay && ids.includes(id) ? { ...c, autopay: steady.billing } : c]),
   );
 }
+
+/** A repeating gift shows its next renewal, as on the home page; an ended stretch stays, with no bar ahead. */
+const timeline = (covered: Record<string, Covered>, now: number): Record<string, Covered> =>
+  Object.fromEntries(Object.entries(covered).map(([id, c]) => [id, c.kind === "period" ? { ...c, until: untilOf(c, now) } : c]));
 
 export function Record() {
   const [saved, setCovered] = useState<Record<string, Covered> | null>(null);
@@ -201,7 +205,12 @@ export function Record() {
             </Link>
           </p>
         )}
-        <CoveredList covered={covered} now={now} />
+        {/* The home page's timeline, every row out (Ian, 2026-10-13). */}
+        {Object.keys(covered).length ? (
+          <OffsetTimeline covered={timeline(covered, now)} heading={false} fold={false} now={now} />
+        ) : (
+          <p className="mt-3 text-muted">Nothing yet.</p>
+        )}
       </section>
 
       <SteadyCheck plan={steady} use={use} />
@@ -342,51 +351,5 @@ function Seals({ covered, now, zero }: { covered: Record<string, Covered>; now: 
         </p>
       )}
     </>
-  );
-}
-
-/** Each offset item with a line over the last twelve months and the next: green for life, blue for a set stretch. */
-function CoveredList({ covered, now }: { covered: Record<string, Covered>; now: number }) {
-  const entries = Object.entries(covered).sort(([, a], [, b]) => (a.kind === b.kind ? 0 : a.kind === "life" ? -1 : 1));
-  if (!entries.length) return <p className="mt-3 text-muted">Nothing yet.</p>;
-  const year = 365.25 * 86400000;
-  const from = now - year;
-  const span = 2 * year;
-  const at = (t: number) => `${Math.min(100, Math.max(0, ((t - from) / span) * 100))}%`;
-  return (
-    <ul className="mt-3 border-t border-rule">
-      {entries.map(([id, c]) => {
-        const steady = onAutopay(c);
-        const live = steady || inForce(c, now);
-        const start = c.since ? Date.parse(c.since) : from;
-        const end = c.kind === "life" || steady ? from + span : Date.parse(c.until);
-        const state = steady
-          ? `Repeats through Every.org${c.since ? `, since ${monthYear(c.since)}` : ""}`
-          : c.kind === "life"
-            ? `For ${c.past ? "life" : "the rest of life"}${c.since ? `, since ${monthYear(c.since)}` : ""}`
-            : live
-              ? `Through ${day(c.until)}${c.since ? `, since ${monthYear(c.since)}` : ""}`
-              : `Ended ${day(c.until)}`;
-        return (
-          <li key={id} className="grid gap-x-4 gap-y-1 border-b border-border py-3 sm:grid-cols-[14rem_minmax(0,1fr)] sm:items-center">
-            <div>
-              <span className="font-semibold">{nameOf(id)}</span>
-              <span className="block text-sm text-muted">
-                {state}
-                {c.giftFrom ? ` · a gift from ${c.giftFrom}` : ""}
-              </span>
-            </div>
-            <div className="relative h-5" aria-hidden="true">
-              <span className="absolute inset-x-0 top-1/2 h-px bg-border" />
-              <span
-                className={`absolute top-1 bottom-1 rounded-sm ${c.kind === "life" ? "bg-life" : live ? "bg-period" : "bg-border"}`}
-                style={{ left: at(start), width: `calc(${at(end)} - ${at(start)})` }}
-              />
-              <span className="absolute -top-0.5 -bottom-0.5 w-0.5 bg-foreground" style={{ left: at(now) }} title="Today" />
-            </div>
-          </li>
-        );
-      })}
-    </ul>
   );
 }

@@ -51,7 +51,7 @@ import { digitalFromExport } from "@/lib/ai/exportParser";
 import { aiMonthTotals, shareLines, shareQuery, type ShareTotals } from "@/lib/share";
 import { SOURCE_NAMES, type ActivitySource } from "@/lib/activity";
 import { monthName } from "@/lib/history";
-import { INTERNET_START_YEAR, ONLINE_FROM_AGE } from "@/lib/factors";
+import { ONLINE_FROM_AGE } from "@/lib/factors";
 import {
   LIFETIME_GROWTH_BUFFER,
   BILLING,
@@ -676,17 +676,6 @@ export function Store() {
     return `today's rate since you were ${ONLINE_FROM_AGE}, or 1995`;
   };
 
-  /** The year the past-use figure starts, as `pastNote` tells it; undefined when it's the person's real history. */
-  const pastSince = (p: Product): number | undefined => {
-    if (p.id === "ai" && ctx.aiPastWh !== undefined) return undefined;
-    if (p.section === "ai") return ctx.aiStartYear && ctx.aiStartYear > 2022 ? ctx.aiStartYear : 2022;
-    const measured = ctx.measuredPast?.[p.id as "delivery" | "rideshare"];
-    const since = Number(measured?.since.slice(0, 4));
-    if (measured?.whole && since >= everydaySince(ctx)) return since;
-    if (!p.oneTime) return everydaySince(ctx);
-    return Math.max(ctx.birthYear + ONLINE_FROM_AGE, INTERNET_START_YEAR);
-  };
-
   /** Past use is a checkbox; going forward is ongoing or lifetime, one or the other. */
   const coverControls = (p: Product, withPast = false) => {
     if (!p.oneTime && !withPast) return null;
@@ -1193,13 +1182,6 @@ export function Store() {
     return life ? c.once : c.monthly;
   };
   const heroCovered = Object.fromEntries(Object.entries(covered).filter(([, c]) => paidCover(c)));
-  // The timeline's left end: the year the earliest paid past use starts (Ian, 2026-10-13).
-  const heroSince = Object.entries(heroCovered)
-    .filter(([, c]) => c.past)
-    .map(([id]) => PRODUCTS.find((p) => p.id === id))
-    .flatMap((p) => (p ? [pastSince(p)] : []))
-    .filter((y): y is number => y !== undefined)
-    .sort((a, b) => a - b)[0];
   const aiImpacts = heroPaid
     ? sumImpacts(paidLines.map(paidImpacts))
     : sumImpacts(dueLines.flatMap((l) => Object.values(coverImpacts(l.p, l.amount, l.cover, ctx))));
@@ -1252,7 +1234,7 @@ export function Store() {
                   </div>
                 ))}
               </dl>
-              <OffsetTimeline covered={heroCovered} full={full.map((b) => b.until)} since={heroSince} />
+              <OffsetTimeline covered={heroCovered} full={full.map((b) => b.until)} />
               <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
                 <button
                   type="button"

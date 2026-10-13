@@ -20,6 +20,9 @@
   --life-ink: #134a2a;
   --period: #e3ecf7;
   --period-ink: #1d3f6b;
+  /* Paid past use on the timeline: the same hues, muted, still 3:1 against the page (Ian, 2026-10-13). */
+  --life-past: #6b8f78;
+  --period-past: #6f86a3;
   /* Past use offset, with no cover running now: yellow, for badges (Ian, 2026-10-13). */
   --past: #faefcc;
   --past-ink: #5c4300;
@@ -42,6 +45,8 @@
     --life-ink: #93d8ae;
     --period: #172539;
     --period-ink: #9cc1ef;
+    --life-past: #4f7a60;
+    --period-past: #577596;
     --past: #2f2710;
     --past-ink: #ebc86e;
     --danger: #f97066;
@@ -63,6 +68,8 @@
   --color-life-ink: var(--life-ink);
   --color-period: var(--period);
   --color-period-ink: var(--period-ink);
+  --color-life-past: var(--life-past);
+  --color-period-past: var(--period-past);
   --color-past: var(--past);
   --color-past-ink: var(--past-ink);
   --color-danger: var(--danger);
