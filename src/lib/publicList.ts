@@ -174,3 +174,21 @@ const fold = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCas
 
 /** Whether a listed name fits what was typed in "Find a name": anywhere in it, case and accents aside. Nothing typed fits everyone. */
 export const nameMatches = (name: string, query: string) => fold(name).includes(fold(query));
+
+/**
+ * What "Find a name" starts with, from the page's `q` parameter, so a search survives a filter
+ * change and can be shared (Ian, 2026-10-13). No longer than a name can be.
+ */
+export const parseQuery = (v: unknown): string => {
+  const s = Array.isArray(v) ? v[0] : v;
+  return typeof s === "string" ? s.slice(0, LIST_NAME_MAX) : "";
+};
+
+/** The page's query string with `q` set to what was typed, or dropped when nothing is. Other parameters stay. */
+export function withQuery(search: string, query: string): string {
+  const p = new URLSearchParams(search);
+  if (query.trim()) p.set("q", query);
+  else p.delete("q");
+  const s = p.toString();
+  return s ? `?${s}` : "";
+}

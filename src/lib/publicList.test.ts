@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { badges, cleanName, nameMatches, PAST, parsePlanClaim, parseZeroUse, planRows, sameRows, planItems, withZeroUse } from "./publicList";
+import { badges, cleanName, nameMatches, PAST, parseQuery, parsePlanClaim, parseZeroUse, planRows, sameRows, planItems, withQuery, withZeroUse } from "./publicList";
 import { DEFAULT_CONTEXT as C, PRODUCTS } from "./store";
 
 const ID = "abcdef0123456789abcd";
@@ -85,5 +85,21 @@ describe("Find a name", () => {
     expect(nameMatches("Rosa M.", "  rosa   m ")).toBe(true);
     expect(nameMatches("Rosa M.", "rosie")).toBe(false);
     expect(nameMatches("Rosa M.", "")).toBe(true);
+  });
+});
+
+describe("Find a name in the URL", () => {
+  it("reads q as a string, capped at a name's length", () => {
+    expect(parseQuery("ros")).toBe("ros");
+    expect(parseQuery(["ros", "x"])).toBe("ros");
+    expect(parseQuery(undefined)).toBe("");
+    expect(parseQuery("x".repeat(100))).toHaveLength(40);
+  });
+  it("sets q beside the filter and drops it when the box is empty", () => {
+    expect(withQuery("?aisle=travel", "ros")).toBe("?aisle=travel&q=ros");
+    expect(withQuery("?aisle=travel&q=ros", "rosa m")).toBe("?aisle=travel&q=rosa+m");
+    expect(withQuery("?aisle=travel&q=ros", "  ")).toBe("?aisle=travel");
+    expect(withQuery("?q=ros", "")).toBe("");
+    expect(withQuery("", "zoë")).toBe("?q=zo%C3%AB");
   });
 });
