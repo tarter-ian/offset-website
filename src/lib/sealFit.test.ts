@@ -18,6 +18,17 @@ describe("seal fit", () => {
       });
     }
   });
+  it("fits every aisle, and Fully Offset, under a mark inside the beaded ring", () => {
+    for (const s of [...SECTIONS.map((x) => x.title), "Digital"]) {
+      const l = fitSeal(s, { max: 17, field: 33.2, mark: 13 });
+      expect(l.mark, s).toBeDefined();
+      expect(l.mark! - 6.5, s).toBeGreaterThan(60 - 33.2);
+      expect(l.fs, s).toBeGreaterThanOrEqual(11);
+    }
+    const full = fitSeal("Fully Offset", { tail: false, max: 16, field: 33.2, mark: 9 });
+    expect(full.lines).toEqual(["Fully", "Offset"]);
+    expect(full.baselines[0] - 0.74 * full.fs).toBeGreaterThan(full.mark! + 4.5);
+  });
   it("keeps short names on one line and big", () => {
     expect(fitSeal("AI")).toMatchObject({ lines: ["AI"], fs: 19 });
     expect(fitSeal("Phone").lines).toEqual(["Phone"]);

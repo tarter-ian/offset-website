@@ -66,9 +66,9 @@ function GiftCard({ gift }: { gift: Pick<Gift, "items" | "from" | "to" | "note">
       </p>
       {gift.note && <p className="mt-3 whitespace-pre-line">&ldquo;{gift.note}&rdquo;</p>}
       {seals.length > 0 && (
-        <div className="mt-4 flex flex-wrap gap-3">
+        <div className="mt-4 flex flex-wrap items-center gap-3">
           {seals.map((b) => (
-            <Seal key={b.key} kind={b.kind} name={b.name} until={b.until} size={104} />
+            <Seal key={b.key} kind={b.kind} name={b.name} until={b.until} />
           ))}
         </div>
       )}

@@ -484,7 +484,7 @@ export function Results({
         <section className="rounded-xl bg-accent-soft p-6">
           <h3 className="font-semibold">Badges you&apos;d earn each month</h3>
           <div className="mt-4 flex flex-wrap gap-4">
-            {everything && <Seal kind="full" name="Fully Offset" until="monthly" size={120} />}
+            {everything && <Seal kind="full" name="Fully Offset" until="monthly" />}
             {fullAreas.map((g) => (
               <Earned key={g.key} kind={single ? "item" : "aisle"} name={single ? g.rows[0].label : g.label} only={everything ? undefined : impactLabel} />
             ))}
@@ -531,7 +531,7 @@ export function Results({
 function Earned({ kind, name, only }: { kind: "aisle" | "item"; name: string; only?: string }) {
   return (
     <figure className="flex w-28 flex-col items-center">
-      <Seal kind={kind} name={name} until="monthly" size={104} />
+      <Seal kind={kind} name={name} until="monthly" />
       {only && <figcaption className="mt-1 text-center text-xs text-muted">{only} only</figcaption>}
     </figure>
   );

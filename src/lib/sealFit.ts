@@ -33,7 +33,23 @@ export interface SealLayout {
   /** Where "offset" goes, when there is a tail: the top of its box, and its baseline. */
   rule?: number;
   tail?: number;
+  /** The center of the mark over the name, when there is one. */
+  mark?: number;
 }
+
+export interface FitOptions {
+  /** Whether the italic "offset" goes under the name. */
+  tail?: boolean;
+  max?: number;
+  min?: number;
+  /** How far from the center anything may reach; smaller inside an extra ring. */
+  field?: number;
+  /** Size of a square mark over the name (an aisle's icon, Fully Offset's star), or 0 for none. */
+  mark?: number;
+}
+
+/** Space between the mark and the name. */
+const MARK_GAP = 2.2;
 
 /** Every way to set the words on one to three lines, in order. */
 function splits(words: string[]): string[][] {
@@ -46,17 +62,19 @@ function splits(words: string[]): string[][] {
 }
 
 /** Lays out the lines at a size, centered as a block, or null when a corner of any line would cross the field. */
-function place(lines: string[], fs: number, tail: boolean): SealLayout | null {
+function place(lines: string[], fs: number, { tail = true, field = FIELD_R, mark = 0 }: FitOptions): SealLayout | null {
   const lh = fs * LEADING;
+  const head = mark ? mark + MARK_GAP : 0;
   const nameHeight = ASCENT * fs + (lines.length - 1) * lh + DESCENT * fs;
-  const height = nameHeight + (tail ? TAIL.height + TAIL.gap : 0);
+  const height = head + nameHeight + (tail ? TAIL.height + TAIL.gap : 0);
   const top = CENTER - height / 2;
-  const baselines = lines.map((_, i) => top + ASCENT * fs + i * lh);
+  const baselines = lines.map((_, i) => top + head + ASCENT * fs + i * lh);
   const boxes = lines.map((l, i) => ({ half: textWidth(l, fs) / 2, top: baselines[i] - ASCENT * fs, bottom: baselines[i] + DESCENT * fs }));
-  const rule = top + nameHeight + TAIL.gap;
+  const rule = top + head + nameHeight + TAIL.gap;
   if (tail) boxes.push({ half: TAIL.width / 2, top: rule, bottom: rule + TAIL.height });
-  const inside = boxes.every((b) => Math.hypot(b.half, Math.max(Math.abs(b.top - CENTER), Math.abs(b.bottom - CENTER))) <= FIELD_R);
-  return inside ? { lines, fs, baselines, ...(tail ? { rule, tail: rule + TAIL.below } : {}) } : null;
+  if (mark) boxes.push({ half: mark / 2, top, bottom: top + mark });
+  const inside = boxes.every((b) => Math.hypot(b.half, Math.max(Math.abs(b.top - CENTER), Math.abs(b.bottom - CENTER))) <= field);
+  return inside ? { lines, fs, baselines, ...(tail ? { rule, tail: rule + TAIL.below } : {}), ...(mark ? { mark: top + mark / 2 } : {}) } : null;
 }
 
 /**
@@ -64,18 +82,19 @@ function place(lines: string[], fs: number, tail: boolean): SealLayout | null {
  * one to three line split. A split with more lines must win by a clear step to be
  * used, so short names stay on one line and two-word names on two.
  */
-export function fitSeal(name: string, { tail = true, max = 19, min = 10.5 }: { tail?: boolean; max?: number; min?: number } = {}): SealLayout {
+export function fitSeal(name: string, opts: FitOptions = {}): SealLayout {
+  const { max = 19, min = 10.5 } = opts;
   let best: SealLayout | null = null;
   for (const lines of splits(name.split(" "))) {
     for (let fs = max; fs >= min; fs -= 0.25) {
-      const fit = place(lines, fs, tail);
+      const fit = place(lines, fs, opts);
       if (!fit) continue;
       if (!best || fit.fs > best.fs + (lines.length > best.lines.length ? 1.5 : 0) || (fit.fs === best.fs && fit.lines.length === best.lines.length && balance(fit) < balance(best)))
         best = fit;
       break;
     }
   }
-  return best ?? place(name.split(" "), min, tail) ?? { lines: name.split(" "), fs: min, baselines: [] };
+  return best ?? place(name.split(" "), min, opts) ?? { lines: name.split(" "), fs: min, baselines: [] };
 }
 
 /** How uneven the lines are; lower reads calmer. */
