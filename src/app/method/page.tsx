@@ -18,6 +18,8 @@ import {
   type WaterMode,
   CARD_FEE_LABEL,
   SPONSOR_FEE_LABEL,
+  PLEDGE_CARD_LABEL,
+  PLEDGE_FREE_LABEL,
   EWASTE_USD_PER_KG,
   LIFETIME_GROWTH_BUFFER,
   MIN_DONATION_USD,
@@ -281,6 +283,13 @@ export default function MethodPage() {
           shows it for each charity. Paying yearly means one 30¢ fee per charity a year instead of twelve. Each harm&apos;s
           share always goes to its own charity; a share under {usd(MIN_DONATION_USD)} is rounded up to {usd(MIN_DONATION_USD)} rather than
           moved to another charity.
+        </p>
+      ) : PAYMENT_MODE === "pledge" ? (
+        <p className="mt-2 text-muted">
+          I make nothing on fees. Each charity is paid separately through Pledge, which pays the card fee on gifts up to{" "}
+          {PLEDGE_FREE_LABEL}. Above that, the card fee ({PLEDGE_CARD_LABEL}) is worked out on the whole gift and added on top, so the
+          donation arrives in full. Each harm&apos;s share always goes to its own charity; a share under {usd(MIN_DONATION_USD)} is
+          rounded up to {usd(MIN_DONATION_USD)} rather than moved to another charity.
         </p>
       ) : PAYMENT_MODE === "endaoment" ? (
         <p className="mt-2 text-muted">

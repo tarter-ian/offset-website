@@ -78,9 +78,10 @@ export const presetItems = (preset: (typeof GIFT_PRESETS)[number]): GiftItem[] =
 export function giftSteps(gifts: number, links: number, mode: PaymentMode = PAYMENT_MODE): string {
   const link = links > 1 ? "links work" : "link works";
   if (mode === "endaoment") return `You'll make 1 gift to My Offset's fund at Endaoment, which grants each charity its part. Your ${link} once it's confirmed.`;
+  const where = mode === "pledge" ? "through Pledge" : "on Every.org";
   return gifts === 1
-    ? `You'll make 1 gift on Every.org. Your ${link} once it's confirmed.`
-    : `You'll make ${gifts} gifts on Every.org, one per charity. Your ${link} once all ${gifts} are confirmed.`;
+    ? `You'll make 1 gift ${where}. Your ${link} once it's confirmed.`
+    : `You'll make ${gifts} gifts ${where}, one per charity. Your ${link} once all ${gifts} are confirmed.`;
 }
 
 const empty = (): HarmSplit => ({
@@ -107,7 +108,7 @@ export function giftSplit(items: GiftItem[], birthYear: number = DEFAULT_CONTEXT
   return total;
 }
 
-/** How a gift is given: one Every.org gift per charity, or one gift to the Endaoment fund and no rows. */
+/** How a gift is given: one Every.org or Pledge gift per charity, or one gift to the Endaoment fund and no rows. */
 export interface GiftCharge {
   rows: PayRow[];
   fund?: FundGift;
@@ -142,6 +143,7 @@ export function giftOwed(gift: Pick<Gift, "items" | "birthYear" | "to">, mode: P
 /**
  * The mode a gift was paid in, from the donations recorded for it, or null while
  * it isn't paid. Both are checked so a gift given before the site switched modes stays paid.
+ * Pledge's rows are Every.org's, key for key and dollar for dollar, so "every" stands for both.
  */
 export function giftPaidMode(gift: Pick<Gift, "id" | "items" | "birthYear" | "to">, donations: { partnerDonationId: string | null; amount: number }[]): PaymentMode | null {
   return (["every", "endaoment"] as const).find((m) => owedPaid(gift.id, giftOwed(gift, m), donations)) ?? null;

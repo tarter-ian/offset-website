@@ -8,13 +8,19 @@ import {
   allConfirmed,
   type Checkout,
   fetchConfirmed,
+  forMode,
   frequencyText,
   FUND_KEY,
   fundLink,
   harmsText,
   nextRow,
   payLink,
+  PAYMENT_MODE,
   type PayRow,
+  PLEDGE_EINS,
+  PLEDGE_ORIGIN,
+  pledgeCompleted,
+  pledgePartnerKey,
   saveCheckout,
 } from "@/lib/payments";
 import { ENDAOMENT_GRANT_LABEL, ENDAOMENT_IN_LABEL, usd } from "@/lib/pricing";
@@ -40,7 +46,18 @@ export function GiveButton({ planId, row, onGo, returnPath }: { planId: string; 
 }
 
 /** One charity's line: who, what it covers, how much, and where it stands. */
-function StepRow({ row, status, action }: { row: PayRow; status: "next" | "later" | "waiting" | "confirmed"; action?: React.ReactNode }) {
+function StepRow({
+  row,
+  status,
+  action,
+  children,
+}: {
+  row: PayRow;
+  status: "next" | "later" | "waiting" | "confirmed";
+  action?: React.ReactNode;
+  /** Shown full width under the row: Pledge's form for the next charity. */
+  children?: React.ReactNode;
+}) {
   const c = CHARITIES[row.charity];
   return (
     <li className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3">
@@ -56,14 +73,19 @@ function StepRow({ row, status, action }: { row: PayRow; status: "next" | "later
         <span className="block pl-6 text-muted">
           Covers {harmsText(row.harms, harmLabel)} ·{" "}
           <span className="figures">
-            {usd(row.donation)} + {usd(row.fee)} card fee
+            {row.fee > 0 ? `${usd(row.donation)} + ${usd(row.fee)} card fee` : `${usd(row.donation)}, no card fee`}
           </span>
           {row.frequency !== "ONCE" && `, ${frequencyText(row)} until you stop it`}
         </span>
         {status === "waiting" && <span className="block pl-6 text-muted">Given, waiting for confirmation</span>}
-        {status === "confirmed" && <span className="block pl-6 font-semibold text-life-ink">Given and confirmed by Every.org</span>}
+        {status === "confirmed" && (
+          <span className="block pl-6 font-semibold text-life-ink">
+            {forMode({ every: "Given and confirmed by Every.org", pledge: "Given and confirmed by Pledge", endaoment: "Given and confirmed", sponsor: "Given and confirmed" })}
+          </span>
+        )}
       </span>
       {action ?? (status === "later" && <span className="figures text-muted">{usd(row.total)}</span>)}
+      {children && <div className="basis-full">{children}</div>}
     </li>
   );
 }
@@ -166,27 +188,34 @@ export function FundSteps({ checkout, onChange, save }: { checkout: Checkout; on
   );
 }
 
+interface StepsProps {
+  checkout: Checkout;
+  onChange: (c: Checkout) => void;
+  /** Where progress is kept: the plan's checkout by default, or a gift's. */
+  save?: (c: Checkout) => void;
+  /** Called as the person gives the first time, before progress is saved: on tapping Give, or when Pledge reports a gift. */
+  onGo?: () => void;
+  /** False for a list not yet started, which has nothing to look up. */
+  saved?: boolean;
+}
+
+/** A checkout in progress, one gift per charity: Every.org's Give buttons, or Pledge's forms in pledge mode. */
+export function CheckoutSteps(props: StepsProps) {
+  return PAYMENT_MODE === "pledge" ? <PledgeSteps {...props} /> : <EverySteps {...props} />;
+}
+
 /**
  * A checkout in progress: every gift in order, with a Give button on the next
  * one only. Checks with the server which gifts Every.org has confirmed, and keeps
  * checking for a while after the person comes back.
  */
-export function CheckoutSteps({
+function EverySteps({
   checkout,
   onChange,
   onGo,
   saved = true,
   save = saveCheckout,
-}: {
-  checkout: Checkout;
-  onChange: (c: Checkout) => void;
-  /** Where progress is kept: the plan's checkout by default, or a gift's. */
-  save?: (c: Checkout) => void;
-  /** Called as the person taps Give, before Every.org opens. */
-  onGo?: () => void;
-  /** False for a list not yet started, which has nothing to look up. */
-  saved?: boolean;
-}) {
+}: StepsProps) {
   const waiting = checkout.rows.some((r) => checkout.done[r.key] && !checkout.confirmed[r.key]);
   const latest = useRef({ checkout, onChange, save });
   useEffect(() => {
@@ -243,6 +272,140 @@ export function CheckoutSteps({
       <p className="mt-2 text-sm text-muted">
         Before you give: <Link href="/ledger">where the money goes</Link>, <Link href="/promises">what I promise</Link> and{" "}
         <Link href="/method">how each price is worked out</Link>. Every gift goes straight to the charity through Every.org; none of it passes through My Offset.
+      </p>
+    </div>
+  );
+}
+
+// Pledge (pledge.to): each charity's donation form is embedded on the page, one at a time.
+
+const PLEDGE_SCRIPT = `${PLEDGE_ORIGIN}/embed/widget.js`;
+/** The site's accent green (--accent in globals.css, light theme), for the buttons in Pledge's form. */
+const ACCENT_HEX = "#1d6b3d";
+
+/**
+ * Loads Pledge's widget.js, which turns each .plg-donate div into a form. It
+ * scans the page when it runs, and its docs name no way to scan again, so each
+ * time a new form div mounts this removes the script tag and adds it back, which
+ * runs it again over the new div. Unverified against the live widget: if it
+ * guards against running twice, the second charity's form won't appear.
+ */
+function usePledgeWidget(formKey: string | null) {
+  useEffect(() => {
+    if (!formKey) return;
+    document.getElementById("pledge-widget-js")?.remove();
+    const s = document.createElement("script");
+    s.id = "pledge-widget-js";
+    s.src = PLEDGE_SCRIPT;
+    s.async = true;
+    document.body.appendChild(s);
+  }, [formKey]);
+}
+
+/**
+ * A checkout through Pledge: every gift in order, with the next charity's
+ * Pledge form open under its row and the amount filled in. When Pledge reports
+ * the gift, the row is marked given and the next form opens. Pledge's message
+ * can be sent by anyone and names no charity or gift, so a row is never marked
+ * confirmed from it: it waits for confirmation, like a gift made on Every.org.
+ */
+function PledgeSteps({ checkout, onChange, onGo, saved = true, save = saveCheckout }: StepsProps) {
+  const [attempt, setAttempt] = useState(0);
+  const [short, setShort] = useState<{ key: string; amount: number } | null>(null);
+  const partnerKey = pledgePartnerKey();
+  const next = nextRow(checkout);
+  const ein = next ? PLEDGE_EINS[next.charity] : undefined;
+  // Keyed by checkout, row and try, so a new div mounts for each form and the widget runs over it.
+  const formKey = next && ein && partnerKey ? `${checkout.id}.${next.key}.${attempt}` : null;
+  usePledgeWidget(formKey);
+  const latest = useRef({ checkout, onChange, onGo, saved, save, next });
+  useEffect(() => {
+    latest.current = { checkout, onChange, onGo, saved, save, next };
+  });
+  // Look once for any gift the server has confirmed. Nothing from Pledge is matched to plans yet (see api/pledge/webhook).
+  useEffect(() => {
+    if (!saved) return;
+    let stopped = false;
+    fetchConfirmed(checkout.id).then((paid) => {
+      const { checkout: c, onChange: change, save: keep } = latest.current;
+      const fresh = paid.filter((k) => !c.confirmed[k] && c.rows.some((r) => r.key === k));
+      if (stopped || !fresh.length) return;
+      const n = { ...c, confirmed: { ...c.confirmed, ...Object.fromEntries(fresh.map((k) => [k, true as const])) } };
+      keep(n);
+      change(n);
+    });
+    return () => {
+      stopped = true;
+    };
+  }, [checkout.id, saved]);
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      const got = pledgeCompleted(e);
+      const { checkout: c, onChange: change, onGo: go, saved: kept, save: keep, next: row } = latest.current;
+      if (!got || !got.fiat || !row || c.done[row.key]) return;
+      // A donor can change the amount in Pledge's form; a smaller gift doesn't count as this charity's share.
+      if (got.amount < row.donation - 0.005) {
+        setShort({ key: row.key, amount: got.amount });
+        setAttempt((a) => a + 1);
+        return;
+      }
+      setShort(null);
+      if (!kept) go?.();
+      const n = { ...c, done: { ...c.done, [row.key]: new Date().toISOString() } };
+      keep(n);
+      change(n);
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
+
+  const done = allConfirmed(checkout);
+  const shortRow = short && next?.key === short.key ? next : null;
+  return (
+    <div>
+      <ol className="divide-y divide-border border-y-2 border-rule text-sm">
+        {checkout.rows.map((r) => {
+          const status = checkout.confirmed[r.key] ? "confirmed" : checkout.done[r.key] ? "waiting" : r === next ? "next" : "later";
+          return (
+            <StepRow key={r.key} row={r} status={status} action={status === "next" ? <span className="figures font-semibold">{usd(r.total)}</span> : undefined}>
+              {status === "next" && formKey && (
+                <>
+                  {shortRow && (
+                    <p role="alert" className="mb-2 font-semibold">
+                      Pledge reported a gift of <span className="figures">{usd(short?.amount ?? 0)}</span>, less than{" "}
+                      {CHARITIES[r.charity].name}&apos;s share of <span className="figures">{usd(r.donation)}</span>. It isn&apos;t marked
+                      as given. To give its full share, use the form below.
+                    </p>
+                  )}
+                  <div
+                    key={formKey}
+                    className="plg-donate"
+                    data-partner-key={partnerKey ?? ""}
+                    data-ein={ein}
+                    data-amount={r.donation.toFixed(2)}
+                    data-currency="usd"
+                    data-style-hide-social="true"
+                    data-style-brand-color={ACCENT_HEX}
+                  />
+                </>
+              )}
+            </StepRow>
+          );
+        })}
+      </ol>
+      <p className="mt-2 text-sm text-muted" role="status">
+        {done
+          ? "Every gift is confirmed. Thank you. Pledge emails each receipt."
+          : next
+            ? formKey
+              ? "Each charity's form is below, one at a time, with its amount filled in. Pledge emails each receipt. You can stop and come back; this browser remembers where you got to."
+              : "Giving through Pledge opens soon."
+            : "All given. Thank you. Pledge emails each receipt. Items are marked offset here once I can confirm gifts with Pledge."}
+      </p>
+      <p className="mt-2 text-sm text-muted">
+        Before you give: <Link href="/ledger">where the money goes</Link>, <Link href="/promises">what I promise</Link> and{" "}
+        <Link href="/method">how each price is worked out</Link>. Every gift goes straight to the charity through Pledge, a nonprofit giving
+        platform; none of it passes through My Offset. Pledge may ask for an optional tip, which goes to Pledge. My Offset gets none of it.
       </p>
     </div>
   );

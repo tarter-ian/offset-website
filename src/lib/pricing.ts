@@ -83,9 +83,12 @@ const cents = (n: number) => Math.round(n * 100) / 100;
  * card fee. Through an Endaoment fund ("endaoment" mode, Ian leaning toward it
  * 2026-10-13), the person makes one gift to the fund and Endaoment grants it on
  * to the charities: its share is 0.5% on the way in plus 1% on the grant out.
+ * Through Pledge ("pledge" mode, a fallback for small gifts, 2026-10-15), each
+ * charity is paid separately in Pledge's embedded form, and Pledge covers the
+ * card fee on gifts up to $1,000.
  * Fees are worked out on the whole payment, so the donation arrives in full.
  */
-export type PaymentMode = "every" | "sponsor" | "endaoment";
+export type PaymentMode = "every" | "sponsor" | "endaoment" | "pledge";
 export interface CardRate {
   fixed: number;
   rate: number;
@@ -104,11 +107,18 @@ export const ENDAOMENT_GRANT_RATE = 0.01;
  * Replace with Endaoment's figure once it replies.
  */
 export const ENDAOMENT_CARD: CardRate = { fixed: 0.3, rate: 0.029 };
-/** The share kept by whoever holds the money, in each payment mode: none when paying through Every.org directly. */
+/**
+ * Pledge covers the card fee on gifts made in its own forms up to $1,000 (it may
+ * ask the donor for an optional tip, which goes to Pledge). Above that the donor
+ * pays the card fee; this assumes Stripe's standard 2.9% + 30¢ until Pledge says otherwise.
+ */
+export const PLEDGE_FREE_UP_TO_USD = 1000;
+export const PLEDGE_CARD: CardRate = { fixed: 0.3, rate: 0.029 };
+/** The share kept by whoever holds the money, in each payment mode: none when paying each charity directly. */
 export const sponsorRate = (mode: PaymentMode) =>
-  mode === "every" ? 0 : mode === "endaoment" ? ENDAOMENT_IN_RATE + ENDAOMENT_GRANT_RATE : SPONSOR_RATE;
+  mode === "every" || mode === "pledge" ? 0 : mode === "endaoment" ? ENDAOMENT_IN_RATE + ENDAOMENT_GRANT_RATE : SPONSOR_RATE;
 /** The card rate in each payment mode. */
-export const cardRate = (mode: PaymentMode): CardRate => (mode === "endaoment" ? ENDAOMENT_CARD : CARD);
+export const cardRate = (mode: PaymentMode): CardRate => (mode === "endaoment" ? ENDAOMENT_CARD : mode === "pledge" ? PLEDGE_CARD : CARD);
 export const paymentFee = (donation: number, sponsor: number = SPONSOR_RATE, card: CardRate = CARD) =>
   donation > 0 ? Math.ceil(((card.fixed + (card.rate + sponsor) * donation) / (1 - card.rate - sponsor)) * 100) / 100 : 0;
 /** The card fee alone on one payment, as on each Every.org donation. */
@@ -127,9 +137,13 @@ const pct = (r: number) => `${Math.round(r * 1000) / 10}%`;
 export const ENDAOMENT_IN_LABEL = pct(ENDAOMENT_IN_RATE);
 export const ENDAOMENT_GRANT_LABEL = pct(ENDAOMENT_GRANT_RATE);
 export const ENDAOMENT_CARD_LABEL = `30¢ + ${pct(ENDAOMENT_CARD.rate)}`;
+/** "30¢ + 2.9%" and "$1,000", for Pledge's labels. */
+export const PLEDGE_CARD_LABEL = `30¢ + ${pct(PLEDGE_CARD.rate)}`;
+export const PLEDGE_FREE_LABEL = `$${PLEDGE_FREE_UP_TO_USD.toLocaleString("en-US")}`;
 
 /**
- * Smallest donation, a dollar on any payment. Small donations are pooled and
+ * Smallest donation, a dollar on any payment. In pledge mode Pledge's own minimum
+ * is unconfirmed; a $1 gift went through in Ian's test (2026-10-15), so it stays $1. Small donations are pooled and
  * each charity gets one payment a month, so they still arrive in full (Ian, 2026-10-12).
  */
 export const MIN_DONATION_USD = 1;

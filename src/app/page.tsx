@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Store } from "@/components/Store";
-import { CARD_FEE_LABEL, ENDAOMENT_GRANT_LABEL, ENDAOMENT_IN_LABEL, SPONSOR_FEE_LABEL } from "@/lib/pricing";
+import { CARD_FEE_LABEL, ENDAOMENT_GRANT_LABEL, ENDAOMENT_IN_LABEL, PLEDGE_FREE_LABEL, SPONSOR_FEE_LABEL } from "@/lib/pricing";
 import { forMode, PAYMENT_MODE } from "@/lib/payments";
 
 export default function Home() {
@@ -17,6 +17,8 @@ export default function Home() {
             {forMode({
               every:
                 "You give to each charity on your plan directly, through Every.org, a nonprofit donation platform that sends you the tax receipt. I never hold your money.",
+              pledge:
+                "You give to each charity on your plan directly, through Pledge, a nonprofit giving platform that emails you the tax receipt. I never hold your money.",
               endaoment:
                 "You make one gift to My Offset's fund at Endaoment, a nonprofit that grants it on to each charity on your plan and sends you the tax receipt. I never hold your money.",
               sponsor:
@@ -30,6 +32,12 @@ export default function Home() {
               I don&apos;t take a cut. Each charity is paid separately through Every.org, which charges card payments 2.2% + 30¢ and
               bank payments nothing. The card fee is shown for each charity and added on top, so the whole donation arrives. Nothing is
               charged until you approve it.
+            </p>
+          ) : PAYMENT_MODE === "pledge" ? (
+            <p>
+              I don&apos;t take a cut. Each charity is paid separately through Pledge, which pays the card fee on gifts up to{" "}
+              {PLEDGE_FREE_LABEL}. Above that, the card fee is shown and added on top, so the whole donation arrives. Pledge may ask for
+              an optional tip, which goes to Pledge. Nothing is charged until you approve it.
             </p>
           ) : PAYMENT_MODE === "endaoment" ? (
             <p>

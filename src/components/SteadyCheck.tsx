@@ -49,7 +49,10 @@ const monthLong = (ym: string) => new Date(`${ym}-15T00:00:00Z`).toLocaleDateStr
 const list = (xs: string[]) => (xs.length < 2 ? (xs[0] ?? "") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
 const prompts = (n: number) => (n >= 10 ? Math.round(n) : n).toLocaleString();
 
-/** Shows nothing unless payments are on, the plan repeats through Every.org, and there are counts to compare with. */
+/**
+ * Shows nothing unless payments are on, the plan repeats through Every.org, and there are counts to compare with.
+ * Pledge's forms can't repeat a gift, so pledge mode has no steady gift to check.
+ */
 export function SteadyCheck({ plan, use: given, inStore = false }: { plan: SteadyPlan | null; use?: MonthUse[] | null; inStore?: boolean }) {
   const [topUp, setTopUp] = useState<TopUp | null>(null);
   const [draftId, setDraftId] = useState<string | null>(null);

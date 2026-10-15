@@ -39,6 +39,8 @@ import {
   LIFETIME_YEARS,
   lifetimeCost,
   monthlyCost,
+  PLEDGE_CARD_LABEL,
+  PLEDGE_FREE_LABEL,
   usd,
 } from "@/lib/pricing";
 
@@ -130,7 +132,7 @@ export function Results({
   const lifetimeRaw = lifetimeCost(cost);
   const rawDonation = cost.byImpact.carbon + cost.byImpact.air + cost.byImpact.water + cost.byImpact.land + cost.byImpact.ewaste;
   const billing = billingPick ?? DEFAULT_BILLING;
-  // Through Every.org each charity is its own payment, so the fee is one card fee per charity;
+  // Through Every.org or Pledge each charity is its own payment, so the fee is one card fee per charity (none up to $1,000 on Pledge);
   // through Endaoment it is one gift, carrying Endaoment's share and the card fee.
   const withFees = <T extends { donation: number; fee: number; total: number }>(b: T): T => {
     if (PAYMENT_MODE === "sponsor" || !(rawDonation > 0)) return b;
@@ -390,6 +392,7 @@ export function Results({
                   <dt className="text-muted">
                     {forMode({
                       every: "Card fees, one per charity paid through Every.org (2.2% + 30¢ each, no profit to me)",
+                      pledge: `Card fees, none on gifts up to ${PLEDGE_FREE_LABEL} through Pledge (${PLEDGE_CARD_LABEL} above that, no profit to me)`,
                       endaoment: `Fees (Endaoment ${ENDAOMENT_IN_LABEL} in and ${ENDAOMENT_GRANT_LABEL} out, card about ${ENDAOMENT_CARD_LABEL}, no profit to me)`,
                       sponsor: `Fees (card ${CARD_FEE_LABEL}, charity sponsor ${SPONSOR_FEE_LABEL}, no profit to me)`,
                     })}

@@ -5,7 +5,7 @@ import { CARBON_REMOVAL, CHARITIES } from "@/lib/charities";
 import { IMPACT_INFO } from "@/lib/impacts";
 import { LEDGER } from "@/lib/ledger";
 import { arrivedAndFees, confirmedTotals, everyCharities } from "@/lib/ledgerLive";
-import { ENDAOMENT_GRANT_LABEL, ENDAOMENT_IN_LABEL, SPONSOR_FEE_LABEL, usd } from "@/lib/pricing";
+import { ENDAOMENT_GRANT_LABEL, ENDAOMENT_IN_LABEL, PLEDGE_FREE_LABEL, SPONSOR_FEE_LABEL, usd } from "@/lib/pricing";
 import { forMode, PAYMENT_MODE } from "@/lib/payments";
 
 export const metadata: Metadata = { title: "Where the money goes | My Offset" };
@@ -19,6 +19,10 @@ const STEPS = PAYMENT_MODE === "every" ? [
   { title: "You give", body: "You give to each charity on your plan through Every.org, one gift per charity. Each gift shows its own card fee at checkout." },
   { title: "Every.org", body: "Every.org, a nonprofit donation platform, takes the payment, sends you the tax receipt and passes the gift to the charity. I never hold the money myself." },
   { title: "The charities", body: "Each charity gets your gift from Every.org. The card fee goes to the card processor. I keep nothing." },
+] : PAYMENT_MODE === "pledge" ? [
+  { title: "You give", body: `You give to each charity on your plan through Pledge, one gift per charity, in a form on this site. Pledge pays the card fee on gifts up to ${PLEDGE_FREE_LABEL}.` },
+  { title: "Pledge", body: "Pledge, a nonprofit giving platform, takes the payment, emails you the tax receipt and passes the gift to the charity. I never hold the money myself. Pledge may ask for an optional tip, which goes to Pledge. My Offset gets none of it." },
+  { title: "The charities", body: "Each charity gets your gift from Pledge. Any card fee goes to the card processor. I keep nothing." },
 ] : PAYMENT_MODE === "endaoment" ? [
   { title: "You give", body: "You make one gift to My Offset's fund at Endaoment. Checkout shows each charity's part and every fee." },
   { title: "Endaoment", body: `Endaoment, a nonprofit that runs charitable funds, takes the payment, sends you the tax receipt and holds the gift in the fund. I never hold the money myself. It keeps ${ENDAOMENT_IN_LABEL} as a gift comes in and ${ENDAOMENT_GRANT_LABEL} as it grants it out.` },
@@ -58,6 +62,7 @@ export default async function LedgerPage() {
         {forMode({
           every: "Every dollar given through this site, to every charity, as Every.org confirms it. Updated as gifts arrive.",
           endaoment: "Every dollar given through this site that I can confirm, to every charity. Updated as gifts arrive.",
+          pledge: "Every dollar given through this site that I can confirm, to every charity. Updated as gifts arrive.",
           sponsor: "Every dollar given through this site, to every charity, as Every.org confirms it. Updated as gifts arrive.",
         })}
       </p>
@@ -121,6 +126,7 @@ export default async function LedgerPage() {
         card processor kept. Nothing about who gave is shown.
         {PAYMENT_MODE === "endaoment" &&
           " So far that's gifts made for someone else. Gifts to the Endaoment fund are added once I can confirm them with Endaoment."}
+        {PAYMENT_MODE === "pledge" && " Gifts made through Pledge are added once I can confirm them with Pledge."}
       </p>
 
       {months.length === 0 ? (
@@ -162,6 +168,17 @@ export default async function LedgerPage() {
             payments nothing. Every.org sends your tax receipt and pays the charity. It may ask for a tip for itself; you can set it to $0 on its page, and I never see it. Later
             I may move to a fiscal sponsor, a registered charity that would hold donations and pay the charities each month. I&apos;ll
             say so here before that changes.
+          </p>
+        </>
+      ) : PAYMENT_MODE === "pledge" ? (
+        <>
+          <h2 id="sponsor" className="mt-12 scroll-mt-6 text-xl font-semibold">How payments work</h2>
+          <p className="mt-2 text-muted">
+            My Offset isn&apos;t a charity of its own, so you give to each charity directly through Pledge, a nonprofit giving platform
+            run by Pledgeling Foundation, a 501(c)(3). Each charity&apos;s form opens on this site with its amount filled in. Pledge pays
+            the card fee on gifts up to {PLEDGE_FREE_LABEL}; above that, the card fee is added on top. Pledge emails your tax receipt
+            and pays the charity. It may ask for an optional tip, which goes to Pledge, and I never see it. I&apos;ll say so here before
+            any of this changes.
           </p>
         </>
       ) : PAYMENT_MODE === "endaoment" ? (
