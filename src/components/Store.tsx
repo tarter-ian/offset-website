@@ -30,6 +30,7 @@ import {
   chargeSummary,
   charityName,
   type Checkout,
+  autopayOffered,
   forMode,
   FUND_KEY,
   type FundGift,
@@ -62,6 +63,8 @@ import {
   CARD_FEE_LABEL,
   SPONSOR_FEE_LABEL,
   ENDAOMENT_CARD_LABEL,
+  PLEDGE_CARD_LABEL,
+  PLEDGE_FREE_LABEL,
   ENDAOMENT_GRANT_LABEL,
   ENDAOMENT_IN_LABEL,
   feeParts,
@@ -246,8 +249,9 @@ export function Store() {
   const [open, setOpen] = useState(false);
   const [checkout, setCheckout] = useState(false);
   const [covered, setCovered] = useState<Record<string, Covered>>({});
-  // Gifts through Every.org repeat on their own only if the person ticks this.
-  const [autopay, setAutopay] = useState(false);
+  // Gifts through Every.org repeat on their own only if the person ticks this. Pledge's forms can't repeat, so it's never on there.
+  const [autopayPick, setAutopay] = useState(false);
+  const autopay = autopayPick && autopayOffered();
   // Progress through paying each charity, kept in this browser.
   const [payState, setPayState] = useState<Checkout | null>(null);
   const [previewing, setPreviewing] = useState(false);
@@ -442,8 +446,9 @@ export function Store() {
   const pastEnds = totals.pastSpread
     ? new Date(new Date().setMonth(new Date().getMonth() + totals.pastSpread.years * 12)).toLocaleDateString("en-US", { month: "long", year: "numeric" })
     : null;
-  // Through Every.org, each charity is its own payment with its own card fee.
-  const every = PAYMENT_MODE === "every";
+  // Through Every.org or Pledge, each charity is its own payment with its own fee.
+  const perCharity = PAYMENT_MODE === "every" || PAYMENT_MODE === "pledge";
+  const pledge = PAYMENT_MODE === "pledge";
   const split = harmSplit(totals, ctx, billing);
   const giftRows = payRows(split, billing, autopay);
   const repeatTotal = sumTotal(repeatRows(split, billing));
@@ -1173,6 +1178,7 @@ export function Store() {
     .join(" and ");
   const heroWhy = forMode({
     every: "card fees and at least $1 to each charity",
+    pledge: "at least $1 to each charity",
     endaoment: "card fees and Endaoment's fee",
     sponsor: "card fees and each charity's smallest gift",
   });
@@ -1807,7 +1813,7 @@ export function Store() {
                   </p>
                 </div>
                 )}
-                {every ? (
+                {perCharity ? (
                   <>
                     <dl className="figures mt-3 space-y-1 border-t border-border pt-3 text-sm">
                       {giftRows.map((r) => (
@@ -1816,9 +1822,7 @@ export function Store() {
                             {charityName(r)} ({harmsText(r.harms, (k) => IMPACT_INFO[k].label.toLowerCase())}
                             {r.frequency !== "ONCE" && `, ${BILLING[billing].per}`})
                           </dt>
-                          <dd className="shrink-0 text-right">
-                            {usd(r.donation)} + {usd(r.fee)} fee
-                          </dd>
+                          <dd className="shrink-0 text-right">{r.fee > 0 ? `${usd(r.donation)} + ${usd(r.fee)} fee` : usd(r.donation)}</dd>
                         </div>
                       ))}
                       <div className="flex justify-between gap-4 border-t border-border pt-1.5 text-base font-semibold">
@@ -1828,7 +1832,7 @@ export function Store() {
                     </dl>
                     {repeatTotal > 0 && (
                       <p className="figures mt-1 font-sans text-sm text-muted">
-                        Then {usd(repeatTotal)} {BILLING[billing].per}, one gift to each charity with its own card fee.{" "}
+                        Then {usd(repeatTotal)} {BILLING[billing].per}, one gift to each charity{pledge ? "" : " with its own card fee"}.{" "}
                         {autopay ? "Every.org charges it until you stop it." : "Nothing repeats on its own: you come back and give again."}
                         {totals.pastSpread &&
                           ` It includes ${usd(totals.pastSpread.perMonth * (billing === "annual" ? 12 : 1))} toward past use until ${pastEnds}${
@@ -1836,7 +1840,16 @@ export function Store() {
                           }`}
                       </p>
                     )}
-                    {payChoices(" (one 30¢ fee per charity a year)")}
+                    {payChoices(pledge ? "" : " (one 30¢ fee per charity a year)")}
+                    {pledge ? (
+                      <p className="mt-2 text-xs text-muted">
+                        Each charity is paid separately through Pledge, a nonprofit giving platform. Its form for each charity opens on this
+                        page with the amount filled in. Pledge pays the card fee on gifts up to {PLEDGE_FREE_LABEL}; above that, the fee
+                        ({PLEDGE_CARD_LABEL}) is added on top so the whole donation arrives. Pledge may ask for an optional tip, which goes to
+                        Pledge. My Offset gets none of it. The smallest gift is {usd(MIN_DONATION_USD)}; a charity&apos;s share under that is
+                        rounded up, so each part&apos;s money stays with its own charity. Pledge emails you a receipt for each gift.
+                      </p>
+                    ) : (
                     <p className="mt-2 text-xs text-muted">
                       Each charity is paid separately through Every.org, which charges card payments 2.2% + 30¢ and bank payments
                       nothing. Each gift includes its card fee so the whole donation arrives; pay by bank and the charity keeps the fee
@@ -1844,6 +1857,7 @@ export function Store() {
                       charity&apos;s share under that is rounded up, so each part&apos;s money stays with its own charity. Every.org emails you a
                       receipt for each gift.
                     </p>
+                    )}
                     {!paymentsOn() && (
                       <p className="mt-3 text-sm font-semibold">Payments open soon. Your plan stays saved in this browser until then.</p>
                     )}
@@ -2069,6 +2083,7 @@ function GiveDirectly({ totals, ctx, billing }: { totals: ReturnType<typeof plan
       <p className="mt-2 text-muted">
         {forMode({
           every: "You can give these amounts on each charity's own site instead.",
+          pledge: "You can give these amounts on each charity's own site instead.",
           endaoment: "You can skip Endaoment's fees by giving these amounts on each charity's own site.",
           sponsor: "You can skip these fees by giving these amounts on each charity's own site.",
         })}{" "}
@@ -2195,7 +2210,7 @@ function PaySection({
         </>
       ) : (
         <>
-          {hasRepeat && (
+          {hasRepeat && autopayOffered() && (
             <label className="mt-2 flex min-h-10 cursor-pointer items-start gap-2 text-sm">
               <input
                 type="checkbox"
@@ -2218,7 +2233,7 @@ function PaySection({
                 You&apos;re giving <span className="figures">{usd(today)}</span> today to {rows.length} charit
                 {rows.length === 1 ? "y" : "ies"}.
               </p>
-              <p className="mt-1 text-muted">A check before anything opens, since it&apos;s a big gift. Each charity&apos;s page shows its own part again.</p>
+              <p className="mt-1 text-muted">A check before anything opens, since it&apos;s a big gift. Each charity&apos;s {PAYMENT_MODE === "pledge" ? "form" : "page"} shows its own part again.</p>
               <button
                 type="button"
                 onClick={() => setConfirmedBig(true)}
@@ -2238,7 +2253,8 @@ function PaySection({
                 setPayState(c);
                 if (listName && !saved)
                   joinList(listName, { source: "plan", planId: c.id, billing, autopay, pastYears: listing.pastYears, lines: listing.lines, ctx: listing.ctx, rows }).then(
-                    (err) => setListNote(err ?? `You'll show on Who's offsetting as ${listName} once Every.org confirms every gift.`),
+                    (err) =>
+                      setListNote(err ?? `You'll show on Who's offsetting as ${listName} once ${PAYMENT_MODE === "pledge" ? "every gift is confirmed" : "Every.org confirms every gift"}.`),
                   );
               }}
             />

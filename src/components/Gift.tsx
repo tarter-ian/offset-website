@@ -377,6 +377,7 @@ export function GiftMaker() {
       <p className="text-sm text-muted">
         {forMode({
           every: "Every.org emails you a receipt for each charity.",
+          pledge: "Pledge emails you a receipt for each charity.",
           sponsor: "Each charity emails you a receipt.",
           endaoment: "Endaoment emails you the tax receipt.",
         })}{" "}
@@ -399,7 +400,7 @@ export function GiftMaker() {
                 {fund ? " in one gift to the fund at Endaoment" : ` to ${rows.length} charit${rows.length === 1 ? "y" : "ies"}`}.
               </p>
               <p className="mt-1 text-muted">
-                A check before anything opens, since it&apos;s a big gift.{fund ? "" : " Each charity's page shows its own part again."}
+                A check before anything opens, since it&apos;s a big gift.{fund ? "" : PAYMENT_MODE === "pledge" ? " Each charity's form shows its own part again." : " Each charity's page shows its own part again."}
               </p>
               <button
                 type="submit"

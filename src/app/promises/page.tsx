@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ContactLink } from "@/components/ContactLink";
 import { forMode } from "@/lib/payments";
-import { ENDAOMENT_GRANT_LABEL, ENDAOMENT_IN_LABEL } from "@/lib/pricing";
+import { ENDAOMENT_GRANT_LABEL, ENDAOMENT_IN_LABEL, PLEDGE_FREE_LABEL } from "@/lib/pricing";
 
 export const metadata: Metadata = { title: "Promises | My Offset" };
 
@@ -15,6 +15,8 @@ const PROMISES = [
         "You approve each gift yourself, on Every.org, one charity at a time. Nothing repeats unless you tick autopay at checkout. If you do, Every.org charges the same gifts each month or year until you cancel them in your Every.org account. I can't email you before those charges or hold one back, so leave autopay off if you want to approve each one.",
       endaoment:
         "You approve each gift yourself, on Endaoment's page for the My Offset fund. Nothing repeats on its own: each month or year, you come back and give again.",
+      pledge:
+        "You approve each gift yourself, in Pledge's form, one charity at a time. Nothing repeats on its own: each month or year, you come back and give again.",
       sponsor:
         "By default you approve each payment yourself, once a year or each month. Autopay is off unless you switch it on. If you do, I email you a few days before every charge with the amount and a one-click skip or stop, and a month that comes out more than $5 or 25% higher than the last, whichever is smaller, waits for your approval instead. The email shows the exact limit in dollars.",
     }),
@@ -23,11 +25,14 @@ const PROMISES = [
     title: forMode({
       every: "Your donation goes straight to charities",
       endaoment: "Your donation goes to the charities",
+      pledge: "Your donation goes straight to charities",
       sponsor: "Your donation goes straight to charities",
     }),
     body: forMode({
       every:
         "Each gift goes from you to the charity through Every.org, a nonprofit donation platform that sends you the tax receipt. I never hold the money myself. Every month's totals are public.",
+      pledge:
+        "Each gift goes from you to the charity through Pledge, a nonprofit giving platform that emails you the tax receipt. None of it passes through My Offset. Every month's totals are public.",
       endaoment:
         "You give to My Offset's fund at Endaoment, a nonprofit that sends you the tax receipt and grants the money on to each charity in the amounts checkout shows. I never hold the money myself.",
       sponsor:
@@ -40,6 +45,7 @@ const PROMISES = [
     body: forMode({
       every:
         "I don't make money on your donation. Each charity is paid separately through Every.org, which charges card payments 2.2% + 30¢ and bank payments nothing; the fee is shown for each charity. Paying yearly means one 30¢ fee per charity instead of twelve. There are no tips; I pay for running the site myself.",
+      pledge: `I don't make money on your donation. Each charity is paid separately through Pledge, which pays the card fee on gifts up to ${PLEDGE_FREE_LABEL}. Above that, the card fee is shown for that charity. Pledge may ask for an optional tip, which goes to Pledge; My Offset gets none of it. I pay for running the site myself.`,
       endaoment: `I don't make money on your donation. You make one gift, and the fees are passed on at cost, each on its own line: the card payment and Endaoment's ${ENDAOMENT_IN_LABEL} as the gift comes in and ${ENDAOMENT_GRANT_LABEL} as it is granted out. Paying yearly means one card fee instead of twelve. There are no tips; I pay for running the site myself.`,
       sponsor:
         "I don't make money on your donation. Two fees are passed on at cost, each on its own line: the card payment (30¢ plus 2.2%) and my charity sponsor's 8%, which pays for holding the money, sending tax receipts and paying the charities. Paying yearly means one 30¢ charge instead of twelve. There are no tips; I pay for running the site myself.",

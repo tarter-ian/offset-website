@@ -7,7 +7,8 @@ import { type Context, harmSplit, type PastYears, type PlanLine, planTotals } fr
 // Steady autopay is the opt-in mode: the same gift repeats through Every.org, and
 // when real use drifts from what it was set for we suggest a top-up or a lower
 // gift (Ian, 2026-10-13). All of this is worked out in the browser from the
-// extension's counts; usage never goes to the server.
+// extension's counts; usage never goes to the server. Pledge's forms can't
+// repeat a gift, so a pledge checkout never has a steady gift.
 
 /** A paid plan with a repeating part: what it was priced from, and when it started. */
 export interface SteadyPlan {

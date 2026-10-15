@@ -108,7 +108,8 @@ export function parsePlanClaim(b: Record<string, unknown>): PlanClaimInput | nul
 /**
  * What a plan's checkout owes, in the site's payment mode: the list checks the same
  * records the checkout does (Ian, 2026-10-13), so in Endaoment mode that's the one
- * gift to the fund. Nothing repeats on its own there, so autopay plays no part.
+ * gift to the fund. Nothing repeats on its own there, so autopay plays no part. In
+ * pledge mode it's one gift per charity, as on Every.org, and payRows drops autopay.
  */
 export function planRows(i: PlanClaimInput, mode: PaymentMode = PAYMENT_MODE): Owed[] {
   const split = harmSplit(planTotals(i.lines, i.ctx, i.billing, i.pastYears), i.ctx, i.billing);

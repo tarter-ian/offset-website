@@ -42,6 +42,8 @@ const ROWS: Row[] = [
     ours: forMode({
       every:
         "All of it. You give to each charity through Every.org, and the only fee is its card fee, shown for each charity. I pay for running the site myself.",
+      pledge:
+        "All of it. You give to each charity through Pledge, a nonprofit giving platform. Pledge pays the card fee on gifts up to $1,000, so there is no fee on most gifts. I pay for running the site myself.",
       endaoment: `All of it. You give once through Endaoment, and the only fees are the card payment and Endaoment's ${ENDAOMENT_IN_LABEL} in and ${ENDAOMENT_GRANT_LABEL} out, each on its own line. I pay for running the site myself.`,
       sponsor:
         "All of it. The only fees are the card payment and my charity sponsor's share, each on its own line. I pay for running the site myself.",
@@ -56,6 +58,8 @@ const ROWS: Row[] = [
         ? "You approve each gift, monthly or yearly, and can skip any month. Nothing repeats on its own."
         : PAYMENT_MODE === "every"
         ? "You approve each payment, monthly or yearly, and can skip any month. Autopay through Every.org is there if you want it, off by default."
+        : PAYMENT_MODE === "pledge"
+        ? "You approve each gift, monthly or yearly, and can skip any month. Nothing repeats on its own."
         : "You approve each payment, monthly or yearly, and can skip any month. Autopay is there if you want it, off by default, with an email before every charge.",
   },
   {
@@ -75,6 +79,7 @@ const ROWS: Row[] = [
     ours: forMode({
       every: "Charities chosen on evidence, and no carbon credits. Every month's totals are public, and Every.org emails you the receipt for each gift.",
       endaoment: "Charities chosen on evidence, and no carbon credits. Every month's totals are public, and Endaoment emails you the receipt.",
+      pledge: "Charities chosen on evidence, and no carbon credits. Every month's totals are public, and Pledge emails you the receipt for each gift.",
       sponsor: "Charities chosen on evidence, and no carbon credits. Every month's totals are public, and my charity sponsor emails you the receipt.",
     }),
   },

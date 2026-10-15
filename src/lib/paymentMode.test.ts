@@ -1,6 +1,19 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { chargeTotal, giftCharge, type GiftItem, giftOwed, giftPaidMode } from "./gifts";
-import { chargeSummary, FUND_KEY, fundGifts, owedPaid, payRows } from "./payments";
+import {
+  autopayOffered,
+  chargeSummary,
+  EVERY_SLUGS,
+  feeFor,
+  FUND_KEY,
+  fundGifts,
+  owedPaid,
+  paymentModeFrom,
+  payRows,
+  PLEDGE_EINS,
+  pledgeCompleted,
+  repeatRows,
+} from "./payments";
 import { parsePlanClaim, planRows } from "./publicList";
 import { DEFAULT_CONTEXT as C, harmSplit, planTotals } from "./store";
 
@@ -93,3 +106,101 @@ describe("in Every.org mode", () => {
     expect(giftPaidMode(gift, paid.slice(1))).toBeNull();
   });
 });
+
+describe("in Pledge mode", () => {
+  // Every.org's $10 smallest gift breaks small per-charity gifts; Pledge took a $1 gift in Ian's test (2026-10-15).
+  it("switches on only with both the mode and a partner key", () => {
+    expect(paymentModeFrom("pledge", undefined, "pk_123")).toBe("pledge");
+    expect(paymentModeFrom("pledge", undefined, undefined)).toBe("every");
+    expect(paymentModeFrom("pledge", undefined, "  ")).toBe("every");
+    expect(paymentModeFrom(undefined, undefined, "pk_123")).toBe("every");
+    expect(paymentModeFrom("every", undefined, "pk_123")).toBe("every");
+  });
+
+  it("is the default once both are set, for gifts and the list alike", async () => {
+    vi.stubEnv("NEXT_PUBLIC_PAYMENT_MODE", "pledge");
+    vi.stubEnv("NEXT_PUBLIC_PLEDGE_PARTNER_KEY", "pk_test");
+    vi.resetModules();
+    const p = await import("./payments");
+    const g = await import("./gifts");
+    expect(p.PAYMENT_MODE).toBe("pledge");
+    expect(g.giftCharge(items).fund).toBeUndefined();
+    expect(g.giftCharge(items).rows.every((r) => r.fee === 0)).toBe(true);
+  });
+
+  it("stays on Every.org with the mode set but no partner key", async () => {
+    vi.stubEnv("NEXT_PUBLIC_PAYMENT_MODE", "pledge");
+    vi.stubEnv("NEXT_PUBLIC_PLEDGE_PARTNER_KEY", "");
+    vi.resetModules();
+    expect((await import("./payments")).PAYMENT_MODE).toBe("every");
+  });
+
+  it("has an EIN for every charity Every.org pays, shared the same way", () => {
+    for (const k of Object.keys(EVERY_SLUGS) as (keyof typeof EVERY_SLUGS)[]) expect(PLEDGE_EINS[k]).toMatch(/^\d{2}-\d{7}$/);
+    expect(PLEDGE_EINS.air).toBe(PLEDGE_EINS.carbon);
+  });
+
+  it("is one gift per charity with $1 minimums, the same rows as Every.org but no fee up to $1,000", () => {
+    const c = giftCharge(items, C.birthYear, 1, "pledge");
+    const e = giftCharge(items, C.birthYear, 1, "every");
+    expect(c.fund).toBeUndefined();
+    expect(c.rows.map((r) => [r.key, r.donation])).toEqual(e.rows.map((r) => [r.key, r.donation]));
+    expect(c.rows.every((r) => r.donation >= 1 && r.fee === 0 && r.total === r.donation)).toBe(true);
+    const tiny = giftCharge([{ productId: "ai", span: "month" }], C.birthYear, 1, "pledge").rows;
+    expect(tiny.length).toBeGreaterThan(0);
+    expect(tiny.every((r) => r.donation >= 1)).toBe(true);
+    // Carbon and air go to Clean Air Task Force in one gift.
+    const both = payRows({ ...split0(), carbon: { once: 0.2, perPeriod: 0 }, air: { once: 0.3, perPeriod: 0 } }, "monthly", false, "pledge");
+    expect(both).toHaveLength(1);
+    expect(both[0]).toMatchObject({ charity: "carbon", harms: ["carbon", "air"], donation: 1, fee: 0, total: 1 });
+    // Same keys and donations as Every.org's, so a gift is checked against the same records.
+    const owed = (m: "pledge" | "every") => giftOwed({ ...gift, to: "Sam" }, m).map((r) => [r.key, r.donation]);
+    expect(owed("pledge")).toEqual(owed("every"));
+    const split = harmSplit(planTotals(claim.lines, claim.ctx, claim.billing, claim.pastYears), claim.ctx, claim.billing);
+    expect(planRows(claim, "pledge").map((r) => r.key)).toEqual(payRows(split, "monthly", false, "every").map((r) => r.key));
+  });
+
+  it("charges no fee at $1,000 or less, and the card fee above", () => {
+    expect(feeFor(1, "pledge")).toBe(0);
+    expect(feeFor(1000, "pledge")).toBe(0);
+    expect(feeFor(1000.01, "pledge")).toBeGreaterThan(0);
+    // 2.9% + 30¢, worked out on the whole payment so $2,000 arrives in full.
+    const fee = feeFor(2000, "pledge");
+    expect(2000 + fee - (0.3 + 0.029 * (2000 + fee))).toBeGreaterThanOrEqual(2000 - 0.005);
+  });
+
+  it("offers no autopay: no repeating rows even when asked, but still says what each month costs", () => {
+    expect(autopayOffered("pledge")).toBe(false);
+    expect(autopayOffered("every")).toBe(true);
+    const s = { ...split0(), carbon: { once: 5, perPeriod: 2 }, water: { once: 0, perPeriod: 1 } };
+    const rows = payRows(s, "monthly", true, "pledge");
+    expect(rows.every((r) => r.frequency === "ONCE")).toBe(true);
+    expect(rows).toEqual(payRows(s, "monthly", false, "pledge"));
+    expect(repeatRows(s, "monthly", "pledge").map((r) => r.donation)).toEqual([2, 1]);
+    expect(chargeSummary(s, "monthly", true, "pledge")).toEqual({ today: 8, then: 3 });
+    expect(planRows({ ...claim, autopay: true }, "pledge").every((r) => !r.key.endsWith("-repeat"))).toBe(true);
+  });
+
+  it("reads Pledge's completion message only from Pledge, as a JSON string", () => {
+    const msg = (data: object) => JSON.stringify({ message: "DonateCompleted", data });
+    const fiat = { currencyType: "fiat", pending: false, currency: "usd", amount: "1.00", fees: null, tip: "0.15", total: "1.15" };
+    expect(pledgeCompleted({ origin: "https://www.pledge.to", data: msg(fiat) })).toEqual({ amount: 1, fiat: true });
+    expect(pledgeCompleted({ origin: "https://www.pledge.to", data: msg({ ...fiat, currencyType: "crypto" }) })).toEqual({ amount: 1, fiat: false });
+    expect(pledgeCompleted({ origin: "https://evil.example", data: msg(fiat) })).toBeNull();
+    expect(pledgeCompleted({ origin: "https://pledge.to", data: msg(fiat) })).toBeNull();
+    expect(pledgeCompleted({ origin: "https://www.pledge.to", data: "{not json" })).toBeNull();
+    expect(pledgeCompleted({ origin: "https://www.pledge.to", data: { message: "DonateCompleted", data: fiat } })).toBeNull();
+    expect(pledgeCompleted({ origin: "https://www.pledge.to", data: JSON.stringify({ message: "Other", data: fiat }) })).toBeNull();
+    expect(pledgeCompleted({ origin: "https://www.pledge.to", data: msg({ ...fiat, amount: "lots" }) })).toBeNull();
+  });
+});
+
+function split0() {
+  return {
+    carbon: { once: 0, perPeriod: 0 },
+    air: { once: 0, perPeriod: 0 },
+    water: { once: 0, perPeriod: 0 },
+    land: { once: 0, perPeriod: 0 },
+    ewaste: { once: 0, perPeriod: 0 },
+  };
+}

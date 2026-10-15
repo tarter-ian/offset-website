@@ -1,14 +1,23 @@
 import { CHARITIES } from "./charities";
 import type { ImpactKey } from "./footprint";
-import { BILLING, type Billing, cardFee, cardRate, feeParts, MIN_DONATION_USD, paymentFee, type PaymentMode, sponsorRate } from "./pricing";
+import { BILLING, type Billing, cardRate, feeParts, MIN_DONATION_USD, paymentFee, type PaymentMode, PLEDGE_FREE_UP_TO_USD, sponsorRate } from "./pricing";
 import { defaultPastYears, harmSplit, type HarmSplit, PAST_MONTHLY_CAP_USD, PAST_YEARS, type PastYears, type PlanLine, planTotals } from "./store";
 import type { Context } from "./store";
 
-// How people pay. For now each charity is paid through Every.org directly, a free
-// 501(c)(3) donation platform that sends its own receipt for each gift (Ian,
-// 2026-10-12). Every.org wants at least $10 a gift, so Ian leans toward one gift
-// to an Endaoment fund that grants it on to the charities (2026-10-13); that mode
-// is built but stays off until the fund exists and Endaoment has answered him.
+// How people pay, set by NEXT_PUBLIC_PAYMENT_MODE:
+// - "every" (the default): each charity is paid through Every.org directly, a free
+//   501(c)(3) donation platform that sends its own receipt for each gift (Ian,
+//   2026-10-12). Every.org wants at least $10 a gift, which breaks small gifts.
+// - "endaoment": one gift to an Endaoment fund that grants it on to the charities.
+//   Ian leans toward it as the end goal (2026-10-13); it stays off until the fund
+//   exists and Endaoment has answered him.
+// - "pledge": a fallback for small gifts (2026-10-15). Still one gift per charity,
+//   like "every", but each charity's form from Pledge (pledge.to, run by Pledgeling
+//   Foundation, a 501(c)(3)) is embedded on the page with its amount filled in. A
+//   $1 gift went through in Ian's test without signing up. Pledge's forms take no
+//   reference and offer no repeating gifts, so there is no autopay and a gift stays
+//   "given, waiting for confirmation" until Pledge's webhook can be matched to plans.
+// - "sponsor": a fiscal sponsor that would hold donations. Not set up; never chosen by env.
 
 export type { PaymentMode };
 
@@ -22,19 +31,28 @@ const httpsUrl = (u: string | undefined) => {
 
 /**
  * NEXT_PUBLIC_PAYMENT_MODE=endaoment gives through the Endaoment fund, but only
- * with NEXT_PUBLIC_ENDAOMENT_FUND_URL set to its donate page; anything else stays on Every.org.
+ * with NEXT_PUBLIC_ENDAOMENT_FUND_URL set to its donate page. NEXT_PUBLIC_PAYMENT_MODE=pledge
+ * gives through Pledge's forms, but only with NEXT_PUBLIC_PLEDGE_PARTNER_KEY set. Anything else stays on Every.org.
  */
-export const paymentModeFrom = (mode: string | undefined, fundUrl: string | undefined): PaymentMode =>
-  mode === "endaoment" && httpsUrl(fundUrl) ? "endaoment" : "every";
-export const PAYMENT_MODE: PaymentMode = paymentModeFrom(process.env.NEXT_PUBLIC_PAYMENT_MODE, process.env.NEXT_PUBLIC_ENDAOMENT_FUND_URL);
+export const paymentModeFrom = (mode: string | undefined, fundUrl: string | undefined, pledgeKey?: string): PaymentMode =>
+  mode === "endaoment" && httpsUrl(fundUrl) ? "endaoment" : mode === "pledge" && !!pledgeKey?.trim() ? "pledge" : "every";
+export const PAYMENT_MODE: PaymentMode = paymentModeFrom(
+  process.env.NEXT_PUBLIC_PAYMENT_MODE,
+  process.env.NEXT_PUBLIC_ENDAOMENT_FUND_URL,
+  process.env.NEXT_PUBLIC_PLEDGE_PARTNER_KEY,
+);
 /** Picks the wording or value for the current payment mode, so no mode is left showing another's. */
 export const forMode = <T>(m: Record<PaymentMode, T>, mode: PaymentMode = PAYMENT_MODE): T => m[mode];
 
 /** Payments are off until NEXT_PUBLIC_PAYMENTS_ON is "1"; until then nothing is chargeable. */
 export const paymentsOn = () => process.env.NEXT_PUBLIC_PAYMENTS_ON === "1";
 
-/** The fee on one payment in the current mode: the card fee, plus the sponsor's or Endaoment's share. */
-export const feeFor = (donation: number, mode: PaymentMode = PAYMENT_MODE) => paymentFee(donation, sponsorRate(mode), cardRate(mode));
+/**
+ * The fee on one payment in the current mode: the card fee, plus the sponsor's or Endaoment's share.
+ * Through Pledge there is none up to $1,000, since Pledge covers the card fee on its own forms.
+ */
+export const feeFor = (donation: number, mode: PaymentMode = PAYMENT_MODE) =>
+  mode === "pledge" && donation <= PLEDGE_FREE_UP_TO_USD ? 0 : paymentFee(donation, sponsorRate(mode), cardRate(mode));
 
 /**
  * Every.org nonprofit slugs, each checked against its every.org page (2026-10-12).
@@ -47,6 +65,43 @@ export const EVERY_SLUGS: Partial<Record<ImpactKey, string>> = {
   land: "rainforest-trust", // Rainforest Trust, EIN 13-3500609
   ewaste: "pcs-for-people", // PCs for People, EIN 26-2066045
 };
+
+/**
+ * Each charity's EIN, which Pledge's form takes (data-ein), from the EINs above.
+ * Harms sharing a charity share one gift, the same as on Every.org.
+ */
+export const PLEDGE_EINS: Partial<Record<ImpactKey, string>> = {
+  carbon: "04-3512550", // Clean Air Task Force
+  air: "04-3512550", // Clean Air Task Force too: one gift offsets carbon and air
+  water: "84-1606567", // Colorado Water Trust
+  land: "13-3500609", // Rainforest Trust
+  ewaste: "26-2066045", // PCs for People
+};
+
+/** The public partner key Pledge's forms are embedded with. It sits in the page's HTML, so it isn't a secret. */
+export const pledgePartnerKey = () => process.env.NEXT_PUBLIC_PLEDGE_PARTNER_KEY?.trim() || null;
+
+export const PLEDGE_ORIGIN = "https://www.pledge.to";
+
+/**
+ * What Pledge's form reports when a gift is made, or null for any other message.
+ * Pledge posts a JSON string, {"message":"DonateCompleted","data":{currencyType, pending,
+ * currency, amount, fees, tip, total}}, with money as decimal strings. It names no
+ * charity and no gift, and any page could send one, so it only ever marks a gift
+ * as given, never as confirmed.
+ */
+export function pledgeCompleted(e: { origin: string; data: unknown }): { amount: number; fiat: boolean } | null {
+  if (e.origin !== PLEDGE_ORIGIN || typeof e.data !== "string") return null;
+  try {
+    const m = JSON.parse(e.data) as { message?: unknown; data?: { currencyType?: unknown; amount?: unknown } } | null;
+    const raw = m?.message === "DonateCompleted" ? m.data?.amount : undefined;
+    if (typeof raw !== "string" && typeof raw !== "number") return null;
+    const amount = Number(raw);
+    return Number.isFinite(amount) && amount >= 0 ? { amount, fiat: m?.data?.currencyType === "fiat" } : null;
+  } catch {
+    return null;
+  }
+}
 
 const HARM_ORDER: ImpactKey[] = ["carbon", "air", "water", "land", "ewaste"];
 
@@ -104,9 +159,17 @@ function rowsFor(amounts: Record<ImpactKey, number>, frequency: Frequency, suffi
  * The payments that settle a plan, one per charity. Without autopay everything
  * due now (past use, lifetime and the first month or year) goes in one gift to
  * each charity. With autopay, the repeating part is its own gift that Every.org
- * charges again each month or year.
+ * charges again each month or year. Autopay is only offered where the gifts can
+ * repeat on their own (see autopayOffered), and is ignored elsewhere.
  */
-export function payRows(split: HarmSplit, billing: Billing, autopay: boolean, mode: PaymentMode = PAYMENT_MODE): PayRow[] {
+export const payRows = (split: HarmSplit, billing: Billing, autopay: boolean, mode: PaymentMode = PAYMENT_MODE): PayRow[] =>
+  splitRows(split, billing, autopay && autopayOffered(mode), mode);
+
+/** Whether a mode can repeat gifts on their own. Every.org can; Pledge's forms take no frequency. */
+export const autopayOffered = (mode: PaymentMode = PAYMENT_MODE) => mode !== "pledge";
+
+/** payRows without the autopay check, for working out what each later month or year costs in any mode. */
+function splitRows(split: HarmSplit, billing: Billing, autopay: boolean, mode: PaymentMode): PayRow[] {
   const pick = (f: (k: ImpactKey) => number) => Object.fromEntries(HARM_ORDER.map((k) => [k, f(k)])) as Record<ImpactKey, number>;
   if (!autopay) return rowsFor(pick((k) => split[k].once + split[k].perPeriod), "ONCE", "", mode);
   return [
@@ -121,7 +184,7 @@ export const onceRows = (amounts: Partial<Record<ImpactKey, number>>, mode: Paym
 
 /** What a plan costs again each month or year, one gift per charity. */
 export const repeatRows = (split: HarmSplit, billing: Billing, mode: PaymentMode = PAYMENT_MODE) =>
-  payRows(split, billing, true, mode).filter((r) => r.frequency !== "ONCE");
+  splitRows(split, billing, true, mode).filter((r) => r.frequency !== "ONCE");
 
 /**
  * The default spread for past use: of the spreads that keep it at or under the
@@ -149,11 +212,11 @@ export function bestPastYears(plan: PlanLine[], ctx: Context, billing: Billing, 
 /** What a plan charges once, and then each month or year, with every fee, when the repeating part is its own gift. */
 function charges(split: HarmSplit, billing: Billing, mode: PaymentMode): { once: number; repeat: number } {
   if (mode === "endaoment") return { once: fundGift(byHarm((k) => split[k].once)).total, repeat: fundGifts(split).repeat?.total ?? 0 };
-  const rows = payRows(split, billing, true, mode);
+  const rows = splitRows(split, billing, true, mode);
   return { once: sumTotal(rows.filter((r) => r.frequency === "ONCE")), repeat: sumTotal(rows.filter((r) => r.frequency !== "ONCE")) };
 }
 
-/** What checkout charges today and then each month or year, fees included, through Every.org or Endaoment. */
+/** What checkout charges today and then each month or year, fees included, through Every.org, Pledge or Endaoment. */
 export function chargeSummary(split: HarmSplit, billing: Billing, autopay: boolean, mode: PaymentMode = PAYMENT_MODE) {
   if (mode === "endaoment") {
     const g = fundGifts(split);
@@ -164,9 +227,10 @@ export function chargeSummary(split: HarmSplit, billing: Billing, autopay: boole
 
 export const sumTotal = (rows: PayRow[]) => Math.round(rows.reduce((s, r) => s + r.total, 0) * 100) / 100;
 
-/** The card fees for giving these amounts to the charities one payment each, as Every.org charges them. */
-export function perCharityFees(amounts: Partial<Record<ImpactKey, number>>): number {
-  return Math.round([...byPayee(amounts).values()].reduce((s, g) => s + cardFee(g.amount), 0) * 100) / 100;
+/** The fees for giving these amounts to the charities one payment each, as Every.org or Pledge charges them. */
+export function perCharityFees(amounts: Partial<Record<ImpactKey, number>>, mode: PaymentMode = PAYMENT_MODE): number {
+  const m = mode === "pledge" ? "pledge" : "every";
+  return Math.round([...byPayee(amounts).values()].reduce((s, g) => s + feeFor(g.amount, m), 0) * 100) / 100;
 }
 
 // Endaoment: one gift to the fund, which Endaoment grants on to each charity.
