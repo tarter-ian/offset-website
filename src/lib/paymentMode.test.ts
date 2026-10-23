@@ -12,6 +12,7 @@ import {
   payRows,
   PLEDGE_EINS,
   pledgeCompleted,
+  pledgeFormUrl,
   repeatRows,
 } from "./payments";
 import { parsePlanClaim, planRows } from "./publicList";
@@ -108,6 +109,16 @@ describe("in Every.org mode", () => {
 });
 
 describe("in Pledge mode", () => {
+  it("builds each charity's form address with its exact amount, no tip and the plan's tags", () => {
+    const u = new URL(pledgeFormUrl({ partnerKey: "pk_123", ein: "04-3512550", amount: 7.48, planId: "abc", gift: "carbon", brandColor: "#1d6b3d" }));
+    expect(u.origin + u.pathname).toBe("https://www.pledge.to/widgets/donate/pk_123/ein/04-3512550");
+    expect(u.searchParams.get("amount")).toBe("7.48");
+    expect(u.searchParams.get("tip_rate")).toBe("0");
+    expect(u.searchParams.get("style_brand_color")).toBe("#1d6b3d");
+    expect(new URLSearchParams(u.searchParams.get("metadata")!).get("data-x-plan")).toBe("abc");
+    expect(new URLSearchParams(u.searchParams.get("metadata")!).get("data-x-gift")).toBe("carbon");
+  });
+
   // Every.org's $10 smallest gift breaks small per-charity gifts; Pledge took a $1 gift in Ian's test (2026-10-15).
   it("switches on only with both the mode and a partner key", () => {
     expect(paymentModeFrom("pledge", undefined, "pk_123")).toBe("pledge");

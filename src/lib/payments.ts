@@ -84,6 +84,27 @@ export const pledgePartnerKey = () => process.env.NEXT_PUBLIC_PLEDGE_PARTNER_KEY
 export const PLEDGE_ORIGIN = "https://www.pledge.to";
 
 /**
+ * The address of one charity's Pledge donation form, loaded straight into an iframe. Pledge's
+ * widget.js builds the same address from a .plg-donate div, but in Ian's test (2026-10-23) its
+ * forms opened at $5 while this address with ?amount=7.48 opened at $7.48, so the site builds it
+ * itself. Parameter names are widget.js's, in snake case: tip_rate=0 starts Pledge's optional tip
+ * at nothing, and metadata carries the plan and the charity's gift, the way widget.js passes
+ * data-x-* attributes, so Pledge's webhook can name them once its payload is known.
+ */
+export function pledgeFormUrl(o: { partnerKey: string; ein: string; amount: number; planId: string; gift: string; brandColor?: string; embeddedOn?: string }) {
+  const q = new URLSearchParams({
+    amount: o.amount.toFixed(2),
+    tip_rate: "0",
+    currency: "usd",
+    style_hide_social: "true",
+    metadata: new URLSearchParams({ "data-x-plan": o.planId, "data-x-gift": o.gift }).toString(),
+  });
+  if (o.brandColor) q.set("style_brand_color", o.brandColor);
+  if (o.embeddedOn) q.set("embedded_on", o.embeddedOn);
+  return `${PLEDGE_ORIGIN}/widgets/donate/${encodeURIComponent(o.partnerKey)}/ein/${encodeURIComponent(o.ein)}?${q}`;
+}
+
+/**
  * What Pledge's form reports when a gift is made, or null for any other message.
  * Pledge posts a JSON string, {"message":"DonateCompleted","data":{currencyType, pending,
  * currency, amount, fees, tip, total}}, with money as decimal strings. It names no
