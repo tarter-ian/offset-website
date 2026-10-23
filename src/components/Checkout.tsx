@@ -384,6 +384,12 @@ function PledgeSteps({ checkout, onChange, onGo, saved = true, save = saveChecko
                     data-ein={ein}
                     data-amount={r.donation.toFixed(2)}
                     data-currency="usd"
+                    // Pledge's widget.js passes tipRate on to the form; 0 starts its optional tip at nothing.
+                    data-tip-rate="0"
+                    // widget.js sends any data-x-* attributes to Pledge as the gift's metadata, so the
+                    // webhook can name the plan and the charity's gift once its payload is known.
+                    data-x-plan={checkout.id}
+                    data-x-gift={r.key}
                     data-style-hide-social="true"
                     data-style-brand-color={ACCENT_HEX}
                   />
