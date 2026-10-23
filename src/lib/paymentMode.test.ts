@@ -151,21 +151,22 @@ describe("in Pledge mode", () => {
     expect(PLEDGE_EINS.air).toBe(PLEDGE_EINS.carbon);
   });
 
-  it("is one gift per charity with $1 minimums, the same rows as Every.org but no fee up to $1,000", () => {
+  it("is one gift per charity with 25¢ minimums, the same charities as Every.org but no fee up to $1,000", () => {
     const c = giftCharge(items, C.birthYear, 1, "pledge");
     const e = giftCharge(items, C.birthYear, 1, "every");
     expect(c.fund).toBeUndefined();
-    expect(c.rows.map((r) => [r.key, r.donation])).toEqual(e.rows.map((r) => [r.key, r.donation]));
-    expect(c.rows.every((r) => r.donation >= 1 && r.fee === 0 && r.total === r.donation)).toBe(true);
+    expect(c.rows.map((r) => r.key)).toEqual(e.rows.map((r) => r.key));
+    expect(c.rows.every((r) => r.donation >= 0.25 && r.fee === 0 && r.total === r.donation)).toBe(true);
     const tiny = giftCharge([{ productId: "ai", span: "month" }], C.birthYear, 1, "pledge").rows;
     expect(tiny.length).toBeGreaterThan(0);
-    expect(tiny.every((r) => r.donation >= 1)).toBe(true);
+    expect(tiny.every((r) => r.donation >= 0.25)).toBe(true);
+    expect(tiny.some((r) => r.donation < 1)).toBe(true);
     // Carbon and air go to Clean Air Task Force in one gift.
     const both = payRows({ ...split0(), carbon: { once: 0.2, perPeriod: 0 }, air: { once: 0.3, perPeriod: 0 } }, "monthly", false, "pledge");
     expect(both).toHaveLength(1);
-    expect(both[0]).toMatchObject({ charity: "carbon", harms: ["carbon", "air"], donation: 1, fee: 0, total: 1 });
-    // Same keys and donations as Every.org's, so a gift is checked against the same records.
-    const owed = (m: "pledge" | "every") => giftOwed({ ...gift, to: "Sam" }, m).map((r) => [r.key, r.donation]);
+    expect(both[0]).toMatchObject({ charity: "carbon", harms: ["carbon", "air"], donation: 0.5, fee: 0, total: 0.5 });
+    // Same keys as Every.org's, so a gift is checked against the same records.
+    const owed = (m: "pledge" | "every") => giftOwed({ ...gift, to: "Sam" }, m).map((r) => r.key);
     expect(owed("pledge")).toEqual(owed("every"));
     const split = harmSplit(planTotals(claim.lines, claim.ctx, claim.billing, claim.pastYears), claim.ctx, claim.billing);
     expect(planRows(claim, "pledge").map((r) => r.key)).toEqual(payRows(split, "monthly", false, "every").map((r) => r.key));
