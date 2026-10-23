@@ -20,6 +20,7 @@ import {
   PLEDGE_EINS,
   pledgeCompleted,
   pledgeFormUrl,
+  PLEDGE_PREFILL_MIN_USD,
   pledgePartnerKey,
   saveCheckout,
 } from "@/lib/payments";
@@ -360,6 +361,15 @@ function PledgeSteps({ checkout, onChange, onGo, saved = true, save = saveChecko
                       as given. To give its full share, use the form below.
                     </p>
                   )}
+                  <p className="mb-2">
+                    {r.donation < PLEDGE_PREFILL_MIN_USD ? (
+                      <>
+                        Pledge&apos;s form opens at {usd(PLEDGE_PREFILL_MIN_USD)}. Type{" "}
+                        <span className="figures font-semibold">{usd(r.donation)}</span> in its Donation box.{" "}
+                      </>
+                    ) : null}
+                    The tip to Pledge is optional; you can set it to $0.
+                  </p>
                   <iframe
                     key={formKey}
                     title={`Pledge donation form for ${CHARITIES[r.charity].name}`}
@@ -387,7 +397,7 @@ function PledgeSteps({ checkout, onChange, onGo, saved = true, save = saveChecko
           ? "Every gift is confirmed. Thank you. Pledge emails each receipt."
           : next
             ? formKey
-              ? "Each charity's form is below, one at a time, with its amount filled in. Pledge emails each receipt. You can stop and come back; this browser remembers where you got to."
+              ? "Each charity's form is below, one at a time. Pledge emails each receipt. You can stop and come back; this browser remembers where you got to."
               : "Giving through Pledge opens soon."
             : "All given. Thank you. Pledge emails each receipt. Items are marked offset here once I can confirm gifts with Pledge."}
       </p>
