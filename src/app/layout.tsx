@@ -54,6 +54,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                 Made by Ian Tarter
               </Link>
               {" · US only"}
+              {/* TEST BRANCH ONLY: says whether the build saw the Pledge partner key, never its value. */}
+              {` · Pledge key: ${process.env.NEXT_PUBLIC_PLEDGE_PARTNER_KEY?.trim() ? "found" : "missing"}`}
             </span>
             <span className="flex flex-wrap gap-x-4 gap-y-1">
               <Link href="/method" className="underline hover:text-foreground sm:hidden">
