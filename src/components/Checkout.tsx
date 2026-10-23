@@ -18,8 +18,8 @@ import {
   PAYMENT_MODE,
   type PayRow,
   PLEDGE_EINS,
-  PLEDGE_ORIGIN,
   pledgeCompleted,
+  pledgeFormUrl,
   pledgePartnerKey,
   saveCheckout,
 } from "@/lib/payments";
@@ -279,28 +279,10 @@ function EverySteps({
 
 // Pledge (pledge.to): each charity's donation form is embedded on the page, one at a time.
 
-const PLEDGE_SCRIPT = `${PLEDGE_ORIGIN}/embed/widget.js`;
 /** The site's accent green (--accent in globals.css, light theme), for the buttons in Pledge's form. */
 const ACCENT_HEX = "#1d6b3d";
-
-/**
- * Loads Pledge's widget.js, which turns each .plg-donate div into a form. It
- * scans the page when it runs, and its docs name no way to scan again, so each
- * time a new form div mounts this removes the script tag and adds it back, which
- * runs it again over the new div. Unverified against the live widget: if it
- * guards against running twice, the second charity's form won't appear.
- */
-function usePledgeWidget(formKey: string | null) {
-  useEffect(() => {
-    if (!formKey) return;
-    document.getElementById("pledge-widget-js")?.remove();
-    const s = document.createElement("script");
-    s.id = "pledge-widget-js";
-    s.src = PLEDGE_SCRIPT;
-    s.async = true;
-    document.body.appendChild(s);
-  }, [formKey]);
-}
+/** Tall enough for Pledge's form without its own scrolling on most screens; the form scrolls inside past that. */
+const PLEDGE_FORM_HEIGHT = 820;
 
 /**
  * A checkout through Pledge: every gift in order, with the next charity's
@@ -315,9 +297,10 @@ function PledgeSteps({ checkout, onChange, onGo, saved = true, save = saveChecko
   const partnerKey = pledgePartnerKey();
   const next = nextRow(checkout);
   const ein = next ? PLEDGE_EINS[next.charity] : undefined;
-  // Keyed by checkout, row and try, so a new div mounts for each form and the widget runs over it.
+  // Keyed by checkout, row and try, so a fresh form loads for each charity and after a short gift.
   const formKey = next && ein && partnerKey ? `${checkout.id}.${next.key}.${attempt}` : null;
-  usePledgeWidget(formKey);
+  const [origin, setOrigin] = useState<string | undefined>(undefined);
+  useEffect(() => setOrigin(window.location.origin), []);
   const latest = useRef({ checkout, onChange, onGo, saved, save, next });
   useEffect(() => {
     latest.current = { checkout, onChange, onGo, saved, save, next };
@@ -377,21 +360,21 @@ function PledgeSteps({ checkout, onChange, onGo, saved = true, save = saveChecko
                       as given. To give its full share, use the form below.
                     </p>
                   )}
-                  <div
+                  <iframe
                     key={formKey}
-                    className="plg-donate"
-                    data-partner-key={partnerKey ?? ""}
-                    data-ein={ein}
-                    data-amount={r.donation.toFixed(2)}
-                    data-currency="usd"
-                    // Pledge's widget.js passes tipRate on to the form; 0 starts its optional tip at nothing.
-                    data-tip-rate="0"
-                    // widget.js sends any data-x-* attributes to Pledge as the gift's metadata, so the
-                    // webhook can name the plan and the charity's gift once its payload is known.
-                    data-x-plan={checkout.id}
-                    data-x-gift={r.key}
-                    data-style-hide-social="true"
-                    data-style-brand-color={ACCENT_HEX}
+                    title={`Pledge donation form for ${CHARITIES[r.charity].name}`}
+                    src={pledgeFormUrl({
+                      partnerKey: partnerKey!,
+                      ein: ein!,
+                      amount: r.donation,
+                      planId: checkout.id,
+                      gift: r.key,
+                      brandColor: ACCENT_HEX,
+                      embeddedOn: origin,
+                    })}
+                    allow="payment"
+                    className="w-full rounded-md border border-border bg-white"
+                    style={{ height: PLEDGE_FORM_HEIGHT }}
                   />
                 </>
               )}
