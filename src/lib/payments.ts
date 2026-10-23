@@ -84,12 +84,18 @@ export const pledgePartnerKey = () => process.env.NEXT_PUBLIC_PLEDGE_PARTNER_KEY
 export const PLEDGE_ORIGIN = "https://www.pledge.to";
 
 /**
- * The address of one charity's Pledge donation form, loaded straight into an iframe. Pledge's
- * widget.js builds the same address from a .plg-donate div, but in Ian's test (2026-10-23) its
- * forms opened at $5 while this address with ?amount=7.48 opened at $7.48, so the site builds it
- * itself. Parameter names are widget.js's, in snake case: tip_rate=0 starts Pledge's optional tip
- * at nothing, and metadata carries the plan and the charity's gift, the way widget.js passes
- * data-x-* attributes, so Pledge's webhook can name them once its payload is known.
+ * Smallest amount Pledge's form takes from its address: in Ian's tests (2026-10-23) ?amount=6 and
+ * ?amount=7.48 opened at that amount, but ?amount=1 opened at Pledge's default $5. Under this the
+ * donor types the amount in the form, so checkout says what to type.
+ */
+export const PLEDGE_PREFILL_MIN_USD = 5;
+
+/**
+ * The address of one charity's Pledge donation form, loaded straight into an iframe, the same
+ * address widget.js builds from a .plg-donate div. Parameter names are widget.js's, in snake case.
+ * Pledge ignores tip_rate=0 here (its tip still starts at $2, Ian's test 2026-10-23), so checkout
+ * tells the donor the tip is optional. metadata carries the plan and the charity's gift, the way
+ * widget.js passes data-x-* attributes, so Pledge's webhook can name them once its payload is known.
  */
 export function pledgeFormUrl(o: { partnerKey: string; ein: string; amount: number; planId: string; gift: string; brandColor?: string; embeddedOn?: string }) {
   const q = new URLSearchParams({

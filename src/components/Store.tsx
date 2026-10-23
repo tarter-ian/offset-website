@@ -1845,7 +1845,7 @@ export function Store() {
                     {pledge ? (
                       <p className="mt-2 text-xs text-muted">
                         Each charity is paid separately through Pledge, a nonprofit giving platform. Its form for each charity opens on this
-                        page with the amount filled in. Pledge pays the card fee on gifts up to {PLEDGE_FREE_LABEL}; above that, the fee
+                        page with the amount filled in, or tells you what to type when it&apos;s under $5. Pledge pays the card fee on gifts up to {PLEDGE_FREE_LABEL}; above that, the fee
                         ({PLEDGE_CARD_LABEL}) is added on top so the whole donation arrives. Pledge may ask for an optional tip, which goes to
                         Pledge. My Offset gets none of it. The smallest gift is {usd(PLEDGE_MIN_GIFT_USD)}; a charity&apos;s share under that is
                         rounded up, so each part&apos;s money stays with its own charity. Pledge emails you a receipt for each gift.
