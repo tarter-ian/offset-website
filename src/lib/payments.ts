@@ -1,6 +1,6 @@
 import { CHARITIES } from "./charities";
 import type { ImpactKey } from "./footprint";
-import { BILLING, type Billing, cardRate, feeParts, MIN_DONATION_USD, paymentFee, type PaymentMode, PLEDGE_FREE_UP_TO_USD, sponsorRate } from "./pricing";
+import { BILLING, type Billing, cardRate, feeParts, minGift, paymentFee, type PaymentMode, PLEDGE_FREE_UP_TO_USD, sponsorRate } from "./pricing";
 import { defaultPastYears, harmSplit, type HarmSplit, PAST_MONTHLY_CAP_USD, PAST_YEARS, type PastYears, type PlanLine, planTotals } from "./store";
 import type { Context } from "./store";
 
@@ -165,12 +165,12 @@ function byPayee(amounts: Partial<Record<ImpactKey, number>>) {
  * Turns a plan's per-harm amounts into one payment per charity. Only harms worth
  * nothing at all are skipped, and harms paid to the same charity go in one gift. Every
  * harm's money goes to its own charity, even a share under a cent, which is rounded up
- * to the smallest donation (Ian, 2026-10-12: never to another harm's charity; 2026-10-13:
+ * to the mode's smallest gift (Ian, 2026-10-12: never to another harm's charity; 2026-10-13:
  * a harm the hero shows is never dropped).
  */
 function rowsFor(amounts: Record<ImpactKey, number>, frequency: Frequency, suffix: string, mode: PaymentMode): PayRow[] {
   return [...byPayee(amounts)].map(([k, g]) => {
-    const donation = Math.max(MIN_DONATION_USD, upToCent(g.amount));
+    const donation = Math.max(minGift(mode), upToCent(g.amount));
     const fee = feeFor(donation, mode);
     return { key: `${k}${suffix}`, charity: k, harms: g.harms, donation, fee, total: Math.round((donation + fee) * 100) / 100, frequency };
   });
