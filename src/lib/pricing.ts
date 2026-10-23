@@ -142,11 +142,17 @@ export const PLEDGE_CARD_LABEL = `30¢ + ${pct(PLEDGE_CARD.rate)}`;
 export const PLEDGE_FREE_LABEL = `$${PLEDGE_FREE_UP_TO_USD.toLocaleString("en-US")}`;
 
 /**
- * Smallest donation, a dollar on any payment. In pledge mode Pledge's own minimum
- * is unconfirmed; a $1 gift went through in Ian's test (2026-10-15), so it stays $1. Small donations are pooled and
+ * Smallest donation, a dollar on any payment. Small donations are pooled and
  * each charity gets one payment a month, so they still arrive in full (Ian, 2026-10-12).
  */
 export const MIN_DONATION_USD = 1;
+/**
+ * Smallest gift to one charity through Pledge's form: Pledge took $0.25 in Ian's
+ * test (2026-10-23), so a small share no longer has to be rounded up to a dollar.
+ */
+export const PLEDGE_MIN_GIFT_USD = 0.25;
+/** Smallest gift to one charity in each payment mode. */
+export const minGift = (mode: PaymentMode) => (mode === "pledge" ? PLEDGE_MIN_GIFT_USD : MIN_DONATION_USD);
 
 /** Ongoing offsets can be billed yearly: one approval and one 30¢ card charge a year instead of twelve. */
 export type Billing = "annual" | "monthly";
