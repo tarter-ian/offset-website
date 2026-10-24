@@ -56,7 +56,7 @@ export const paymentModeFrom = (mode: string | undefined, fundUrl: string | unde
         ? "pledgeapi"
         : "every";
 export const PAYMENT_MODE: PaymentMode = paymentModeFrom(
-  "pledge", // TEST BRANCH ONLY: never merge
+  "pledgeapi", // TEST BRANCH ONLY: never merge
   process.env.NEXT_PUBLIC_ENDAOMENT_FUND_URL,
   process.env.NEXT_PUBLIC_PLEDGE_PARTNER_KEY,
 );
