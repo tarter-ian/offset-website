@@ -45,22 +45,35 @@ export interface PledgeRequest {
 
 const auth = (apiKey: string) => ({ authorization: `Bearer ${apiKey}`, accept: "application/json" });
 
-/** UNVERIFIED: looks a charity up by EIN. */
+/**
+ * Each charity's name as Pledge lists it, by EIN. Pledge's q= search matches names loosely
+ * (Ian's test, 2026-10-24: q=04-3512550 returned 180 unrelated charities), so the lookup
+ * searches by name and pickOrgId keeps only the result whose EIN matches.
+ */
+export const PLEDGE_ORG_NAMES: Record<string, string> = {
+  "04-3512550": "Clean Air Task Force",
+  "84-1606567": "Colorado Water Trust",
+  "13-3500609": "Rainforest Trust",
+  "26-2066045": "PCs for People",
+};
+
+/** Looks a charity up on Pledge: GET /v1/organizations?q=, a page of {results: [{id, name, ngo_id, ...}]} (seen 2026-10-24). */
 export function orgLookupRequest(ein: string, apiKey: string, host: string = pledgeApiHost()): PledgeRequest {
-  return { url: `${host}/v1/organizations?${new URLSearchParams({ q: ein })}`, init: { method: "GET", headers: auth(apiKey) } };
+  return { url: `${host}/v1/organizations?${new URLSearchParams({ q: PLEDGE_ORG_NAMES[ein] ?? ein })}`, init: { method: "GET", headers: auth(apiKey) } };
 }
 
 const digits = (s: unknown) => (typeof s === "string" || typeof s === "number" ? String(s).replace(/\D/g, "") : "");
 
 /**
- * UNVERIFIED: the id of the organization whose EIN is ours, from the lookup's response.
- * Takes a list under `results` or `data`, or a bare list; only an exact EIN match counts.
+ * The id of the organization whose EIN is ours, from the lookup's response. Pledge puts
+ * the EIN in `ngo_id` (seen 2026-10-24); `ein` is also accepted. Takes a list under
+ * `results` or `data`, or a bare list; only an exact EIN match counts.
  */
 export function pickOrgId(body: unknown, ein: string): string | null {
   const b = body as { results?: unknown; data?: unknown } | null;
   const list = Array.isArray(body) ? body : Array.isArray(b?.results) ? b.results : Array.isArray(b?.data) ? b.data : [];
   const want = digits(ein);
-  const hit = (list as Record<string, unknown>[]).find((o) => o && digits(o.ein) === want && want.length === 9);
+  const hit = (list as Record<string, unknown>[]).find((o) => o && (digits(o.ngo_id) === want || digits(o.ein) === want) && want.length === 9);
   const id = hit?.id;
   return typeof id === "string" || typeof id === "number" ? String(id) : null;
 }
