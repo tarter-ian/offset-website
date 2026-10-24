@@ -86,15 +86,25 @@ const land = (
   </Drawing>
 );
 
-const bill = (
-  <Drawing label="A long receipt with no total">
-    <path d="M78 12H162V150L152 158L142 150L132 158L122 150L112 158L102 150L92 158L82 150L78 154Z" />
-    {[30, 44, 58, 72, 86, 100, 114].map((y, i) => (
-      <path key={y} d={`M90 ${y}H${i % 2 ? 128 : 136}M144 ${y}H150`} opacity={0.6} />
+// How one person's use adds up: the same use counted over a question, a day, a year and a lifetime.
+const adds = (
+  <Drawing label="A bar chart: a question, a day, a year and a lifetime of AI use, each bar much taller than the last">
+    {(
+      [
+        [28, 2, "a question"],
+        [84, 10, "a day"],
+        [140, 48, "a year"],
+        [196, 128, "a lifetime"],
+      ] as const
+    ).map(([x, h, name]) => (
+      <g key={name}>
+        <rect x={x} y={150 - h} width={30} height={h} fill="currentColor" stroke="none" opacity={0.85} />
+        <text x={x + 15} y={172} textAnchor="middle" fontSize={11} fill="currentColor" stroke="none">
+          {name}
+        </text>
+      </g>
     ))}
-    <path d="M90 128H150M90 132H150" />
-    <path d="M141 140C141 136 149 136 149 140C149 143 145 143 145 146" strokeWidth={2} />
-    <circle cx={145} cy={150} r={1.2} fill="currentColor" stroke="none" />
+    <path d="M14 150H232" />
   </Drawing>
 );
 
@@ -103,7 +113,7 @@ const STEPS: { head: string; body?: string; art: ReactNode }[] = [
   { head: "It runs mostly on power from gas and coal.", body: "That means carbon in the air, and smog where people breathe.", art: plant },
   { head: "It's cooled with water.", body: "Often where water is already short.", art: cooling },
   { head: "And the power takes up land.", art: land },
-  { head: "One question is tiny. Years of them aren't.", body: "Nobody sends you the bill.", art: bill },
+  { head: "One question is tiny. Years of them aren't.", body: "Nobody sends you the bill.", art: adds },
 ];
 
 export function Story() {
