@@ -45,9 +45,10 @@ import {
   paymentsOn,
   bestPastYears,
   payRows,
+  onePayment,
   repeatRows,
+  rowsTotal,
   saveCheckout,
-  sumTotal,
 } from "@/lib/payments";
 import { digitalFromExport } from "@/lib/ai/exportParser";
 import { aiMonthTotals, shareLines, shareQuery, type ShareTotals } from "@/lib/share";
@@ -66,6 +67,9 @@ import {
   ENDAOMENT_CARD_LABEL,
   PLEDGE_CARD_LABEL,
   PLEDGE_FREE_LABEL,
+  PLEDGE_API_CARD_LABEL,
+  PLEDGE_API_FEE_LABEL,
+  STRIPE_CARD_LABEL,
   ENDAOMENT_GRANT_LABEL,
   ENDAOMENT_IN_LABEL,
   feeParts,
@@ -447,12 +451,15 @@ export function Store() {
   const pastEnds = totals.pastSpread
     ? new Date(new Date().setMonth(new Date().getMonth() + totals.pastSpread.years * 12)).toLocaleDateString("en-US", { month: "long", year: "numeric" })
     : null;
-  // Through Every.org or Pledge, each charity is its own payment with its own fee.
-  const perCharity = PAYMENT_MODE === "every" || PAYMENT_MODE === "pledge";
+  // Through Every.org or Pledge, each charity is its own payment with its own fee. Through Pledge's
+  // API ("pledgeapi"), each charity still has its own row, but all are paid in one Stripe payment.
+  const perCharity = PAYMENT_MODE === "every" || PAYMENT_MODE === "pledge" || PAYMENT_MODE === "pledgeapi";
   const pledge = PAYMENT_MODE === "pledge";
+  const pledgeApi = PAYMENT_MODE === "pledgeapi";
   const split = harmSplit(totals, ctx, billing);
   const giftRows = payRows(split, billing, autopay);
-  const repeatTotal = sumTotal(repeatRows(split, billing));
+  const repeatTotal = rowsTotal(repeatRows(split, billing));
+  const giftPayment = pledgeApi ? onePayment(giftRows) : null;
   // Through Endaoment, one gift to the fund covers every charity.
   const fund = PAYMENT_MODE === "endaoment" ? fundGifts(split) : null;
   // Everything charged today: the one-time payment and the first ongoing payment.
@@ -1180,6 +1187,7 @@ export function Store() {
   const heroWhy = forMode({
     every: "card fees and at least $1 to each charity",
     pledge: "at least $1 to each charity",
+    pledgeapi: "Stripe's and Pledge's fees",
     endaoment: "card fees and Endaoment's fee",
     sponsor: "card fees and each charity's smallest gift",
   });
@@ -1826,14 +1834,29 @@ export function Store() {
                           <dd className="shrink-0 text-right">{r.fee > 0 ? `${usd(r.donation)} + ${usd(r.fee)} fee` : usd(r.donation)}</dd>
                         </div>
                       ))}
+                      {giftPayment && (
+                        <>
+                          <div className="flex justify-between gap-4">
+                            <dt className="font-sans text-muted">Stripe card fee ({STRIPE_CARD_LABEL})</dt>
+                            <dd className="shrink-0 text-right">{usd(giftPayment.stripe)}</dd>
+                          </div>
+                          <div className="flex justify-between gap-4">
+                            <dt className="font-sans text-muted">
+                              Pledge fees ({PLEDGE_API_FEE_LABEL} technology, {PLEDGE_API_CARD_LABEL} card)
+                            </dt>
+                            <dd className="shrink-0 text-right">{usd(giftPayment.pledge)}</dd>
+                          </div>
+                        </>
+                      )}
                       <div className="flex justify-between gap-4 border-t border-border pt-1.5 text-base font-semibold">
-                        <dt className="font-sans">Total today</dt>
+                        <dt className="font-sans">{pledgeApi ? "Total today, one payment" : "Total today"}</dt>
                         <dd>{usd(dueToday)}</dd>
                       </div>
                     </dl>
                     {repeatTotal > 0 && (
                       <p className="figures mt-1 font-sans text-sm text-muted">
-                        Then {usd(repeatTotal)} {BILLING[billing].per}, one gift to each charity{pledge ? "" : " with its own card fee"}.{" "}
+                        Then {usd(repeatTotal)} {BILLING[billing].per},{" "}
+                        {pledgeApi ? "one payment for every charity, fees included" : `one gift to each charity${pledge ? "" : " with its own card fee"}`}.{" "}
                         {autopay ? "Every.org charges it until you stop it." : "Nothing repeats on its own: you come back and give again."}
                         {totals.pastSpread &&
                           ` It includes ${usd(totals.pastSpread.perMonth * (billing === "annual" ? 12 : 1))} toward past use until ${pastEnds}${
@@ -1841,8 +1864,16 @@ export function Store() {
                           }`}
                       </p>
                     )}
-                    {payChoices(pledge ? "" : " (one 30¢ fee per charity a year)")}
-                    {pledge ? (
+                    {payChoices(pledge ? "" : pledgeApi ? " (one 30¢ fee a year)" : " (one 30¢ fee per charity a year)")}
+                    {pledgeApi ? (
+                      <p className="mt-2 text-xs text-muted">
+                        You pay My Offset once, through Stripe, for every charity. I then give each charity its part above through Pledge,
+                        a nonprofit giving platform, and pass on every dollar of the donation. Stripe keeps its card fee ({STRIPE_CARD_LABEL}),
+                        and Pledge keeps its {PLEDGE_API_FEE_LABEL} technology fee and {PLEDGE_API_CARD_LABEL} card fee. Both are added on top,
+                        so each charity gets its part in full; I keep none of it. There&apos;s no $1 smallest gift, so each part goes to its
+                        own charity to the cent. Pledge records each gift in your name.
+                      </p>
+                    ) : pledge ? (
                       <p className="mt-2 text-xs text-muted">
                         Each charity is paid separately through Pledge, a nonprofit giving platform. Its form for each charity opens on this
                         page with the amount filled in, or tells you what to type when it&apos;s under $5. Pledge pays the card fee on gifts up to {PLEDGE_FREE_LABEL}; above that, the fee
@@ -2085,6 +2116,7 @@ function GiveDirectly({ totals, ctx, billing }: { totals: ReturnType<typeof plan
         {forMode({
           every: "You can give these amounts on each charity's own site instead.",
           pledge: "You can give these amounts on each charity's own site instead.",
+          pledgeapi: "You can skip Stripe's and Pledge's fees by giving these amounts on each charity's own site.",
           endaoment: "You can skip Endaoment's fees by giving these amounts on each charity's own site.",
           sponsor: "You can skip these fees by giving these amounts on each charity's own site.",
         })}{" "}
@@ -2154,8 +2186,8 @@ function PaySection({
   const [confirmedBig, setConfirmedBig] = useState(false);
   const [listName, setListName] = useState<string | null>(null);
   const [listNote, setListNote] = useState("");
-  // Every row is charged today, a repeating one for the first time.
-  const today = sumTotal(rows);
+  // Every row is charged today, a repeating one for the first time: in one Stripe payment in "pledgeapi" mode.
+  const today = rowsTotal(rows);
   useEffect(() => setDraftId(newPlanId()), []);
   // A list already started keeps its own rows, even if the plan has changed since.
   const started = payState && Object.keys({ ...payState.done, ...payState.confirmed }).length > 0 ? payState : null;
@@ -2179,7 +2211,7 @@ function PaySection({
   return (
     <section id="pay-steps" aria-labelledby="pay-heading" className="mt-4 scroll-mt-4 border-t-2 border-rule pt-3">
       <h3 id="pay-heading" className="text-base font-bold">
-        Give to each charity
+        {PAYMENT_MODE === "pledgeapi" ? "Pay once for every charity" : "Give to each charity"}
       </h3>
       {started ? (
         <>
@@ -2234,7 +2266,12 @@ function PaySection({
                 You&apos;re giving <span className="figures">{usd(today)}</span> today to {rows.length} charit
                 {rows.length === 1 ? "y" : "ies"}.
               </p>
-              <p className="mt-1 text-muted">A check before anything opens, since it&apos;s a big gift. Each charity&apos;s {PAYMENT_MODE === "pledge" ? "form" : "page"} shows its own part again.</p>
+              <p className="mt-1 text-muted">
+                A check before anything opens, since it&apos;s a big gift.{" "}
+                {PAYMENT_MODE === "pledgeapi"
+                  ? "Stripe's page shows the total again."
+                  : `Each charity's ${PAYMENT_MODE === "pledge" ? "form" : "page"} shows its own part again.`}
+              </p>
               <button
                 type="button"
                 onClick={() => setConfirmedBig(true)}
@@ -2255,7 +2292,7 @@ function PaySection({
                 if (listName && !saved)
                   joinList(listName, { source: "plan", planId: c.id, billing, autopay, pastYears: listing.pastYears, lines: listing.lines, ctx: listing.ctx, rows }).then(
                     (err) =>
-                      setListNote(err ?? `You'll show on Who's offsetting as ${listName} once ${PAYMENT_MODE === "pledge" ? "every gift is confirmed" : "Every.org confirms every gift"}.`),
+                      setListNote(err ?? `You'll show on Who's offsetting as ${listName} once ${PAYMENT_MODE === "pledge" || PAYMENT_MODE === "pledgeapi" ? "every gift is confirmed" : "Every.org confirms every gift"}.`),
                   );
               }}
             />

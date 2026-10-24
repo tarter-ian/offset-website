@@ -14,6 +14,7 @@ import {
   fundLink,
   harmsText,
   nextRow,
+  onePayment,
   payLink,
   PAYMENT_MODE,
   type PayRow,
@@ -24,7 +25,7 @@ import {
   pledgePartnerKey,
   saveCheckout,
 } from "@/lib/payments";
-import { ENDAOMENT_GRANT_LABEL, ENDAOMENT_IN_LABEL, usd } from "@/lib/pricing";
+import { ENDAOMENT_GRANT_LABEL, ENDAOMENT_IN_LABEL, PLEDGE_API_CARD_LABEL, PLEDGE_API_FEE_LABEL, STRIPE_CARD_LABEL, usd } from "@/lib/pricing";
 
 const harmLabel = (k: keyof typeof IMPACT_INFO) => IMPACT_INFO[k].label.toLowerCase();
 const POLL_MS = 5000;
@@ -74,14 +75,18 @@ function StepRow({
         <span className="block pl-6 text-muted">
           Covers {harmsText(row.harms, harmLabel)} ·{" "}
           <span className="figures">
-            {row.fee > 0 ? `${usd(row.donation)} + ${usd(row.fee)} card fee` : `${usd(row.donation)}, no card fee`}
+            {PAYMENT_MODE === "pledgeapi"
+              ? usd(row.donation)
+              : row.fee > 0
+                ? `${usd(row.donation)} + ${usd(row.fee)} card fee`
+                : `${usd(row.donation)}, no card fee`}
           </span>
           {row.frequency !== "ONCE" && `, ${frequencyText(row)} until you stop it`}
         </span>
         {status === "waiting" && <span className="block pl-6 text-muted">Given, waiting for confirmation</span>}
         {status === "confirmed" && (
           <span className="block pl-6 font-semibold text-life-ink">
-            {forMode({ every: "Given and confirmed by Every.org", pledge: "Given and confirmed by Pledge", endaoment: "Given and confirmed", sponsor: "Given and confirmed" })}
+            {forMode({ every: "Given and confirmed by Every.org", pledge: "Given and confirmed by Pledge", pledgeapi: "Given and confirmed by Pledge", endaoment: "Given and confirmed", sponsor: "Given and confirmed" })}
           </span>
         )}
       </span>
@@ -200,9 +205,12 @@ interface StepsProps {
   saved?: boolean;
 }
 
-/** A checkout in progress, one gift per charity: Every.org's Give buttons, or Pledge's forms in pledge mode. */
+/**
+ * A checkout in progress, one gift per charity: Every.org's Give buttons, Pledge's forms in pledge mode,
+ * or one Stripe payment for all of them in pledgeapi mode.
+ */
 export function CheckoutSteps(props: StepsProps) {
-  return PAYMENT_MODE === "pledge" ? <PledgeSteps {...props} /> : <EverySteps {...props} />;
+  return PAYMENT_MODE === "pledge" ? <PledgeSteps {...props} /> : PAYMENT_MODE === "pledgeapi" ? <PledgeApiSteps {...props} /> : <EverySteps {...props} />;
 }
 
 /**
@@ -405,6 +413,135 @@ function PledgeSteps({ checkout, onChange, onGo, saved = true, save = saveChecko
         Before you give: <Link href="/ledger">where the money goes</Link>, <Link href="/promises">what I promise</Link> and{" "}
         <Link href="/method">how each price is worked out</Link>. Every gift goes straight to the charity through Pledge, a nonprofit giving
         platform; none of it passes through My Offset. Pledge may ask for an optional tip, which goes to Pledge. My Offset gets none of it.
+      </p>
+    </div>
+  );
+}
+
+// Pledge's API ("pledgeapi" mode): one Stripe payment for every charity, then the server gives each its part through Pledge.
+
+/**
+ * A checkout paid once through Stripe: each charity's part, Stripe's and Pledge's fees, and one Pay
+ * button. The server works the amount out again and opens a Stripe Checkout Session; Stripe sends
+ * the person back here with paid=stripe, which marks every gift as given. Each is confirmed once
+ * Pledge has made it (see api/stripe/webhook), which this page checks for.
+ */
+function PledgeApiSteps({ checkout, onChange, onGo, saved = true, save = saveCheckout }: StepsProps) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const pay = onePayment(checkout.rows);
+  const paid = checkout.rows.length > 0 && checkout.rows.every((r) => checkout.done[r.key] || checkout.confirmed[r.key]);
+  const waiting = checkout.rows.some((r) => checkout.done[r.key] && !checkout.confirmed[r.key]);
+  const latest = useRef({ checkout, onChange, save });
+  useEffect(() => {
+    latest.current = { checkout, onChange, save };
+  });
+  // Back from Stripe, paid: every gift is given, and waits for Pledge's confirmation.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    if (q.get("paid") !== "stripe" || q.get("plan") !== checkout.id) return;
+    const { checkout: c, onChange: change, save: keep } = latest.current;
+    const open = c.rows.filter((r) => !c.done[r.key] && !c.confirmed[r.key]);
+    if (!open.length) return;
+    const at = new Date().toISOString();
+    const n = { ...c, done: { ...c.done, ...Object.fromEntries(open.map((r) => [r.key, at])) } };
+    keep(n);
+    change(n);
+  }, [checkout.id]);
+  // Look once when the list opens, then keep looking while a gift waits for confirmation.
+  useEffect(() => {
+    if (!saved) return;
+    let polls = 0;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const check = async () => {
+      const { checkout: c, onChange: change } = latest.current;
+      const got = await fetchConfirmed(c.id);
+      if (stopped) return;
+      const fresh = got.filter((k) => !c.confirmed[k] && c.rows.some((r) => r.key === k));
+      if (fresh.length) {
+        const next = { ...c, confirmed: { ...c.confirmed, ...Object.fromEntries(fresh.map((k) => [k, true as const])) } };
+        latest.current.save(next);
+        change(next);
+      } else if (waiting && ++polls < POLLS) timer = setTimeout(check, POLL_MS);
+    };
+    check();
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [checkout.id, saved, waiting]);
+
+  const go = async () => {
+    setBusy(true);
+    setError(null);
+    onGo?.();
+    const body = checkout.gift
+      ? { source: "gift", giftId: checkout.id }
+      : { source: "plan", planId: checkout.id, billing: checkout.billing, autopay: false, rows: checkout.rows, ...checkout.plan };
+    try {
+      const r = await fetch("/api/stripe/checkout", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+      const d = (await r.json().catch(() => null)) as { url?: unknown; error?: unknown } | null;
+      if (!r.ok || typeof d?.url !== "string") throw new Error(typeof d?.error === "string" ? d.error : "Couldn't start the payment.");
+      window.location.assign(d.url);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't start the payment.");
+      setBusy(false);
+    }
+  };
+
+  const done = allConfirmed(checkout);
+  return (
+    <div>
+      <ol className="divide-y divide-border border-y-2 border-rule text-sm">
+        {checkout.rows.map((r) => (
+          <StepRow key={r.key} row={r} status={checkout.confirmed[r.key] ? "confirmed" : checkout.done[r.key] ? "waiting" : "later"} />
+        ))}
+      </ol>
+      <dl className="figures space-y-1 border-b-2 border-rule py-3 text-sm">
+        <div className="flex justify-between gap-4">
+          <dt className="font-sans text-muted">Stripe card fee ({STRIPE_CARD_LABEL})</dt>
+          <dd className="shrink-0 text-right">{usd(pay.stripe)}</dd>
+        </div>
+        <div className="flex justify-between gap-4">
+          <dt className="font-sans text-muted">
+            Pledge fees ({PLEDGE_API_FEE_LABEL} technology, {PLEDGE_API_CARD_LABEL} card)
+          </dt>
+          <dd className="shrink-0 text-right">{usd(pay.pledge)}</dd>
+        </div>
+        <div className="flex justify-between gap-4 border-t border-border pt-1.5 text-base font-semibold">
+          <dt className="font-sans">Total, one payment</dt>
+          <dd>{usd(pay.total)}</dd>
+        </div>
+      </dl>
+      {!paid && (
+        <div className="mt-3">
+          <button
+            type="button"
+            onClick={go}
+            disabled={busy || !checkout.rows.length}
+            className="inline-flex min-h-11 cursor-pointer items-center rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-strong disabled:opacity-60"
+          >
+            Pay {usd(pay.total)}
+          </button>
+          {error && (
+            <p role="alert" className="mt-2 text-sm font-semibold">
+              {error}
+            </p>
+          )}
+        </div>
+      )}
+      <p className="mt-2 text-sm text-muted" role="status">
+        {done
+          ? "Every gift is confirmed. Thank you. Pledge records each gift in your name."
+          : paid
+            ? "Paid. Thank you. I give each charity its part through Pledge, and this page checks for each confirmation."
+            : "Pay opens Stripe's checkout page for the whole total, then brings you back here."}
+      </p>
+      <p className="mt-2 text-sm text-muted">
+        Before you pay: <Link href="/ledger">where the money goes</Link>, <Link href="/promises">what I promise</Link> and{" "}
+        <Link href="/method">how each price is worked out</Link>. You pay My Offset once, through Stripe. I pass every dollar of the
+        donation to the charities through Pledge, a nonprofit giving platform. Stripe and Pledge keep only the fees shown.
       </p>
     </div>
   );

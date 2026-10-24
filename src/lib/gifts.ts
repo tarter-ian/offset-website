@@ -1,6 +1,6 @@
 import { CHARITIES } from "./charities";
 import { type Impacts, sumImpacts } from "./footprint";
-import { type FundGift, fundGift, fundOwed, type Owed, owedPaid, PAYMENT_MODE, type PaymentMode, payRows, PLAN_ID, type PayRow, sumTotal } from "./payments";
+import { type FundGift, fundGift, fundOwed, type Owed, owedPaid, PAYMENT_MODE, type PaymentMode, payRows, PLAN_ID, type PayRow, rowsTotal } from "./payments";
 import { DEFAULT_CONTEXT, defaultAmount, harmSplit, type HarmSplit, planTotals, PRODUCTS, productById, SECTIONS, type Context, type Product } from "./store";
 
 // Gifting an offset: one person pays the charities for someone else's typical
@@ -78,6 +78,8 @@ export const presetItems = (preset: (typeof GIFT_PRESETS)[number]): GiftItem[] =
 export function giftSteps(gifts: number, links: number, mode: PaymentMode = PAYMENT_MODE): string {
   const link = links > 1 ? "links work" : "link works";
   if (mode === "endaoment") return `You'll make 1 gift to My Offset's fund at Endaoment, which grants each charity its part. Your ${link} once it's confirmed.`;
+  if (mode === "pledgeapi")
+    return `You'll make 1 payment through Stripe, and I give each charity its part through Pledge. Your ${link} once ${gifts === 1 ? "the gift is" : `all ${gifts} gifts are`} confirmed.`;
   const where = mode === "pledge" ? "through Pledge" : "on Every.org";
   return gifts === 1
     ? `You'll make 1 gift ${where}. Your ${link} once it's confirmed.`
@@ -131,8 +133,8 @@ export function giftCharge(items: GiftItem[], birthYear: number = DEFAULT_CONTEX
   return { rows: payRows(split, "monthly", false, mode) };
 }
 
-/** What a gift's charge comes to, fees included. */
-export const chargeTotal = (c: GiftCharge) => (c.fund ? c.fund.total : sumTotal(c.rows));
+/** What a gift's charge comes to, fees included: in "pledgeapi" mode, the one Stripe payment. */
+export const chargeTotal = (c: GiftCharge, mode: PaymentMode = PAYMENT_MODE) => (c.fund ? c.fund.total : rowsTotal(c.rows, mode));
 
 /** What must arrive for a gift to count as paid, in one payment mode. */
 export function giftOwed(gift: Pick<Gift, "items" | "birthYear" | "to">, mode: PaymentMode = PAYMENT_MODE): Owed[] {
@@ -144,9 +146,10 @@ export function giftOwed(gift: Pick<Gift, "items" | "birthYear" | "to">, mode: P
  * The mode a gift was paid in, from the donations recorded for it, or null while
  * it isn't paid. Both are checked so a gift given before the site switched modes stays paid.
  * Pledge's rows are Every.org's, key for key and dollar for dollar, so "every" stands for both.
+ * Pledge's API rows have the same keys but no $1 minimum, so they are checked on their own.
  */
 export function giftPaidMode(gift: Pick<Gift, "id" | "items" | "birthYear" | "to">, donations: { partnerDonationId: string | null; amount: number }[]): PaymentMode | null {
-  return (["every", "endaoment"] as const).find((m) => owedPaid(gift.id, giftOwed(gift, m), donations)) ?? null;
+  return (["every", "endaoment", "pledgeapi"] as const).find((m) => owedPaid(gift.id, giftOwed(gift, m), donations)) ?? null;
 }
 
 /** What a gift offsets for one person at typical use: lifetime for "for life", else each month times the months. */

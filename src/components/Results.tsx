@@ -41,6 +41,9 @@ import {
   monthlyCost,
   PLEDGE_CARD_LABEL,
   PLEDGE_FREE_LABEL,
+  PLEDGE_API_CARD_LABEL,
+  PLEDGE_API_FEE_LABEL,
+  STRIPE_CARD_LABEL,
   usd,
 } from "@/lib/pricing";
 
@@ -133,11 +136,12 @@ export function Results({
   const rawDonation = cost.byImpact.carbon + cost.byImpact.air + cost.byImpact.water + cost.byImpact.land + cost.byImpact.ewaste;
   const billing = billingPick ?? DEFAULT_BILLING;
   // Through Every.org or Pledge each charity is its own payment, so the fee is one card fee per charity (none up to $1,000 on Pledge);
-  // through Endaoment it is one gift, carrying Endaoment's share and the card fee.
+  // through Endaoment it is one gift, carrying Endaoment's share and the card fee; through Pledge's API, one Stripe
+  // payment carrying Stripe's card fee and Pledge's fees.
   const withFees = <T extends { donation: number; fee: number; total: number }>(b: T): T => {
     if (PAYMENT_MODE === "sponsor" || !(rawDonation > 0)) return b;
     const fee =
-      PAYMENT_MODE === "endaoment"
+      PAYMENT_MODE === "endaoment" || PAYMENT_MODE === "pledgeapi"
         ? feeFor(b.donation)
         : perCharityFees(Object.fromEntries(IMPACT_KEYS.map((k) => [k, (cost.byImpact[k] / rawDonation) * b.donation])));
     return { ...b, fee, total: Math.round((b.donation + fee) * 100) / 100 };
@@ -393,6 +397,7 @@ export function Results({
                     {forMode({
                       every: "Card fees, one per charity paid through Every.org (2.2% + 30¢ each, no profit to me)",
                       pledge: `Card fees, none on gifts up to ${PLEDGE_FREE_LABEL} through Pledge (${PLEDGE_CARD_LABEL} above that, no profit to me)`,
+                      pledgeapi: `Fees (Stripe's card fee ${STRIPE_CARD_LABEL}, Pledge ${PLEDGE_API_FEE_LABEL} technology and ${PLEDGE_API_CARD_LABEL} card, no profit to me)`,
                       endaoment: `Fees (Endaoment ${ENDAOMENT_IN_LABEL} in and ${ENDAOMENT_GRANT_LABEL} out, card about ${ENDAOMENT_CARD_LABEL}, no profit to me)`,
                       sponsor: `Fees (card ${CARD_FEE_LABEL}, charity sponsor ${SPONSOR_FEE_LABEL}, no profit to me)`,
                     })}

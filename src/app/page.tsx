@@ -1,6 +1,15 @@
 import Link from "next/link";
 import { Store } from "@/components/Store";
-import { CARD_FEE_LABEL, ENDAOMENT_GRANT_LABEL, ENDAOMENT_IN_LABEL, PLEDGE_FREE_LABEL, SPONSOR_FEE_LABEL } from "@/lib/pricing";
+import {
+  CARD_FEE_LABEL,
+  ENDAOMENT_GRANT_LABEL,
+  ENDAOMENT_IN_LABEL,
+  PLEDGE_API_CARD_LABEL,
+  PLEDGE_API_FEE_LABEL,
+  PLEDGE_FREE_LABEL,
+  SPONSOR_FEE_LABEL,
+  STRIPE_CARD_LABEL,
+} from "@/lib/pricing";
 import { forMode, PAYMENT_MODE } from "@/lib/payments";
 
 export default function Home() {
@@ -19,6 +28,8 @@ export default function Home() {
                 "You give to each charity on your plan directly, through Every.org, a nonprofit donation platform that sends you the tax receipt. I never hold your money.",
               pledge:
                 "You give to each charity on your plan directly, through Pledge, a nonprofit giving platform that emails you the tax receipt. I never hold your money.",
+              pledgeapi:
+                "You pay me once, through Stripe, and I give every dollar of your donation to the charities on your plan through Pledge, a nonprofit giving platform. Pledge records each gift in your name.",
               endaoment:
                 "You make one gift to My Offset's fund at Endaoment, a nonprofit that grants it on to each charity on your plan and sends you the tax receipt. I never hold your money.",
               sponsor:
@@ -38,6 +49,12 @@ export default function Home() {
               I don&apos;t take a cut. Each charity is paid separately through Pledge, which pays the card fee on gifts up to{" "}
               {PLEDGE_FREE_LABEL}. Above that, the card fee is shown and added on top, so the whole donation arrives. Pledge may ask for
               an optional tip, which goes to Pledge. Nothing is charged until you approve it.
+            </p>
+          ) : PAYMENT_MODE === "pledgeapi" ? (
+            <p>
+              I don&apos;t take a cut. The only fees are Stripe&apos;s card fee ({STRIPE_CARD_LABEL}) on your payment and Pledge&apos;s{" "}
+              {PLEDGE_API_FEE_LABEL} technology fee and {PLEDGE_API_CARD_LABEL} card fee on the gifts. Each is shown separately and added
+              on top, so the whole donation arrives. Nothing is charged until you approve it.
             </p>
           ) : PAYMENT_MODE === "endaoment" ? (
             <p>

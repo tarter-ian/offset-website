@@ -64,6 +64,8 @@ const SECTIONS: { title: string; body: React.ReactNode; computer?: boolean }[] =
       ? "You give on Endaoment's page for My Offset's fund. Endaoment, a nonprofit, takes your card or bank details under its own privacy policy; I never see them. It keeps your name and email to send the tax receipt. This browser keeps a note of what you gave and when, so checkout can show it; I don't receive it. Gifts made for someone else go through Every.org, which tells me the charity, the amount and your email if you share it, so I can show which gifts arrived."
       : PAYMENT_MODE === "pledge"
       ? "You give to each charity in Pledge's form on this site. Pledge, a nonprofit giving platform, takes your card or bank details under its own privacy policy; I never see them. It keeps your name and email to send the tax receipt. When a gift is made, Pledge's form tells this page the amount, and this browser keeps a note of what you gave and when; I don't receive it. Pledge also sends my server a notice of each gift made through its forms, which I keep so I can show which gifts arrived."
+      : PAYMENT_MODE === "pledgeapi"
+      ? "You pay My Offset once, on Stripe's checkout page. Stripe takes your card details under its own privacy policy; I never see them. Stripe tells my server the amount paid and the name and email you gave it. I pass your name and email to Pledge, a nonprofit giving platform, with each charity's gift, so Pledge records it in your name. I keep what each charity was given and Pledge's reply to each gift, which may include your name and email, so a gift that fails can be tried again. Your browser keeps a note of what you gave and when, so checkout can show it."
       : PAYMENT_MODE === "every"
       ? "You give to each charity on Every.org, a nonprofit donation platform, which takes your card or bank details under its own privacy policy; I never see them. For each gift made through this site's links, Every.org tells me the charity, the amount, how often it repeats, and your email if you share it. I keep that so I can show which gifts arrived. Every.org keeps your name and email to send the tax receipt."
       : "Payments aren't switched on yet. When they are, a card processor will take your card details, and I will never see or store your card number. I will keep your email, what you gave and when, so I can send receipts and the heads-up before any autopay charge. Your donation goes through a donation partner, which keeps your name and email to issue the tax receipt under its own privacy policy. This section will name both companies before the first payment.",
@@ -82,6 +84,8 @@ const SECTIONS: { title: string; body: React.ReactNode; computer?: boolean }[] =
       ? "No one, except the companies that make the service run: my host, and Endaoment and Every.org for payments, each only for its own job. I will never sell your data or share it for advertising."
       : PAYMENT_MODE === "pledge"
       ? "No one, except the companies that make the service run: my host, and Pledge for payments, each only for its own job. I will never sell your data or share it for advertising."
+      : PAYMENT_MODE === "pledgeapi"
+      ? "No one, except the companies that make the service run: my host, and Stripe and Pledge for payments, each only for its own job. I will never sell your data or share it for advertising."
       : PAYMENT_MODE === "every"
       ? "No one, except the companies that make the service run: my host, and Every.org for payments, each only for its own job. I will never sell your data or share it for advertising."
       : "No one, except the companies that make the service run: my host now, and the card processor and donation partner once payments start, each only for its own job. I will never sell your data or share it for advertising.",
@@ -96,7 +100,7 @@ const SECTIONS: { title: string; body: React.ReactNode; computer?: boolean }[] =
         has a button that clears this browser
         {accountsOn() ? " and one that deletes your account, which removes your email and what you've offset from my server" : ""}. You can
         ask me to delete your gift records too, except what the law or{" "}
-        {forMode({ every: "Every.org requires", pledge: "Pledge requires", endaoment: "Endaoment or Every.org requires", sponsor: "the donation partner requires me to keep" })} for
+        {forMode({ every: "Every.org requires", pledge: "Pledge requires", pledgeapi: "Stripe or Pledge requires", endaoment: "Endaoment or Every.org requires", sponsor: "the donation partner requires me to keep" })} for
         tax receipts.
       </>
     ),
