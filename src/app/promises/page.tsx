@@ -39,7 +39,7 @@ const PROMISES = [
       endaoment:
         "You give to My Offset's fund at Endaoment, a nonprofit that sends you the tax receipt and grants the money on to each charity in the amounts checkout shows. I never hold the money myself.",
       pledgeapi:
-        "You pay My Offset once, through Stripe. I then give each charity its part through Pledge, a nonprofit giving platform, in the amounts checkout shows. Pledge records each gift in your name. Every month's totals are public.",
+        "You pay My Offset once, through Stripe. I then give each charity its part through Pledge, a nonprofit giving platform, in the amounts checkout shows. Pledge records each gift in your name and emails you a receipt for it. Every month's totals are public.",
       sponsor:
         "Your donation is held by my charity sponsor, a registered charity, which sends you the tax receipt and pays the charities on your summary each month. I never hold the money myself. Every month's totals are public.",
     }),

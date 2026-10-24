@@ -1871,7 +1871,7 @@ export function Store() {
                         a nonprofit giving platform, and pass on every dollar of the donation. Stripe keeps its card fee ({STRIPE_CARD_LABEL}),
                         and Pledge keeps its {PLEDGE_API_FEE_LABEL} technology fee and {PLEDGE_API_CARD_LABEL} card fee. Both are added on top,
                         so each charity gets its part in full; I keep none of it. There&apos;s no $1 smallest gift, so each part goes to its
-                        own charity to the cent. Pledge records each gift in your name.
+                        own charity to the cent. Pledge records each gift in your name and emails you a receipt for each.
                       </p>
                     ) : pledge ? (
                       <p className="mt-2 text-xs text-muted">
