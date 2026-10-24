@@ -29,7 +29,7 @@ export default function Home() {
               pledge:
                 "You give to each charity on your plan directly, through Pledge, a nonprofit giving platform that emails you the tax receipt. I never hold your money.",
               pledgeapi:
-                "You pay me once, through Stripe, and I give every dollar of your donation to the charities on your plan through Pledge, a nonprofit giving platform. Pledge records each gift in your name.",
+                "You pay me once, through Stripe, and I give every dollar of your donation to the charities on your plan through Pledge, a nonprofit giving platform. Pledge records each gift in your name and emails you a receipt for it.",
               endaoment:
                 "You make one gift to My Offset's fund at Endaoment, a nonprofit that grants it on to each charity on your plan and sends you the tax receipt. I never hold your money.",
               sponsor:

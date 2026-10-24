@@ -55,7 +55,7 @@ const SECTIONS: { title: string; body: React.ReactNode; computer?: boolean }[] =
     ) : PAYMENT_MODE === "pledgeapi" ? (
       <>
         You pay My Offset once, through Stripe, and Stripe&apos;s terms cover the card payment. I then give each charity its part
-        through Pledge, a nonprofit giving platform, and pass on every dollar of your donation. Pledge records each gift in your name.
+        through Pledge, a nonprofit giving platform, and pass on every dollar of your donation. Pledge records each gift in your name and emails you a receipt for it.
         I&apos;m still checking what receipt Pledge sends for these gifts and what is tax-deductible, so don&apos;t count on a
         deduction until this page says so. If a charity closes or stops qualifying, Pledge decides where the gift goes under its rules,
         and{" "}

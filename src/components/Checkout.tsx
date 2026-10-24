@@ -575,7 +575,7 @@ function PledgeApiSteps({ checkout, onChange, onGo, saved = true, save = saveChe
       )}
       <p className="mt-2 text-sm text-muted" role="status">
         {done
-          ? "Every gift is confirmed. Thank you. Pledge records each gift in your name."
+          ? "Every gift is confirmed. Thank you. Pledge emails you a receipt for each gift."
           : paid
             ? "Paid. Thank you. I give each charity its part through Pledge, and this page checks for each confirmation."
             : "Pay opens Stripe's checkout page for the whole total, then brings you back here."}
