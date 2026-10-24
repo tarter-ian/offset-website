@@ -4,7 +4,7 @@ import { createClient } from "@libsql/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { chargeTotal, giftCharge, type GiftItem, giftPaidMode } from "./gifts";
 import { autopayOffered, chargeSummary, feeFor, onePayment, paymentModeFrom, payRows, PLEDGE_EINS, rowsTotal } from "./payments";
-import { donationId, donationRequest, givePledgeDonation, orgLookupRequest, pickOrgId, pledgeApiHost, splitName } from "./pledgeApi";
+import { donationId, donationRequest, givePledgeDonation, orgLookupRequest, pickOrgId, PLEDGE_ORG_NAMES, pledgeApiHost, splitName } from "./pledgeApi";
 import { minGift, PLEDGE_API_CARD_RATE, PLEDGE_API_FEE_RATE, STRIPE_CARD } from "./pricing";
 import { parsePlanClaim, planRows } from "./publicList";
 import { DEFAULT_CONTEXT as C, harmSplit, planTotals } from "./store";
@@ -152,14 +152,17 @@ describe("Pledge request builder", () => {
     expect(pledgeApiHost("http://evil.test")).toBe("https://api.pledge.to");
   });
 
-  it("looks a charity up by EIN and takes only the exact match", () => {
+  it("looks a charity up by name and takes only the exact EIN match", () => {
     const r = orgLookupRequest("04-3512550", "key_1", "https://api.pledge.to");
-    expect(r.url).toBe("https://api.pledge.to/v1/organizations?q=04-3512550");
+    expect(r.url).toBe("https://api.pledge.to/v1/organizations?q=Clean+Air+Task+Force");
     expect(r.init.headers.authorization).toBe("Bearer key_1");
     const body = { results: [{ id: "x", ein: "04-3512551" }, { id: "org_9", ein: "043512550" }] };
     expect(pickOrgId(body, "04-3512550")).toBe("org_9");
     expect(pickOrgId({ results: [{ id: "x", ein: "11-1111111" }] }, "04-3512550")).toBeNull();
     expect(pickOrgId(null, "04-3512550")).toBeNull();
+    // Pledge's real shape: the EIN is in ngo_id.
+    const real = { page: 1, results: [{ id: "9d27", name: "CRUSH 04", ngo_id: "47-3285346" }, { id: "catf", name: "Clean Air Task Force", ngo_id: "04-3512550" }] };
+    expect(pickOrgId(real, "04-3512550")).toBe("catf");
   });
 
   it("creates a donation with the amount as a decimal string and the donor's name split", () => {
@@ -183,14 +186,15 @@ describe("Pledge request builder", () => {
   });
 });
 
-// A fake Pledge: answers the lookup by EIN, then each donation, failing any charity named in `failing`.
+// A fake Pledge: answers the lookup by name (with the EIN in ngo_id, as Pledge does), then each donation, failing any charity named in `failing`.
 function fakePledge(failing: Set<string>) {
   const calls: string[] = [];
   const fetcher = (async (url: string, init?: RequestInit) => {
     calls.push(`${init?.method} ${url}`);
     if (url.includes("/v1/organizations")) {
-      const ein = new URL(url).searchParams.get("q")!;
-      return new Response(JSON.stringify({ results: [{ id: `org-${ein}`, ein }] }), { status: 200 });
+      const name = new URL(url).searchParams.get("q")!;
+      const ein = Object.keys(PLEDGE_ORG_NAMES).find((e) => PLEDGE_ORG_NAMES[e] === name)!;
+      return new Response(JSON.stringify({ results: [{ id: `org-${ein}`, name, ngo_id: ein }] }), { status: 200 });
     }
     const b = JSON.parse(String(init?.body)) as { organization_id: string; metadata: { gift: string } };
     if (failing.has(b.metadata.gift)) return new Response('{"error":"nope"}', { status: 500 });
