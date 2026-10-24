@@ -4,6 +4,7 @@ import { AccountDelete } from "@/components/Account";
 import { ComputerOnly } from "@/components/ComputerOnly";
 import { DataControls } from "@/components/DataControls";
 import { accountsOn } from "@/lib/account";
+import { PAYMENT_MODE } from "@/lib/payments";
 import { SIGN_IN_READS, type SignInService } from "@/lib/signinReads";
 
 export const metadata: Metadata = { title: "Your data | My Offset" };
@@ -26,7 +27,12 @@ const KEPT: { where: string; what: string; computer?: boolean }[] = [
     where: "In your browser",
     what: "The plan you build, the amounts you enter and what you've offset, so they're still there when you come back. Only what you've offset leaves your device, and only if you sign in.",
   },
-  accountsOn()
+  PAYMENT_MODE === "pledgeapi"
+    ? {
+        where: "On my server",
+        what: `${accountsOn() ? "If you sign in: your email, and what you've offset with its start and end dates. " : ""}When you pay: Stripe takes your card, and I never see its number. Stripe tells me your name, email and what you paid. I pass your name and email to Pledge, so each gift is made in your name and Pledge can email you a receipt. I keep each gift's charity, amount and date, and Pledge's record of it, which includes your name and email. Never how much you use anything: those counts and totals stay in your browser.${accountsOn() ? " Deleting your account below removes your email and what you've offset; gift records stay." : ""}`,
+      }
+    : accountsOn()
     ? {
         where: "On my server",
         what: "If you sign in: your email, and what you've offset with its start and end dates. If you give through this site's links: each gift's charity, amount and date from Every.org, and your email if you share it there, linked to your account if you have one. Never how much you use anything or what you spend: those counts and totals stay in your browser. Deleting your account below removes your email and what you've offset; gifts stay on the ledger without your name.",
@@ -46,7 +52,7 @@ const KEPT: { where: string; what: string; computer?: boolean }[] = [
   },
   {
     where: "Passes through, not kept",
-    what: "If you paste an API key, it goes through my server once, to ask OpenAI or Anthropic for your usage totals, which come straight back to this page. I don't save or log the key or the totals. If you join Who's offsetting, your browser sends the amounts on your plan with your birth year and state, so my server can work out the gifts and check that Every.org confirmed them. It keeps only the name you pick, the items and dates, and those gifts, never the amounts you entered. It also gets the names of the items you use none of, which count as offset on the list, but no amounts or counts.",
+    what: "If you paste an API key, it goes through my server once, to ask OpenAI or Anthropic for your usage totals, which come straight back to this page. I don't save or log the key or the totals. If you join Who's offsetting, your browser sends the amounts on your plan with your birth year and state, so my server can work out the gifts and check that they were confirmed. It keeps only the name you pick, the items and dates, and those gifts, never the amounts you entered. It also gets the names of the items you use none of, which count as offset on the list, but no amounts or counts.",
   },
 ];
 
