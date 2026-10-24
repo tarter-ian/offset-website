@@ -27,7 +27,7 @@ const SECTIONS: { title: string; body: React.ReactNode; computer?: boolean }[] =
         {accountsOn()
           ? "If you sign in, your email and what you've offset, with start and end dates, so it follows you to another device. "
           : "There are no accounts yet, so I have no name, email or password. "}
-        I never keep how much you use anything: the plan you build and every count are saved only in your own browser. If you give, see below for what Every.org tells me. To guess your state, my host
+        I never keep how much you use anything: the plan you build and every count are saved only in your own browser. If you give, see below for what I receive. To guess your state, my host
         (Cloudflare) reads the location of your internet connection on each visit; I use it for that page and don&apos;t save it.
         Cloudflare keeps standard request logs for security, which I don&apos;t use for anything else. I use no analytics, ads or
         tracking cookies.
@@ -76,7 +76,7 @@ const SECTIONS: { title: string; body: React.ReactNode; computer?: boolean }[] =
   },
   {
     title: "Who's offsetting",
-    body: "Only if you tick \"List me publicly\" (a gift's recipient decides for themselves). To check your gifts, your browser sends the amounts on your plan with your birth year and state; I work out the gifts from them and keep none of it. I keep the name you pick, which items your checkout or gift offset and when, and the gifts it asked of each charity, so the list can check Every.org confirmed them. Items you use none of count as offset, so your browser also sends their names, like \"AI video\", and updates them when that changes; never how much you use of anything. The list shows the name and the badges, never amounts or email. A secret kept in your browser lets you rename or leave; leaving deletes all of it.",
+    body: "Only if you tick \"List me publicly\" (a gift's recipient decides for themselves). To check your gifts, your browser sends the amounts on your plan with your birth year and state; I work out the gifts from them and keep none of it. I keep the name you pick, which items your checkout or gift offset and when, and the gifts it asked of each charity, so the list can check they were confirmed. Items you use none of count as offset, so your browser also sends their names, like \"AI video\", and updates them when that changes; never how much you use of anything. The list shows the name and the badges, never amounts or email. A secret kept in your browser lets you rename or leave; leaving deletes all of it.",
   },
   {
     title: "Who I share it with",
