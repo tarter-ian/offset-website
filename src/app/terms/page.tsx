@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ComputerOnly } from "@/components/ComputerOnly";
 import { ContactLink } from "@/components/ContactLink";
 import { forMode, PAYMENT_MODE } from "@/lib/payments";
-import { PLEDGE_FREE_LABEL } from "@/lib/pricing";
+import { PLEDGE_API_CARD_LABEL, PLEDGE_API_FEE_LABEL, PLEDGE_FREE_LABEL, STRIPE_CARD_LABEL } from "@/lib/pricing";
 
 export const metadata: Metadata = { title: "Terms | My Offset" };
 
@@ -52,6 +52,19 @@ const SECTIONS: { title: string; body: React.ReactNode; computer?: boolean }[] =
         will say so. Refunds are up to Pledge. If you were charged by mistake, tell me within 30 days and I&apos;ll help you ask for
         one.
       </>
+    ) : PAYMENT_MODE === "pledgeapi" ? (
+      <>
+        You pay My Offset once, through Stripe, and Stripe&apos;s terms cover the card payment. I then give each charity its part
+        through Pledge, a nonprofit giving platform, and pass on every dollar of your donation. Pledge records each gift in your name.
+        I&apos;m still checking what receipt Pledge sends for these gifts and what is tax-deductible, so don&apos;t count on a
+        deduction until this page says so. If a charity closes or stops qualifying, Pledge decides where the gift goes under its rules,
+        and{" "}
+        <Link href="/ledger" className="text-accent underline underline-offset-4">
+          Where the money goes
+        </Link>{" "}
+        will say so. If you were charged by mistake, tell me within 30 days. I&apos;ll refund it if the gifts haven&apos;t been made
+        yet, and help you ask Pledge if they have.
+      </>
     ) : PAYMENT_MODE === "endaoment" ? (
       <>
         Your gift goes to My Offset&apos;s fund at Endaoment, a nonprofit that runs charitable funds, and Endaoment grants it on to the
@@ -82,6 +95,7 @@ const SECTIONS: { title: string; body: React.ReactNode; computer?: boolean }[] =
       every: "Every.org's card fee is shown for each charity, and I don't keep any of it. There are no tips or fees for using the site.",
       endaoment: "The card fee and Endaoment's fees are listed separately, and I don't keep any of them. There are no tips or fees for using the site.",
       pledge: `Pledge pays the card fee on gifts up to ${PLEDGE_FREE_LABEL}. Above that, the card fee is shown for each charity, and I don't keep any of it. Pledge may ask for an optional tip, which goes to Pledge, not to me. There are no fees for using the site.`,
+      pledgeapi: `Stripe's card fee (${STRIPE_CARD_LABEL}) and Pledge's fees (${PLEDGE_API_FEE_LABEL} technology fee and ${PLEDGE_API_CARD_LABEL} card fee) are listed separately, and I don't keep any of them. There are no tips or fees for using the site.`,
       sponsor: "The card fee and my charity sponsor's fee are listed separately, and I don't keep any of either. There are no tips or fees for using the site.",
     }),
   },
@@ -92,6 +106,7 @@ const SECTIONS: { title: string; body: React.ReactNode; computer?: boolean }[] =
         "You approve each gift yourself unless you tick autopay at checkout. With autopay on, Every.org charges the same gifts each month or year until you cancel them in your Every.org account. I can't email you first or hold a charge back.",
       endaoment: "You approve each gift yourself. Nothing repeats on its own: each month or year, you come back and give again.",
       pledge: "You approve each gift yourself. Nothing repeats on its own: each month or year, you come back and give again.",
+      pledgeapi: "You approve each payment yourself. Nothing repeats on its own: each month or year, you come back and pay again.",
       sponsor:
         "You approve each payment yourself unless you switch on autopay. With autopay on, I email you a few days before every charge with the amount and a one-click skip or stop. A charge more than $5 or 25% above the last one, whichever is smaller, waits for your approval. You can stop autopay at any time, and it takes effect before the next charge.",
     }),

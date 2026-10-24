@@ -17,6 +17,10 @@ import type { Context } from "./store";
 //   $1 gift went through in Ian's test without signing up. Pledge's forms take no
 //   reference and offer no repeating gifts, so there is no autopay and a gift stays
 //   "given, waiting for confirmation" until Pledge's webhook can be matched to plans.
+// - "pledgeapi": one payment for every charity (2026-10-24). The donor pays My Offset
+//   once through Stripe Checkout; Stripe's webhook then has the server make one
+//   donation per charity through Pledge's REST API, in the donor's name. Off until
+//   Ian switches it on, and Pledge's API calls (src/lib/pledgeApi.ts) are unverified.
 // - "sponsor": a fiscal sponsor that would hold donations. Not set up; never chosen by env.
 
 export type { PaymentMode };
@@ -33,9 +37,24 @@ const httpsUrl = (u: string | undefined) => {
  * NEXT_PUBLIC_PAYMENT_MODE=endaoment gives through the Endaoment fund, but only
  * with NEXT_PUBLIC_ENDAOMENT_FUND_URL set to its donate page. NEXT_PUBLIC_PAYMENT_MODE=pledge
  * gives through Pledge's forms, but only with NEXT_PUBLIC_PLEDGE_PARTNER_KEY set. Anything else stays on Every.org.
+ *
+ * NEXT_PUBLIC_PAYMENT_MODE=pledgeapi takes one Stripe payment and gives through Pledge's API.
+ * It needs these server secrets, set in Cloudflare and never in code:
+ * - STRIPE_SECRET_KEY: creates the Stripe Checkout Session (/api/stripe/checkout).
+ * - STRIPE_WEBHOOK_SECRET: the signing secret of the Stripe webhook endpoint
+ *   /api/stripe/webhook, sent checkout.session.completed and checkout.session.async_payment_succeeded.
+ * - PLEDGE_API_KEY: Pledge's REST API key (already set for Pledge's webhook).
+ * - PLEDGE_API_HOST (optional): https://api-staging.pledge.to for Pledge's sandbox; https://api.pledge.to by default.
+ * Without a secret, its route answers 503 and nothing is charged.
  */
 export const paymentModeFrom = (mode: string | undefined, fundUrl: string | undefined, pledgeKey?: string): PaymentMode =>
-  mode === "endaoment" && httpsUrl(fundUrl) ? "endaoment" : mode === "pledge" && !!pledgeKey?.trim() ? "pledge" : "every";
+  mode === "endaoment" && httpsUrl(fundUrl)
+    ? "endaoment"
+    : mode === "pledge" && !!pledgeKey?.trim()
+      ? "pledge"
+      : mode === "pledgeapi"
+        ? "pledgeapi"
+        : "every";
 export const PAYMENT_MODE: PaymentMode = paymentModeFrom(
   process.env.NEXT_PUBLIC_PAYMENT_MODE,
   process.env.NEXT_PUBLIC_ENDAOMENT_FUND_URL,
@@ -50,6 +69,7 @@ export const paymentsOn = () => process.env.NEXT_PUBLIC_PAYMENTS_ON === "1";
 /**
  * The fee on one payment in the current mode: the card fee, plus the sponsor's or Endaoment's share.
  * Through Pledge there is none up to $1,000, since Pledge covers the card fee on its own forms.
+ * Through Pledge's API it is Stripe's card fee plus Pledge's fees, on the donor's one payment.
  */
 export const feeFor = (donation: number, mode: PaymentMode = PAYMENT_MODE) =>
   mode === "pledge" && donation <= PLEDGE_FREE_UP_TO_USD ? 0 : paymentFee(donation, sponsorRate(mode), cardRate(mode));
@@ -142,6 +162,7 @@ export interface PayRow {
   /** The harms this gift pays for: every harm whose charity this is. */
   harms: ImpactKey[];
   donation: number;
+  /** This gift's own fee; 0 in "pledgeapi" mode, where the fee is on the one payment (see onePayment). */
   fee: number;
   total: number;
   frequency: Frequency;
@@ -177,7 +198,8 @@ function byPayee(amounts: Partial<Record<ImpactKey, number>>) {
 function rowsFor(amounts: Record<ImpactKey, number>, frequency: Frequency, suffix: string, mode: PaymentMode): PayRow[] {
   return [...byPayee(amounts)].map(([k, g]) => {
     const donation = Math.max(minGift(mode), upToCent(g.amount));
-    const fee = feeFor(donation, mode);
+    // Through Pledge's API every row is part of one payment, whose fee onePayment works out.
+    const fee = mode === "pledgeapi" ? 0 : feeFor(donation, mode);
     return { key: `${k}${suffix}`, charity: k, harms: g.harms, donation, fee, total: Math.round((donation + fee) * 100) / 100, frequency };
   });
 }
@@ -192,8 +214,11 @@ function rowsFor(amounts: Record<ImpactKey, number>, frequency: Frequency, suffi
 export const payRows = (split: HarmSplit, billing: Billing, autopay: boolean, mode: PaymentMode = PAYMENT_MODE): PayRow[] =>
   splitRows(split, billing, autopay && autopayOffered(mode), mode);
 
-/** Whether a mode can repeat gifts on their own. Every.org can; Pledge's forms take no frequency. */
-export const autopayOffered = (mode: PaymentMode = PAYMENT_MODE) => mode !== "pledge";
+/**
+ * Whether a mode can repeat gifts on their own. Every.org can; Pledge's forms take no frequency,
+ * and the one Stripe payment in "pledgeapi" mode is made once.
+ */
+export const autopayOffered = (mode: PaymentMode = PAYMENT_MODE) => mode !== "pledge" && mode !== "pledgeapi";
 
 /** payRows without the autopay check, for working out what each later month or year costs in any mode. */
 function splitRows(split: HarmSplit, billing: Billing, autopay: boolean, mode: PaymentMode): PayRow[] {
@@ -240,7 +265,7 @@ export function bestPastYears(plan: PlanLine[], ctx: Context, billing: Billing, 
 function charges(split: HarmSplit, billing: Billing, mode: PaymentMode): { once: number; repeat: number } {
   if (mode === "endaoment") return { once: fundGift(byHarm((k) => split[k].once)).total, repeat: fundGifts(split).repeat?.total ?? 0 };
   const rows = splitRows(split, billing, true, mode);
-  return { once: sumTotal(rows.filter((r) => r.frequency === "ONCE")), repeat: sumTotal(rows.filter((r) => r.frequency !== "ONCE")) };
+  return { once: rowsTotal(rows.filter((r) => r.frequency === "ONCE"), mode), repeat: rowsTotal(rows.filter((r) => r.frequency !== "ONCE"), mode) };
 }
 
 /** What checkout charges today and then each month or year, fees included, through Every.org, Pledge or Endaoment. */
@@ -249,10 +274,35 @@ export function chargeSummary(split: HarmSplit, billing: Billing, autopay: boole
     const g = fundGifts(split);
     return { today: g.today.total, then: g.repeat?.total ?? 0 };
   }
-  return { today: sumTotal(payRows(split, billing, autopay, mode)), then: sumTotal(repeatRows(split, billing, mode)) };
+  return { today: rowsTotal(payRows(split, billing, autopay, mode), mode), then: rowsTotal(repeatRows(split, billing, mode), mode) };
 }
 
 export const sumTotal = (rows: PayRow[]) => Math.round(rows.reduce((s, r) => s + r.total, 0) * 100) / 100;
+
+/** The donor's one payment through Stripe in "pledgeapi" mode: every charity's part, and the fees on top. */
+export interface OnePayment {
+  donation: number;
+  /** Stripe's card fee on the payment. */
+  stripe: number;
+  /** Pledge's part: its technology fee and the card fee it charges me for the donations. */
+  pledge: number;
+  fee: number;
+  total: number;
+}
+
+/**
+ * One Stripe payment for these rows. The fees are worked out on the whole payment, so
+ * after Stripe's and Pledge's fees every charity still gets its part in full.
+ */
+export function onePayment(rows: Pick<PayRow, "donation">[]): OnePayment {
+  const donation = Math.round(rows.reduce((s, r) => s + r.donation, 0) * 100) / 100;
+  const fee = feeFor(donation, "pledgeapi");
+  const parts = feeParts(donation, sponsorRate("pledgeapi"), cardRate("pledgeapi"));
+  return { donation, stripe: parts.card, pledge: parts.sponsor, fee, total: Math.round((donation + fee) * 100) / 100 };
+}
+
+/** What a set of rows charges, fees included: each row on its own, or all in one payment in "pledgeapi" mode. */
+export const rowsTotal = (rows: PayRow[], mode: PaymentMode = PAYMENT_MODE) => (mode === "pledgeapi" ? onePayment(rows).total : sumTotal(rows));
 
 /** The fees for giving these amounts to the charities one payment each, as Every.org or Pledge charges them. */
 export function perCharityFees(amounts: Partial<Record<ImpactKey, number>>, mode: PaymentMode = PAYMENT_MODE): number {
@@ -437,6 +487,8 @@ export interface Checkout {
   fund?: FundGift;
   /** Whether the repeating gifts were set to repeat on Every.org on their own. Missing on checkouts saved before 2026-10-13. */
   autopay?: boolean;
+  /** A gift for someone else, so the one Stripe payment in "pledgeapi" mode is worked out from the saved gift. */
+  gift?: true;
   /** What the plan was priced from, so a steady gift can be checked against measured use later. Kept in this browser only. */
   plan?: { lines: PlanLine[]; ctx: Context; pastYears: PastYears };
 }

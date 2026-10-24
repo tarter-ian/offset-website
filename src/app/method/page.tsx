@@ -24,6 +24,9 @@ import {
   LIFETIME_GROWTH_BUFFER,
   MIN_DONATION_USD,
   PLEDGE_MIN_GIFT_USD,
+  PLEDGE_API_CARD_LABEL,
+  PLEDGE_API_FEE_LABEL,
+  STRIPE_CARD_LABEL,
   usd,
 } from "@/lib/pricing";
 
@@ -291,6 +294,14 @@ export default function MethodPage() {
           {PLEDGE_FREE_LABEL}. Above that, the card fee ({PLEDGE_CARD_LABEL}) is worked out on the whole gift and added on top, so the
           donation arrives in full. Each harm&apos;s share always goes to its own charity; a share under {usd(PLEDGE_MIN_GIFT_USD)} is
           rounded up to {usd(PLEDGE_MIN_GIFT_USD)} rather than moved to another charity.
+        </p>
+      ) : PAYMENT_MODE === "pledgeapi" ? (
+        <p className="mt-2 text-muted">
+          I make nothing on fees. You pay me once, through Stripe, and I give each charity its part through Pledge. The payment carries
+          Stripe&apos;s card fee ({STRIPE_CARD_LABEL}) and Pledge&apos;s {PLEDGE_API_FEE_LABEL} technology fee and{" "}
+          {PLEDGE_API_CARD_LABEL} card fee, worked out on the whole payment and added on top, so each charity gets its part in full. The
+          fees go to Stripe and Pledge. Each harm&apos;s share goes to its own charity to the cent, with no rounding up to a dollar.
+          Paying yearly means one 30¢ fee a year instead of twelve.
         </p>
       ) : PAYMENT_MODE === "endaoment" ? (
         <p className="mt-2 text-muted">

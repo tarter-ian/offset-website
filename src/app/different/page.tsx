@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ComputerOnly } from "@/components/ComputerOnly";
 import { forMode, PAYMENT_MODE } from "@/lib/payments";
-import { ENDAOMENT_GRANT_LABEL, ENDAOMENT_IN_LABEL } from "@/lib/pricing";
+import { ENDAOMENT_GRANT_LABEL, ENDAOMENT_IN_LABEL, PLEDGE_API_CARD_LABEL, PLEDGE_API_FEE_LABEL } from "@/lib/pricing";
 
 export const metadata: Metadata = { title: "What's different | My Offset" };
 
@@ -44,6 +44,7 @@ const ROWS: Row[] = [
         "All of it. You give to each charity through Every.org, and the only fee is its card fee, shown for each charity. I pay for running the site myself.",
       pledge:
         "All of it. You give to each charity through Pledge, a nonprofit giving platform. Pledge pays the card fee on gifts up to $1,000, so there is no fee on most gifts. I pay for running the site myself.",
+      pledgeapi: `All of your donation. You pay me once through Stripe, and I give every dollar of it to the charities through Pledge, a nonprofit giving platform. The only fees are Stripe's card fee and Pledge's ${PLEDGE_API_FEE_LABEL} technology fee and ${PLEDGE_API_CARD_LABEL} card fee, each on its own line. I pay for running the site myself.`,
       endaoment: `All of it. You give once through Endaoment, and the only fees are the card payment and Endaoment's ${ENDAOMENT_IN_LABEL} in and ${ENDAOMENT_GRANT_LABEL} out, each on its own line. I pay for running the site myself.`,
       sponsor:
         "All of it. The only fees are the card payment and my charity sponsor's share, each on its own line. I pay for running the site myself.",
@@ -60,6 +61,8 @@ const ROWS: Row[] = [
         ? "You approve each payment, monthly or yearly, and can skip any month. Autopay through Every.org is there if you want it, off by default."
         : PAYMENT_MODE === "pledge"
         ? "You approve each gift, monthly or yearly, and can skip any month. Nothing repeats on its own."
+        : PAYMENT_MODE === "pledgeapi"
+        ? "You approve each payment, monthly or yearly, and can skip any month. Nothing repeats on its own."
         : "You approve each payment, monthly or yearly, and can skip any month. Autopay is there if you want it, off by default, with an email before every charge.",
   },
   {
@@ -80,6 +83,7 @@ const ROWS: Row[] = [
       every: "Charities chosen on evidence, and no carbon credits. Every month's totals are public, and Every.org emails you the receipt for each gift.",
       endaoment: "Charities chosen on evidence, and no carbon credits. Every month's totals are public, and Endaoment emails you the receipt.",
       pledge: "Charities chosen on evidence, and no carbon credits. Every month's totals are public, and Pledge emails you the receipt for each gift.",
+      pledgeapi: "Charities chosen on evidence, and no carbon credits. Every month's totals are public, and Pledge records each gift in your name.",
       sponsor: "Charities chosen on evidence, and no carbon credits. Every month's totals are public, and my charity sponsor emails you the receipt.",
     }),
   },

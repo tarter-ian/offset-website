@@ -86,9 +86,15 @@ const cents = (n: number) => Math.round(n * 100) / 100;
  * Through Pledge ("pledge" mode, a fallback for small gifts, 2026-10-15), each
  * charity is paid separately in Pledge's embedded form, and Pledge covers the
  * card fee on gifts up to $1,000.
+ * Through Pledge's API ("pledgeapi" mode, off until Ian switches it on), the person
+ * pays My Offset once through Stripe, and I pass every dollar on as one Pledge
+ * donation per charity. Stripe takes its card fee on that payment, and Pledge
+ * takes its technology fee and its own card fee on the donations it charges me
+ * for. All three are added on top, so each charity gets its part in full; none
+ * goes to me.
  * Fees are worked out on the whole payment, so the donation arrives in full.
  */
-export type PaymentMode = "every" | "sponsor" | "endaoment" | "pledge";
+export type PaymentMode = "every" | "sponsor" | "endaoment" | "pledge" | "pledgeapi";
 export interface CardRate {
   fixed: number;
   rate: number;
@@ -114,11 +120,31 @@ export const ENDAOMENT_CARD: CardRate = { fixed: 0.3, rate: 0.029 };
  */
 export const PLEDGE_FREE_UP_TO_USD = 1000;
 export const PLEDGE_CARD: CardRate = { fixed: 0.3, rate: 0.029 };
+/** Stripe's standard US card fee, on the donor's one payment to My Offset in "pledgeapi" mode. */
+export const STRIPE_CARD: CardRate = { fixed: 0.3, rate: 0.029 };
+/**
+ * Pledge's technology fee on donations made through its API: 5%, from the example
+ * in Pledge's help article. Ian must confirm his own rate on his Pledge Developer
+ * settings page before "pledgeapi" mode is switched on.
+ */
+export const PLEDGE_API_FEE_RATE = 0.05;
+/**
+ * Pledge charges Ian's card for the month's API donations, at 2.9% (plus 30¢ on the
+ * month's total, left out here since it's one charge a month, not one per payment).
+ */
+export const PLEDGE_API_CARD_RATE = 0.029;
 /** The share kept by whoever holds the money, in each payment mode: none when paying each charity directly. */
 export const sponsorRate = (mode: PaymentMode) =>
-  mode === "every" || mode === "pledge" ? 0 : mode === "endaoment" ? ENDAOMENT_IN_RATE + ENDAOMENT_GRANT_RATE : SPONSOR_RATE;
+  mode === "every" || mode === "pledge"
+    ? 0
+    : mode === "endaoment"
+      ? ENDAOMENT_IN_RATE + ENDAOMENT_GRANT_RATE
+      : mode === "pledgeapi"
+        ? PLEDGE_API_FEE_RATE + PLEDGE_API_CARD_RATE
+        : SPONSOR_RATE;
 /** The card rate in each payment mode. */
-export const cardRate = (mode: PaymentMode): CardRate => (mode === "endaoment" ? ENDAOMENT_CARD : mode === "pledge" ? PLEDGE_CARD : CARD);
+export const cardRate = (mode: PaymentMode): CardRate =>
+  mode === "endaoment" ? ENDAOMENT_CARD : mode === "pledge" ? PLEDGE_CARD : mode === "pledgeapi" ? STRIPE_CARD : CARD;
 export const paymentFee = (donation: number, sponsor: number = SPONSOR_RATE, card: CardRate = CARD) =>
   donation > 0 ? Math.ceil(((card.fixed + (card.rate + sponsor) * donation) / (1 - card.rate - sponsor)) * 100) / 100 : 0;
 /** The card fee alone on one payment, as on each Every.org donation. */
@@ -140,6 +166,10 @@ export const ENDAOMENT_CARD_LABEL = `30¢ + ${pct(ENDAOMENT_CARD.rate)}`;
 /** "30¢ + 2.9%" and "$1,000", for Pledge's labels. */
 export const PLEDGE_CARD_LABEL = `30¢ + ${pct(PLEDGE_CARD.rate)}`;
 export const PLEDGE_FREE_LABEL = `$${PLEDGE_FREE_UP_TO_USD.toLocaleString("en-US")}`;
+/** "30¢ + 2.9%", "5%" and "2.9%", for the labels in "pledgeapi" mode. */
+export const STRIPE_CARD_LABEL = `30¢ + ${pct(STRIPE_CARD.rate)}`;
+export const PLEDGE_API_FEE_LABEL = pct(PLEDGE_API_FEE_RATE);
+export const PLEDGE_API_CARD_LABEL = pct(PLEDGE_API_CARD_RATE);
 
 /**
  * Smallest donation, a dollar on any payment. Small donations are pooled and
@@ -151,8 +181,14 @@ export const MIN_DONATION_USD = 1;
  * test (2026-10-23), so a small share no longer has to be rounded up to a dollar.
  */
 export const PLEDGE_MIN_GIFT_USD = 0.25;
+/**
+ * Smallest gift to one charity through Pledge's API: a cent. The donor's one payment
+ * carries every charity's part, so no part has to be rounded up to a form's minimum.
+ */
+export const PLEDGE_API_MIN_GIFT_USD = 0.01;
 /** Smallest gift to one charity in each payment mode. */
-export const minGift = (mode: PaymentMode) => (mode === "pledge" ? PLEDGE_MIN_GIFT_USD : MIN_DONATION_USD);
+export const minGift = (mode: PaymentMode) =>
+  mode === "pledge" ? PLEDGE_MIN_GIFT_USD : mode === "pledgeapi" ? PLEDGE_API_MIN_GIFT_USD : MIN_DONATION_USD;
 
 /** Ongoing offsets can be billed yearly: one approval and one 30¢ card charge a year instead of twelve. */
 export type Billing = "annual" | "monthly";
