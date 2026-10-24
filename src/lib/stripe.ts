@@ -138,3 +138,14 @@ export function parseSessionEvent(body: unknown): PaidSession | null {
     name: typeof cd?.name === "string" && cd.name ? cd.name : null,
   };
 }
+
+/**
+ * Whether a Stripe event and the Pledge host are on different sides: a test-mode payment
+ * must never make a real Pledge gift (billed to Ian's card), and a real payment must never
+ * go to Pledge's sandbox, where no charity gets anything. Reads the event's top-level livemode.
+ */
+export function modeMismatch(event: unknown, pledgeHost: string, liveHost: string): boolean {
+  const live = (event as { livemode?: unknown } | null)?.livemode;
+  if (typeof live !== "boolean") return true;
+  return live !== (pledgeHost === liveHost);
+}

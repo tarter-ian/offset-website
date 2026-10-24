@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { NoDatabaseError } from "@/lib/db";
-import { pledgeApiHost } from "@/lib/pledgeApi";
-import { parseSessionEvent, STRIPE_MAX_BODY, STRIPE_SIGNATURE_HEADER, verifyStripeSignature } from "@/lib/stripe";
+import { PLEDGE_API_LIVE, pledgeApiHost } from "@/lib/pledgeApi";
+import { modeMismatch, parseSessionEvent, STRIPE_MAX_BODY, STRIPE_SIGNATURE_HEADER, verifyStripeSignature } from "@/lib/stripe";
 import { settleSession } from "@/lib/stripeStore";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +30,11 @@ export async function POST(req: Request) {
   }
   const session = parseSessionEvent(event);
   if (!session) return NextResponse.json({ ok: true, ignored: true });
+  // A test payment never gives through live Pledge, and a real one never through the sandbox.
+  if (modeMismatch(event, pledgeApiHost(), PLEDGE_API_LIVE)) {
+    console.error("stripe-webhook: Stripe and Pledge modes differ; nothing given", session.sessionId);
+    return NextResponse.json({ ok: false, error: "Stripe test mode and Pledge's live API (or the other way round); nothing given." });
+  }
   try {
     const settled = await settleSession(session, { apiKey: process.env.PLEDGE_API_KEY, host: pledgeApiHost() });
     // Only ids and counts are logged, never the donor's email or name.
