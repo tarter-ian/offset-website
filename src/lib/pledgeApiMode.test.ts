@@ -180,9 +180,15 @@ describe("Pledge request builder", () => {
       email: "a@b.test",
       first_name: "Jane",
       last_name: "Q Doe",
-      external_id: `${ID}.carbon`,
+      metadata: `plan=${ID};gift=carbon`,
+      send_tax_receipt: true,
     });
     expect(donationId({ data: { id: 42 } })).toBe("42");
+    // Pledge requires both names: a one-word name fills both, and no name falls back to the email.
+    const one = JSON.parse(donationRequest({ organizationId: "o", amount: 1, donor: { email: "cher@b.test", ...splitName("Cher") }, planId: ID, gift: "water", idempotencyKey: "k" }, "k").init.body!);
+    expect([one.first_name, one.last_name]).toEqual(["Cher", "Cher"]);
+    const none = JSON.parse(donationRequest({ organizationId: "o", amount: 1, donor: { email: "sam@b.test", ...splitName(null) }, planId: ID, gift: "water", idempotencyKey: "k" }, "k").init.body!);
+    expect([none.first_name, none.last_name]).toEqual(["sam", "sam"]);
   });
 });
 
@@ -198,8 +204,8 @@ function fakePledge(failing: Set<string>) {
       const others = Array.from({ length: 24 }, (_, i) => ({ id: `other-${i}`, name: `${name} ${i}`, ngo_id: "11-1111111", mission: "x".repeat(1000) }));
       return new Response(JSON.stringify({ results: [...others, { id: `org-${ein}`, name, ngo_id: ein }] }), { status: 200 });
     }
-    const b = JSON.parse(String(init?.body)) as { organization_id: string; external_id: string };
-    const gift = b.external_id.split(".").at(-1)!;
+    const b = JSON.parse(String(init?.body)) as { organization_id: string; metadata: string };
+    const gift = b.metadata.split("gift=")[1];
     if (failing.has(gift)) return new Response('{"error":"nope"}', { status: 500 });
     return new Response(JSON.stringify({ id: `don-${gift}` }), { status: 201 });
   }) as typeof fetch;

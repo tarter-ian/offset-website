@@ -2,11 +2,12 @@
 // payment, the server makes one donation per charity, in the donor's name.
 //
 // Checked on Pledge's sandbox (api-staging.pledge.to) on 2026-10-24: Bearer auth,
-// GET /v1/organizations?q=<name>, and POST /v1/donations with {organization_id, amount,
-// email, first_name, last_name, external_id} each made a donation (answered with its id,
-// status "pending"); gifts as small as 3¢ went through. Pledge drops a `metadata` object,
-// so the plan and gift go in external_id. Still unchecked: whether Pledge honours the
-// Idempotency-Key header.
+// GET /v1/organizations?q=<name>, and POST /v1/donations made a donation (answered with
+// its id, status "pending"); gifts as small as 3¢ went through. Pledge's API reference
+// (developer.pledge.to/api, read by Ian 2026-10-24) lists the create fields: email,
+// first_name, last_name (all required), phone_number, amount (decimal string), metadata
+// (a free-form string), send_tax_receipt and organization_id. external_id isn't one of
+// them. Still unchecked: whether Pledge honours the Idempotency-Key header.
 
 export const PLEDGE_API_LIVE = "https://api.pledge.to";
 export const PLEDGE_API_SANDBOX = "https://api-staging.pledge.to";
@@ -95,11 +96,15 @@ export function donationRequest(d: DonationInput, apiKey: string, host: string =
     organization_id: d.organizationId,
     amount: d.amount.toFixed(2),
     email: d.donor.email,
-    // Pledge keeps external_id on the donation ("<plan>.<gift>"); it dropped a metadata object (sandbox, 2026-10-24).
-    external_id: `${d.planId}.${d.gift}`,
+    // A string: Pledge dropped an object here (sandbox, 2026-10-24).
+    metadata: `plan=${d.planId};gift=${d.gift}`,
+    // Pledge emails the donor a tax receipt only when asked (help.pledgeling.org, API tax receipts).
+    send_tax_receipt: true,
   };
-  if (d.donor.firstName) body.first_name = d.donor.firstName;
-  if (d.donor.lastName) body.last_name = d.donor.lastName;
+  // Pledge requires both names. A one-word name goes in both; with no name at all, the email's local part does.
+  const fallback = d.donor.firstName || d.donor.lastName || d.donor.email.split("@")[0];
+  body.first_name = d.donor.firstName || fallback;
+  body.last_name = d.donor.lastName || fallback;
   return {
     url: `${host}/v1/donations`,
     init: {
