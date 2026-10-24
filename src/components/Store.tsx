@@ -8,7 +8,7 @@ import { steadyPlan } from "@/lib/steady";
 import { pullCovered, pushCovered } from "@/lib/accountClient";
 import { useEffect, useRef, useState } from "react";
 import { ActivityUpload } from "./ActivityUpload";
-import { CheckoutSteps } from "./Checkout";
+import { CheckoutSteps, DirectPledgeForm } from "./Checkout";
 import { SteadyCheck } from "./SteadyCheck";
 import { LIFETIME_TO_AGE } from "@/lib/factors";
 import { joinList, ListInvite, ListOptIn } from "./ListOptIn";
@@ -2116,7 +2116,7 @@ function GiveDirectly({ totals, ctx, billing }: { totals: ReturnType<typeof plan
         {forMode({
           every: "You can give these amounts on each charity's own site instead.",
           pledge: "You can give these amounts on each charity's own site instead.",
-          pledgeapi: "You can skip Stripe's and Pledge's fees by giving these amounts on each charity's own site.",
+          pledgeapi: "You can skip the one-payment fees by giving these amounts through Pledge's form for each charity, or on each charity's own site.",
           endaoment: "You can skip Endaoment's fees by giving these amounts on each charity's own site.",
           sponsor: "You can skip these fees by giving these amounts on each charity's own site.",
         })}{" "}
@@ -2131,14 +2131,19 @@ function GiveDirectly({ totals, ctx, billing }: { totals: ReturnType<typeof plan
             split[k].perPeriod >= 0.01 && `${usd(split[k].perPeriod)} ${BILLING[billing].per}`,
           ].filter(Boolean);
           return (
-            <div key={k} className="flex justify-between gap-4">
-              <dt className="font-sans">
-                <a href={c.url} target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-foreground">
-                  {c.name}
-                </a>{" "}
-                <span className="text-muted">({IMPACT_INFO[k].label.toLowerCase()})</span>
-              </dt>
-              <dd className="text-right">{parts.join(" + ")}</dd>
+            <div key={k}>
+              <div className="flex justify-between gap-4">
+                <dt className="font-sans">
+                  <a href={c.url} target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-foreground">
+                    {c.name}
+                  </a>{" "}
+                  <span className="text-muted">({IMPACT_INFO[k].label.toLowerCase()})</span>
+                </dt>
+                <dd className="text-right">{parts.join(" + ")}</dd>
+              </div>
+              {PAYMENT_MODE === "pledgeapi" && (
+                <DirectPledgeForm charity={k} amount={Math.ceil((split[k].once + split[k].perPeriod) * 100 - 1e-6) / 100} />
+              )}
             </div>
           );
         })}
