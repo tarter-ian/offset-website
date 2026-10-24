@@ -180,7 +180,7 @@ describe("Pledge request builder", () => {
       email: "a@b.test",
       first_name: "Jane",
       last_name: "Q Doe",
-      metadata: { plan: ID, gift: "carbon" },
+      external_id: `${ID}.carbon`,
     });
     expect(donationId({ data: { id: 42 } })).toBe("42");
   });
@@ -198,9 +198,10 @@ function fakePledge(failing: Set<string>) {
       const others = Array.from({ length: 24 }, (_, i) => ({ id: `other-${i}`, name: `${name} ${i}`, ngo_id: "11-1111111", mission: "x".repeat(1000) }));
       return new Response(JSON.stringify({ results: [...others, { id: `org-${ein}`, name, ngo_id: ein }] }), { status: 200 });
     }
-    const b = JSON.parse(String(init?.body)) as { organization_id: string; metadata: { gift: string } };
-    if (failing.has(b.metadata.gift)) return new Response('{"error":"nope"}', { status: 500 });
-    return new Response(JSON.stringify({ id: `don-${b.metadata.gift}` }), { status: 201 });
+    const b = JSON.parse(String(init?.body)) as { organization_id: string; external_id: string };
+    const gift = b.external_id.split(".").at(-1)!;
+    if (failing.has(gift)) return new Response('{"error":"nope"}', { status: 500 });
+    return new Response(JSON.stringify({ id: `don-${gift}` }), { status: 201 });
   }) as typeof fetch;
   return { fetcher, calls };
 }
