@@ -15,6 +15,8 @@
   ],
   // Preview builds of pull requests use their own database, so tests never touch real accounts (Ian, 2026-10-13).
   "previews": {
+    // TEST BRANCH ONLY: never merge. Points the test copy at Pledge's sandbox.
+    "vars": { "PLEDGE_API_HOST": "https://api-staging.pledge.to" },
     "d1_databases": [{ "binding": "DB", "database_name": "offset-preview", "database_id": "bf541dbf-55b9-48b8-8410-9f3973660891" }]
   },
   // Once a day, sends any "your next month is ready" emails that are due (custom-worker.ts).
