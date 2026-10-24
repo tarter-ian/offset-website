@@ -574,16 +574,11 @@ function PledgeApiSteps({ checkout, onChange, onGo, saved = true, save = saveChe
         </div>
       )}
       <p className="mt-2 text-sm text-muted" role="status">
-        {done
-          ? "Every gift is confirmed. Thank you. Pledge emails you a receipt for each gift."
-          : paid
-            ? "Paid. Thank you. I give each charity its part through Pledge, and this page checks for each confirmation."
-            : "Pay opens Stripe's checkout page for the whole total, then brings you back here."}
+        {done ? "Every gift is confirmed. Thank you. Pledge emails you a receipt for each gift." : paid ? "Paid. Thank you." : ""}
       </p>
       <p className="mt-2 text-sm text-muted">
         Before you pay: <Link href="/ledger">where the money goes</Link>, <Link href="/promises">what I promise</Link> and{" "}
-        <Link href="/method">how each price is worked out</Link>. You pay My Offset once, through Stripe. I pass every dollar of the
-        donation to the charities through Pledge, a nonprofit giving platform. Stripe and Pledge keep only the fees shown.
+        <Link href="/method">how each price is worked out</Link>.
       </p>
     </div>
   );
