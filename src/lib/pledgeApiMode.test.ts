@@ -194,7 +194,9 @@ function fakePledge(failing: Set<string>) {
     if (url.includes("/v1/organizations")) {
       const name = new URL(url).searchParams.get("q")!;
       const ein = Object.keys(PLEDGE_ORG_NAMES).find((e) => PLEDGE_ORG_NAMES[e] === name)!;
-      return new Response(JSON.stringify({ results: [{ id: `org-${ein}`, name, ngo_id: ein }] }), { status: 200 });
+      // A full page, like Pledge's: lookalikes first, with long missions, past 16 KB in all.
+      const others = Array.from({ length: 24 }, (_, i) => ({ id: `other-${i}`, name: `${name} ${i}`, ngo_id: "11-1111111", mission: "x".repeat(1000) }));
+      return new Response(JSON.stringify({ results: [...others, { id: `org-${ein}`, name, ngo_id: ein }] }), { status: 200 });
     }
     const b = JSON.parse(String(init?.body)) as { organization_id: string; metadata: { gift: string } };
     if (failing.has(b.metadata.gift)) return new Response('{"error":"nope"}', { status: 500 });

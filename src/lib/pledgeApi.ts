@@ -130,10 +130,12 @@ const MAX_RAW = 16 * 1024;
 async function send(r: PledgeRequest, fetcher: typeof fetch): Promise<PledgeResult> {
   try {
     const res = await fetcher(r.url, r.init);
-    const raw = (await res.text()).slice(0, MAX_RAW);
+    // Parsed whole, kept short: a lookup's page of 25 charities runs past MAX_RAW (Ian's test, 2026-10-24).
+    const text = await res.text();
+    const raw = text.slice(0, MAX_RAW);
     let body: unknown = null;
     try {
-      body = JSON.parse(raw);
+      body = JSON.parse(text);
     } catch {
       // Not JSON: kept as raw text only.
     }
