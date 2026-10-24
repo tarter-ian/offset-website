@@ -51,3 +51,10 @@ export function rowsOf(result: unknown): Record<string, unknown>[] {
   const rows = r?.results ?? r?.rows;
   return Array.isArray(rows) ? (rows as Record<string, unknown>[]) : [];
 }
+
+/** How many rows an INSERT, UPDATE or DELETE changed: D1 puts it in `meta.changes`, libSQL in `rowsAffected`. */
+export function changesOf(result: unknown): number {
+  const r = result as { meta?: { changes?: unknown }; rowsAffected?: unknown } | null;
+  const n = r?.meta?.changes ?? r?.rowsAffected;
+  return typeof n === "number" ? n : 0;
+}

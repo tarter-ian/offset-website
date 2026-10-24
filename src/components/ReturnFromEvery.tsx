@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CheckoutSteps } from "./Checkout";
 import { CHARITIES } from "@/lib/charities";
-import { allConfirmed, type Checkout, loadCheckout, nextRow, saveCheckout } from "@/lib/payments";
+import { allConfirmed, type Checkout, loadCheckout, nextRow, PAYMENT_MODE, saveCheckout } from "@/lib/payments";
 
 /**
  * Where Every.org sends the person after a gift. Marks that gift done, shows the
@@ -36,8 +36,9 @@ export function ReturnFromEvery() {
       <div className="border-t-4 border-rule pt-4">
         <h1 className="text-3xl font-extrabold [font-stretch:85%]">Thank you</h1>
         <p className="mt-3">
-          I couldn&apos;t find this list of gifts in this browser, so I can&apos;t show what&apos;s left. Any gift you made went to the
-          charity, and Every.org has emailed you its receipt.
+          {PAYMENT_MODE === "pledgeapi"
+            ? "I couldn't find this list of gifts in this browser, so I can't show it here. If you paid, I give each charity its part through Pledge, which records each gift in your name."
+            : "I couldn't find this list of gifts in this browser, so I can't show what's left. Any gift you made went to the charity, and Every.org has emailed you its receipt."}
         </p>
         <p className="mt-4">
           <Link href="/" className="cursor-pointer font-semibold underline underline-offset-4 hover:text-muted">
@@ -56,9 +57,13 @@ export function ReturnFromEvery() {
         {allConfirmed(checkout) ? "All your gifts are in" : gaveRow ? `Thank you for giving to ${CHARITIES[gaveRow.charity].name}` : "Your gifts"}
       </h1>
       <p className="mt-3 text-muted">
-        {next
-          ? `${given} of ${checkout.rows.length} given. Next is ${CHARITIES[next.charity].name}.`
-          : "Every charity on your list has been given to."}
+        {PAYMENT_MODE === "pledgeapi"
+          ? next
+            ? "Not paid yet. One payment covers every charity on your list."
+            : "Paid. Every charity on your list gets its part through Pledge."
+          : next
+            ? `${given} of ${checkout.rows.length} given. Next is ${CHARITIES[next.charity].name}.`
+            : "Every charity on your list has been given to."}
       </p>
       <div className="mt-6">
         <CheckoutSteps checkout={checkout} onChange={(c) => setState({ checkout: c, gave })} />

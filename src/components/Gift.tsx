@@ -216,7 +216,7 @@ export function GiftMaker() {
         body: JSON.stringify({ id, items, birthYear, from, to: names.map((n) => n.trim()).filter(Boolean), note }),
       });
       if (!r.ok) throw new Error(((await r.json().catch(() => null)) as { error?: string } | null)?.error ?? "Couldn't save the gift.");
-      const c: Checkout = { id, created: new Date().toISOString(), billing: "monthly", rows, lines: [], done: {}, confirmed: {}, returnPath: `/gift/${id}`, ...(fund ? { fund } : {}) };
+      const c: Checkout = { id, created: new Date().toISOString(), billing: "monthly", rows, lines: [], done: {}, confirmed: {}, returnPath: `/gift/${id}`, ...(fund ? { fund } : {}), ...(PAYMENT_MODE === "pledgeapi" ? { gift: true as const } : {}) };
       saveGift(c);
       window.location.assign(`/gift/${id}`);
     } catch (e) {
@@ -378,6 +378,7 @@ export function GiftMaker() {
         {forMode({
           every: "Every.org emails you a receipt for each charity.",
           pledge: "Pledge emails you a receipt for each charity.",
+          pledgeapi: "You pay once through Stripe, and Pledge records each charity's gift in your name.",
           sponsor: "Each charity emails you a receipt.",
           endaoment: "Endaoment emails you the tax receipt.",
         })}{" "}
@@ -400,7 +401,7 @@ export function GiftMaker() {
                 {fund ? " in one gift to the fund at Endaoment" : ` to ${rows.length} charit${rows.length === 1 ? "y" : "ies"}`}.
               </p>
               <p className="mt-1 text-muted">
-                A check before anything opens, since it&apos;s a big gift.{fund ? "" : PAYMENT_MODE === "pledge" ? " Each charity's form shows its own part again." : " Each charity's page shows its own part again."}
+                A check before anything opens, since it&apos;s a big gift.{fund ? "" : PAYMENT_MODE === "pledge" ? " Each charity's form shows its own part again." : PAYMENT_MODE === "pledgeapi" ? " Stripe's page shows the total again." : " Each charity's page shows its own part again."}
               </p>
               <button
                 type="submit"
@@ -522,7 +523,7 @@ export function GiftView({ id }: { id: string }) {
         <div className="mt-6">
           <GiftCard gift={{ ...gift, to: names[0] ?? "" }} />
         </div>
-        <h2 className="mt-8 text-lg font-bold">{paid ? "Given" : mine.fund ? "Give through Endaoment" : "Give to each charity"}</h2>
+        <h2 className="mt-8 text-lg font-bold">{paid ? "Given" : mine.fund ? "Give through Endaoment" : PAYMENT_MODE === "pledgeapi" ? "Pay once for every charity" : "Give to each charity"}</h2>
         <div className="mt-2">
           {mine.fund ? <FundSteps checkout={mine} save={saveGift} onChange={setMine} /> : <CheckoutSteps checkout={mine} save={saveGift} onChange={setMine} />}
           {paid && <ListInvite />}

@@ -5,7 +5,16 @@ import { CARBON_REMOVAL, CHARITIES } from "@/lib/charities";
 import { IMPACT_INFO } from "@/lib/impacts";
 import { LEDGER } from "@/lib/ledger";
 import { arrivedAndFees, confirmedTotals, everyCharities } from "@/lib/ledgerLive";
-import { ENDAOMENT_GRANT_LABEL, ENDAOMENT_IN_LABEL, PLEDGE_FREE_LABEL, SPONSOR_FEE_LABEL, usd } from "@/lib/pricing";
+import {
+  ENDAOMENT_GRANT_LABEL,
+  ENDAOMENT_IN_LABEL,
+  PLEDGE_API_CARD_LABEL,
+  PLEDGE_API_FEE_LABEL,
+  PLEDGE_FREE_LABEL,
+  SPONSOR_FEE_LABEL,
+  STRIPE_CARD_LABEL,
+  usd,
+} from "@/lib/pricing";
 import { forMode, PAYMENT_MODE } from "@/lib/payments";
 
 export const metadata: Metadata = { title: "Where the money goes | My Offset" };
@@ -23,6 +32,10 @@ const STEPS = PAYMENT_MODE === "every" ? [
   { title: "You give", body: `You give to each charity on your plan through Pledge, one gift per charity, in a form on this site. Pledge pays the card fee on gifts up to ${PLEDGE_FREE_LABEL}.` },
   { title: "Pledge", body: "Pledge, a nonprofit giving platform, takes the payment, emails you the tax receipt and passes the gift to the charity. I never hold the money myself. Pledge may ask for an optional tip, which goes to Pledge. My Offset gets none of it." },
   { title: "The charities", body: "Each charity gets your gift from Pledge. Any card fee goes to the card processor. I keep nothing." },
+] : PAYMENT_MODE === "pledgeapi" ? [
+  { title: "You pay", body: `You pay My Offset once, through Stripe, for every charity on your plan. Checkout shows each charity's part and every fee. Stripe keeps its card fee, ${STRIPE_CARD_LABEL}.` },
+  { title: "Pledge", body: `I pass every dollar of your donation to Pledge, a nonprofit giving platform, as one gift per charity in your name. Pledge keeps its ${PLEDGE_API_FEE_LABEL} technology fee and ${PLEDGE_API_CARD_LABEL} card fee, which your payment covers on top.` },
+  { title: "The charities", body: "Each charity gets its part from Pledge, in full. The fees go to Stripe and Pledge. I keep nothing." },
 ] : PAYMENT_MODE === "endaoment" ? [
   { title: "You give", body: "You make one gift to My Offset's fund at Endaoment. Checkout shows each charity's part and every fee." },
   { title: "Endaoment", body: `Endaoment, a nonprofit that runs charitable funds, takes the payment, sends you the tax receipt and holds the gift in the fund. I never hold the money myself. It keeps ${ENDAOMENT_IN_LABEL} as a gift comes in and ${ENDAOMENT_GRANT_LABEL} as it grants it out.` },
@@ -63,6 +76,7 @@ export default async function LedgerPage() {
           every: "Every dollar given through this site, to every charity, as Every.org confirms it. Updated as gifts arrive.",
           endaoment: "Every dollar given through this site that I can confirm, to every charity. Updated as gifts arrive.",
           pledge: "Every dollar given through this site that I can confirm, to every charity. Updated as gifts arrive.",
+          pledgeapi: "Every dollar given through this site, to every charity, as Pledge confirms each gift. Updated as gifts arrive.",
           sponsor: "Every dollar given through this site, to every charity, as Every.org confirms it. Updated as gifts arrive.",
         })}
       </p>
@@ -127,6 +141,8 @@ export default async function LedgerPage() {
         {PAYMENT_MODE === "endaoment" &&
           " So far that's gifts made for someone else. Gifts to the Endaoment fund are added once I can confirm them with Endaoment."}
         {PAYMENT_MODE === "pledge" && " Gifts made through Pledge are added once I can confirm them with Pledge."}
+        {PAYMENT_MODE === "pledgeapi" &&
+          " For gifts I make through Pledge, arrived is the gift itself; the Stripe and Pledge fees paid on top of it aren't counted in this table yet."}
       </p>
 
       {months.length === 0 ? (
@@ -179,6 +195,17 @@ export default async function LedgerPage() {
             the card fee on gifts up to {PLEDGE_FREE_LABEL}; above that, the card fee is added on top. Pledge emails your tax receipt
             and pays the charity. It may ask for an optional tip, which goes to Pledge, and I never see it. I&apos;ll say so here before
             any of this changes.
+          </p>
+        </>
+      ) : PAYMENT_MODE === "pledgeapi" ? (
+        <>
+          <h2 id="sponsor" className="mt-12 scroll-mt-6 text-xl font-semibold">How payments work</h2>
+          <p className="mt-2 text-muted">
+            My Offset isn&apos;t a charity of its own. You pay me once, through Stripe, and I give each charity its part through Pledge, a
+            nonprofit giving platform run by Pledgeling Foundation, a 501(c)(3). I pass on every dollar of your donation. Stripe keeps
+            its card fee ({STRIPE_CARD_LABEL}), and Pledge keeps its {PLEDGE_API_FEE_LABEL} technology fee and {PLEDGE_API_CARD_LABEL} card
+            fee; checkout shows each one, added on top. Pledge records each gift in your name. I&apos;ll say so here before any of this
+            changes.
           </p>
         </>
       ) : PAYMENT_MODE === "endaoment" ? (
