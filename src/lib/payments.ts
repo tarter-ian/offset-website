@@ -63,7 +63,10 @@ export const PAYMENT_MODE: PaymentMode = paymentModeFrom(
 /** Picks the wording or value for the current payment mode, so no mode is left showing another's. */
 export const forMode = <T>(m: Record<PaymentMode, T>, mode: PaymentMode = PAYMENT_MODE): T => m[mode];
 
-/** Payments are off until NEXT_PUBLIC_PAYMENTS_ON is "1"; until then nothing is chargeable. */
+/**
+ * Payments are off until NEXT_PUBLIC_PAYMENTS_ON is "1"; until then nothing is chargeable.
+ * It and NEXT_PUBLIC_PAYMENT_MODE are build variables, inlined at build time, so changing either needs a fresh build.
+ */
 export const paymentsOn = () => process.env.NEXT_PUBLIC_PAYMENTS_ON === "1";
 
 /**
