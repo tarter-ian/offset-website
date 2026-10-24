@@ -1816,10 +1816,6 @@ export function Store() {
                       />
                     </span>
                   </label>
-                  <p className="max-w-56 text-xs text-muted">
-                    Age sets how many years lifetime covers; state sets how clean your power is.
-                    {ctx.aiPastWh === undefined && " Linking an AI account replaces the start year with your real history."}
-                  </p>
                 </div>
                 )}
                 {perCharity ? (
@@ -1855,9 +1851,9 @@ export function Store() {
                     </dl>
                     {repeatTotal > 0 && (
                       <p className="figures mt-1 font-sans text-sm text-muted">
-                        Then {usd(repeatTotal)} {BILLING[billing].per},{" "}
-                        {pledgeApi ? "one payment for every charity, fees included" : `one gift to each charity${pledge ? "" : " with its own card fee"}`}.{" "}
-                        {autopay ? "Every.org charges it until you stop it." : "Nothing repeats on its own: you come back and give again."}
+                        Then {usd(repeatTotal)} {BILLING[billing].per}
+                        {pledgeApi ? "" : `, one gift to each charity${pledge ? "" : " with its own card fee"}`}.{" "}
+                        {autopay ? "Every.org charges it until you stop it." : pledgeApi ? "Nothing repeats on its own." : "Nothing repeats on its own: you come back and give again."}
                         {totals.pastSpread &&
                           ` It includes ${usd(totals.pastSpread.perMonth * (billing === "annual" ? 12 : 1))} toward past use until ${pastEnds}${
                             autopay ? "; Every.org can't stop that part on its own, so lower the gift in your Every.org account then." : "."
@@ -1865,15 +1861,7 @@ export function Store() {
                       </p>
                     )}
                     {payChoices(pledge ? "" : pledgeApi ? " (one 30¢ fee a year)" : " (one 30¢ fee per charity a year)")}
-                    {pledgeApi ? (
-                      <p className="mt-2 text-xs text-muted">
-                        You pay My Offset once, through Stripe, for every charity. I then give each charity its part above through Pledge,
-                        a nonprofit giving platform, and pass on every dollar of the donation. Stripe keeps its card fee ({STRIPE_CARD_LABEL}),
-                        and Pledge keeps its {PLEDGE_API_FEE_LABEL} technology fee and {PLEDGE_API_CARD_LABEL} card fee. Both are added on top,
-                        so each charity gets its part in full; I keep none of it. There&apos;s no $1 smallest gift, so each part goes to its
-                        own charity to the cent. Pledge records each gift in your name and emails you a receipt for each.
-                      </p>
-                    ) : pledge ? (
+                    {pledgeApi ? null : pledge ? (
                       <p className="mt-2 text-xs text-muted">
                         Each charity is paid separately through Pledge, a nonprofit giving platform. Its form for each charity opens on this
                         page with the amount filled in, or tells you what to type when it&apos;s under $5. Pledge pays the card fee on gifts up to {PLEDGE_FREE_LABEL}; above that, the fee
