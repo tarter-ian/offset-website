@@ -101,8 +101,10 @@ export function donationRequest(d: DonationInput, apiKey: string, host: string =
     // Pledge emails the donor a tax receipt only when asked (help.pledgeling.org, API tax receipts).
     send_tax_receipt: true,
   };
-  if (d.donor.firstName) body.first_name = d.donor.firstName;
-  if (d.donor.lastName) body.last_name = d.donor.lastName;
+  // Pledge requires both names. A one-word name goes in both; with no name at all, the email's local part does.
+  const fallback = d.donor.firstName || d.donor.lastName || d.donor.email.split("@")[0];
+  body.first_name = d.donor.firstName || fallback;
+  body.last_name = d.donor.lastName || fallback;
   return {
     url: `${host}/v1/donations`,
     init: {

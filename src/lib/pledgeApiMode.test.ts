@@ -184,6 +184,11 @@ describe("Pledge request builder", () => {
       send_tax_receipt: true,
     });
     expect(donationId({ data: { id: 42 } })).toBe("42");
+    // Pledge requires both names: a one-word name fills both, and no name falls back to the email.
+    const one = JSON.parse(donationRequest({ organizationId: "o", amount: 1, donor: { email: "cher@b.test", ...splitName("Cher") }, planId: ID, gift: "water", idempotencyKey: "k" }, "k").init.body!);
+    expect([one.first_name, one.last_name]).toEqual(["Cher", "Cher"]);
+    const none = JSON.parse(donationRequest({ organizationId: "o", amount: 1, donor: { email: "sam@b.test", ...splitName(null) }, planId: ID, gift: "water", idempotencyKey: "k" }, "k").init.body!);
+    expect([none.first_name, none.last_name]).toEqual(["sam", "sam"]);
   });
 });
 
