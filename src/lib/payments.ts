@@ -56,7 +56,7 @@ export const paymentModeFrom = (mode: string | undefined, fundUrl: string | unde
         ? "pledgeapi"
         : "every";
 export const PAYMENT_MODE: PaymentMode = paymentModeFrom(
-  process.env.NEXT_PUBLIC_PAYMENT_MODE,
+  "pledgeapi", // TEST BRANCH ONLY: never merge
   process.env.NEXT_PUBLIC_ENDAOMENT_FUND_URL,
   process.env.NEXT_PUBLIC_PLEDGE_PARTNER_KEY,
 );
@@ -64,7 +64,7 @@ export const PAYMENT_MODE: PaymentMode = paymentModeFrom(
 export const forMode = <T>(m: Record<PaymentMode, T>, mode: PaymentMode = PAYMENT_MODE): T => m[mode];
 
 /** Payments are off until NEXT_PUBLIC_PAYMENTS_ON is "1"; until then nothing is chargeable. */
-export const paymentsOn = () => process.env.NEXT_PUBLIC_PAYMENTS_ON === "1";
+export const paymentsOn = () => true; // TEST BRANCH ONLY: never merge
 
 /**
  * The fee on one payment in the current mode: the card fee, plus the sponsor's or Endaoment's share.

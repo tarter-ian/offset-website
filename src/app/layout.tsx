@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, IBM_Plex_Mono, Public_Sans } from "next/font/google";
 import Link from "next/link";
+import { PAYMENT_MODE } from "@/lib/payments";
 import { AccountNav } from "@/components/Account";
 import { FooterMoneyLink } from "@/components/FooterMoneyLink";
 import "./globals.css";
@@ -54,6 +55,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                 Made by Ian Tarter
               </Link>
               {" · US only"}
+              {/* TEST BRANCH ONLY: says whether the build saw the Pledge partner key, never its value. */}
+              {` · Pledge key: ${process.env.NEXT_PUBLIC_PLEDGE_PARTNER_KEY?.trim() ? "found" : "missing"} · checkout: ${PAYMENT_MODE}`}
             </span>
             <span className="flex flex-wrap gap-x-4 gap-y-1">
               <Link href="/method" className="underline hover:text-foreground sm:hidden">
