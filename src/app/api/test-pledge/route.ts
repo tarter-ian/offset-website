@@ -2,8 +2,7 @@
 // Pledge's raw answer to one organization lookup, and the last gifts the webhook tried.
 import { NextResponse } from "next/server";
 import { db, rowsOf } from "@/lib/db";
-import { orgLookupRequest, pickOrgId, pledgeApiHost } from "@/lib/pledgeApi";
-import { PLEDGE_EINS } from "@/lib/payments";
+import { orgLookupRequest, pickOrgId, PLEDGE_ORG_NAMES, pledgeApiHost } from "@/lib/pledgeApi";
 
 export const dynamic = "force-dynamic";
 
@@ -19,19 +18,22 @@ export async function GET() {
   };
   const key = process.env.PLEDGE_API_KEY?.trim();
   if (key) {
-    const ein = PLEDGE_EINS.carbon ?? "04-3512550";
-    const r = orgLookupRequest(ein, key);
-    try {
-      const res = await fetch(r.url, r.init);
-      const text = await res.text();
-      let parsed: unknown = null;
+    const lookups: Record<string, unknown> = {};
+    for (const ein of Object.keys(PLEDGE_ORG_NAMES)) {
+      const r = orgLookupRequest(ein, key);
       try {
-        parsed = JSON.parse(text);
-      } catch {}
-      out.orgLookup = { url: r.url, status: res.status, pickedId: pickOrgId(parsed, ein), body: text.slice(0, 3000) };
-    } catch (e) {
-      out.orgLookup = { url: r.url, error: String(e) };
+        const res = await fetch(r.url, r.init);
+        const text = await res.text();
+        let parsed: unknown = null;
+        try {
+          parsed = JSON.parse(text);
+        } catch {}
+        lookups[PLEDGE_ORG_NAMES[ein]] = { status: res.status, pickedId: pickOrgId(parsed, ein), body: pickOrgId(parsed, ein) ? undefined : text.slice(0, 600) };
+      } catch (e) {
+        lookups[PLEDGE_ORG_NAMES[ein]] = { error: String(e) };
+      }
     }
+    out.orgLookup = lookups;
   }
   try {
     const d = await db();
