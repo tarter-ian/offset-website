@@ -418,6 +418,48 @@ function PledgeSteps({ checkout, onChange, onGo, saved = true, save = saveChecko
   );
 }
 
+/**
+ * One charity's Pledge form, opened from "Prefer to give to the charities yourself?" in
+ * pledgeapi mode (Ian, 2026-10-24), for people who'd rather give through the form than
+ * pay once through Stripe. Such a gift isn't tracked here: it names no plan.
+ */
+export function DirectPledgeForm({ charity, amount }: { charity: keyof typeof PLEDGE_EINS; amount: number }) {
+  const [open, setOpen] = useState(false);
+  const [origin, setOrigin] = useState<string | undefined>(undefined);
+  useEffect(() => setOrigin(window.location.origin), []);
+  const partnerKey = pledgePartnerKey();
+  const ein = PLEDGE_EINS[charity];
+  if (!partnerKey || !ein) return null;
+  const name = CHARITIES[charity].name;
+  return (
+    <div className="mt-1 mb-2">
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="font-sans underline underline-offset-2 hover:text-foreground">
+        {open ? "Close Pledge's form" : `Give to ${name} through Pledge's form`}
+      </button>
+      {open && (
+        <div className="mt-2">
+          <p className="mb-2 font-sans">
+            {amount < PLEDGE_PREFILL_MIN_USD ? (
+              <>
+                Pledge&apos;s form opens at {usd(PLEDGE_PREFILL_MIN_USD)}. Type <span className="figures font-semibold">{usd(amount)}</span> in its
+                Donation box.{" "}
+              </>
+            ) : null}
+            The tip to Pledge is optional; you can set it to $0.
+          </p>
+          <iframe
+            title={`Pledge donation form for ${name}`}
+            src={pledgeFormUrl({ partnerKey, ein, amount, planId: "direct", gift: charity, brandColor: ACCENT_HEX, embeddedOn: origin })}
+            allow="payment"
+            className="w-full rounded-md border border-border bg-white"
+            style={{ height: PLEDGE_FORM_HEIGHT }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Pledge's API ("pledgeapi" mode): one Stripe payment for every charity, then the server gives each its part through Pledge.
 
 /**
