@@ -77,8 +77,8 @@ export default async function ListPage({ searchParams }: { searchParams: Promise
     <div className="mx-auto max-w-3xl px-4 py-10">
       <h1 className="text-4xl font-bold tracking-tight">Who’s offsetting</h1>
       <p className="mt-3 text-lg text-muted">
-        People who chose to show what they&apos;ve offset, under a name or initials they picked. Each one is here only after Every.org confirmed every gift
-        they made. No amounts, and anyone can leave anytime.
+        People who chose to show what they&apos;ve offset, under a name or initials they picked. Each one is here only after every gift they made was
+        confirmed. No amounts, and anyone can leave anytime.
       </p>
 
       <ListView
