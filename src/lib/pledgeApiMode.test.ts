@@ -8,7 +8,7 @@ import { donationId, donationRequest, givePledgeDonation, orgLookupRequest, pick
 import { minGift, PLEDGE_API_CARD_RATE, PLEDGE_API_FEE_RATE, STRIPE_CARD } from "./pricing";
 import { parsePlanClaim, planRows } from "./publicList";
 import { DEFAULT_CONTEXT as C, harmSplit, planTotals } from "./store";
-import { lineItemName, parseSessionEvent, sessionForm, verifyStripeSignature } from "./stripe";
+import { lineItemName, modeMismatch, parseSessionEvent, sessionForm, verifyStripeSignature } from "./stripe";
 
 // "pledgeapi" mode (2026-10-24): one Stripe payment for every charity, then one Pledge
 // donation per charity made by the server. Off by default.
@@ -253,5 +253,17 @@ describe("settling a paid session", () => {
     }) as typeof fetch;
     const r = await givePledgeDonation({ ein: "04-3512550", amount: 1, donor: { email: "a@b.test", firstName: "", lastName: "" }, planId: ID, gift: "carbon", idempotencyKey: "x" }, "k", "https://api.pledge.to", boom);
     expect(r.ok).toBe(false);
+  });
+});
+
+describe("Stripe and Pledge modes", () => {
+  it("gives only when both are live or both are test", () => {
+    const live = "https://api.pledge.to";
+    const sandbox = "https://api-staging.pledge.to";
+    expect(modeMismatch({ livemode: true }, live, live)).toBe(false);
+    expect(modeMismatch({ livemode: false }, sandbox, live)).toBe(false);
+    expect(modeMismatch({ livemode: false }, live, live)).toBe(true);
+    expect(modeMismatch({ livemode: true }, sandbox, live)).toBe(true);
+    expect(modeMismatch({}, live, live)).toBe(true);
   });
 });
