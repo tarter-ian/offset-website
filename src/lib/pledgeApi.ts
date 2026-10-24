@@ -1,13 +1,13 @@
 // Pledge's REST API (pledge.to), for "pledgeapi" mode: after the donor's one Stripe
 // payment, the server makes one donation per charity, in the donor's name.
 //
-// UNVERIFIED against Pledge's API reference; check before switching on.
-// Pledge's docs page is rendered by JavaScript and couldn't be read when this was
-// written (2026-10-24). Every path, field name and response shape below is a best
-// guess: the base hosts, Bearer auth, GET /v1/organizations?q=<EIN>, POST /v1/donations
-// with {organization_id, amount, email, first_name, last_name, metadata}, and the
-// Idempotency-Key header. Every Pledge call is in this file, so checking it against
-// the real reference (or a sandbox call on api-staging.pledge.to) means checking only here.
+// Checked on Pledge's sandbox (api-staging.pledge.to) on 2026-10-24: Bearer auth,
+// GET /v1/organizations?q=<name>, and POST /v1/donations made a donation (answered with
+// its id, status "pending"); gifts as small as 3¢ went through. Pledge's API reference
+// (developer.pledge.to/api, read by Ian 2026-10-24) lists the create fields: email,
+// first_name, last_name (all required), phone_number, amount (decimal string), metadata
+// (a free-form string), send_tax_receipt and organization_id. external_id isn't one of
+// them. Still unchecked: whether Pledge honours the Idempotency-Key header.
 
 export const PLEDGE_API_LIVE = "https://api.pledge.to";
 export const PLEDGE_API_SANDBOX = "https://api-staging.pledge.to";
@@ -90,13 +90,16 @@ export interface DonationInput {
   idempotencyKey: string;
 }
 
-/** UNVERIFIED: creates one donation. The amount goes as a decimal string, "12.34". */
+/** Creates one donation (checked on the sandbox, 2026-10-24). The amount goes as a decimal string, "12.34". */
 export function donationRequest(d: DonationInput, apiKey: string, host: string = pledgeApiHost()): PledgeRequest {
   const body: Record<string, unknown> = {
     organization_id: d.organizationId,
     amount: d.amount.toFixed(2),
     email: d.donor.email,
-    metadata: { plan: d.planId, gift: d.gift },
+    // A string: Pledge dropped an object here (sandbox, 2026-10-24).
+    metadata: `plan=${d.planId};gift=${d.gift}`,
+    // Pledge emails the donor a tax receipt only when asked (help.pledgeling.org, API tax receipts).
+    send_tax_receipt: true,
   };
   if (d.donor.firstName) body.first_name = d.donor.firstName;
   if (d.donor.lastName) body.last_name = d.donor.lastName;
@@ -110,7 +113,7 @@ export function donationRequest(d: DonationInput, apiKey: string, host: string =
   };
 }
 
-/** UNVERIFIED: the new donation's id, from the create call's response (at its top level or under `data`). */
+/** The new donation's id, from the create call's response (at its top level or under `data`). */
 export function donationId(body: unknown): string | null {
   const b = body as { id?: unknown; data?: { id?: unknown } } | null;
   const id = b?.id ?? b?.data?.id;

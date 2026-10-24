@@ -2243,7 +2243,7 @@ function PaySection({
             }}
             className="mt-2 min-h-10 cursor-pointer text-sm text-muted underline underline-offset-2 hover:text-foreground"
           >
-            Start a new list from your plan as it is now
+            {PAYMENT_MODE === "pledgeapi" ? "Make another payment for your plan as it is now" : "Start a new list from your plan as it is now"}
           </button>
         </>
       ) : (
