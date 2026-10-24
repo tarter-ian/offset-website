@@ -43,6 +43,7 @@ export async function GET() {
     out.recentPayments = rowsOf(await d.execute({ sql: "SELECT session_id, amount_cents, status, created_at, paid_at FROM stripe_payments ORDER BY created_at DESC LIMIT 5" }));
   } catch (e) {
     out.database = String(e);
+    if (String(e).includes("no such table")) out.databaseHint = "Apply the offset-preview migrations: npx wrangler d1 migrations apply offset-preview --remote";
   }
   return NextResponse.json(out, { headers: { "cache-control": "no-store" } });
 }
