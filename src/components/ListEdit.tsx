@@ -85,17 +85,11 @@ export function ListEdit() {
               const paid = badges(listing.claims.filter((c) => c.paid).map((c) => ({ source: "plan", sourceId: "", rows: [], ...c })));
               const items = withZeroUse(paid, listing.zeroUse ?? []);
               const shown = badgesFor(items);
-              const unused = items.filter((i) => i.zero).map((i) => productById(i.productId)?.name ?? i.productId);
               return shown.length ? (
                 <>
                   <div className="mt-2">
                     <BadgeList badges={shown} label="Your badges" />
                   </div>
-                  {unused.length > 0 && (
-                    <p className="mt-2 text-sm text-muted">
-                      Offset because you use none: {unused.join(", ")}. The list has only these names from your amounts, never the numbers.
-                    </p>
-                  )}
                 </>
               ) : null;
             })()}

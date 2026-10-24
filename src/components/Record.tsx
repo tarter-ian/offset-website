@@ -181,11 +181,6 @@ export function Record() {
           </Link>
         </div>
         <UseChart use={use} computer={computer} />
-        {computer && (
-          <p className="mt-3 max-w-2xl text-sm text-muted">
-            These counts stay on this computer, in the My Offset extension. I never receive them, so another computer or your phone won&apos;t show them.
-          </p>
-        )}
       </section>
 
       <section aria-labelledby="covered-heading" className="mt-12">
@@ -337,19 +332,12 @@ function UseChart({ use, computer }: { use: MonthUse[] | null; computer: boolean
 function Seals({ covered, now, zero }: { covered: Record<string, Covered>; now: number; zero: string[] }) {
   const items = offsetItems(covered, now, zero);
   const seals = badgesFor(items).filter((b) => b.kind !== "full");
-  const unused = items.filter((i) => i.zero).map((i) => nameOf(i.productId));
   if (!seals.length) return null;
   return (
     <>
       <div className="mt-4 mb-2">
         <BadgeList badges={seals} seals label="Your badges" />
       </div>
-      {unused.length > 0 && (
-        <p className="mb-2 max-w-2xl text-sm text-muted">
-          {list(unused)} {unused.length === 1 ? "counts" : "count"} as offset because you use none. If you start, {unused.length === 1 ? "it's" : "they're"}{" "}
-          back in the store to offset.
-        </p>
-      )}
     </>
   );
 }
