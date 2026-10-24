@@ -2,6 +2,7 @@
 
 import { AGENT_TOOL_NAMES } from "@/lib/ai/signin";
 import Link from "next/link";
+import { Story } from "@/components/Story";
 import { type Covered, STORAGE_KEY } from "@/lib/covered";
 import { inForce, recordStatus, untilOf } from "@/lib/record";
 import { steadyPlan } from "@/lib/steady";
@@ -1227,7 +1228,8 @@ export function Store() {
   };
   return (
     <div className="pb-20">
-      <section className="relative isolate pb-12">
+      {!heroPaid && !previewing && <Story />}
+      <section id="your-bill" className="relative isolate scroll-mt-4 pb-12">
         {heroPaid && !updatingNumbers ? (
           // Once all AI is paid, the photo carries what's offset instead of a price (Ian, 2026-10-13).
           <div className="relative py-10 lg:py-14">
