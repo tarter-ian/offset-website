@@ -5,29 +5,17 @@ import { AI_LEVELS } from "@/lib/ai/levels";
 import { DEFAULT_LIFETIME_INPUT, lifetimeOffset } from "@/lib/lifetime";
 import { IMPACT_INFO } from "@/lib/impacts";
 import { PAST_FROM_AGE, PAST_MONTHLY_CAP_USD, PAST_YEARS } from "@/lib/store";
-import { PAYMENT_MODE } from "@/lib/payments";
 import { ComputerOnly } from "@/components/ComputerOnly";
 import {
   AIR_DAMAGE_SHARE,
-  ENDAOMENT_GRANT_LABEL,
-  ENDAOMENT_IN_LABEL,
   CARBON_MODES,
   DEFAULT_CARBON_MODE,
   DEFAULT_WATER_MODE,
   impactCost,
   WATER_MODES,
   type WaterMode,
-  CARD_FEE_LABEL,
-  SPONSOR_FEE_LABEL,
-  PLEDGE_CARD_LABEL,
-  PLEDGE_FREE_LABEL,
   EWASTE_USD_PER_KG,
   LIFETIME_GROWTH_BUFFER,
-  MIN_DONATION_USD,
-  PLEDGE_MIN_GIFT_USD,
-  PLEDGE_API_CARD_LABEL,
-  PLEDGE_API_FEE_LABEL,
-  STRIPE_CARD_LABEL,
   usd,
 } from "@/lib/pricing";
 
@@ -341,56 +329,6 @@ export default function MethodPage() {
           </li>
         ))}
       </ul>
-
-      <h2 className="mt-10 text-xl font-semibold">Fees</h2>
-      {PAYMENT_MODE === "every" ? (
-        <p className="mt-2 text-muted">
-          I make nothing on fees. Each charity is paid separately through Every.org, which charges card payments 2.2% + 30¢ and bank
-          payments nothing. The card fee is worked out on the whole gift and added on top, so the donation arrives in full, and checkout
-          shows it for each charity. Paying yearly means one 30¢ fee per charity a year instead of twelve. Each harm&apos;s
-          share always goes to its own charity; a share under {usd(MIN_DONATION_USD)} is rounded up to {usd(MIN_DONATION_USD)} rather than
-          moved to another charity.
-        </p>
-      ) : PAYMENT_MODE === "pledge" ? (
-        <p className="mt-2 text-muted">
-          I make nothing on fees. Each charity is paid separately through Pledge, which pays the card fee on gifts up to{" "}
-          {PLEDGE_FREE_LABEL}. Above that, the card fee ({PLEDGE_CARD_LABEL}) is worked out on the whole gift and added on top, so the
-          donation arrives in full. Each harm&apos;s share always goes to its own charity; a share under {usd(PLEDGE_MIN_GIFT_USD)} is
-          rounded up to {usd(PLEDGE_MIN_GIFT_USD)} rather than moved to another charity.
-        </p>
-      ) : PAYMENT_MODE === "pledgeapi" ? (
-        <p className="mt-2 text-muted">
-          I make nothing on fees. You pay me once, through Stripe, and I give each charity its part through Pledge. The payment carries
-          Stripe&apos;s card fee ({STRIPE_CARD_LABEL}) and Pledge&apos;s {PLEDGE_API_FEE_LABEL} technology fee and{" "}
-          {PLEDGE_API_CARD_LABEL} card fee, worked out on the whole payment and added on top, so each charity gets its part in full. The
-          fees go to Stripe and Pledge. Each harm&apos;s share goes to its own charity to the cent, with no rounding up to a dollar.
-          Paying yearly means one 30¢ fee a year instead of twelve.
-        </p>
-      ) : PAYMENT_MODE === "endaoment" ? (
-        <p className="mt-2 text-muted">
-          I make nothing on fees. You make one gift to My Offset&apos;s fund at Endaoment, which grants each charity its part. The
-          gift carries the card fee and Endaoment&apos;s {ENDAOMENT_IN_LABEL} as it comes in and {ENDAOMENT_GRANT_LABEL} as it is
-          granted out, worked out on the whole gift and added on top, so the donation arrives in full. Endaoment has no smallest gift
-          or grant, so each harm&apos;s share goes to its own charity to the cent, with no rounding up to a dollar. Paying yearly means one card
-          fee a year instead of twelve.
-        </p>
-      ) : (
-        <p className="mt-2 text-muted">
-        I make nothing on fees. Each payment carries two, passed on at cost and worked out on the whole payment so the
-        donation arrives in full: the card fee, {CARD_FEE_LABEL}, and my charity sponsor&apos;s {SPONSOR_FEE_LABEL}. The sponsor is the
-        registered charity that holds the money, sends tax receipts and pays the charities. Paying yearly means one 30¢ charge a year instead of twelve. Donations
-        under {usd(MIN_DONATION_USD)} are rounded up. Small donations are pooled and each charity gets one payment a month, so card
-        fees don&apos;t eat them, and all of it goes to the charities.
-      </p>
-      )}
-
-      <h2 className="mt-10 text-xl font-semibold">What &ldquo;Fully Offset&rdquo; means</h2>
-      <p className="mt-2 text-muted">
-        A Fully Offset month is one where you approved donations for the estimate plus its margin, for every kind of harm I
-        count. Offsetting an item or a whole area earns its badge, and offsetting everything for all five kinds of harm earns the
-        complete badge. Donations go to charities, and I don&apos;t buy carbon credits. If you lower an estimate by hand by
-        more than its margin, the badge pauses until a linked account confirms the new number.
-      </p>
 
       <h2 className="mt-10 text-xl font-semibold">What I don&apos;t count yet</h2>
       <p className="mt-2 text-muted">
