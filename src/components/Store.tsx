@@ -1573,9 +1573,9 @@ export function Store() {
             q: "How much CO₂ and smog?",
             total: `${IMPACT_INFO.carbon.format(aiImpacts.carbon, aiImpacts)}, ${airShort(aiImpacts)}`,
             rows: [
-              // Each row says where it comes from (Ian, 2026-10-25): burning fuel for power, and making chips, servers and buildings.
+              // Each row says where it comes from (Ian, 2026-10-25): burning fuel for power, and making servers (chips included).
               ["Power plant CO₂", `${sig((one.carbon - oneBuilt) * 1e6)} g`, bare("carbon", aiImpacts.carbon - built)],
-              ["Making the hardware", `${sig(oneBuilt * 1e6)} g`, bare("carbon", built)],
+              ["Making servers", `${sig(oneBuilt * 1e6)} g`, bare("carbon", built)],
               ["Power plant smog", `${sig(one.smogL * 1e6)} mL`, airShort(aiImpacts).replace(/ smog$/, "")],
             ],
           },
