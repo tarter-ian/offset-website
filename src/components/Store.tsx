@@ -1608,8 +1608,8 @@ export function Store() {
               ))}
             </ul>
             <p className="mt-6 font-semibold">
-              <Link href="/method" className="underline-offset-4 hover:underline">
-                Every source →
+              <Link href="/method#ai" className="underline-offset-4 hover:underline">
+                How I count AI, with sources →
               </Link>
             </p>
           </section>

@@ -255,8 +255,9 @@ export default function MethodPage() {
       <h2 className="mt-12 text-xl font-semibold">Each part of your life</h2>
       <ul className="mt-4 divide-y divide-border border-y border-rule">
         {ROWS.map((r) => (
-          <li key={r.category}>
-            <details className="py-3">
+          // Each row has an anchor; AI starts open, since the home page links straight to it (Ian, 2026-10-25).
+          <li key={r.category} id={r.category.toLowerCase().replace(/\W+/g, "-")} className="scroll-mt-4">
+            <details className="py-3" open={r.category === "AI"}>
               <summary className="cursor-pointer font-medium">{r.category}</summary>
               <p className="mt-2 text-sm text-muted">
                 {r.method}
