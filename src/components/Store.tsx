@@ -1386,7 +1386,7 @@ export function Store() {
           )}
           {!heroPaid && heroUseOnly && (
             <p className="mt-2 text-xs text-muted">
-              Includes {heroWhy}. Your use alone comes to <span className="amount">{heroUseOnly}</span>.
+              Includes {heroWhy}.
             </p>
           )}
           {!heroPaid && paidNames.length > 0 && (
@@ -1407,7 +1407,7 @@ export function Store() {
         </div>
         )}
         {heroPaid && !updatingNumbers ? null : (
-          <div className="mt-10">
+          <div className="mt-14">
             <AiQuickPick
               keepGuess={Boolean(ctx.aiEstimate?.level)}
               level={
@@ -1499,30 +1499,14 @@ export function Store() {
         </section>
       )}
 
-      <nav aria-label="Other things you can do" className="mb-10 flex flex-col text-sm sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3">
-        {/* Paid AI: the hero already has the record's button, so the line doesn't link it twice (Ian, 2026-10-13). */}
-        {recordStatus(covered).kind !== "none" && !previewing && !heroPaid && (
-          <>
-            <Link href="/record" className="inline-flex min-h-10 items-center font-semibold underline underline-offset-4 hover:text-muted">
-              Your record
-            </Link>
-            <span aria-hidden className="hidden text-muted sm:inline">·</span>
-          </>
-        )}
-        {/* Someone who has paid isn't "not sure yet" (Ian, 2026-10-13). */}
-        {!heroPaid && <span className="hidden text-muted sm:inline">Not sure yet?</span>}
-        <Link href="/ledger" className="inline-flex min-h-10 items-center underline underline-offset-4 hover:text-muted">
-          Where the money goes
-        </Link>
-        <Link href="/method" className="inline-flex min-h-10 items-center underline underline-offset-4 hover:text-muted">
-          How it&apos;s calculated
-        </Link>
-        <span aria-hidden className="hidden text-muted sm:inline">·</span>
-        <span className="hidden text-muted sm:inline">Giving?</span>
-        <Link href="/gift" className="inline-flex min-h-10 items-center underline underline-offset-4 hover:text-muted">
-          Give an offset as a gift
-        </Link>
-      </nav>
+      {/* Only the record link stays here; the rest repeated the menu (Ian, 2026-10-25: don't overwhelm). */}
+      {recordStatus(covered).kind !== "none" && !previewing && !heroPaid && (
+        <p className="mb-10 text-sm">
+          <Link href="/record" className="inline-flex min-h-10 items-center font-semibold underline underline-offset-4 hover:text-muted">
+            Your record
+          </Link>
+        </p>
+      )}
 
       {(() => {
         const open = aislesOpen;
@@ -1531,7 +1515,7 @@ export function Store() {
           requestAnimationFrame(() => document.getElementById(`section-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
         };
         return open ? null : (
-          <section aria-labelledby="more-heading" className="mb-10">
+          <section aria-labelledby="more-heading" className="mt-20 mb-10">
             <h2 id="more-heading" className="font-display text-3xl font-extrabold [font-stretch:85%]">Everything you can offset</h2>
             <ul className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
               {SECTIONS.filter((x) => x.key !== "ai").map((x) => (
