@@ -10,7 +10,7 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { ActivityUpload } from "./ActivityUpload";
 import { CheckoutSteps, DirectPledgeForm } from "./Checkout";
 import { SteadyCheck } from "./SteadyCheck";
-import { AI_TRAINING_SHARE, DATACENTER_M2_YEARS_PER_KWH, LIFETIME_TO_AGE, WH_PER_AI_PROMPT } from "@/lib/factors";
+import { AI_HARDWARE_SHARE, AI_TRAINING_SHARE, DATACENTER_M2_YEARS_PER_KWH, LIFETIME_TO_AGE, WH_PER_AI_PROMPT } from "@/lib/factors";
 import { joinList, ListInvite, ListOptIn } from "./ListOptIn";
 import { AiExportUpload } from "./AiExportUpload";
 import { AiQuickPick } from "./AiQuickPick";
@@ -1559,6 +1559,7 @@ export function Store() {
         const kwh1 = 1 / (1 - AI_TRAINING_SHARE);
         const dcLand = aiImpacts.land * ((kwh1 * DATACENTER_M2_YEARS_PER_KWH) / unit.land);
         const cooling = aiImpacts.water * (coolingWater(kwh1) / unit.water);
+        const built = aiImpacts.carbon * AI_HARDWARE_SHARE;
         const bare = (k: "carbon" | "water" | "land", v: number) => IMPACT_INFO[k].format(v, aiImpacts).replace(/ (CO₂e|water|land)$/, "");
         // Each line also shows what 1,000 prompts cause (one gave tiny numbers), from the same factors at today's rates (Ian, 2026-10-25:
         // electricity is unintuitive; show one prompt through every number).
@@ -1566,13 +1567,14 @@ export function Store() {
         const sig = (n: number) => Number(n.toPrecision(2)).toLocaleString();
         const oneDc = one.land * ((kwh1 * DATACENTER_M2_YEARS_PER_KWH) / unit.land);
         const oneCool = one.water * (coolingWater(kwh1) / unit.water);
+        const oneBuilt = one.carbon * AI_HARDWARE_SHARE;
         const answers = [
           {
             q: "How much CO₂ and smog?",
             total: `${IMPACT_INFO.carbon.format(aiImpacts.carbon, aiImpacts)}, ${airShort(aiImpacts)}`,
             rows: [
-              // One CO2 line, not training/running and chips/buildings apart (Ian, 2026-10-25).
-              ["CO₂", `${sig(one.carbon * 1e6)} g`, bare("carbon", aiImpacts.carbon)],
+              ["Training and running", `${sig((one.carbon - oneBuilt) * 1e6)} g`, bare("carbon", aiImpacts.carbon - built)],
+              ["Chips and buildings", `${sig(oneBuilt * 1e6)} g`, bare("carbon", built)],
               ["Smog", `${sig(one.smogL * 1e6)} mL`, airShort(aiImpacts).replace(/ smog$/, "")],
             ],
           },
@@ -1603,11 +1605,12 @@ export function Store() {
                   <h3 className="amount text-lg font-semibold">{b.total}</h3>
                   <div className="amount mt-auto grid grid-cols-[1fr_auto_auto] gap-x-3 pt-4 text-sm">
                     <span />
-                    <span className="pb-1 text-right text-xs text-muted">1,000 prompts</span>
-                    <span className="pb-1 text-right text-xs text-muted">You</span>
+                    <span className="pb-1 text-right text-xs leading-tight text-muted">1,000<br />prompts</span>
+                    <span className="self-end pb-1 text-right text-xs text-muted">You</span>
                     {b.rows.map(([label, prompt, v]) => (
                       <Fragment key={label}>
-                        <span className="border-t border-border py-1">{label}</span>
+                        {/* Labels stay on one line (Ian, 2026-10-25). */}
+                        <span className="border-t border-border py-1 whitespace-nowrap">{label}</span>
                         <span className="border-t border-border py-1 text-right text-muted">{prompt}</span>
                         <span className="border-t border-border py-1 text-right">{v}</span>
                       </Fragment>
