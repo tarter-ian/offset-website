@@ -1458,7 +1458,7 @@ export function Store() {
                 <>
                   {/* The headings read as one story, top to bottom, like Wren's (Ian, 2026-10-25). */}
                   <h2 id="who-gets-it" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">
-                    Where your money goes.
+                    Where your money goes
                   </h2>
                   <ul className="mt-10 grid gap-4 md:grid-cols-3">
                     {names.map((name) => {
