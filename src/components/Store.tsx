@@ -1449,7 +1449,10 @@ export function Store() {
             {(() => {
               const names = [...new Set((["carbon", "air", "water", "land"] as const).filter((k) => aiImpacts[k] > 0).map((k) => CHARITIES[k].name))];
               // Each card shows its sum: amount x price = dollars (Ian, 2026-10-25).
-              const costs = impactCost(aiImpacts);
+              // Rounded up to the cent, as each gift is, so the cards add up to the line under "I don't take a cut".
+              const costs = Object.fromEntries(Object.entries(impactCost(aiImpacts)).map(([k, v]) => [k, Math.ceil(v * 100 - 1e-9) / 100])) as Record<ImpactKey, number>;
+              const gifts = payRows(harmSplit(heroTotals, ctx, billing), billing, autopay).filter((r) => !r.key.endsWith("-repeat"));
+              const gets = (name: string) => gifts.filter((r) => CHARITIES[r.charity].name === name).reduce((sum, r) => sum + r.donation, 0);
               const sum: Record<"carbon" | "air" | "water" | "land", string> = {
                 carbon: `${IMPACT_INFO.carbon.format(aiImpacts.carbon, aiImpacts)} × $${CARBON_MODES[DEFAULT_CARBON_MODE].perTonne} a tonne`,
                 air: `${usd(aiImpacts.air)} of health damage × ${Math.round(AIR_DAMAGE_SHARE * 100)}%`,
@@ -1491,7 +1494,7 @@ export function Store() {
                               </span>
                             ))}
                             {harms.length > 1 && (
-                              <span className="mt-1 block border-t border-border pt-1 font-semibold">{usd(harms.reduce((sum, k) => sum + costs[k], 0))} in all</span>
+                              <span className="mt-1 block border-t border-border pt-1 font-semibold">{usd(gets(name))} in all</span>
                             )}
                           </Link>
                           <a href={CHARITIES[harms[0]].url} className="mt-5 block text-xl font-semibold underline-offset-4 hover:underline">
