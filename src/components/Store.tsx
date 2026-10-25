@@ -1572,13 +1572,11 @@ export function Store() {
           {
             q: "How much CO₂ and smog?",
             total: `${IMPACT_INFO.carbon.format(aiImpacts.carbon, aiImpacts)}, ${airShort(aiImpacts)}`,
-            head: "CO₂e",
             rows: [
               ["Training and running", `${sig((one.carbon - oneBuilt) * 1e6)} g`, bare("carbon", aiImpacts.carbon - built)],
               ["Chips and buildings", `${sig(oneBuilt * 1e6)} g`, bare("carbon", built)],
-              // Smog under its own heading, so it doesn't read as a third source of CO2 (Ian, 2026-10-25). All of it is from power plants.
-              ["Smog"],
-              ["Power plants", `${sig(one.smogL * 1e6)} mL`, airShort(aiImpacts).replace(/ smog$/, "")],
+              // Says where the smog comes from (Ian, 2026-10-25).
+              ["Power plant smog", `${sig(one.smogL * 1e6)} mL`, airShort(aiImpacts).replace(/ smog$/, "")],
             ],
           },
           {
@@ -1607,21 +1605,17 @@ export function Store() {
                   {/* No question headings (Ian, 2026-10-25): the total is the heading, the rows say what it's made of. */}
                   <h3 className="amount text-lg font-semibold">{b.total}</h3>
                   <div className="amount grid grid-cols-[1fr_auto_auto] gap-x-3 pt-4 text-sm">
-                    <span className="self-end pb-1 font-sans font-semibold">{"head" in b && b.head}</span>
-                    <span className="self-end pb-1 text-right text-xs whitespace-nowrap text-muted">1k prompts</span>
-                    <span className="self-end pb-1 text-right text-xs text-muted">You</span>
-                    {b.rows.map(([label, prompt, v]) =>
-                      prompt === undefined ? (
-                        <span key={label} className="col-span-3 pt-3 pb-1 font-sans font-semibold">{label}</span>
-                      ) : (
+                    <span />
+                    <span className="pb-1 text-right text-xs whitespace-nowrap text-muted">1k prompts</span>
+                    <span className="pb-1 text-right text-xs text-muted">You</span>
+                    {b.rows.map(([label, prompt, v]) => (
                       <Fragment key={label}>
                         {/* Labels stay on one line (Ian, 2026-10-25). */}
                         <span className="border-t border-border py-1 whitespace-nowrap">{label}</span>
                         <span className="border-t border-border py-1 text-right text-muted">{prompt}</span>
                         <span className="border-t border-border py-1 text-right">{v}</span>
                       </Fragment>
-                      ),
-                    )}
+                    ))}
                   </div>
                 </li>
               ))}
