@@ -82,7 +82,6 @@ import {
 } from "@/lib/pricing";
 import {
   aheadFor,
-  SMALL_MONTHLY_USD,
   AI_LIFETIME_FIRST_MAX_USD,
   BEFORE_GROUPS,
   lifestyleBadge,
@@ -903,21 +902,7 @@ export function Store() {
     const tp = tilePrice(price, cover, billing, cardSpread);
     // Nothing to offset, like meat on a vegan diet: say so instead of a $0 price.
     const nothing = price.once + price.monthly < 0.005;
-    // The other way to pay, one tap away: once for life, or back to monthly.
-    const options = aheadFor(p, amount, ctx, anyway[p.id]);
-    const other: Cover["ahead"] = cover.ahead === "monthly" ? "lifetime" : "monthly";
-    const otherPrice = coverPrice(p, amount, { ...cover, ahead: other }, ctx);
-    const alt = options.includes(other)
-      ? {
-          ahead: other,
-          text:
-            other === "lifetime"
-              ? `or ${once(otherPrice.once)} once, ${cover.past ? "for life" : "for all future use"}`
-              : otherPrice.monthly < SMALL_MONTHLY_USD
-                ? `or under $1 ${BILLING.monthly.per}`
-                : `or ${usd((billing === "annual" ? 12 : 1) * otherPrice.monthly)} ${BILLING[billing].per}`,
-        }
-      : null;
+    // No "or under $1 a month" link on tiles (Ian, 2026-10-25: drop it); the plan sets how to pay.
     const isOpen = details === p.id;
     const paid = paidCover(covered[p.id]);
     // A lifestyle choice that leaves nothing to pay going forward, like meat on a vegan diet, counts as covered.
@@ -994,15 +979,6 @@ export function Store() {
           <span className="leading-tight">
             <span className="amount block text-lg font-semibold">{tp.big}</span>
             <span className="block text-xs text-muted">{tp.note}</span>
-            {alt && (
-              <button
-                type="button"
-                onClick={() => setPicked((x) => ({ ...x, [p.id]: { ...x[p.id], ahead: alt.ahead } }))}
-                className="mt-1 inline-flex min-h-9 items-center text-left text-xs underline underline-offset-4"
-              >
-                {alt.text}
-              </button>
-            )}
           </span>
           {addButton(p, true)}
         </div>
