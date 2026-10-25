@@ -6,11 +6,11 @@ import { type Covered, STORAGE_KEY } from "@/lib/covered";
 import { inForce, recordStatus, untilOf } from "@/lib/record";
 import { steadyPlan } from "@/lib/steady";
 import { pullCovered, pushCovered } from "@/lib/accountClient";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { ActivityUpload } from "./ActivityUpload";
 import { CheckoutSteps, DirectPledgeForm } from "./Checkout";
 import { SteadyCheck } from "./SteadyCheck";
-import { AI_HARDWARE_SHARE, AI_TRAINING_SHARE, DATACENTER_M2_YEARS_PER_KWH, LIFETIME_TO_AGE } from "@/lib/factors";
+import { AI_HARDWARE_SHARE, AI_TRAINING_SHARE, DATACENTER_M2_YEARS_PER_KWH, LIFETIME_TO_AGE, WH_PER_AI_PROMPT } from "@/lib/factors";
 import { joinList, ListInvite, ListOptIn } from "./ListOptIn";
 import { AiExportUpload } from "./AiExportUpload";
 import { AiQuickPick } from "./AiQuickPick";
@@ -1561,67 +1561,58 @@ export function Store() {
         const cooling = aiImpacts.water * (coolingWater(kwh1) / unit.water);
         const built = aiImpacts.carbon * AI_HARDWARE_SHARE;
         const bare = (k: "carbon" | "water" | "land", v: number) => IMPACT_INFO[k].format(v, aiImpacts).replace(/ (CO₂e|water|land)$/, "");
-        // Every harm grows with the electricity, so the electricity is read back from the carbon. Each row then shows
-        // its rate per kWh, so the reader can see how the use leads to the number (Ian, 2026-10-25).
-        const kwh = aiImpacts.carbon / unit.carbon / (1 - AI_TRAINING_SHARE);
-        const per = (v: number, u: string, scale = 1) => `${Number(((v / kwh) * scale).toPrecision(2)).toLocaleString()} ${u} for every ${scale === 1 ? "" : `${scale.toLocaleString()} `}kWh`;
+        // Each line also shows what 1,000 prompts cause (one gave tiny numbers), from the same factors at today's rates (Ian, 2026-10-25:
+        // electricity is unintuitive; show one prompt through every number).
+        const one = aiImpactsOf((ctx.aiWhPerPrompt ?? WH_PER_AI_PROMPT) / 1000);
+        const sig = (n: number) => Number(n.toPrecision(2)).toLocaleString();
+        const oneDc = one.land * ((kwh1 * DATACENTER_M2_YEARS_PER_KWH) / unit.land);
+        const oneCool = one.water * (coolingWater(kwh1) / unit.water);
+        const oneBuilt = one.carbon * AI_HARDWARE_SHARE;
         const answers = [
           {
             q: "How much CO₂ and smog?",
             total: `${IMPACT_INFO.carbon.format(aiImpacts.carbon, aiImpacts)}, ${airShort(aiImpacts)}`,
             rows: [
-              ["Training and running the models", per(aiImpacts.carbon - built, "kg"), bare("carbon", aiImpacts.carbon - built)],
-              ["Making the chips and buildings", `a quarter of the total`, bare("carbon", built)],
-              ["Smog from power plants", per(aiImpacts.smogL, "L"), airShort(aiImpacts)],
+              ["Training and running the models", `${sig((one.carbon - oneBuilt) * 1e6)} g`, bare("carbon", aiImpacts.carbon - built)],
+              ["Making the chips and buildings", `${sig(oneBuilt * 1e6)} g`, bare("carbon", built)],
+              ["Smog from power plants", `${sig(one.smogL * 1e6)} mL`, airShort(aiImpacts)],
             ],
           },
           {
             q: "How much water?",
             total: IMPACT_INFO.water.format(aiImpacts.water, aiImpacts),
             rows: [
-              ["Cooling the servers", per(cooling, "L"), bare("water", cooling)],
-              ["Power plants", per(aiImpacts.water - cooling, "L"), bare("water", aiImpacts.water - cooling)],
+              ["Cooling the servers", `${sig(oneCool * 1e6)} mL`, bare("water", cooling)],
+              ["Power plants", `${sig((one.water - oneCool) * 1e6)} mL`, bare("water", aiImpacts.water - cooling)],
             ],
           },
           {
             q: "How much land?",
             total: IMPACT_INFO.land.format(aiImpacts.land, aiImpacts),
             rows: [
-              ["Data centers", per(dcLand, "m²", 1000), bare("land", dcLand)],
-              ["Power plants", per(aiImpacts.land - dcLand, "m²", 1000), bare("land", aiImpacts.land - dcLand)],
+              ["Data centers", `${sig(oneDc * 1e7)} cm²`, bare("land", dcLand)],
+              ["Power plants", `${sig((one.land - oneDc) * 1e7)} cm²`, bare("land", aiImpacts.land - dcLand)],
             ],
           },
         ].filter((_, i) => [aiImpacts.carbon, aiImpacts.water, aiImpacts.land][i] > 0);
         return (
           <section aria-labelledby="how-numbers" className="py-16">
             <h2 id="how-numbers" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">How I got these numbers</h2>
-            {/* The first step: your use, then the electricity it takes. Everything below follows from that. */}
-            <div className="amount mt-10 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
-              <p className="border-t-[6px] border-rule bg-card px-5 py-3">
-                {dueLines.map((l) => amountText(l.p, l.amount)).join(" and ")}, {heroAhead === "lifetime" ? `to age ${LIFETIME_TO_AGE}` : BILLING[billing].per}
-              </p>
-              <span aria-hidden="true" className="text-center text-xl text-muted">
-                <span className="sm:hidden">↓</span>
-                <span className="hidden sm:inline">→</span>
-              </span>
-              <p className="border-t-[6px] border-rule bg-card px-5 py-3">
-                {Math.round(kwh).toLocaleString()} kWh of electricity, with training
-              </p>
-            </div>
-            <ul className="mt-4 grid gap-4 md:grid-cols-3">
+            <ul className="mt-10 grid gap-4 md:grid-cols-3">
               {answers.map((b) => (
                 <li key={b.q} className="flex flex-col border-t-[6px] border-rule bg-card px-5 pt-4 pb-5">
                   {/* No question headings (Ian, 2026-10-25): the total is the heading, the rows say what it's made of. */}
                   <h3 className="amount text-lg font-semibold">{b.total}</h3>
-                  <div className="amount mt-auto pt-4 text-sm">
-                    {b.rows.map(([label, rate, v]) => (
-                      <p key={label} className="flex justify-between gap-3 border-t border-border py-1">
-                        <span>
-                          {label}
-                          <span className="block text-xs text-muted">{rate}</span>
-                        </span>
-                        <span>{v}</span>
-                      </p>
+                  <div className="amount mt-auto grid grid-cols-[1fr_auto_auto] gap-x-3 pt-4 text-sm">
+                    <span />
+                    <span className="pb-1 text-right text-xs text-muted">1,000 prompts</span>
+                    <span className="pb-1 text-right text-xs text-muted">You</span>
+                    {b.rows.map(([label, prompt, v]) => (
+                      <Fragment key={label}>
+                        <span className="border-t border-border py-1">{label}</span>
+                        <span className="border-t border-border py-1 text-right text-muted">{prompt}</span>
+                        <span className="border-t border-border py-1 text-right">{v}</span>
+                      </Fragment>
                     ))}
                   </div>
                 </li>
