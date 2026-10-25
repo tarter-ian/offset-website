@@ -1366,10 +1366,10 @@ export function Store() {
                   type="button"
                   aria-pressed={aiLevel === k}
                   onClick={() => pickLevel(k, `you picked ${AI_LEVELS[k].label.toLowerCase()}`)}
-                  className={`min-h-12 cursor-pointer rounded px-2 py-1 text-center ${aiLevel === k ? "bg-foreground text-background" : "hover:bg-card"}`}
+                  className={`min-h-12 cursor-pointer rounded px-1 py-1 text-center ${aiLevel === k ? "bg-foreground text-background" : "hover:bg-card"}`}
                 >
                   <span className="block font-semibold">{AI_LEVELS[k].label}</span>
-                  <span className={`block text-xs ${aiLevel === k ? "opacity-80" : "text-muted"}`}>{AI_LEVELS[k].promptsPerDay} prompts a day</span>
+                  <span className={`block text-[11px] whitespace-nowrap ${aiLevel === k ? "opacity-80" : "text-muted"}`}>{AI_LEVELS[k].promptsPerDay} prompts a day</span>
                 </button>
               ))}
             </div>
