@@ -1650,11 +1650,14 @@ export function Store() {
         <h2 id="no-cut" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">
           I don&apos;t take a cut.
         </h2>
-        {PAYMENT_MODE === "pledgeapi" && !heroPaid ? (
+        {!heroPaid ? (
           // The price, taken apart: charities + fees + nothing to me (Ian, 2026-10-25).
           (() => {
             const gifts = payRows(harmSplit(heroTotals, ctx, billing), billing, autopay).filter((r) => !r.key.endsWith("-repeat"));
-            const pay = onePayment(gifts);
+            // Every payment mode gets the receipt (Ian, 2026-10-25: it went missing outside Pledge).
+            const total = rowsTotal(gifts);
+            const donation = Math.round(gifts.reduce((t, g) => t + g.donation, 0) * 100) / 100;
+            const pay = { donation, fee: Math.round((total - donation) * 100) / 100, total };
             // A receipt in the same style as the cards above, with the charities on one line (Ian, 2026-10-25).
             return (
               <div className="amount mt-6 text-sm sm:mt-0 sm:self-center">
@@ -1663,7 +1666,7 @@ export function Store() {
                   <span>{usd(pay.donation)}</span>
                 </p>
                 <p className="flex justify-between gap-3 border-t border-border py-1">
-                  <span>Card and Pledge fees</span>
+                  <span>{forMode({ every: "Card and Every.org fees", pledge: "Card and Pledge fees", pledgeapi: "Card and Pledge fees", endaoment: "Card and Endaoment fees", sponsor: "Card and sponsor fees" })}</span>
                   <span>{usd(pay.fee)}</span>
                 </p>
                 <p className="flex justify-between gap-3 border-t border-border py-1 font-semibold">
@@ -1704,7 +1707,7 @@ export function Store() {
         </p>
         )}
         {/* One link, the proof (Ian, 2026-10-25: three links was too many), and none beside the receipt, which already shows it. */}
-        {!(PAYMENT_MODE === "pledgeapi" && !heroPaid) && (
+        {heroPaid && (
           <p className="mt-6 font-semibold">
             <Link href="/ledger" className="underline-offset-4 hover:underline">
               Where every dollar went →
