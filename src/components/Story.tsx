@@ -1,7 +1,7 @@
 "use client";
 // The problem, one screen at a time, then the bill (Ian, 2026-10-24), redone from the research in
 // /mnt/project-files/notes/home-story-research.md: the visitor's own numbers with everyday comparisons,
-// one claim per screen, a skip link, each screen short enough that the next one peeks in, and motion
+// one claim per screen, each screen short enough that the next one peeks in, and motion
 // only on the dot chart, off when the device asks for reduced motion.
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import * as F from "@/lib/factors";
@@ -172,11 +172,6 @@ export function Story({ promptsPerDay, whPerPrompt }: { promptsPerDay: number; w
   const screen = "grid min-h-[72svh] content-center gap-8 border-b border-border py-14 md:grid-cols-[minmax(0,1fr)_17rem] md:items-center md:gap-14";
   const head = "max-w-2xl font-display text-4xl leading-[1.1] font-semibold sm:text-6xl";
   const fact = "mt-5 max-w-xl text-lg text-muted sm:text-xl";
-  const skip = (
-    <a href="#your-bill" className="text-sm text-muted underline underline-offset-4 hover:text-foreground">
-      Skip to my bill
-    </a>
-  );
 
   return (
     <div aria-label="Why offset your AI use">
@@ -185,11 +180,8 @@ export function Story({ promptsPerDay, whPerPrompt }: { promptsPerDay: number; w
         <div className="md:order-2">{chat}</div>
         <div>
           <h2 className={head}>What does your AI use cost the planet?</h2>
-          <p className="mt-10 flex items-center gap-6">
-            <span aria-hidden="true" className="text-2xl text-muted">
-              ↓
-            </span>
-            {skip}
+          <p aria-hidden="true" className="mt-10 text-2xl text-muted">
+            ↓
           </p>
         </div>
       </section>
