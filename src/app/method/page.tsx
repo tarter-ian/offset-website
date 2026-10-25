@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import * as F from "@/lib/factors";
 import { CONFIDENCE_LABELS, IMPACT_KEYS, MARGINS, type Confidence } from "@/lib/footprint";
-import { STATES } from "@/lib/data/states";
+import { AI_LEVELS } from "@/lib/ai/levels";
+import { DEFAULT_LIFETIME_INPUT, lifetimeOffset } from "@/lib/lifetime";
 import { IMPACT_INFO } from "@/lib/impacts";
-import { DEFAULT_CONTEXT, PAST_FROM_AGE, PAST_MONTHLY_CAP_USD, PAST_YEARS, PRODUCTS } from "@/lib/store";
+import { PAST_FROM_AGE, PAST_MONTHLY_CAP_USD, PAST_YEARS } from "@/lib/store";
 import { PAYMENT_MODE } from "@/lib/payments";
 import { ComputerOnly } from "@/components/ComputerOnly";
 import {
@@ -174,12 +175,16 @@ const ROWS = [
   },
 ];
 
-// One worked example: a typical month of home electricity, start to finish.
-const EX_STATE = DEFAULT_CONTEXT.state;
-const EX_PRODUCT = PRODUCTS.find((p) => p.id === "electricity")!;
-const EX_IMPACTS = EX_PRODUCT.impacts(0, "monthly", DEFAULT_CONTEXT);
+// One worked example, the same one the home page shows: AI at Medium, for life (Ian, 2026-10-25).
+const EX_LEVEL = AI_LEVELS.medium;
+const EX = lifetimeOffset(
+  { ...DEFAULT_LIFETIME_INPUT, aiPromptsPerDay: EX_LEVEL.promptsPerDay, aiMediaPerWeek: EX_LEVEL.imagesPerWeek, aiBuiltInPerDay: F.AI_BUILT_IN_PROMPTS_PER_DAY },
+  ["ai"],
+);
+const EX_IMPACTS = EX.parts.ai.impacts;
 const EX_DOLLARS = impactCost(EX_IMPACTS);
-const EX_TOTAL = IMPACT_KEYS.reduce((s, k) => s + EX_DOLLARS[k], 0);
+// Each gift is rounded up to the cent, as checkout does.
+const EX_TOTAL = IMPACT_KEYS.reduce((s, k) => s + Math.ceil(EX_DOLLARS[k] * 100) / 100, 0);
 
 function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
   return (
@@ -201,11 +206,14 @@ export default function MethodPage() {
       </p>
 
       <h2 className="mt-10 text-xl font-semibold">One example, start to finish</h2>
-      <p className="mt-2 text-muted">A typical month of home electricity in {STATES[EX_STATE].name}.</p>
+      <p className="mt-2 text-muted">AI at the Medium level, for life: the example on the home page.</p>
       <div className="mt-4 grid gap-6 sm:grid-cols-3">
         <Step n={1} title="What you use">
-          <p className="figures text-2xl font-semibold">{STATES[EX_STATE].avgKwhPerMonth.toLocaleString("en-US")} kWh</p>
-          <p className="mt-1 text-muted">From your bill, or your state&apos;s average when nothing is linked.</p>
+          <p className="figures text-xl font-semibold whitespace-nowrap">{EX_LEVEL.promptsPerDay} prompts a day</p>
+          <p className="mt-1">
+            plus {EX_LEVEL.imagesPerWeek} images a week and {F.AI_BUILT_IN_PROMPTS_PER_DAY} AI answers a day in search and apps
+          </p>
+          <p className="mt-2 text-muted">From late 2022 to age {F.LIFETIME_TO_AGE}.</p>
         </Step>
         <Step n={2} title="The harm it does">
           <ul className="figures space-y-1">
@@ -213,28 +221,29 @@ export default function MethodPage() {
               <li key={k}>{IMPACT_INFO[k].format(EX_IMPACTS[k], EX_IMPACTS)}</li>
             ))}
           </ul>
-          <p className="mt-2 text-muted">Your state&apos;s grid rates, plus a safety margin.</p>
+          <p className="mt-2 text-muted">Power plants, cooling, and building the servers and data centers, plus a safety margin.</p>
         </Step>
         <Step n={3} title="What covers it">
           <ul className="figures space-y-1">
             {IMPACT_KEYS.filter((k) => EX_DOLLARS[k] > 0).map((k) => (
               <li key={k} className="flex justify-between gap-3">
                 <span className="font-sans text-muted">{IMPACT_INFO[k].label}</span>
-                <span>{usd(EX_DOLLARS[k])}</span>
+                <span>{usd(Math.ceil(EX_DOLLARS[k] * 100) / 100)}</span>
               </li>
             ))}
             <li className="flex justify-between gap-3 border-t border-rule pt-1 font-semibold">
               <span className="font-sans">To charities</span>
-              <span>{usd(EX_TOTAL)} a month</span>
+              <span>{usd(EX_TOTAL)}</span>
             </li>
           </ul>
+          <p className="mt-2 text-muted">Card fees are added on top.</p>
         </Step>
       </div>
 
       <h2 className="mt-12 text-xl font-semibold">The five kinds of harm</h2>
       <div className="mt-4 grid gap-6 sm:grid-cols-2">
-        {IMPACTS.map((i) => (
-          <div key={i.name} className="border-t-4 border-rule pt-3">
+        {IMPACTS.map((i, n) => (
+          <div key={i.name} className={`border-t-4 border-rule pt-3 ${n === IMPACTS.length - 1 && IMPACTS.length % 2 ? "sm:col-span-2" : ""}`}>
             <h3 className="font-semibold">{i.name}</h3>
             <p className="mt-1 text-sm">
               <span className="text-muted">Counted in</span> {i.unit}
@@ -242,15 +251,66 @@ export default function MethodPage() {
             <p className="text-sm">
               <span className="text-muted">Paid at</span> {i.priceShort}
             </p>
-            <details className="mt-2 text-sm text-muted">
-              <summary className="cursor-pointer underline">The detail</summary>
-              <p className="mt-2">
-                {i.measure} {i.price}
-              </p>
-            </details>
+            <p className="mt-2 text-sm text-muted">{i.price}</p>
+            <p className="mt-2 text-sm text-muted">{i.measure}</p>
           </div>
         ))}
       </div>
+
+      <h2 className="mt-12 text-xl font-semibold">Lifetime internet, AI and devices</h2>
+      <div className="mt-4" aria-hidden="true">
+        <div className="flex h-8 overflow-hidden text-xs font-medium">
+          <div className="flex w-[30%] items-center bg-card px-2">Past use</div>
+          <div className="w-0.5 bg-foreground" />
+          <div className="flex flex-1 items-center bg-accent/15 px-2">Every year ahead, on a grid getting cleaner</div>
+        </div>
+        <div className="mt-1 flex justify-between text-xs text-muted">
+          <span>Age {F.ONLINE_FROM_AGE} (AI: when you started)</span>
+          <span>Today</span>
+          <span>Age {F.LIFETIME_TO_AGE}</span>
+        </div>
+      </div>
+      <ul className="mt-4 list-disc space-y-1 pl-5 text-muted">
+        <li>
+          Lifetime offsets count from age {F.ONLINE_FROM_AGE} (or {F.INTERNET_START_YEAR}, whichever is later), and from late 2022 for AI
+          (or when you started), through age {F.LIFETIME_TO_AGE}.
+        </li>
+        <li>
+          Past years count at today&apos;s rates. AI is the exception: most people took it up gradually, so unless your chat history is
+          linked, its past use grows steadily to today&apos;s rate.
+        </li>
+        <li>
+          Future years count at today&apos;s amount of use, but the power gets cleaner. The grid&apos;s carbon and power plant water fall{" "}
+          {Math.round(F.GRID_CLEANER_PER_YEAR * 100)}% a year until {F.GRID_CLEANER_UNTIL}, a cautious pace next to the EIA&apos;s 2% to 6%.
+          Power plant air pollution falls {Math.round(F.GRID_AIR_CLEANER_PER_YEAR * 100)}% a year, since coal is its main source and retires
+          first. Data center cooling water and making devices aren&apos;t discounted.
+        </li>
+        <li>Future AI use counts {LIFETIME_GROWTH_BUFFER} times over, in case it keeps growing.</li>
+      </ul>
+      <p className="mt-4 text-muted">
+        Everyday items (driving, flights, food, home and shopping) can include past use too, if you tick it: today&apos;s monthly amount
+        times the months since the year you turned {PAST_FROM_AGE}, or a year you pick. That probably undercounts, since cars and the grid
+        were dirtier then. Past use can be paid all at once or spread over up to {PAST_YEARS.at(-1)} years; by default it&apos;s spread
+        just enough to add no more than {usd(PAST_MONTHLY_CAP_USD)} a month, with nothing added or taken off.
+      </p>
+      <ul className="mt-3 list-disc space-y-1 pl-5 text-muted">
+        <li>
+          <strong className="font-medium text-foreground">Internet</strong> is split into video, social media, cloud gaming, video calls, music and
+          browsing, each with its own data center and network power per hour. Video uses the IEA figure ({F.INTERNET_KWH_PER_HOUR.video} kWh an
+          hour); the others are scaled from typical data use and are rough, so they carry an extra {Math.round(F.INTERNET_ROUGH_MARGIN * 100)}% margin.
+        </li>
+        <li>
+          <strong className="font-medium text-foreground">AI</strong> adds each prompt&apos;s share of training the models: about{" "}
+          {Math.round(F.AI_TRAINING_SHARE * 100)}% of machine learning energy goes to training. On top of that, making the chips and servers
+          and building the data centers adds about {Math.round(F.AI_HARDWARE_SHARE * 100)}% of AI&apos;s carbon. Some data centers run their own gas power, so
+          their air pollution counts {F.AI_LOCAL_AIR_WEIGHT} times. AI built into other products, like search answers, counts as {F.AI_BUILT_IN_PROMPTS_PER_DAY} typical prompts a day for everyone. A short AI video counts about {F.WH_PER_AI_VIDEO} Wh, the one published measurement.
+        </li>
+        <li>
+          <strong className="font-medium text-foreground">Devices</strong> counts the carbon to make each phone, laptop, tablet, computer, TV and
+          console you&apos;ll go through (for example {F.DEVICES.phone.kgToMake} kg for a phone kept {F.DEVICES.phone.yearsKept} years), the water and land used to mine and make them, plus the
+          power to run them. If you also cover home electricity month to month, the running power overlaps with it.
+        </li>
+      </ul>
 
       <h2 className="mt-12 text-xl font-semibold">Each part of your life</h2>
       <ul className="mt-4 divide-y divide-border border-y border-rule">
@@ -270,7 +330,10 @@ export default function MethodPage() {
       </ul>
 
       <h2 className="mt-10 text-xl font-semibold">Margins</h2>
-      <p className="mt-2 text-muted">Linking an account replaces an estimate with measured data and shrinks its margin.</p>
+      <p className="mt-2 text-muted">
+        I&apos;d rather cover too much than too little, so I add a margin to every estimate. Linking an account replaces an estimate
+        with measured data and shrinks its margin.
+      </p>
       <ul className="mt-4 space-y-2">
         {(Object.keys(MARGINS) as Confidence[]).map((c) => (
           <li key={c} className="flex justify-between rounded-lg border border-border bg-card px-4 py-2">
@@ -321,56 +384,6 @@ export default function MethodPage() {
         fees don&apos;t eat them, and all of it goes to the charities.
       </p>
       )}
-
-      <h2 className="mt-10 text-xl font-semibold">Lifetime internet, AI and devices</h2>
-      <div className="mt-4" aria-hidden="true">
-        <div className="flex h-8 overflow-hidden text-xs font-medium">
-          <div className="flex w-[30%] items-center bg-card px-2">Past use</div>
-          <div className="w-0.5 bg-foreground" />
-          <div className="flex flex-1 items-center bg-accent/15 px-2">Every year ahead, on a grid getting cleaner</div>
-        </div>
-        <div className="mt-1 flex justify-between text-xs text-muted">
-          <span>Age {F.ONLINE_FROM_AGE} (AI: when you started)</span>
-          <span>Today</span>
-          <span>Age {F.LIFETIME_TO_AGE}</span>
-        </div>
-      </div>
-      <p className="mt-4 text-muted">
-        The one-time lifetime offsets count from age {F.ONLINE_FROM_AGE} (or {F.INTERNET_START_YEAR}, whichever is later), and from late 2022 for AI (or when you started),
-        through age {F.LIFETIME_TO_AGE}. Past years count at today&apos;s rates, except AI, which most people took up gradually: unless your
-        chat history is linked, its past use grows steadily to today&apos;s rate. Future years count at today&apos;s amount of use, since networks
-        get more efficient about as fast as use grows, but the power for it gets cleaner. I assume the US grid&apos;s carbon and power plant water
-        per kWh fall {Math.round(F.GRID_CLEANER_PER_YEAR * 100)}% a year until {F.GRID_CLEANER_UNTIL}, then hold steady. That&apos;s a cautious pace;
-        the EIA&apos;s outlooks range from about 2% to 6% a year depending on clean-power policy. Power plant air pollution falls faster, since
-        coal is its main source and retires first (in 2023 sulfur dioxide fell 24% and NOx 15%, against 7% for carbon), so I take{" "}
-        {Math.round(F.GRID_AIR_CLEANER_PER_YEAR * 100)}% a year for air. Data center cooling water and making devices, mostly overseas, aren&apos;t
-        discounted. Future AI use counts {LIFETIME_GROWTH_BUFFER} times over in case it keeps growing. Prices use
-        expected-impact climate pricing, plus fees.
-      </p>
-      <p className="mt-4 text-muted">
-        Everyday items (driving, flights, food, home and shopping) can include past use too, if you tick it: today&apos;s monthly amount
-        times the months since the year you turned {PAST_FROM_AGE}, or a year you pick. That probably undercounts, since cars and the grid
-        were dirtier then. Past use can be paid all at once or spread over up to {PAST_YEARS.at(-1)} years; by default it&apos;s spread
-        just enough to add no more than {usd(PAST_MONTHLY_CAP_USD)} a month, with nothing added or taken off.
-      </p>
-      <ul className="mt-3 list-disc space-y-1 pl-5 text-muted">
-        <li>
-          <strong className="font-medium text-foreground">Internet</strong> is split into video, social media, cloud gaming, video calls, music and
-          browsing, each with its own data center and network power per hour. Video uses the IEA figure ({F.INTERNET_KWH_PER_HOUR.video} kWh an
-          hour); the others are scaled from typical data use and are rough, so they carry an extra {Math.round(F.INTERNET_ROUGH_MARGIN * 100)}% margin.
-        </li>
-        <li>
-          <strong className="font-medium text-foreground">AI</strong> adds each prompt&apos;s share of training the models: about{" "}
-          {Math.round(F.AI_TRAINING_SHARE * 100)}% of machine learning energy goes to training. On top of that, making the chips and servers
-          and building the data centers adds about {Math.round(F.AI_HARDWARE_SHARE * 100)}% of AI&apos;s carbon. Some data centers run their own gas power, so
-          their air pollution counts {F.AI_LOCAL_AIR_WEIGHT} times. AI built into other products, like search answers, counts as {F.AI_BUILT_IN_PROMPTS_PER_DAY} typical prompts a day for everyone. A short AI video counts about {F.WH_PER_AI_VIDEO} Wh, the one published measurement.
-        </li>
-        <li>
-          <strong className="font-medium text-foreground">Devices</strong> counts the carbon to make each phone, laptop, tablet, computer, TV and
-          console you&apos;ll go through (for example {F.DEVICES.phone.kgToMake} kg for a phone kept {F.DEVICES.phone.yearsKept} years), the water and land used to mine and make them, plus the
-          power to run them. If you also cover home electricity month to month, the running power overlaps with it.
-        </li>
-      </ul>
 
       <h2 className="mt-10 text-xl font-semibold">What &ldquo;Fully Offset&rdquo; means</h2>
       <p className="mt-2 text-muted">
