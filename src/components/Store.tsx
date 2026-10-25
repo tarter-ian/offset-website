@@ -240,6 +240,25 @@ const AI_START_OPTIONS = Array.from({ length: new Date().getFullYear() - 2021 },
 });
 
 /** The storefront: link accounts to fill in your amounts, then pick the parts of your life to offset. */
+/** A line drawing for each harm, in ink so it follows dark mode. */
+function HarmDrawing({ harm }: { harm: "carbon" | "air" | "water" | "land" }) {
+  const paths = {
+    // A cloud of exhaust over a chimney.
+    carbon: <path d="M14 46V30h8v16M10 46h40M30 22a8 8 0 0 1 15-3 6 6 0 1 1 1 12H30a5 5 0 0 1 0-9z" />,
+    // Haze lines over a skyline.
+    air: <path d="M8 46h48M12 46V30h8v16M24 46V22h8v24M36 46V34h8v12M44 46V26h8v20M8 16c6-4 10 4 16 0s10 4 16 0 10 4 16 0" />,
+    // A drop over a river.
+    water: <path d="M32 8s-12 14-12 22a12 12 0 0 0 24 0c0-8-12-22-12-22zM8 52c6-4 10 4 16 0s10 4 16 0 10 4 16 0" />,
+    // Two trees.
+    land: <path d="M20 52V36M12 36l8-20 8 20zM44 52V32M34 32l10-22 10 22zM6 52h52" />,
+  };
+  return (
+    <svg viewBox="0 0 64 60" aria-hidden="true" className="h-16 w-16 text-foreground" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+      {paths[harm]}
+    </svg>
+  );
+}
+
 export function Store() {
   const [ctx, setCtx] = useState<Context>(DEFAULT_CONTEXT);
   const [amounts, setAmounts] = useState<Record<string, number | string>>({});
@@ -1178,7 +1197,6 @@ export function Store() {
   const aiPrice = { once: heroCharge.pastOnce + heroCharge.lifeOnce, monthly: heroCharge.monthly };
   // The hero shows what checkout charges, from the same gifts: each charity's $1 minimum and card fees in (Ian, 2026-10-13).
   const heroBill = chargesOf(heroTotals);
-  const heroSplit = harmSplit(heroTotals, ctx, billing);
   const heroWhy = forMode({
     every: "card fees and at least $1 to each charity",
     pledge: "at least $1 to each charity",
@@ -1247,7 +1265,7 @@ export function Store() {
   };
   return (
     <div className="pb-20">
-      <section className="relative isolate pb-12">
+      <section className="relative isolate">
         {heroPaid && !updatingNumbers ? (
           // Once all AI is paid, the photo carries what's offset instead of a price (Ian, 2026-10-13).
           <div className="relative py-10 lg:py-14">
@@ -1293,7 +1311,7 @@ export function Store() {
             </div>
           </div>
         ) : (
-        <div className="relative grid gap-10 py-10 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-14 lg:py-12">
+        <div className="relative grid min-h-[calc(100svh-3.25rem)] content-center gap-10 py-10 lg:grid-cols-[minmax(0,1fr)_400px] lg:items-center lg:gap-14 lg:py-12">
         {/* A photo behind the headline (Ian, 2026-10-13); a drawn landscape until a charity photo is in. */}
         <div aria-hidden="true" className="hero-band" />
         <div className="self-center">
@@ -1351,7 +1369,7 @@ export function Store() {
                   className={`min-h-12 cursor-pointer rounded px-2 py-1 text-center ${aiLevel === k ? "bg-foreground text-background" : "hover:bg-card"}`}
                 >
                   <span className="block font-semibold">{AI_LEVELS[k].label}</span>
-                  <span className={`block text-xs ${aiLevel === k ? "opacity-80" : "text-muted"}`}>{AI_LEVELS[k].promptsPerDay} a day</span>
+                  <span className={`block text-xs ${aiLevel === k ? "opacity-80" : "text-muted"}`}>{AI_LEVELS[k].promptsPerDay} prompts a day</span>
                 </button>
               ))}
             </div>
@@ -1429,27 +1447,20 @@ export function Store() {
         {!heroPaid && (
           // What the price pays for, as one picture: a bar for each harm, by the dollars it gets (Ian, 2026-10-25:
           // one idea per screen, pictures over words, like the sites he compared).
-          <section aria-labelledby="pays-for" className="mt-16">
-            <h2 id="pays-for" className="font-display text-3xl font-semibold">
+          <section aria-labelledby="pays-for" className="flex min-h-[80svh] flex-col justify-center pt-16 pb-10">
+            <h2 id="pays-for" className="font-display text-4xl leading-[1.1] font-semibold sm:text-6xl">
               What {aiCover.ahead === "monthly" ? `${usd(heroBill.then)} ${BILLING[billing].per}` : usd(heroBill.today)} pays for
             </h2>
-            <ul className="mt-6 space-y-5">
+            <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {(["carbon", "air", "water", "land"] as const)
                 .filter((k) => aiImpacts[k] > 0)
-                .map((k) => {
-                  const dollars = (h: (typeof heroSplit)[typeof k]) => (aiCover.ahead === "monthly" ? h.perPeriod : h.once) || h.once + h.perPeriod;
-                  const most = Math.max(...(["carbon", "air", "water", "land"] as const).map((x) => dollars(heroSplit[x])));
-                  const share = most > 0 ? dollars(heroSplit[k]) / most : 0;
-                  return (
-                    <li key={k} className="grid gap-x-6 gap-y-1 sm:grid-cols-[14rem_minmax(0,1fr)] sm:items-center">
-                      <div>
-                        <span className="amount block text-xl font-semibold">{IMPACT_INFO[k].format(aiImpacts[k], aiImpacts)}</span>
-                        <span className="block text-sm text-muted">{CHARITIES[k].name}</span>
-                      </div>
-                      <div aria-hidden="true" className="h-3 rounded-sm bg-foreground" style={{ width: `${Math.max(2, Math.round(share * 100))}%` }} />
-                    </li>
-                  );
-                })}
+                .map((k) => (
+                  <li key={k} className="border-t-[6px] border-rule bg-card px-5 pt-5 pb-6">
+                    <HarmDrawing harm={k} />
+                    <span className="amount mt-4 block text-3xl font-semibold">{IMPACT_INFO[k].format(aiImpacts[k], aiImpacts)}</span>
+                    <span className="mt-1 block text-muted">{CHARITIES[k].name}</span>
+                  </li>
+                ))}
             </ul>
             <details className="mt-6 text-sm text-muted">
               <summary className="cursor-pointer underline underline-offset-2 hover:text-foreground">What&apos;s counted</summary>
@@ -1464,9 +1475,9 @@ export function Store() {
           </section>
         )}
         {heroPaid && !updatingNumbers ? null : (
-          <div className="mt-16">
-            <h2 className="font-display text-2xl font-semibold">Use your real numbers</h2>
-            <div className="mt-4">
+          <div className={heroPaid ? "mt-10" : "pb-16"}>
+            <h2 className="text-lg font-semibold">Use your real numbers</h2>
+            <div className="mt-3">
             <AiQuickPick
               keepGuess={Boolean(ctx.aiEstimate?.level)}
               level={aiLevel}
@@ -1552,15 +1563,15 @@ export function Store() {
           requestAnimationFrame(() => document.getElementById(`section-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
         };
         return open ? null : (
-          <section aria-labelledby="more-heading" className="mt-6 mb-10">
-            <h2 id="more-heading" className="font-display text-3xl font-extrabold [font-stretch:85%]">Everything you can offset</h2>
-            <ul className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
+          <section aria-labelledby="more-heading" className="flex min-h-[80svh] flex-col justify-center border-t-2 border-rule py-16">
+            <h2 id="more-heading" className="font-display text-4xl leading-[1.1] font-semibold sm:text-6xl">Everything you can offset</h2>
+            <ul className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3">
               {SECTIONS.filter((x) => x.key !== "ai").map((x) => (
                 <li key={x.key}>
                   <button
                     type="button"
                     onClick={() => openAt(x.key)}
-                    className="min-h-11 w-full cursor-pointer rounded-md border-2 border-rule px-4 font-semibold hover:bg-foreground hover:text-background"
+                    className="min-h-24 w-full cursor-pointer rounded-md border-2 border-rule px-4 text-xl font-semibold hover:bg-foreground hover:text-background sm:min-h-32 sm:text-2xl"
                   >
                     {x.title}
                   </button>
