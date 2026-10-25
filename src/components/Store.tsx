@@ -1411,7 +1411,7 @@ export function Store() {
                 </span>
               ) : (
                 <span className="amount text-2xl font-semibold">
-                  {usd(heroBill.today)} {aiCover.past ? "for life" : "once"}
+                  {usd(heroBill.today)}{heroAhead === "lifetime" ? "" : aiCover.past ? " for life" : " once"}
                 </span>
               )}
               <button
@@ -1419,7 +1419,8 @@ export function Store() {
                 onClick={reviewAndPay}
                 className="min-h-11 shrink-0 cursor-pointer rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-strong"
               >
-                {heroInPlan ? "Review and give" : "Offset my AI use"}
+                {/* Each phrase once on the first screen (Ian, 2026-10-25). */}
+                {heroInPlan ? "Review and give" : "Offset it"}
               </button>
             </div>
           )}
