@@ -1,7 +1,15 @@
-// The problem, one screen at a time, then the bill (Ian, 2026-10-24: stretch the opening out
-// without putting more on any one screen, and let drawings carry it where they can).
-// Every claim here is one the method page sources.
-import type { ReactNode } from "react";
+"use client";
+// The problem, one screen at a time, then the bill (Ian, 2026-10-24), redone from the research in
+// /mnt/project-files/notes/home-story-research.md: the visitor's own numbers with everyday comparisons,
+// one claim per screen, a skip link, each screen short enough that the next one peeks in, and motion
+// only on the dot chart, off when the device asks for reduced motion.
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import * as F from "@/lib/factors";
+import { aiImpacts } from "@/lib/footprint";
+
+// A typical microwave draws about 1,100 W; a drop of water is about 0.05 mL.
+const MICROWAVE_W = 1100;
+const ML_PER_DROP = 0.05;
 
 /** Line drawings in ink, so they follow dark mode. */
 function Drawing({ label, children }: { label: string; children: ReactNode }) {
@@ -10,7 +18,7 @@ function Drawing({ label, children }: { label: string; children: ReactNode }) {
       viewBox="0 0 240 180"
       role="img"
       aria-label={label}
-      className="w-48 text-foreground sm:w-64 md:w-full"
+      className="w-44 text-foreground sm:w-56 md:w-full"
       fill="none"
       stroke="currentColor"
       strokeWidth={2.5}
@@ -23,6 +31,16 @@ function Drawing({ label, children }: { label: string; children: ReactNode }) {
 }
 
 const ground = <path d="M10 160H230" />;
+
+const chat = (
+  <Drawing label="A question and an answer in a chat">
+    <path d="M30 30H150A10 10 0 0 1 160 40V78A10 10 0 0 1 150 88H66L44 106V88H30A10 10 0 0 1 20 78V40A10 10 0 0 1 30 30Z" />
+    <path d="M90 100H210A10 10 0 0 1 220 110V140A10 10 0 0 1 210 150H196V166L176 150H90A10 10 0 0 1 80 140V110A10 10 0 0 1 90 100Z" />
+    {[128, 150, 172].map((x) => (
+      <circle key={x} cx={x} cy={125} r={4} fill="currentColor" stroke="none" />
+    ))}
+  </Drawing>
+);
 
 const racks = (
   <Drawing label="Rows of servers in a data center">
@@ -70,75 +88,137 @@ const cooling = (
   </Drawing>
 );
 
-const land = (
-  <Drawing label="Trees on one side, cleared ground with a power plant on the other">
-    {[16, 42, 68].map((x) => (
-      <g key={x}>
-        <path d={`M${x} 140L${x + 11} 104L${x + 22} 140Z`} />
-        <path d={`M${x + 11} 140V160`} />
-      </g>
-    ))}
-    <path d="M100 160V153H107V160M114 160V154H121V160" />
-    <rect x={140} y={116} width={56} height={44} />
-    <path d="M154 116V100H164V116M176 116V92H186V116" />
-    <path d="M130 160V150M206 160V150M130 150H206" strokeDasharray="4 5" opacity={0.6} />
-    {ground}
-  </Drawing>
-);
+/** One dot per AI answer in a year, drawn in as it scrolls into view. */
+function YearDots({ count }: { count: number }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    let frame = 0;
+    let shown = 0;
+    let started = false;
+    const draw = () => {
+      const width = canvas.clientWidth;
+      const pitch = width < 500 ? 3 : 4;
+      const cols = Math.max(1, Math.floor(width / pitch));
+      const rows = Math.ceil(count / cols);
+      const dpr = window.devicePixelRatio || 1;
+      canvas.style.height = `${rows * pitch}px`;
+      canvas.width = width * dpr;
+      canvas.height = rows * pitch * dpr;
+      const c = canvas.getContext("2d");
+      if (!c) return { cols, pitch, c: null };
+      c.scale(dpr, dpr);
+      c.fillStyle = getComputedStyle(canvas).color;
+      return { cols, pitch, c };
+    };
+    let g = draw();
+    const paint = (to: number) => {
+      if (!g.c) return;
+      for (let i = shown; i < to; i++) g.c.fillRect((i % g.cols) * g.pitch, Math.floor(i / g.cols) * g.pitch, g.pitch - 1, g.pitch - 1);
+      shown = to;
+    };
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const start = () => {
+      if (started) return;
+      started = true;
+      if (still) return paint(count);
+      const t0 = performance.now();
+      const step = (t: number) => {
+        paint(Math.min(count, Math.round(count * Math.min(1, (t - t0) / 1600))));
+        if (shown < count) frame = requestAnimationFrame(step);
+      };
+      frame = requestAnimationFrame(step);
+    };
+    const seen = new IntersectionObserver((e) => e.some((x) => x.isIntersecting) && start(), { threshold: 0.3 });
+    seen.observe(canvas);
+    const resize = () => {
+      const had = shown;
+      shown = 0;
+      g = draw();
+      paint(had);
+    };
+    window.addEventListener("resize", resize);
+    return () => {
+      cancelAnimationFrame(frame);
+      seen.disconnect();
+      window.removeEventListener("resize", resize);
+    };
+  }, [count]);
+  return <canvas ref={ref} role="img" aria-label={`${count.toLocaleString()} dots, one for each AI answer in a year`} className="block w-full text-foreground" />;
+}
 
-// How one person's use adds up: the same use counted over a question, a day, a year and a lifetime.
-const adds = (
-  <Drawing label="A bar chart: a question, a day, a year and a lifetime of AI use, each bar much taller than the last">
-    {(
-      [
-        [28, 2, "a question"],
-        [84, 10, "a day"],
-        [140, 48, "a year"],
-        [196, 128, "a lifetime"],
-      ] as const
-    ).map(([x, h, name]) => (
-      <g key={name}>
-        <rect x={x} y={150 - h} width={30} height={h} fill="currentColor" stroke="none" opacity={0.85} />
-        <text x={x + 15} y={172} textAnchor="middle" fontSize={11} fill="currentColor" stroke="none">
-          {name}
-        </text>
-      </g>
-    ))}
-    <path d="M14 150H232" />
-  </Drawing>
-);
+const round = (n: number) => (n >= 10 ? Math.round(n).toLocaleString() : n >= 1 ? n.toFixed(1).replace(/\.0$/, "") : n.toPrecision(1));
 
-const STEPS: { head: string; body?: string; art: ReactNode }[] = [
-  { head: "Every AI answer comes from a data center.", art: racks },
-  { head: "It runs mostly on power from gas and coal.", body: "That means carbon in the air, and smog where people breathe.", art: plant },
-  { head: "It's cooled with water.", body: "Often where water is already short.", art: cooling },
-  { head: "And the power takes up land.", art: land },
-  { head: "One question is tiny. Years of them aren't.", body: "Nobody sends you the bill.", art: adds },
-];
+export function Story({ promptsPerDay, whPerPrompt }: { promptsPerDay: number; whPerPrompt?: number }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const wh = whPerPrompt ?? F.WH_PER_AI_PROMPT;
+  // Each answer with its share of training, as the bill counts it.
+  const answerWh = wh / (1 - F.AI_TRAINING_SHARE);
+  const seconds = (answerWh / MICROWAVE_W) * 3600;
+  const grams = aiImpacts(wh / 1000).carbon * 1000;
+  const drops = ((answerWh / 1000) * F.DATACENTER_L_PER_KWH * 1000) / ML_PER_DROP;
+  const perDay = Math.max(0, promptsPerDay) + F.AI_BUILT_IN_PROMPTS_PER_DAY;
+  const perYear = Math.round(perDay * 365);
+  const yearKg = (aiImpacts((Math.max(0, promptsPerDay) * wh + F.AI_BUILT_IN_PROMPTS_PER_DAY * F.WH_PER_AI_PROMPT) * 0.365).carbon);
+  const miles = yearKg / (F.KG_CO2_PER_GAL_GASOLINE / F.DEFAULT_MPG);
 
-export function Story() {
+  const screen = "grid min-h-[72svh] content-center gap-8 border-b border-border py-14 md:grid-cols-[minmax(0,1fr)_17rem] md:items-center md:gap-14";
+  const head = "max-w-2xl font-display text-4xl leading-[1.1] font-semibold sm:text-6xl";
+  const fact = "mt-5 max-w-xl text-lg text-muted sm:text-xl";
+  const skip = (
+    <a href="#your-bill" className="text-sm text-muted underline underline-offset-4 hover:text-foreground">
+      Skip to my bill
+    </a>
+  );
+
   return (
     <div aria-label="Why offset your AI use">
-      {STEPS.map((s, i) => (
-        <section
-          key={s.head}
-          className="grid min-h-[80svh] content-center gap-8 border-b border-border py-16 md:grid-cols-[minmax(0,1fr)_18rem] md:items-center md:gap-14"
-        >
-          <div className="md:order-2">{s.art}</div>
-          <div>
-            <h2 className="max-w-2xl font-display text-4xl leading-[1.1] font-semibold sm:text-6xl">{s.head}</h2>
-            {s.body && <p className="mt-6 max-w-xl text-lg text-muted sm:text-xl">{s.body}</p>}
-            {i === 0 && (
-              <p aria-hidden="true" className="mt-12 text-2xl text-muted">
-                ↓
-              </p>
-            )}
-          </div>
-        </section>
-      ))}
-      <section className="flex min-h-[60svh] flex-col justify-center py-16">
-        <h2 className="max-w-3xl font-display text-4xl leading-[1.1] font-semibold sm:text-6xl">So here&apos;s yours.</h2>
-        <p className="mt-10">
+      <section className={screen}>
+        <div className="md:order-2">{chat}</div>
+        <div>
+          <h2 className={head}>What does your AI use cost the planet?</h2>
+          <p className="mt-10 flex items-center gap-6">
+            <span aria-hidden="true" className="text-2xl text-muted">
+              ↓
+            </span>
+            {skip}
+          </p>
+        </div>
+      </section>
+      <section className={screen}>
+        <div className="md:order-2">{racks}</div>
+        <div>
+          <h2 className={head}>Every answer runs in a data center.</h2>
+          <p className={fact}>Each one draws about as much power as a microwave running {round(seconds)} seconds.</p>
+        </div>
+      </section>
+      <section className={screen}>
+        <div className="md:order-2">{plant}</div>
+        <div>
+          <h2 className={head}>Much of that power still comes from gas and coal.</h2>
+          <p className={fact}>About {round(grams)} grams of CO₂ an answer, plus smog where people breathe.</p>
+        </div>
+      </section>
+      <section className={screen}>
+        <div className="md:order-2">{cooling}</div>
+        <div>
+          <h2 className={head}>The servers are cooled with water.</h2>
+          <p className={fact}>About {round(drops)} drops for each answer.</p>
+        </div>
+      </section>
+      <section className="border-b border-border py-14">
+        <h2 className={head}>One answer is a speck. Here&apos;s your year.</h2>
+        <p className={fact}>
+          At {round(perDay)} AI answers a day, that&apos;s {perYear.toLocaleString()}: about {round(yearKg)} kg of CO₂, like driving {round(miles)} miles.
+        </p>
+        <div className="mt-8">{mounted && <YearDots count={perYear} />}</div>
+      </section>
+      <section className="flex min-h-[50svh] flex-col justify-center py-14">
+        <h2 className={head}>Small, real, and easy to fix.</h2>
+        <p className={fact}>I pay charities that repair each harm, to the cent.</p>
+        <p className="mt-8">
           <a
             href="#your-bill"
             className="inline-flex min-h-11 items-center rounded-md border-2 border-rule px-5 font-semibold hover:bg-foreground hover:text-background"

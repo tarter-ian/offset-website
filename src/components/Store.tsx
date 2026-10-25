@@ -1228,7 +1228,7 @@ export function Store() {
   };
   return (
     <div className="pb-20">
-      {!heroPaid && !previewing && <Story />}
+      {!heroPaid && !previewing && <Story promptsPerDay={Number(amountOf(ai)) || 0} whPerPrompt={ctx.aiWhPerPrompt} />}
       <section id="your-bill" className="relative isolate scroll-mt-4 pb-12">
         {heroPaid && !updatingNumbers ? (
           // Once all AI is paid, the photo carries what's offset instead of a price (Ian, 2026-10-13).
