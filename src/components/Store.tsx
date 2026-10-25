@@ -1448,11 +1448,8 @@ export function Store() {
             <div aria-hidden="true" className="absolute inset-y-0 left-1/2 -z-10 w-screen -translate-x-1/2 bg-card" />
             {(() => {
               const names = [...new Set((["carbon", "air", "water", "land"] as const).filter((k) => aiImpacts[k] > 0).map((k) => CHARITIES[k].name))];
-              // Each card shows its sum: amount x price = dollars (Ian, 2026-10-25), and what the charity gets after the $1 minimum.
+              // Each card shows its sum: amount x price = dollars (Ian, 2026-10-25).
               const costs = impactCost(aiImpacts);
-              const rows = payRows(harmSplit(heroTotals, ctx, billing), billing, autopay);
-              const wanted = rows.filter((r) => (aiCover.ahead === "lifetime") !== r.key.endsWith("-repeat"));
-              const gets = (name: string) => (wanted.length ? wanted : rows).filter((r) => CHARITIES[r.charity].name === name).reduce((sum, r) => sum + r.donation, 0);
               const sum: Record<"carbon" | "air" | "water" | "land", string> = {
                 carbon: `${IMPACT_INFO.carbon.format(aiImpacts.carbon, aiImpacts)} × $${CARBON_MODES[DEFAULT_CARBON_MODE].perTonne} a tonne`,
                 air: `${usd(aiImpacts.air)} of health damage × ${Math.round(AIR_DAMAGE_SHARE * 100)}%`,
@@ -1493,9 +1490,9 @@ export function Store() {
                                 {sum[k]} = {usd(costs[k])}
                               </span>
                             ))}
-                            <span className="mt-1 block border-t border-border pt-1 font-semibold">
-                              {usd(gets(name))} to the charity{gets(name) > harms.reduce((sum, k) => sum + costs[k], 0) + 0.005 ? ", at least $1" : ""}
-                            </span>
+                            {harms.length > 1 && (
+                              <span className="mt-1 block border-t border-border pt-1 font-semibold">{usd(harms.reduce((sum, k) => sum + costs[k], 0))} in all</span>
+                            )}
                           </Link>
                           <a href={CHARITIES[harms[0]].url} className="mt-5 block text-xl font-semibold underline-offset-4 hover:underline">
                             {name}
@@ -1608,6 +1605,17 @@ export function Store() {
         <h2 id="no-cut" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">
           I don&apos;t take a cut.
         </h2>
+        {PAYMENT_MODE === "pledgeapi" && !heroPaid ? (
+          // The price, taken apart: charities + fees + nothing to me (Ian, 2026-10-25).
+          (() => {
+            const pay = onePayment(payRows(harmSplit(heroTotals, ctx, billing), billing, autopay).filter((r) => !r.key.endsWith("-repeat")));
+            return (
+              <p className="amount mt-4 text-lg">
+                {usd(pay.donation)} to the charities + {usd(pay.fee)} in card and Pledge fees + $0.00 to me = {usd(pay.total)}
+              </p>
+            );
+          })()
+        ) : (
         <p className="mt-4 max-w-2xl text-lg">
           {forMode({
             every: "You give to each charity yourself through Every.org, which sends you the tax receipt.",
@@ -1618,6 +1626,7 @@ export function Store() {
           })}{" "}
           I buy no carbon credits.
         </p>
+        )}
         {/* One link, the proof (Ian, 2026-10-25: three links was too many). The cards above link to the method. */}
         <p className="mt-6 font-semibold">
           <Link href="/ledger" className="underline-offset-4 hover:underline">
