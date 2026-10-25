@@ -1311,14 +1311,11 @@ export function Store() {
                     </>
                   )
               : (
-                  // The price back in the headline (Ian, 2026-10-25: missed "offset for life: $3.46").
+                  // The headline itself says what the site is (Ian, 2026-10-25: no secondary headline).
                   <>
-                    <span className="block">{paidLines.length ? "Your other AI use" : "Your AI use"}, offset</span>
-                    <span className="block">
-                      {heroAhead === "lifetime" && aiCover.ahead === "lifetime"
-                        ? `for life: ${usd(heroBill.today)}.`
-                        : `for ${usd(heroBill.then)} ${BILLING[billing].per}.`}
-                    </span>
+                    {heroAhead === "lifetime" && aiCover.ahead === "lifetime"
+                      ? `Give ${usd(heroBill.today)} to charities that undo your ${paidLines.length ? "other " : ""}AI use, for life.`
+                      : `Give ${usd(heroBill.then)} ${BILLING[billing].per} to charities that undo your ${paidLines.length ? "other " : ""}AI use.`}
                   </>
                 )}
           </h1>
