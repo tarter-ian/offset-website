@@ -1603,7 +1603,7 @@ export function Store() {
                 <li key={b.q} className="flex flex-col border-t-[6px] border-rule bg-card px-5 pt-4 pb-5">
                   {/* No question headings (Ian, 2026-10-25): the total is the heading, the rows say what it's made of. */}
                   <h3 className="amount text-lg font-semibold">{b.total}</h3>
-                  <div className="amount mt-auto grid grid-cols-[1fr_auto_auto] gap-x-3 pt-4 text-sm">
+                  <div className="amount grid grid-cols-[1fr_auto_auto] gap-x-3 pt-4 text-sm">
                     <span />
                     <span className="pb-1 text-right text-xs whitespace-nowrap text-muted">1k prompts</span>
                     <span className="pb-1 text-right text-xs text-muted">You</span>
@@ -1666,6 +1666,12 @@ export function Store() {
                 >
                   {giveLabel.startsWith("Give $") ? `Give ${usd(pay.total)}` : giveLabel}
                 </button>
+                {/* The way in for gift-givers (Ian, 2026-10-25). */}
+                <p className="mt-3 text-center font-sans font-semibold">
+                  <Link href="/gift" className="underline-offset-4 hover:underline">
+                    Give it as a gift →
+                  </Link>
+                </p>
               </div>
             );
           })()
