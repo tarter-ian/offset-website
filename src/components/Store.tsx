@@ -1314,8 +1314,8 @@ export function Store() {
                   // The headline itself says what the site is (Ian, 2026-10-25: no secondary headline).
                   <>
                     {heroAhead === "lifetime" && aiCover.ahead === "lifetime"
-                      ? `Give ${usd(heroBill.today)} to charities that undo your ${paidLines.length ? "other " : ""}AI use, for life.`
-                      : `Give ${usd(heroBill.then)} ${BILLING[billing].per} to charities that undo your ${paidLines.length ? "other " : ""}AI use.`}
+                      ? `Give ${usd(heroBill.today)} to charities that offset your ${paidLines.length ? "other " : ""}AI use, for life.`
+                      : `Give ${usd(heroBill.then)} ${BILLING[billing].per} to charities that offset your ${paidLines.length ? "other " : ""}AI use.`}
                   </>
                 )}
           </h1>
