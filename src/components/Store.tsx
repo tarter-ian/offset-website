@@ -1580,32 +1580,56 @@ export function Store() {
         // AI's harms all scale with its power, so the power is read back from the carbon.
         <section aria-labelledby="how-numbers" className="py-16">
           <h2 id="how-numbers" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">How I got these numbers</h2>
-          <div className="amount mt-8 grid gap-3 text-sm sm:grid-cols-[1fr_auto_1fr_auto_1fr]">
-            <div className="border-t-[6px] border-rule bg-card px-4 py-3">
-              {dueLines.map((l) => (
-                <p key={l.p.id}>{amountText(l.p, l.amount)}</p>
-              ))}
-              <p className="text-muted">{heroAhead === "lifetime" ? `to age ${LIFETIME_TO_AGE}` : BILLING[billing].per}</p>
-            </div>
-            <span aria-hidden="true" className="self-center text-center text-xl text-muted">
-              <span className="sm:hidden">↓</span>
-              <span className="hidden sm:inline">→</span>
-            </span>
-            <div className="border-t-[6px] border-rule bg-card px-4 py-3">
-              <p>{Math.round(aiImpacts.carbon / aiImpactsOf(1).carbon / (1 - AI_TRAINING_SHARE)).toLocaleString()} kWh</p>
-              <p className="text-muted">with training and data centers</p>
-            </div>
-            <span aria-hidden="true" className="self-center text-center text-xl text-muted">
-              <span className="sm:hidden">↓</span>
-              <span className="hidden sm:inline">→</span>
-            </span>
-            <div className="border-t-[6px] border-rule bg-card px-4 py-3">
-              <p>{IMPACT_INFO.carbon.format(aiImpacts.carbon, aiImpacts)}</p>
-              <p>{airShort(aiImpacts)}</p>
-              <p>{IMPACT_INFO.water.format(aiImpacts.water, aiImpacts)}</p>
-              <p>{IMPACT_INFO.land.format(aiImpacts.land, aiImpacts)}</p>
-            </div>
-          </div>
+          {(() => {
+            const kwh = aiImpacts.carbon / aiImpactsOf(1).carbon / (1 - AI_TRAINING_SHARE);
+            const per = (v: number) => Number((v / kwh).toPrecision(2)).toLocaleString();
+            const arrow = (
+              <span aria-hidden="true" className="self-center text-center text-xl text-muted">
+                <span className="sm:hidden">↓</span>
+                <span className="hidden sm:inline">→</span>
+              </span>
+            );
+            // Each step is labeled, and each harm reads as rate × power = amount, like the bills on the cards (Ian, 2026-10-25).
+            const rows: [string, string][] = [
+              [`${per(aiImpacts.carbon)} kg/kWh`, IMPACT_INFO.carbon.format(aiImpacts.carbon, aiImpacts)],
+              ...(aiImpacts.smogL > 0 ? [[`${per(aiImpacts.smogL)} L/kWh`, airShort(aiImpacts)] as [string, string]] : []),
+              [`${per(aiImpacts.water)} L/kWh`, IMPACT_INFO.water.format(aiImpacts.water, aiImpacts)],
+              [`${per(aiImpacts.land)} m²/kWh`, IMPACT_INFO.land.format(aiImpacts.land, aiImpacts)],
+            ];
+            return (
+              <div className="amount mt-8 grid gap-3 text-sm sm:grid-cols-[1fr_auto_1fr_auto_1.4fr]">
+                <div className="flex flex-col">
+                  <p className="mb-2 font-semibold">Your AI use</p>
+                  <div className="flex-1 border-t-[6px] border-rule bg-card px-4 py-3">
+                    {dueLines.map((l) => (
+                      <p key={l.p.id}>{amountText(l.p, l.amount)}</p>
+                    ))}
+                    <p className="text-muted">{heroAhead === "lifetime" ? `to age ${LIFETIME_TO_AGE}` : BILLING[billing].per}</p>
+                  </div>
+                </div>
+                {arrow}
+                <div className="flex flex-col">
+                  <p className="mb-2 font-semibold">Power it takes</p>
+                  <div className="flex-1 border-t-[6px] border-rule bg-card px-4 py-3">
+                    <p>{Math.round(kwh).toLocaleString()} kWh</p>
+                    <p className="text-muted">with training and data centers</p>
+                  </div>
+                </div>
+                {arrow}
+                <div className="flex flex-col">
+                  <p className="mb-2 font-semibold">What that power causes</p>
+                  <div className="flex-1 border-t-[6px] border-rule bg-card px-4 py-3">
+                    {rows.map(([rate, amount]) => (
+                      <p key={rate} className="flex justify-between gap-3">
+                        <span className="text-muted">× {rate}</span>
+                        <span>{amount}</span>
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
           <p className="mt-6 font-semibold">
             <Link href="/method" className="underline-offset-4 hover:underline">
               Every source →
