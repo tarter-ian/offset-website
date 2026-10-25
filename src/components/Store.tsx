@@ -1311,7 +1311,7 @@ export function Store() {
             </div>
           </div>
         ) : (
-        <div className="relative grid min-h-[calc(100svh-3.25rem)] content-center gap-10 py-10 lg:grid-cols-[minmax(0,1fr)_400px] lg:items-center lg:gap-14 lg:py-12">
+        <div className="relative grid min-h-[70svh] content-center gap-10 py-10 lg:grid-cols-[minmax(0,1fr)_400px] lg:items-center lg:gap-14 lg:py-12">
         {/* A photo behind the headline (Ian, 2026-10-13); a drawn landscape until a charity photo is in. */}
         <div aria-hidden="true" className="hero-band" />
         <div className="self-center">
@@ -1447,8 +1447,8 @@ export function Store() {
         {!heroPaid && (
           // What the price pays for, as one picture: a bar for each harm, by the dollars it gets (Ian, 2026-10-25:
           // one idea per screen, pictures over words, like the sites he compared).
-          <section aria-labelledby="pays-for" className="flex min-h-[80svh] flex-col justify-center pt-16 pb-10">
-            <h2 id="pays-for" className="font-display text-4xl leading-[1.1] font-semibold sm:text-6xl">
+          <section aria-labelledby="pays-for" className="pt-16 pb-10">
+            <h2 id="pays-for" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">
               What {aiCover.ahead === "monthly" ? `${usd(heroBill.then)} ${BILLING[billing].per}` : usd(heroBill.today)} pays for
             </h2>
             <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -1563,15 +1563,15 @@ export function Store() {
           requestAnimationFrame(() => document.getElementById(`section-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
         };
         return open ? null : (
-          <section aria-labelledby="more-heading" className="flex min-h-[80svh] flex-col justify-center border-t-2 border-rule py-16">
-            <h2 id="more-heading" className="font-display text-4xl leading-[1.1] font-semibold sm:text-6xl">Everything you can offset</h2>
+          <section aria-labelledby="more-heading" className="border-t-2 border-rule py-16">
+            <h2 id="more-heading" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">Everything you can offset</h2>
             <ul className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3">
               {SECTIONS.filter((x) => x.key !== "ai").map((x) => (
                 <li key={x.key}>
                   <button
                     type="button"
                     onClick={() => openAt(x.key)}
-                    className="min-h-24 w-full cursor-pointer rounded-md border-2 border-rule px-4 text-xl font-semibold hover:bg-foreground hover:text-background sm:min-h-32 sm:text-2xl"
+                    className="min-h-20 w-full cursor-pointer rounded-md border-2 border-rule px-4 text-xl font-semibold hover:bg-foreground hover:text-background sm:text-2xl"
                   >
                     {x.title}
                   </button>
