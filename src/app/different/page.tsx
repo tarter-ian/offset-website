@@ -77,6 +77,8 @@ const ROWS: Row[] = [
         ? "AI, internet and devices can be offset for life in one gift. For the rest, you approve each payment and can skip any month; autopay is there if you want it, off by default."
         : PAYMENT_MODE === "sponsor"
         ? "AI, internet and devices can be offset for life in one gift. For the rest, you approve each payment and can skip any month; autopay is off by default, with an email before every charge."
+        : PAYMENT_MODE === "pledgeapi"
+        ? "AI, internet and devices can be offset for life in one gift. For the rest, you approve each payment, or turn on autopay, and I email you before every charge."
         : "AI, internet and devices can be offset for life in one gift. For the rest, you approve each payment and can skip any month, and nothing repeats on its own.",
   },
   {

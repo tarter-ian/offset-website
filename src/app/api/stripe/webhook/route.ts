@@ -1,8 +1,18 @@
 import { NextResponse } from "next/server";
 import { NoDatabaseError } from "@/lib/db";
+import { sendEmail } from "@/lib/email";
 import { PLEDGE_API_LIVE, pledgeApiHost } from "@/lib/pledgeApi";
-import { modeMismatch, parseSessionEvent, STRIPE_MAX_BODY, STRIPE_SIGNATURE_HEADER, verifyStripeSignature } from "@/lib/stripe";
-import { settleSession } from "@/lib/stripeStore";
+import { usd } from "@/lib/pricing";
+import {
+  modeMismatch,
+  parseInvoiceEvent,
+  parseSessionEvent,
+  parseSubscriptionEnded,
+  STRIPE_MAX_BODY,
+  STRIPE_SIGNATURE_HEADER,
+  verifyStripeSignature,
+} from "@/lib/stripe";
+import { claimReminder, endSubscription, settleRenewal, settleSession } from "@/lib/stripeStore";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +20,14 @@ export const dynamic = "force-dynamic";
  * Stripe's webhook, for "pledgeapi" mode. The Stripe-Signature header is checked
  * against the raw body with STRIPE_WEBHOOK_SECRET. When a Checkout Session is paid,
  * each charity's gift is made through Pledge's API and recorded (see settleSession).
+ *
+ * Autopay (Ian, 2026-10-25) adds three events, which the endpoint must be sent too:
+ * - invoice.paid: a renewal was charged, so that period's gifts are made (settleRenewal).
+ *   The first invoice is skipped; its gifts come from the Checkout Session.
+ * - invoice.upcoming: a reminder email a few days before each renewal, with the amount and
+ *   the link to stop (STRIPE_PORTAL_URL, Stripe's customer portal login link). Stripe sends it
+ *   only when "upcoming renewal events" is on in its Billing settings.
+ * - customer.subscription.deleted: autopay was stopped, so no more renewals are given.
  *
  * A failed Pledge call is recorded and still answered 200, so Stripe doesn't send the
  * whole event again on its own. To retry the failed gifts, resend the event from the
@@ -28,15 +46,54 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: "Body isn't JSON." }, { status: 400 });
   }
-  const session = parseSessionEvent(event);
-  if (!session) return NextResponse.json({ ok: true, ignored: true });
-  // A test payment never gives through live Pledge, and a real one never through the sandbox.
-  if (modeMismatch(event, pledgeApiHost(), PLEDGE_API_LIVE)) {
-    console.error("stripe-webhook: Stripe and Pledge modes differ; nothing given", session.sessionId);
-    return NextResponse.json({ ok: false, error: "Stripe test mode and Pledge's live API (or the other way round); nothing given." });
-  }
+  const pledge = { apiKey: process.env.PLEDGE_API_KEY, host: pledgeApiHost() };
   try {
-    const settled = await settleSession(session, { apiKey: process.env.PLEDGE_API_KEY, host: pledgeApiHost() });
+    const ended = parseSubscriptionEnded(event);
+    if (ended) {
+      await endSubscription(ended);
+      return NextResponse.json({ ok: true, ended: true });
+    }
+
+    const invoice = parseInvoiceEvent(event);
+    if (invoice) {
+      if (invoice.type === "upcoming") {
+        const due = await claimReminder(invoice.subscriptionId, invoice.dueAt);
+        if (due && invoice.email) {
+          const when = invoice.dueAt ? new Date(invoice.dueAt).toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: "UTC" }) : "soon";
+          const stop = process.env.STRIPE_PORTAL_URL;
+          await sendEmail(
+            invoice.email,
+            `Your My Offset autopay of ${usd(due.amountCents / 100)} is on ${when}`,
+            [
+              `On ${when}, autopay will charge ${usd(due.amountCents / 100)} for this ${due.interval}'s gifts to your charities, fees included.`,
+              "",
+              stop ? `To stop autopay, or change your card: ${stop}` : "To stop autopay, reply to this email and I'll cancel it.",
+              "",
+              "Ian, My Offset",
+            ].join("\n"),
+          );
+        }
+        return NextResponse.json({ ok: true, reminded: !!due });
+      }
+      if (!invoice.renewal || !invoice.invoiceId) return NextResponse.json({ ok: true, ignored: true });
+      if (modeMismatch(event, pledge.host, PLEDGE_API_LIVE)) {
+        console.error("stripe-webhook: Stripe and Pledge modes differ; renewal not given", invoice.invoiceId);
+        return NextResponse.json({ ok: false, error: "Stripe test mode and Pledge's live API (or the other way round); nothing given." });
+      }
+      const settled = await settleRenewal({ ...invoice, invoiceId: invoice.invoiceId }, pledge);
+      if (settled.status !== "given" || settled.failed)
+        console.error("stripe-webhook: renewal", settled.status, invoice.invoiceId, `confirmed ${settled.confirmed}, failed ${settled.failed}`);
+      return NextResponse.json({ ok: true, ...settled });
+    }
+
+    const session = parseSessionEvent(event);
+    if (!session) return NextResponse.json({ ok: true, ignored: true });
+    // A test payment never gives through live Pledge, and a real one never through the sandbox.
+    if (modeMismatch(event, pledge.host, PLEDGE_API_LIVE)) {
+      console.error("stripe-webhook: Stripe and Pledge modes differ; nothing given", session.sessionId);
+      return NextResponse.json({ ok: false, error: "Stripe test mode and Pledge's live API (or the other way round); nothing given." });
+    }
+    const settled = await settleSession(session, pledge);
     // Only ids and counts are logged, never the donor's email or name.
     if (settled.status === "unknown" || settled.status === "mismatch" || settled.failed)
       console.error("stripe-webhook:", settled.status, session.sessionId, `confirmed ${settled.confirmed}, failed ${settled.failed}`);

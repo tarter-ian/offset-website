@@ -18,7 +18,7 @@ const PROMISES = [
       pledge:
         "You approve each gift yourself, in Pledge's form, one charity at a time. Nothing repeats on its own. Each month or year, you come back and give again.",
       pledgeapi:
-        "You approve each payment yourself, on Stripe's checkout page. It's one payment for all the charities. Nothing repeats on its own. Each month or year, you come back and pay again.",
+        "You approve each payment yourself, on Stripe's checkout page. It's one payment for all the charities. Nothing repeats unless you turn on autopay, and then I email you a few days before every charge, with a link to stop.",
       sponsor:
         "By default you approve each payment yourself, once a year or each month. Autopay is off unless you switch it on. If you do, I email you a few days before every charge with the amount and a one-click skip or stop, and a month that comes out more than $5 or 25% higher than the last, whichever is smaller, waits for your approval instead. The email shows the exact limit in dollars.",
     }),

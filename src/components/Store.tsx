@@ -2017,10 +2017,20 @@ export function Store() {
                       <p className="figures mt-1 font-sans text-sm text-muted">
                         Then {usd(repeatTotal)} {BILLING[billing].per}
                         {pledgeApi ? "" : `, one gift to each charity${pledge ? "" : " with its own card fee"}`}.{" "}
-                        {autopay ? "Every.org charges it until you stop it." : pledgeApi ? "Nothing repeats on its own." : "Nothing repeats on its own: you come back and give again."}
+                        {autopay
+                          ? pledgeApi
+                            ? "Autopay charges it until you stop it, and I email you before every charge."
+                            : "Every.org charges it until you stop it."
+                          : pledgeApi
+                            ? "Nothing repeats unless you turn on autopay."
+                            : "Nothing repeats on its own. You come back and give again."}
                         {totals.pastSpread &&
                           ` It includes ${usd(totals.pastSpread.perMonth * (billing === "annual" ? 12 : 1))} toward past use until ${pastEnds}${
-                            autopay ? "; Every.org can't stop that part on its own, so lower the gift in your Every.org account then." : "."
+                            autopay
+                              ? pledgeApi
+                                ? "; autopay keeps charging it after that, so stop autopay and pay again then."
+                                : "; Every.org can't stop that part on its own, so lower the gift in your Every.org account then."
+                              : "."
                           }`}
                       </p>
                     )}
@@ -2411,8 +2421,17 @@ function PaySection({
               <span>
                 <span className="font-medium">Repeat these gifts automatically {BILLING[billing].approve}</span>
                 <span className="block text-muted">
-                  Off unless you tick it. With it on, Every.org charges your card {BILLING[billing].approve} until you cancel in your
-                  Every.org account. I can&apos;t email you first or hold a charge back, so leave it off to approve each one yourself.
+                  {PAYMENT_MODE === "pledgeapi" ? (
+                    <>
+                      Off unless you tick it. With it on, Stripe charges your card {BILLING[billing].approve} until you stop it. I email you a
+                      few days before every charge, with a link to stop.
+                    </>
+                  ) : (
+                    <>
+                      Off unless you tick it. With it on, Every.org charges your card {BILLING[billing].approve} until you cancel in your
+                      Every.org account. I can&apos;t email you first or hold a charge back, so leave it off to approve each one yourself.
+                    </>
+                  )}
                 </span>
               </span>
             </label>

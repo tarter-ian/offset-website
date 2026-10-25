@@ -4,7 +4,7 @@ import { loadGift } from "@/lib/giftStore";
 import { onePayment, PAYMENT_MODE, paymentsOn } from "@/lib/payments";
 import { parsePlanClaim, sameRows } from "@/lib/publicList";
 import { createCheckoutSession, sessionForm, STRIPE_MIN_USD } from "@/lib/stripe";
-import { giftChargeRows, planChargeRows, saveSession } from "@/lib/stripeStore";
+import { giftChargeRows, planChargeRows, repeatPart, saveSession } from "@/lib/stripeStore";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +35,8 @@ export async function POST(req: Request) {
   let sourceId: string;
   let rows;
   let returnPath: string;
+  // Autopay (Ian, 2026-10-25): plans only, and only when the donor turned it on and part of the plan repeats.
+  let interval: "month" | "year" = "month";
   try {
     if (body.source === "gift") {
       const found = typeof body.giftId === "string" ? await loadGift(body.giftId) : null;
@@ -51,6 +53,7 @@ export async function POST(req: Request) {
       if (!sameRows(rows, body.rows)) return NextResponse.json({ error: "The plan changed; reload and try again." }, { status: 409 });
       source = "plan";
       sourceId = input.planId;
+      interval = input.billing === "annual" ? "year" : "month";
       returnPath = "/checkout/return";
     }
   } catch (e) {
@@ -61,9 +64,11 @@ export async function POST(req: Request) {
   const pay = onePayment(rows);
   if (pay.total < STRIPE_MIN_USD) return NextResponse.json({ error: "Stripe's smallest payment is 50¢. Add a little more to your plan." }, { status: 400 });
   const amountCents = Math.round(pay.total * 100);
+  const again = source === "plan" ? repeatPart(rows) : [];
+  const repeat = again.length ? { cents: Math.round(onePayment(again).total * 100), interval } : null;
   const back = (paid: boolean) => `${origin}${returnPath}?plan=${encodeURIComponent(sourceId)}${paid ? "&paid=stripe" : ""}`;
   const made = await createCheckoutSession(
-    sessionForm({ referenceId: sourceId, source, charities: rows.length, amountCents, successUrl: back(true), cancelUrl: back(false) }),
+    sessionForm({ referenceId: sourceId, source, charities: rows.length, amountCents, successUrl: back(true), cancelUrl: back(false), ...(repeat ? { repeat } : {}) }),
     secret,
   );
   if (!made.ok) {
@@ -71,7 +76,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Stripe couldn't start the payment. Try again in a minute." }, { status: 502 });
   }
   try {
-    await saveSession(made.id, { source, sourceId, rows, amountCents });
+    await saveSession(made.id, { source, sourceId, rows, amountCents, repeat });
   } catch (e) {
     // Without the saved session the webhook couldn't give the gifts, so the donor isn't sent to pay.
     console.error("stripe-checkout: couldn't save session", e instanceof NoDatabaseError ? "no database" : e);
