@@ -240,25 +240,6 @@ const AI_START_OPTIONS = Array.from({ length: new Date().getFullYear() - 2021 },
 });
 
 /** The storefront: link accounts to fill in your amounts, then pick the parts of your life to offset. */
-/** A line drawing for each harm, in ink so it follows dark mode. */
-function HarmDrawing({ harm }: { harm: "carbon" | "air" | "water" | "land" }) {
-  const paths = {
-    // A cloud of exhaust over a chimney.
-    carbon: <path d="M14 46V30h8v16M10 46h40M30 22a8 8 0 0 1 15-3 6 6 0 1 1 1 12H30a5 5 0 0 1 0-9z" />,
-    // Haze lines over a skyline.
-    air: <path d="M8 46h48M12 46V30h8v16M24 46V22h8v24M36 46V34h8v12M44 46V26h8v20M8 16c6-4 10 4 16 0s10 4 16 0 10 4 16 0" />,
-    // A drop over a river.
-    water: <path d="M32 8s-12 14-12 22a12 12 0 0 0 24 0c0-8-12-22-12-22zM8 52c6-4 10 4 16 0s10 4 16 0 10 4 16 0" />,
-    // Two trees.
-    land: <path d="M20 52V36M12 36l8-20 8 20zM44 52V32M34 32l10-22 10 22zM6 52h52" />,
-  };
-  return (
-    <svg viewBox="0 0 64 60" aria-hidden="true" className="h-16 w-16 text-foreground" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-      {paths[harm]}
-    </svg>
-  );
-}
-
 export function Store() {
   const [ctx, setCtx] = useState<Context>(DEFAULT_CONTEXT);
   const [amounts, setAmounts] = useState<Record<string, number | string>>({});
@@ -1474,14 +1455,13 @@ export function Store() {
                     {names.map((name) => {
                       const harms = (["carbon", "air", "water", "land"] as const).filter((k) => aiImpacts[k] > 0 && CHARITIES[k].name === name);
                       return (
-                        <li key={name} className="border-t-[6px] border-rule bg-background px-5 pt-5 pb-6">
-                          <div className="flex gap-2">
-                            {harms.map((k) => (
-                              <HarmDrawing key={k} harm={k} />
-                            ))}
-                          </div>
+                        <li key={name} className="border-t-[6px] border-rule bg-background">
+                          {/* Stock photos of the thing itself, never people passed off as charity staff (Ian, 2026-10-25). Unsplash License; sources in the PR. */}
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={`/photos/${harms[0]}.jpg`} alt="" width={800} height={533} loading="lazy" className="aspect-[3/2] w-full object-cover" />
+                          <div className="px-5 pt-5 pb-6">
                           {/* Each amount big with a short label under it, like Ecologi's numbers. */}
-                          <div className="mt-4 flex gap-6">
+                          <div className="flex gap-6">
                             {harms.map((k) => {
                               const text = IMPACT_INFO[k].format(aiImpacts[k], aiImpacts);
                               const m = /^([\d.,]+)\s(.+)$/.exec(text);
@@ -1497,6 +1477,7 @@ export function Store() {
                             {name}
                           </a>
                           <span className="mt-1 block text-muted">{CHARITIES[harms[harms.length - 1]].focus}</span>
+                          </div>
                         </li>
                       );
                     })}
