@@ -1474,33 +1474,25 @@ export function Store() {
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={`/photos/${harms[0]}.jpg`} alt="" width={800} height={533} loading="lazy" className="aspect-[3/2] w-full object-cover" />
                           <div className="px-5 pt-5 pb-6">
-                          {/* Each amount big with a short label under it, like Ecologi's numbers. */}
-                          <div className="flex gap-6">
-                            {harms.map((k) => {
-                              const text = IMPACT_INFO[k].format(aiImpacts[k], aiImpacts);
-                              const m = /^([\d.,]+)\s(.+)$/.exec(text);
-                              return (
-                                <span key={k} className="block">
-                                  <span className="amount block text-3xl font-semibold">{m ? m[1] : text}</span>
-                                  {m && <span className="block text-sm text-muted">{m[2]}</span>}
-                                </span>
-                              );
-                            })}
-                          </div>
-                          <Link href="/method" className="amount mt-4 block text-sm hover:underline">
-                            {harms.map((k) => (
-                              <span key={k} className="block text-muted">
-                                {sum[k]} = {usd(costs[k])}
-                              </span>
-                            ))}
-                            {harms.length > 1 && (
-                              <span className="mt-1 block border-t border-border pt-1 font-semibold">{usd(gets(name))} in all</span>
-                            )}
-                          </Link>
-                          <a href={CHARITIES[harms[0]].url} className="mt-5 block text-xl font-semibold underline-offset-4 hover:underline">
+                          <a href={CHARITIES[harms[0]].url} className="block text-xl font-semibold underline-offset-4 hover:underline">
                             {name}
                           </a>
                           <span className="mt-1 block text-muted">{CHARITIES[harms[harms.length - 1]].focus}</span>
+                          {/* The sum as a bill: one font, amount x price on the left, dollars on the right (Ian, 2026-10-25). */}
+                          <Link href="/method" className="amount mt-4 block border-t border-border pt-3 text-sm hover:underline">
+                            {harms.map((k) => (
+                              <span key={k} className="flex justify-between gap-3">
+                                <span>{sum[k]}</span>
+                                <span>{usd(costs[k])}</span>
+                              </span>
+                            ))}
+                            {harms.length > 1 && (
+                              <span className="mt-1 flex justify-between gap-3 border-t border-border pt-1">
+                                <span>Total</span>
+                                <span>{usd(gets(name))}</span>
+                              </span>
+                            )}
+                          </Link>
                           </div>
                         </li>
                       );
