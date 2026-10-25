@@ -280,6 +280,7 @@ export function Store() {
   const [payState, setPayState] = useState<Checkout | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [adjusting, setAdjusting] = useState(false);
+  const [wantReal, setWantReal] = useState(false);
   const [measuring, setMeasuring] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
   // Which downloaded histories filled in each tile's amount.
@@ -1232,6 +1233,7 @@ export function Store() {
   const aislesOpen = shelvesOpen || hasNonAi(plan) || hasNonAi(Object.keys(covered)) || Object.keys(linkedFrom).length > 0;
   /** The hero's green button: puts every AI part in the plan on the hero's cover, then opens checkout. */
   // The level shown as picked: none when the numbers came from real data or were typed in.
+  const giveLabel = heroInPlan ? "Review and give" : aiCover.ahead === "lifetime" && heroAhead === "lifetime" ? `Give ${usd(heroBill.today)}` : "Offset it";
   const aiLevel: AiLevel | null =
     ctx.aiFromExport || entered.ai
       ? null
@@ -1242,7 +1244,9 @@ export function Store() {
           videosPerWeek: Number(amountOf(productById("ai-video")!)),
           codingHoursPerWeek: Number(amountOf(productById("ai-coding")!)),
         }));
+  // "Your real number" on the size switch opens the ways to count real use (Ian, 2026-10-25).
   const pickLevel = (level: AiLevel, from: string) => {
+    setWantReal(false);
     setCtx((c) => ({ ...c, aiEstimate: { level, from }, aiFromExport: false, aiWhPerPrompt: undefined, aiPastWh: undefined, aiCode: undefined, aiAgent: undefined, aiCodingPastWh: undefined }));
     // Images and video follow the pick too, unless the person typed their own. A pick replaces connected data
     // entirely, so measured coding goes back to none (Ian, 2026-10-13).
@@ -1355,7 +1359,7 @@ export function Store() {
             </dl>
           ) : (
             // The price sits with the choice that sets it (Ian, 2026-10-25).
-            <div role="group" aria-label="How much you use AI" className="grid grid-cols-3 gap-1 rounded-md border-2 border-rule p-1">
+            <div role="group" aria-label="How much you use AI" className="grid grid-cols-2 gap-1 rounded-md border-2 border-rule p-1 sm:grid-cols-4">
               {(Object.keys(AI_LEVELS) as AiLevel[]).map((k) => (
                 <button
                   key={k}
@@ -1368,6 +1372,14 @@ export function Store() {
                   <span className={`block text-[11px] whitespace-nowrap ${aiLevel === k ? "opacity-80" : "text-muted"}`}>{AI_LEVELS[k].promptsPerDay} prompts a day</span>
                 </button>
               ))}
+              <button
+                type="button"
+                aria-pressed={wantReal || aiLevel === null}
+                onClick={() => setWantReal(true)}
+                className={`min-h-12 cursor-pointer rounded px-1 py-1 text-center font-semibold ${wantReal || aiLevel === null ? "bg-foreground text-background" : "hover:bg-card"}`}
+              >
+                Your real number
+              </button>
             </div>
           )}
           {heroPaid ? (
@@ -1419,8 +1431,7 @@ export function Store() {
                 onClick={reviewAndPay}
                 className={`min-h-11 shrink-0 cursor-pointer rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-strong ${heroAhead === "lifetime" && aiCover.ahead === "lifetime" && !heroInPlan ? "min-h-14 w-full text-xl" : ""}`}
               >
-                {/* Each phrase once on the first screen (Ian, 2026-10-25). */}
-                {heroInPlan ? "Review and give" : aiCover.ahead === "lifetime" && heroAhead === "lifetime" ? <>Give <span className="amount">{usd(heroBill.today)}</span></> : "Offset it"}
+                {giveLabel}
               </button>
             </div>
           )}
@@ -1442,22 +1453,31 @@ export function Store() {
         </div>
         )}
         {!heroPaid && (
-          // What the price pays for, as one picture: a bar for each harm, by the dollars it gets (Ian, 2026-10-25:
-          // one idea per screen, pictures over words, like the sites he compared).
-          <section aria-labelledby="pays-for" className="pt-16 pb-10">
-            <h2 id="pays-for" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">
-              What it pays for
+          // Who gets the money, each charity once with what it fixes (Ian, 2026-10-25: order the page by the reader's questions).
+          <section aria-labelledby="who-gets-it" className="pt-16 pb-10">
+            <h2 id="who-gets-it" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">
+              Who gets it
             </h2>
-            <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {(["carbon", "air", "water", "land"] as const)
-                .filter((k) => aiImpacts[k] > 0)
-                .map((k) => (
-                  <li key={k} className="border-t-[6px] border-rule bg-card px-5 pt-5 pb-6">
-                    <HarmDrawing harm={k} />
-                    <span className="amount mt-4 block text-3xl font-semibold">{IMPACT_INFO[k].format(aiImpacts[k], aiImpacts)}</span>
-                    <span className="mt-1 block text-muted">{CHARITIES[k].name}</span>
+            <ul className="mt-10 grid gap-4 md:grid-cols-3">
+              {[...new Set((["carbon", "air", "water", "land"] as const).filter((k) => aiImpacts[k] > 0).map((k) => CHARITIES[k].name))].map((name) => {
+                const harms = (["carbon", "air", "water", "land"] as const).filter((k) => aiImpacts[k] > 0 && CHARITIES[k].name === name);
+                return (
+                  <li key={name} className="border-t-[6px] border-rule bg-card px-5 pt-5 pb-6">
+                    <div className="flex gap-2">
+                      {harms.map((k) => (
+                        <HarmDrawing key={k} harm={k} />
+                      ))}
+                    </div>
+                    <a href={CHARITIES[harms[0]].url} className="mt-4 block text-xl font-semibold underline-offset-4 hover:underline">
+                      {name}
+                    </a>
+                    <span className="mt-1 block text-muted">{CHARITIES[harms[harms.length - 1]].focus}</span>
+                    <span className="amount mt-4 block text-lg font-semibold">
+                      {harms.map((k) => IMPACT_INFO[k].format(aiImpacts[k], aiImpacts)).join(" · ")}
+                    </span>
                   </li>
-                ))}
+                );
+              })}
             </ul>
             <details className="mt-6 text-sm text-muted">
               <summary className="cursor-pointer underline underline-offset-2 hover:text-foreground">What&apos;s counted</summary>
@@ -1471,15 +1491,15 @@ export function Store() {
             </details>
           </section>
         )}
-        {heroPaid && !updatingNumbers ? null : (
-          <div className={heroPaid ? "mt-10" : "pb-16"}>
-            <h2 className="text-lg font-semibold">Use your real numbers</h2>
-            <div className="mt-3">
+        {(heroPaid ? updatingNumbers : wantReal || aiLevel === null) && (
+          <div className="mt-10">
+            <div>
             <AiQuickPick
               keepGuess={Boolean(ctx.aiEstimate?.level)}
               level={aiLevel}
               onPick={pickLevel}
               hideLevels={!heroPaid}
+              connectOnMount={wantReal}
               onExact={() => setMeasuring(true)}
               onVideo={(h, from) => measuredAmount("video", h, from)}
               onVideoPast={(videoPast) => setCtx((c) => ({ ...c, videoPast }))}
@@ -1553,6 +1573,35 @@ export function Store() {
         </p>
       )}
 
+      {/* Can I check it: one claim and where to check it, on its own band instead of a rule (Ian, 2026-10-25). */}
+      <section aria-labelledby="no-cut" className="relative isolate py-16">
+        <div aria-hidden="true" className="absolute inset-y-0 left-1/2 -z-10 w-screen -translate-x-1/2 bg-card" />
+        <h2 id="no-cut" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">
+          I don&apos;t take a cut.
+        </h2>
+        <p className="mt-4 max-w-2xl text-lg">
+          {forMode({
+            every: "You give to each charity yourself through Every.org, which sends you the tax receipt.",
+            pledge: "You give to each charity yourself through Pledge, which emails you the tax receipt.",
+            pledgeapi: "I give every dollar to the charities through Pledge, which emails you a receipt for each gift.",
+            endaoment: "Endaoment grants your gift on to each charity and sends you the tax receipt.",
+            sponsor: "My charity sponsor pays each charity and sends you the tax receipt.",
+          })}{" "}
+          I buy no carbon credits.
+        </p>
+        <p className="mt-6 flex flex-col gap-2 font-semibold sm:flex-row sm:gap-8">
+          <Link href="/ledger" className="underline-offset-4 hover:underline">
+            Where every dollar went →
+          </Link>
+          <Link href="/promises" className="underline-offset-4 hover:underline">
+            My promises →
+          </Link>
+          <Link href="/method" className="underline-offset-4 hover:underline">
+            Every number I use →
+          </Link>
+        </p>
+      </section>
+
       {(() => {
         const open = aislesOpen;
         const openAt = (key: string) => {
@@ -1560,7 +1609,7 @@ export function Store() {
           requestAnimationFrame(() => document.getElementById(`section-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
         };
         return open ? null : (
-          <section aria-labelledby="more-heading" className="border-t-2 border-rule py-16">
+          <section aria-labelledby="more-heading" className="py-16">
             <h2 id="more-heading" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">Everything you can offset</h2>
             <ul className="mt-6 grid grid-cols-3 gap-2 sm:grid-cols-6">
               {SECTIONS.filter((x) => x.key !== "ai").map((x) => (
@@ -1578,6 +1627,18 @@ export function Store() {
           </section>
         );
       })()}
+
+      {!heroPaid && !aislesOpen && (
+        <p className="pb-6 text-center">
+          <button
+            type="button"
+            onClick={reviewAndPay}
+            className="min-h-14 cursor-pointer rounded-md bg-accent px-8 text-xl font-semibold text-on-accent hover:bg-accent-strong"
+          >
+            {giveLabel}
+          </button>
+        </p>
+      )}
 
       {aislesOpen && (
       <>

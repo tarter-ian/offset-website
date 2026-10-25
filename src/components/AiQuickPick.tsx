@@ -72,6 +72,7 @@ export function AiQuickPick({
   onRidesPast,
   onShopping,
   hideLevels = false,
+  connectOnMount = false,
 }: {
   level: AiLevel | null;
   /** Light, Medium or Heavy was picked: counts saved from an earlier visit are shown but don't replace the pick (Ian, 2026-10-13). */
@@ -79,6 +80,8 @@ export function AiQuickPick({
   onPick: (level: AiLevel, from: string) => void;
   /** Light, Medium and Heavy are shown elsewhere (the home page's price box), so only Connect shows here. */
   hideLevels?: boolean;
+  /** Start connecting as soon as this shows, for the home page's "Your real number" choice. */
+  connectOnMount?: boolean;
   onExact: () => void;
   /** A summary of real use. `note` is set when it's the person's own count rather than a measurement. */
   onMeasured: (s: UsageSummary, note?: string) => void;
@@ -329,6 +332,21 @@ export function AiQuickPick({
   // Only one button looks picked: Connect while counted numbers are in use, not after a level replaces them (Ian, 2026-10-13).
   const connectOn = showConnect && level === null;
 
+  function startConnect() {
+    setConnecting(true);
+    // Counts already here (saved, or from earlier this visit) replace a Light/Medium/Heavy pick straight away,
+    // without waiting on a fresh count that may still be running (Ian, 2026-10-13).
+    const known = combineSummaries(Object.values(summariesRef.current) as UsageSummary[]);
+    if (known) onMeasured(known);
+    // With the extension there's nothing to choose: every click updates the numbers (Ian, 2026-10-13).
+    if (ext && !busy) run(EXTENSION_SERVICES, false, undefined, REUSE_HOURS);
+  }
+  const startRef = useRef(startConnect);
+  startRef.current = startConnect;
+  useEffect(() => {
+    if (connectOnMount) startRef.current();
+  }, [connectOnMount]);
+
   function connect(service: QuickService) {
     setOpen(open === service ? null : service);
   }
@@ -356,15 +374,7 @@ export function AiQuickPick({
           type="button"
           aria-expanded={showConnect}
           aria-pressed={connectOn}
-          onClick={() => {
-            setConnecting(true);
-            // Counts already here (saved, or from earlier this visit) replace a Light/Medium/Heavy pick straight away,
-            // without waiting on a fresh count that may still be running (Ian, 2026-10-13).
-            const known = combineSummaries(Object.values(summariesRef.current) as UsageSummary[]);
-            if (known) onMeasured(known);
-            // With the extension there's nothing to choose: every click updates the numbers (Ian, 2026-10-13).
-            if (ext && !busy) run(EXTENSION_SERVICES, false, undefined, REUSE_HOURS);
-          }}
+          onClick={startConnect}
           className={`min-h-14 cursor-pointer rounded-md border-2 border-rule px-3 py-2 text-left ${connectOn ? "bg-foreground text-background" : "hover:bg-card"}`}
         >
           <span className="block font-semibold">Connect your data</span>
