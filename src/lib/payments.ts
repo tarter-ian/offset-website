@@ -52,7 +52,8 @@ const httpsUrl = (u: string | undefined) => {
  * - "upcoming renewal events" on in Stripe's Billing settings, so invoice.upcoming arrives for the reminder email;
  * - STRIPE_PORTAL_URL: the customer portal's login link (Stripe, Settings, Billing, Customer portal), the "stop" link in reminders;
  * - RESEND_API_KEY and EMAIL_FROM, for the reminder email;
- * - migrations/0009_stripe_autopay.sql applied to the database.
+ * - migrations/0009_stripe_autopay.sql applied to the database;
+ * - then NEXT_PUBLIC_AUTOPAY_ON=1 in the build variables, and a rebuild, to show the autopay box.
  */
 export const paymentModeFrom = (mode: string | undefined, fundUrl: string | undefined, pledgeKey?: string): PaymentMode =>
   mode === "endaoment" && httpsUrl(fundUrl)
@@ -229,7 +230,14 @@ export const payRows = (split: HarmSplit, billing: Billing, autopay: boolean, mo
  * Stripe repeats the monthly or yearly part as a subscription (Ian, 2026-10-25). Pledge's own
  * forms take no frequency.
  */
-export const autopayOffered = (mode: PaymentMode = PAYMENT_MODE) => mode !== "pledge";
+export const autopayOffered = (mode: PaymentMode = PAYMENT_MODE) => (mode === "pledgeapi" ? autopayOn() : mode !== "pledge");
+
+/**
+ * Autopay in "pledgeapi" mode stays hidden until NEXT_PUBLIC_AUTOPAY_ON is "1", set once
+ * everything listed above is in place. Without the webhook events a renewal would be charged
+ * with no gifts made, and without email the promised reminder wouldn't go out.
+ */
+export const autopayOn = () => process.env.NEXT_PUBLIC_AUTOPAY_ON === "1";
 
 /** payRows without the autopay check, for working out what each later month or year costs in any mode. */
 function splitRows(split: HarmSplit, billing: Billing, autopay: boolean, mode: PaymentMode): PayRow[] {

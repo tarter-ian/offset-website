@@ -67,11 +67,17 @@ describe("pledgeapi mode: rows and fees", () => {
   });
 
   it("offers autopay as a Stripe subscription, and the list checks the same rows checkout charges", () => {
+    // Hidden until the webhook events, email and migration are in place and Ian turns it on.
+    vi.stubEnv("NEXT_PUBLIC_AUTOPAY_ON", "");
+    expect(autopayOffered("pledgeapi")).toBe(false);
+    expect(payRows(split, "monthly", true, "pledgeapi")).toEqual(payRows(split, "monthly", false, "pledgeapi"));
+    vi.stubEnv("NEXT_PUBLIC_AUTOPAY_ON", "1");
     expect(autopayOffered("pledgeapi")).toBe(true);
     const withAutopay = payRows(split, "monthly", true, "pledgeapi");
     expect(withAutopay.some((r) => r.frequency === "MONTHLY" && r.key.endsWith("-repeat"))).toBe(true);
     expect(planRows({ ...claim, autopay: true }, "pledgeapi")).toEqual(withAutopay);
     expect(planRows(claim, "pledgeapi")).toEqual(payRows(split, "monthly", false, "pledgeapi"));
+    vi.unstubAllEnvs();
   });
 
   it("makes a subscription session that still charges today's total, with the repeating part on its own line", () => {
@@ -299,7 +305,9 @@ describe("settling a paid session", () => {
   it("with autopay, gives each renewal's repeating gifts once, checks the amount, and stops when autopay ends", async () => {
     const { saveSession, settleSession, settleRenewal, claimReminder, endSubscription, planChargeRows, repeatPart } = await import("./stripeStore");
     const { rowsOf } = await import("./db");
+    vi.stubEnv("NEXT_PUBLIC_AUTOPAY_ON", "1");
     const rows = planChargeRows({ ...claim, autopay: true });
+    vi.unstubAllEnvs();
     const again = repeatPart(rows);
     expect(again.length).toBeGreaterThan(0);
     const amountCents = Math.round(onePayment(rows).total * 100);
@@ -325,6 +333,15 @@ describe("settling a paid session", () => {
     // Each renewal's gifts are recorded under their own ids, apart from the first payment's.
     const ids = rowsOf(await memory.client!.execute({ sql: "SELECT partner_donation_id FROM donations" })).map((r) => String(r.partner_donation_id));
     expect(ids.filter((i) => i.endsWith(".in_0001")).length).toBe(again.length);
+
+    // A listing from the plan stays up for the month the renewal paid for.
+    await memory.client!.execute({
+      sql: "INSERT INTO list_claims (person_id, source, source_id, rows, items, created_at) VALUES ('p1', 'plan', ?, '[]', ?, ?)",
+      args: [ID, JSON.stringify([{ productId: "ai", until: "2026-01-01T00:00:00.000Z" }, { productId: "web", until: null }]), "2025-12-01T00:00:00.000Z"],
+    });
+    await settleRenewal({ ...renewal, invoiceId: "in_0004" }, { ...pledge, fetcher: fakePledge(new Set()).fetcher, now: () => new Date("2026-03-10T00:00:00.000Z") });
+    const [listed] = rowsOf(await memory.client!.execute({ sql: "SELECT items FROM list_claims WHERE source_id = ?", args: [ID] }));
+    expect(JSON.parse(String(listed.items))).toEqual([{ productId: "ai", until: "2026-04-10T00:00:00.000Z" }, { productId: "web", until: null }]);
 
     // One reminder per due date.
     expect(await claimReminder("sub_a", "2026-11-25T00:00:00.000Z")).toEqual({ amountCents: repeatCents, interval: "month" });

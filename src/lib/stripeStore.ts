@@ -5,7 +5,7 @@ import type { ImpactKey } from "./footprint";
 import { type Gift, giftCharge, recipients } from "./gifts";
 import { EVERY_SLUGS, partnerDonationId, payRows, PLEDGE_EINS, type PayRow } from "./payments";
 import { givePledgeDonation, type PledgeDonor, splitName } from "./pledgeApi";
-import type { PlanClaimInput } from "./publicList";
+import { type ListItem, PAST, type PlanClaimInput } from "./publicList";
 import { harmSplit, planTotals } from "./store";
 import type { PaidSession } from "./stripe";
 
@@ -179,7 +179,7 @@ export async function settleRenewal(
   const now = o.now ?? (() => new Date());
   const database = await db();
   const [sub] = rowsOf(
-    await database.execute({ sql: "SELECT source, source_id, rows, amount_cents, status FROM stripe_subscriptions WHERE subscription_id = ?", args: [inv.subscriptionId] }),
+    await database.execute({ sql: "SELECT source, source_id, rows, amount_cents, repeat_interval, status FROM stripe_subscriptions WHERE subscription_id = ?", args: [inv.subscriptionId] }),
   );
   if (!sub || sub.status !== "active") return { status: "unknown", confirmed: 0, failed: 0 };
   const tag = inv.invoiceId.slice(-10);
@@ -188,10 +188,32 @@ export async function settleRenewal(
     sql: "INSERT OR IGNORE INTO stripe_payments (session_id, source, source_id, rows, amount_cents, status, created_at) VALUES (?, ?, ?, ?, ?, 'open', ?)",
     args: [inv.invoiceId, String(sub.source), String(sub.source_id), JSON.stringify(rows), Number(sub.amount_cents), now().toISOString()],
   });
-  return settleSession(
+  const settled = await settleSession(
     { eventId: inv.eventId, sessionId: inv.invoiceId, paid: true, amountCents: inv.amountCents, currency: inv.currency, referenceId: String(sub.source_id), email: inv.email, name: inv.name },
     o,
   );
+  // Once every gift of the renewal is confirmed, a public listing from this plan stays up for the period it paid.
+  if (settled.status === "given" && !settled.failed) await extendListing(String(sub.source_id), String(sub.repeat_interval), now());
+  return settled;
+}
+
+/** Moves a plan's listed dated items on to the end of the period a renewal paid for; lifetime and ended items stay as they are. */
+async function extendListing(planId: string, interval: string, paidAt: Date): Promise<void> {
+  const database = await db();
+  const [claim] = rowsOf(await database.execute({ sql: "SELECT items FROM list_claims WHERE source = 'plan' AND source_id = ?", args: [planId] }));
+  if (!claim) return;
+  const until = new Date(paidAt);
+  if (interval === "year") until.setFullYear(until.getFullYear() + 1);
+  else until.setMonth(until.getMonth() + 1);
+  let items: ListItem[];
+  try {
+    items = JSON.parse(String(claim.items)) as ListItem[];
+  } catch {
+    return;
+  }
+  if (!Array.isArray(items)) return;
+  const next = items.map((i) => (typeof i.until === "string" && i.until !== PAST && Date.parse(i.until) < until.getTime() ? { ...i, until: until.toISOString() } : i));
+  await database.execute({ sql: "UPDATE list_claims SET items = ? WHERE source = 'plan' AND source_id = ?", args: [JSON.stringify(next), planId] });
 }
 
 /**
