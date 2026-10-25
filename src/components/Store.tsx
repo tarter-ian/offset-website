@@ -1588,10 +1588,28 @@ export function Store() {
           // The price, taken apart: charities + fees + nothing to me (Ian, 2026-10-25).
           (() => {
             const pay = onePayment(payRows(harmSplit(heroTotals, ctx, billing), billing, autopay).filter((r) => !r.key.endsWith("-repeat")));
+            // Drawn as one bar split by dollars, with an empty slot for me (Ian asked for it more pictorial).
             return (
-              <p className="amount mt-4 text-lg">
-                {usd(pay.donation)} to the charities + {usd(pay.fee)} in card and Pledge fees + $0.00 to me = {usd(pay.total)}
-              </p>
+              <div className="mt-6 flex items-start gap-1 text-sm" role="img" aria-label={`${usd(pay.donation)} to the charities, ${usd(pay.fee)} in card and Pledge fees, $0.00 to me, ${usd(pay.total)} in all`}>
+                <div style={{ flexGrow: pay.donation }} className="min-w-0 basis-0">
+                  <div className="h-10 bg-foreground" />
+                  <p className="amount mt-2 text-base font-semibold">{usd(pay.donation)}</p>
+                  <p className="text-muted">to the charities</p>
+                </div>
+                <div style={{ flexGrow: pay.fee }} className="min-w-[5.5rem] basis-0">
+                  <div className="h-10 bg-border" />
+                  <p className="amount mt-2 text-base font-semibold">{usd(pay.fee)}</p>
+                  <p className="text-muted">card and Pledge fees</p>
+                </div>
+                <div className="w-16 shrink-0">
+                  <div className="h-10 border-2 border-dashed border-border" />
+                  <p className="amount mt-2 text-base font-semibold">$0.00</p>
+                  <p className="text-muted">to me</p>
+                </div>
+                <div className="shrink-0 pl-2">
+                  <p className="amount flex h-10 items-center text-lg font-semibold">= {usd(pay.total)}</p>
+                </div>
+              </div>
             );
           })()
         ) : (
