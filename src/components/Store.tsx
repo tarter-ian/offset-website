@@ -1359,7 +1359,7 @@ export function Store() {
             </dl>
           ) : (
             // The price sits with the choice that sets it (Ian, 2026-10-25).
-            <div role="group" aria-label="How much you use AI" className="grid grid-cols-2 gap-1 rounded-md border-2 border-rule p-1">
+            <div role="group" aria-label="How much you use AI" className="grid grid-cols-2 gap-1">
               {(Object.keys(AI_LEVELS) as AiLevel[]).map((k) => (
                 <button
                   key={k}
