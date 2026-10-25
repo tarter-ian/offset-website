@@ -71,11 +71,14 @@ export function AiQuickPick({
   onRides,
   onRidesPast,
   onShopping,
+  hideLevels = false,
 }: {
   level: AiLevel | null;
   /** Light, Medium or Heavy was picked: counts saved from an earlier visit are shown but don't replace the pick (Ian, 2026-10-13). */
   keepGuess?: boolean;
   onPick: (level: AiLevel, from: string) => void;
+  /** Light, Medium and Heavy are shown elsewhere (the home page's price box), so only Connect shows here. */
+  hideLevels?: boolean;
   onExact: () => void;
   /** A summary of real use. `note` is set when it's the person's own count rather than a measurement. */
   onMeasured: (s: UsageSummary, note?: string) => void;
@@ -332,8 +335,8 @@ export function AiQuickPick({
 
   return (
     <div>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="group" aria-label="How much you use AI">
-        {(Object.keys(AI_LEVELS) as AiLevel[]).map((k) => {
+      <div className={hideLevels ? "max-w-xs" : "grid grid-cols-2 gap-2 sm:grid-cols-4"} role="group" aria-label="How much you use AI">
+        {(hideLevels ? [] : (Object.keys(AI_LEVELS) as AiLevel[])).map((k) => {
           const l = AI_LEVELS[k];
           const on = level === k;
           return (

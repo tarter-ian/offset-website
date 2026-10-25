@@ -16,7 +16,7 @@ import { AiExportUpload } from "./AiExportUpload";
 import { AiQuickPick } from "./AiQuickPick";
 import { OffsetTimeline } from "./OffsetTimeline";
 import { fullBadges, zeroUse } from "@/lib/badges";
-import { AI_LEVELS, levelOf } from "@/lib/ai/levels";
+import { AI_LEVELS, levelOf, type AiLevel } from "@/lib/ai/levels";
 import { NumberInput, Select } from "./fields";
 import { STATE_OPTIONS, STATES, type StateCode } from "@/lib/data/states";
 import { airShort, IMPACT_INFO, lifeText } from "@/lib/impacts";
@@ -1178,12 +1178,7 @@ export function Store() {
   const aiPrice = { once: heroCharge.pastOnce + heroCharge.lifeOnce, monthly: heroCharge.monthly };
   // The hero shows what checkout charges, from the same gifts: each charity's $1 minimum and card fees in (Ian, 2026-10-13).
   const heroBill = chargesOf(heroTotals);
-  const heroUseOnly = [
-    (aiPrice.monthly > 0 || heroSpread) && per(aiPrice.monthly + (heroSpread?.perMonth ?? 0), billing),
-    aiPrice.once >= 0.005 && `${once(aiPrice.once)}${aiPrice.monthly > 0 || heroSpread ? " once" : ""}`,
-  ]
-    .filter(Boolean)
-    .join(" and ");
+  const heroSplit = harmSplit(heroTotals, ctx, billing);
   const heroWhy = forMode({
     every: "card fees and at least $1 to each charity",
     pledge: "at least $1 to each charity",
@@ -1218,6 +1213,31 @@ export function Store() {
   // Only something outside AI opens the aisles, so offsetting AI images or coding keeps the page on AI (Ian, 2026-10-13).
   const aislesOpen = shelvesOpen || hasNonAi(plan) || hasNonAi(Object.keys(covered)) || Object.keys(linkedFrom).length > 0;
   /** The hero's green button: puts every AI part in the plan on the hero's cover, then opens checkout. */
+  // The level shown as picked: none when the numbers came from real data or were typed in.
+  const aiLevel: AiLevel | null =
+    ctx.aiFromExport || entered.ai
+      ? null
+      : (ctx.aiEstimate?.level ??
+        levelOf({
+          promptsPerDay: Number(aiAmount),
+          imagesPerWeek: Number(amountOf(productById("ai-media")!)),
+          videosPerWeek: Number(amountOf(productById("ai-video")!)),
+          codingHoursPerWeek: Number(amountOf(productById("ai-coding")!)),
+        }));
+  const pickLevel = (level: AiLevel, from: string) => {
+    setCtx((c) => ({ ...c, aiEstimate: { level, from }, aiFromExport: false, aiWhPerPrompt: undefined, aiPastWh: undefined, aiCode: undefined, aiAgent: undefined, aiCodingPastWh: undefined }));
+    // Images and video follow the pick too, unless the person typed their own. A pick replaces connected data
+    // entirely, so measured coding goes back to none (Ian, 2026-10-13).
+    setAmounts((a) => ({
+      ...a,
+      ai: AI_LEVELS[level].promptsPerDay,
+      ...(entered["ai-media"] ? {} : { "ai-media": AI_LEVELS[level].imagesPerWeek }),
+      ...(entered["ai-video"] ? {} : { "ai-video": AI_LEVELS[level].videosPerWeek }),
+      ...(entered["ai-coding"] ? {} : { "ai-coding": 0 }),
+    }));
+    resetAiCover();
+    setEntered((e) => ({ ...e, ai: false }));
+  };
   const reviewAndPay = () => {
     setPlan((cur) => [...cur, ...heroIds.filter((id) => !cur.includes(id) && !paidCover(covered[id]))]);
     setPicked((x) => ({ ...x, ...Object.fromEntries(heroLines.map((l) => [l.p.id, { ...x[l.p.id], ...l.cover }])) }));
@@ -1308,29 +1328,34 @@ export function Store() {
               {paidGift && `, a gift from ${paidGift}`}
             </p>
           )}
-          <dl className={`amount divide-y divide-border text-sm ${heroPaid ? "" : "-mt-2"}`}>
-            {[
-              // A harm shows unless it's truly zero; checkout gives every one shown to its charity (Ian, 2026-10-13).
-              ...(["carbon", "air", "water", "land"] as const)
+          {heroPaid ? (
+            <dl className="amount divide-y divide-border text-sm">
+              {(["carbon", "air", "water", "land"] as const)
                 .filter((k) => aiImpacts[k] > 0)
-                .map((k) => [IMPACT_INFO[k].label, IMPACT_INFO[k].format(aiImpacts[k], aiImpacts)]),
-            ].map(([k, v]) => (
-              <div key={k} className="flex justify-between gap-4 py-2">
-                <dt className="text-muted">{k}</dt>
-                <dd className="text-right">{v}</dd>
-              </div>
-            ))}
-          </dl>
-          <details className="mt-1 text-xs text-muted">
-            <summary className="cursor-pointer underline underline-offset-2 hover:text-foreground">What&apos;s counted</summary>
-            <p className="mt-1">
-              {heroParts}, plus a share of training the models and building the data centers. Future use counts {LIFETIME_GROWTH_BUFFER} times over in case it
-              grows, on a grid that gets cleaner each year. Past use is {pastNote(ai)}.{" "}
-              <Link href="/method" className="cursor-pointer underline underline-offset-2 hover:text-foreground">
-                Every number&apos;s source
-              </Link>
-            </p>
-          </details>
+                .map((k) => (
+                  <div key={k} className="flex justify-between gap-4 py-2">
+                    <dt className="text-muted">{IMPACT_INFO[k].label}</dt>
+                    <dd className="text-right">{IMPACT_INFO[k].format(aiImpacts[k], aiImpacts)}</dd>
+                  </div>
+                ))}
+            </dl>
+          ) : (
+            // The price sits with the choice that sets it (Ian, 2026-10-25).
+            <div role="group" aria-label="How much you use AI" className="grid grid-cols-3 gap-1 rounded-md border-2 border-rule p-1">
+              {(Object.keys(AI_LEVELS) as AiLevel[]).map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  aria-pressed={aiLevel === k}
+                  onClick={() => pickLevel(k, `you picked ${AI_LEVELS[k].label.toLowerCase()}`)}
+                  className={`min-h-12 cursor-pointer rounded px-2 py-1 text-center ${aiLevel === k ? "bg-foreground text-background" : "hover:bg-card"}`}
+                >
+                  <span className="block font-semibold">{AI_LEVELS[k].label}</span>
+                  <span className={`block text-xs ${aiLevel === k ? "opacity-80" : "text-muted"}`}>{AI_LEVELS[k].promptsPerDay} a day</span>
+                </button>
+              ))}
+            </div>
+          )}
           {heroPaid ? (
             <div className="mt-4 flex items-center justify-between gap-4 border-t border-border pt-3">
               <span className="text-sm">
@@ -1384,11 +1409,6 @@ export function Store() {
               </button>
             </div>
           )}
-          {!heroPaid && heroUseOnly && (
-            <p className="mt-2 text-xs text-muted">
-              Includes {heroWhy}. Your use alone comes to <span className="amount">{heroUseOnly}</span>.
-            </p>
-          )}
           {!heroPaid && paidNames.length > 0 && (
             <p className="mt-2 text-sm text-muted">
               {paidNames.join(" and ")} {paidNames.length > 1 ? "are" : "is"} already offset.
@@ -1406,35 +1426,52 @@ export function Store() {
         </aside>
         </div>
         )}
+        {!heroPaid && (
+          // What the price pays for, as one picture: a bar for each harm, by the dollars it gets (Ian, 2026-10-25:
+          // one idea per screen, pictures over words, like the sites he compared).
+          <section aria-labelledby="pays-for" className="mt-16">
+            <h2 id="pays-for" className="font-display text-3xl font-semibold">
+              What {aiCover.ahead === "monthly" ? `${usd(heroBill.then)} ${BILLING[billing].per}` : usd(heroBill.today)} pays for
+            </h2>
+            <ul className="mt-6 space-y-5">
+              {(["carbon", "air", "water", "land"] as const)
+                .filter((k) => aiImpacts[k] > 0)
+                .map((k) => {
+                  const dollars = (h: (typeof heroSplit)[typeof k]) => (aiCover.ahead === "monthly" ? h.perPeriod : h.once) || h.once + h.perPeriod;
+                  const most = Math.max(...(["carbon", "air", "water", "land"] as const).map((x) => dollars(heroSplit[x])));
+                  const share = most > 0 ? dollars(heroSplit[k]) / most : 0;
+                  return (
+                    <li key={k} className="grid gap-x-6 gap-y-1 sm:grid-cols-[14rem_minmax(0,1fr)] sm:items-center">
+                      <div>
+                        <span className="amount block text-xl font-semibold">{IMPACT_INFO[k].format(aiImpacts[k], aiImpacts)}</span>
+                        <span className="block text-sm text-muted">{CHARITIES[k].name}</span>
+                      </div>
+                      <div aria-hidden="true" className="h-3 rounded-sm bg-foreground" style={{ width: `${Math.max(2, Math.round(share * 100))}%` }} />
+                    </li>
+                  );
+                })}
+            </ul>
+            <details className="mt-6 text-sm text-muted">
+              <summary className="cursor-pointer underline underline-offset-2 hover:text-foreground">What&apos;s counted</summary>
+              <p className="mt-1 max-w-2xl">
+                {heroParts}, plus a share of training the models and building the data centers. Future use counts {LIFETIME_GROWTH_BUFFER} times over in case it
+                grows, on a grid that gets cleaner each year. Past use is {pastNote(ai)}. The price includes {heroWhy}.{" "}
+                <Link href="/method" className="cursor-pointer underline underline-offset-2 hover:text-foreground">
+                  Every number&apos;s source
+                </Link>
+              </p>
+            </details>
+          </section>
+        )}
         {heroPaid && !updatingNumbers ? null : (
-          <div className="mt-10">
+          <div className="mt-16">
+            <h2 className="font-display text-2xl font-semibold">Use your real numbers</h2>
+            <div className="mt-4">
             <AiQuickPick
               keepGuess={Boolean(ctx.aiEstimate?.level)}
-              level={
-                ctx.aiFromExport || entered.ai
-                  ? null
-                  : (ctx.aiEstimate?.level ??
-                    levelOf({
-                      promptsPerDay: Number(aiAmount),
-                      imagesPerWeek: Number(amountOf(productById("ai-media")!)),
-                      videosPerWeek: Number(amountOf(productById("ai-video")!)),
-                      codingHoursPerWeek: Number(amountOf(productById("ai-coding")!)),
-                    }))
-              }
-              onPick={(level, from) => {
-                setCtx((c) => ({ ...c, aiEstimate: { level, from }, aiFromExport: false, aiWhPerPrompt: undefined, aiPastWh: undefined, aiCode: undefined, aiAgent: undefined, aiCodingPastWh: undefined }));
-                // Images and video follow the pick too, unless the person typed their own. A pick replaces connected data
-                // entirely, so measured coding goes back to none (Ian, 2026-10-13).
-                setAmounts((a) => ({
-                  ...a,
-                  ai: AI_LEVELS[level].promptsPerDay,
-                  ...(entered["ai-media"] ? {} : { "ai-media": AI_LEVELS[level].imagesPerWeek }),
-                  ...(entered["ai-video"] ? {} : { "ai-video": AI_LEVELS[level].videosPerWeek }),
-                  ...(entered["ai-coding"] ? {} : { "ai-coding": 0 }),
-                }));
-                resetAiCover();
-                setEntered((e) => ({ ...e, ai: false }));
-              }}
+              level={aiLevel}
+              onPick={pickLevel}
+              hideLevels={!heroPaid}
               onExact={() => setMeasuring(true)}
               onVideo={(h, from) => measuredAmount("video", h, from)}
               onVideoPast={(videoPast) => setCtx((c) => ({ ...c, videoPast }))}
@@ -1470,6 +1507,7 @@ export function Store() {
               )}
             </div>
           </div>
+          </div>
           )}
           {measuring && (
             <div className="mt-6 max-w-xl">
@@ -1499,30 +1537,13 @@ export function Store() {
         </section>
       )}
 
-      <nav aria-label="Other things you can do" className="mb-10 flex flex-col text-sm sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3">
-        {/* Paid AI: the hero already has the record's button, so the line doesn't link it twice (Ian, 2026-10-13). */}
-        {recordStatus(covered).kind !== "none" && !previewing && !heroPaid && (
-          <>
-            <Link href="/record" className="inline-flex min-h-10 items-center font-semibold underline underline-offset-4 hover:text-muted">
-              Your record
-            </Link>
-            <span aria-hidden className="hidden text-muted sm:inline">·</span>
-          </>
-        )}
-        {/* Someone who has paid isn't "not sure yet" (Ian, 2026-10-13). */}
-        {!heroPaid && <span className="hidden text-muted sm:inline">Not sure yet?</span>}
-        <Link href="/ledger" className="inline-flex min-h-10 items-center underline underline-offset-4 hover:text-muted">
-          Where the money goes
-        </Link>
-        <Link href="/method" className="inline-flex min-h-10 items-center underline underline-offset-4 hover:text-muted">
-          How it&apos;s calculated
-        </Link>
-        <span aria-hidden className="hidden text-muted sm:inline">·</span>
-        <span className="hidden text-muted sm:inline">Giving?</span>
-        <Link href="/gift" className="inline-flex min-h-10 items-center underline underline-offset-4 hover:text-muted">
-          Give an offset as a gift
-        </Link>
-      </nav>
+      {recordStatus(covered).kind !== "none" && !previewing && !heroPaid && (
+        <p className="mb-10 text-sm">
+          <Link href="/record" className="inline-flex min-h-10 items-center font-semibold underline underline-offset-4 hover:text-muted">
+            Your record
+          </Link>
+        </p>
+      )}
 
       {(() => {
         const open = aislesOpen;
@@ -1531,7 +1552,7 @@ export function Store() {
           requestAnimationFrame(() => document.getElementById(`section-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
         };
         return open ? null : (
-          <section aria-labelledby="more-heading" className="mb-10">
+          <section aria-labelledby="more-heading" className="mt-6 mb-10">
             <h2 id="more-heading" className="font-display text-3xl font-extrabold [font-stretch:85%]">Everything you can offset</h2>
             <ul className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
               {SECTIONS.filter((x) => x.key !== "ai").map((x) => (

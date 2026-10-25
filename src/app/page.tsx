@@ -4,11 +4,8 @@ import {
   CARD_FEE_LABEL,
   ENDAOMENT_GRANT_LABEL,
   ENDAOMENT_IN_LABEL,
-  PLEDGE_API_CARD_LABEL,
-  PLEDGE_API_FEE_LABEL,
   PLEDGE_FREE_LABEL,
   SPONSOR_FEE_LABEL,
-  STRIPE_CARD_LABEL,
 } from "@/lib/pricing";
 import { forMode, PAYMENT_MODE } from "@/lib/payments";
 
@@ -52,9 +49,8 @@ export default function Home() {
             </p>
           ) : PAYMENT_MODE === "pledgeapi" ? (
             <p>
-              I don&apos;t take a cut. The only fees are Stripe&apos;s card fee ({STRIPE_CARD_LABEL}) on your payment and Pledge&apos;s{" "}
-              {PLEDGE_API_FEE_LABEL} technology fee and {PLEDGE_API_CARD_LABEL} card fee on the gifts. Each is shown separately and added
-              on top, so the whole donation arrives. Nothing is charged until you approve it.
+              I don&apos;t take a cut. Stripe&apos;s and Pledge&apos;s fees are each a line on your bill, added on top, so the whole
+              donation arrives.
             </p>
           ) : PAYMENT_MODE === "endaoment" ? (
             <p>
