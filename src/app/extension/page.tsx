@@ -94,7 +94,7 @@ export default function ExtensionPage() {
         ))}
       </ol>
 
-      <h2 className="mt-12 text-xl font-semibold">What it reads</h2>
+      <h2 id="reads" className="mt-12 scroll-mt-24 text-xl font-semibold">What it reads</h2>
       <dl className="mt-3 border-t-2 border-rule">
         {(Object.keys(SIGN_IN_READS) as SignInService[]).map((s) => (
           <div key={s} className="grid gap-1 border-b border-border py-3 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-8">
