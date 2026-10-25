@@ -79,6 +79,7 @@ import {
   DEFAULT_WATER_MODE,
   LAND_USD_PER_ACRE,
   WATER_MODES,
+  minGift,
 } from "@/lib/pricing";
 import {
   aheadFor,
@@ -1392,7 +1393,11 @@ export function Store() {
               <button
                 type="button"
                 aria-pressed={wantReal || aiLevel === null}
-                onClick={() => setWantReal(true)}
+                onClick={() => {
+                  setWantReal(true);
+                  // The ways to count open right under the hero; bring them on screen (Ian, 2026-10-25: it looked like nothing happened).
+                  setTimeout(() => document.getElementById("real-number")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+                }}
                 className={`min-h-12 cursor-pointer rounded px-1 py-1 text-center font-semibold ${wantReal || aiLevel === null ? "bg-foreground text-background" : "bg-card hover:bg-border"}`}
               >
                 Your real number
@@ -1458,95 +1463,11 @@ export function Store() {
               {paidNames.join(" and ")} {paidNames.length > 1 ? "are" : "is"} already offset.
             </p>
           )}
-          {heroIds.some((id) => plan.includes(id) && !paidCover(covered[id])) && (
-            <button
-              type="button"
-              onClick={() => setPlan((cur) => cur.filter((id) => !heroIds.includes(id) || paidCover(covered[id])))}
-              className="mt-2 min-h-10 cursor-pointer text-sm text-muted underline underline-offset-4 hover:text-foreground"
-            >
-              Take AI out of your plan
-            </button>
-          )}
         </aside>
         </div>
         )}
-        {!heroPaid && (
-          // Who gets the money, each charity once with what it fixes (Ian, 2026-10-25: order the page by the reader's questions).
-          // A grey band per section, white between, so the eye sees where one ends (Ian, 2026-10-25, from Ecologi and GiveWell).
-          <section aria-labelledby="who-gets-it" className="relative isolate py-16">
-            <div aria-hidden="true" className="absolute inset-y-0 left-1/2 -z-10 w-screen -translate-x-1/2 bg-card" />
-            {(() => {
-              const names = [...new Set((["carbon", "air", "water", "land"] as const).filter((k) => aiImpacts[k] > 0).map((k) => CHARITIES[k].name))];
-              // Each card shows its sum: amount x price = dollars (Ian, 2026-10-25).
-              // Rounded up to the cent, as each gift is, so the cards add up to the line under "I don't take a cut".
-              const costs = Object.fromEntries(Object.entries(impactCost(aiImpacts)).map(([k, v]) => [k, Math.ceil(v * 100 - 1e-9) / 100])) as Record<ImpactKey, number>;
-              const gifts = payRows(harmSplit(heroTotals, ctx, billing), billing, autopay).filter((r) => !r.key.endsWith("-repeat"));
-              const gets = (name: string) => gifts.filter((r) => CHARITIES[r.charity].name === name).reduce((sum, r) => sum + r.donation, 0);
-              // Every sum the same short shape, amount x price per unit (Ian, 2026-10-25). Air is priced as a share of
-              // health damage; here it's shown per liter of smog (or gram of soot) so it reads like the others.
-              const raw = impactCost(aiImpacts);
-              const smog = aiImpacts.smogL >= 0.05 || aiImpacts.sootG < 0.05;
-              const airPer = raw.air / (smog ? aiImpacts.smogL : aiImpacts.sootG || 1);
-              const bare = (k: "carbon" | "water" | "land") => IMPACT_INFO[k].format(aiImpacts[k], aiImpacts).replace(/ (CO₂e|water|land)$/, "");
-              const sum: Record<"carbon" | "air" | "water" | "land", string> = {
-                carbon: `${bare("carbon")} × $${CARBON_MODES[DEFAULT_CARBON_MODE].perTonne}/t`,
-                air: `${airShort(aiImpacts)} × $${airPer.toFixed(2)}/${smog ? "L" : "g"}`,
-                water: `${bare("water")} × $${(WATER_MODES[DEFAULT_WATER_MODE].per1000Gal / 3.78541).toFixed(2)}/1,000 L`,
-                land: `${bare("land")} × $${LAND_USD_PER_ACRE}/acre`,
-              };
-              return (
-                <>
-                  {/* The headings read as one story, top to bottom, like Wren's (Ian, 2026-10-25). */}
-                  <h2 id="who-gets-it" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">
-                    Where your money goes
-                  </h2>
-                  <ul className="mt-10 grid gap-4 md:grid-cols-3">
-                    {names.map((name) => {
-                      const harms = (["carbon", "air", "water", "land"] as const).filter((k) => aiImpacts[k] > 0 && CHARITIES[k].name === name);
-                      return (
-                        <Fragment key={name}>
-                        <li className="flex flex-col border-t-[6px] border-rule bg-background">
-                          {/* Stock photos of the thing itself, never people passed off as charity staff (Ian, 2026-10-25). Unsplash License; sources in the PR. */}
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={`/photos/${harms[0]}.jpg`} alt="" width={800} height={533} loading="lazy" className="aspect-[3/2] w-full object-cover" />
-                          <div className="flex flex-1 flex-col px-5 pt-5 pb-6">
-                          {/* Read top to bottom: the harm, what it costs to cut, who gets the money (Ian, 2026-10-25). */}
-                          <h3 className="mb-4 text-xl font-semibold">
-                            {harms.map((k) => IMPACT_INFO[k].label).join(" and ").replace(/^(.)(.*) and (.)/, (_, a, rest, c) => `${a}${rest} and ${c.toLowerCase()}`)}
-                          </h3>
-                          <div className="amount mt-auto border-t border-border pt-3 text-sm">
-                            <Link href="/method" className="block hover:underline">
-                              {harms.map((k) => (
-                                <span key={k} className="flex justify-between gap-3">
-                                  <span>{sum[k]}</span>
-                                  <span>{usd(costs[k])}</span>
-                                </span>
-                              ))}
-                            </Link>
-                            <a href={CHARITIES[harms[0]].url} className="mt-1 flex justify-between gap-3 border-t border-border pt-1 font-semibold hover:underline">
-                              <span>To {name}</span>
-                              <span>{usd(gets(name))}</span>
-                            </a>
-                          </div>
-                          </div>
-                        </li>
-                        {aiAnswers.filter((b) => (harms as readonly string[]).includes(b.key)).map((b) => numberBlock(b, "mb-6 md:hidden"))}
-                        </Fragment>
-                      );
-                    })}
-                  </ul>
-                  <p className="mt-6 font-semibold md:hidden">
-                    <Link href="/method#ai" className="underline-offset-4 hover:underline">
-                      Read the full explanation →
-                    </Link>
-                  </p>
-                </>
-              );
-            })()}
-          </section>
-        )}
         {(heroPaid ? updatingNumbers : wantReal || aiLevel === null) && (
-          <div className="mt-10">
+          <div id="real-number" className="mt-10 scroll-mt-4">
             <div>
             <AiQuickPick
               keepGuess={Boolean(ctx.aiEstimate?.level)}
@@ -1604,6 +1525,88 @@ export function Store() {
               />
             </div>
           )}
+        {!heroPaid && (
+          // Who gets the money, each charity once with what it fixes (Ian, 2026-10-25: order the page by the reader's questions).
+          // A grey band per section, white between, so the eye sees where one ends (Ian, 2026-10-25, from Ecologi and GiveWell).
+          <section aria-labelledby="who-gets-it" className="relative isolate py-16">
+            <div aria-hidden="true" className="absolute inset-y-0 left-1/2 -z-10 w-screen -translate-x-1/2 bg-card" />
+            {(() => {
+              const names = [...new Set((["carbon", "air", "water", "land"] as const).filter((k) => aiImpacts[k] > 0).map((k) => CHARITIES[k].name))];
+              // Each card shows its sum: amount x price = dollars (Ian, 2026-10-25).
+              // Rounded up to the cent, as each gift is, so the cards add up to the line under "I don't take a cut".
+              const costs = Object.fromEntries(Object.entries(impactCost(aiImpacts)).map(([k, v]) => [k, Math.ceil(v * 100 - 1e-9) / 100])) as Record<ImpactKey, number>;
+              const gifts = payRows(harmSplit(heroTotals, ctx, billing), billing, autopay).filter((r) => !r.key.endsWith("-repeat"));
+              const gets = (name: string) => gifts.filter((r) => CHARITIES[r.charity].name === name).reduce((sum, r) => sum + r.donation, 0);
+              // Every sum the same short shape, amount x price per unit (Ian, 2026-10-25). Air is priced as a share of
+              // health damage; here it's shown per liter of smog (or gram of soot) so it reads like the others.
+              const raw = impactCost(aiImpacts);
+              const smog = aiImpacts.smogL >= 0.05 || aiImpacts.sootG < 0.05;
+              const airPer = raw.air / (smog ? aiImpacts.smogL : aiImpacts.sootG || 1);
+              const bare = (k: "carbon" | "water" | "land") => IMPACT_INFO[k].format(aiImpacts[k], aiImpacts).replace(/ (CO₂e|water|land)$/, "");
+              const sum: Record<"carbon" | "air" | "water" | "land", string> = {
+                carbon: `${bare("carbon")} × $${CARBON_MODES[DEFAULT_CARBON_MODE].perTonne}/t`,
+                air: `${airShort(aiImpacts)} × $${airPer.toFixed(2)}/${smog ? "L" : "g"}`,
+                water: `${bare("water")} × $${(WATER_MODES[DEFAULT_WATER_MODE].per1000Gal / 3.78541).toFixed(2)}/1,000 L`,
+                land: `${bare("land")} × $${LAND_USD_PER_ACRE}/acre`,
+              };
+              return (
+                <>
+                  {/* The headings read as one story, top to bottom, like Wren's (Ian, 2026-10-25). */}
+                  <h2 id="who-gets-it" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">
+                    Where your money goes
+                  </h2>
+                  <ul className="mt-10 grid gap-4 md:grid-cols-3">
+                    {names.map((name) => {
+                      const harms = (["carbon", "air", "water", "land"] as const).filter((k) => aiImpacts[k] > 0 && CHARITIES[k].name === name);
+                      return (
+                        <Fragment key={name}>
+                        <li className="flex flex-col border-t-[6px] border-rule bg-background">
+                          {/* Stock photos of the thing itself, never people passed off as charity staff (Ian, 2026-10-25). Unsplash License; sources in the PR. */}
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={`/photos/${harms[0]}.jpg`} alt="" width={800} height={533} loading="lazy" className="aspect-[3/2] w-full object-cover" />
+                          <div className="flex flex-1 flex-col px-5 pt-5 pb-6">
+                          {/* Read top to bottom: the harm, what it costs to cut, who gets the money (Ian, 2026-10-25). */}
+                          <h3 className="mb-4 text-xl font-semibold">
+                            {harms.map((k) => IMPACT_INFO[k].label).join(" and ").replace(/^(.)(.*) and (.)/, (_, a, rest, c) => `${a}${rest} and ${c.toLowerCase()}`)}
+                          </h3>
+                          <div className="amount mt-auto border-t border-border pt-3 text-sm">
+                            <Link href="/method" className="block hover:underline">
+                              {harms.map((k) => (
+                                <span key={k} className="flex justify-between gap-3">
+                                  <span>{sum[k]}</span>
+                                  <span>{usd(costs[k])}</span>
+                                </span>
+                              ))}
+                            </Link>
+                            {/* Outside Pledge's API a gift is raised to the charity's minimum; show the step so the lines add up. */}
+                            {gets(name) - harms.reduce((t, k) => t + costs[k], 0) >= 0.005 && (
+                              <span className="flex justify-between gap-3">
+                                <span>Up to the {usd(minGift(PAYMENT_MODE))} minimum</span>
+                                <span>+{usd(gets(name) - harms.reduce((t, k) => t + costs[k], 0))}</span>
+                              </span>
+                            )}
+                            <a href={CHARITIES[harms[0]].url} className="mt-1 flex justify-between gap-3 border-t border-border pt-1 font-semibold hover:underline">
+                              <span>To {name}</span>
+                              <span>{usd(gets(name))}</span>
+                            </a>
+                          </div>
+                          </div>
+                        </li>
+                        {aiAnswers.filter((b) => (harms as readonly string[]).includes(b.key)).map((b) => numberBlock(b, "mb-6 md:hidden"))}
+                        </Fragment>
+                      );
+                    })}
+                  </ul>
+                  <p className="mt-6 font-semibold md:hidden">
+                    <Link href="/method#ai" className="underline-offset-4 hover:underline">
+                      Read the full explanation →
+                    </Link>
+                  </p>
+                </>
+              );
+            })()}
+          </section>
+        )}
       </section>
 
       {activityOpen && (
