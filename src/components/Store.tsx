@@ -90,7 +90,6 @@ import {
   codingAmountText,
   addedMonthly,
   chargeParts,
-  hasNonAi,
   type Cover,
   coverBadge,
   coverPrice,
@@ -280,7 +279,6 @@ export function Store() {
   const [details, setDetails] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   /** The aisles stay folded until someone asks for them, so the first visit is about AI alone. */
-  const [shelvesOpen, setShelvesOpen] = useState(false);
   // Nothing is saved until the saved plan has loaded, so the first render's empty state never
   // overwrites it, and nothing at all while the page is leaving for the record.
   const [ready, setReady] = useState(false);
@@ -297,10 +295,9 @@ export function Store() {
         })
         .catch(() => {});
     }
-    // A link straight to an aisle opens the folded aisles and goes there.
+    // A link straight to an aisle goes there.
     const hash = window.location.hash.slice(1);
     if (hash.startsWith("section-") || hash === "everything-heading") {
-      setShelvesOpen(true);
       setTimeout(() => document.getElementById(hash)?.scrollIntoView(), 150);
     }
     if (!s) {
@@ -1206,7 +1203,6 @@ export function Store() {
   );
   const heroInPlan = heroIds.every((id) => plan.includes(id) || paidCover(covered[id]));
   // Only something outside AI opens the aisles, so offsetting AI images or coding keeps the page on AI (Ian, 2026-10-13).
-  const aislesOpen = shelvesOpen || hasNonAi(plan) || hasNonAi(Object.keys(covered)) || Object.keys(linkedFrom).length > 0;
   /** The hero's green button: puts every AI part in the plan on the hero's cover, then opens checkout. */
   // The level shown as picked: none when the numbers came from real data or were typed in.
   const giveLabel = heroInPlan ? "Review and give" : aiCover.ahead === "lifetime" && heroAhead === "lifetime" ? `Give ${usd(heroBill.today)}` : "Offset it";
@@ -1244,7 +1240,7 @@ export function Store() {
     setTimeout(() => document.getElementById("pay-steps")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
   };
   return (
-    <div className={aislesOpen || heroPaid ? "pb-20" : ""}>
+    <div className="pb-20">
       <section className="relative isolate">
         {heroPaid && !updatingNumbers ? (
           // Once all AI is paid, the photo carries what's offset instead of a price (Ian, 2026-10-13).
@@ -1634,48 +1630,9 @@ export function Store() {
         )}
       </section>
 
-      {(() => {
-        const open = aislesOpen;
-        const openAt = (key: string) => {
-          setShelvesOpen(true);
-          requestAnimationFrame(() => document.getElementById(`section-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
-        };
-        return open ? null : (
-          <section aria-labelledby="more-heading" className="relative isolate py-16">
-            <div aria-hidden="true" className="absolute inset-y-0 left-1/2 -z-10 w-screen -translate-x-1/2 bg-card" />
-            <h2 id="more-heading" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">Offset the rest of your life the same way.</h2>
-            <ul className="mt-6 grid grid-cols-3 gap-2 sm:grid-cols-6">
-              {SECTIONS.filter((x) => x.key !== "ai").map((x) => (
-                <li key={x.key}>
-                  <button
-                    type="button"
-                    onClick={() => openAt(x.key)}
-                    className="min-h-11 w-full cursor-pointer rounded-md border-2 border-rule bg-background px-4 font-semibold hover:bg-foreground hover:text-background"
-                  >
-                    {x.title}
-                  </button>
-                </li>
-              ))}
-            </ul>
-            {!heroPaid && (
-              <p className="mt-16 text-center">
-                <button
-                  type="button"
-                  onClick={reviewAndPay}
-                  className="min-h-14 cursor-pointer rounded-md bg-accent px-8 text-xl font-semibold text-on-accent hover:bg-accent-strong"
-                >
-                  {giveLabel}
-                </button>
-              </p>
-            )}
-          </section>
-        );
-      })()}
-
-      {aislesOpen && (
-      <>
-      <div className="mb-4">
-        <h2 className="font-display text-3xl font-extrabold [font-stretch:85%]">Everything you can offset</h2>
+      {/* Every aisle stays open on the home page (Ian, 2026-10-25: don't hide the rest of the offsets). */}
+      <div className="mt-16 mb-6">
+        <h2 className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">Offset the rest of your life the same way.</h2>
       </div>
 
       {/* The aisle bar sticks only while the shelves are on screen. */}
@@ -1774,8 +1731,6 @@ export function Store() {
             </button>
           )}
         </section>
-      )}
-      </>
       )}
 
       {plan.length > 0 && (
