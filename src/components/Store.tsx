@@ -56,7 +56,6 @@ import { SOURCE_NAMES, type ActivitySource } from "@/lib/activity";
 import { monthName } from "@/lib/history";
 import { ONLINE_FROM_AGE } from "@/lib/factors";
 import {
-  LIFETIME_GROWTH_BUFFER,
   BILLING,
   type Billing,
   DEFAULT_BILLING,
@@ -75,7 +74,6 @@ import {
   feeParts,
   impactCost,
   usd,
-  AIR_DAMAGE_SHARE,
   CARBON_MODES,
   DEFAULT_CARBON_MODE,
   DEFAULT_WATER_MODE,
@@ -1185,13 +1183,6 @@ export function Store() {
   const aiPrice = { once: heroCharge.pastOnce + heroCharge.lifeOnce, monthly: heroCharge.monthly };
   // The hero shows what checkout charges, from the same gifts: each charity's $1 minimum and card fees in (Ian, 2026-10-13).
   const heroBill = chargesOf(heroTotals);
-  const heroWhy = forMode({
-    every: "card fees and at least $1 to each charity",
-    pledge: "at least $1 to each charity",
-    pledgeapi: "Stripe's and Pledge's fees",
-    endaoment: "card fees and Endaoment's fee",
-    sponsor: "card fees and each charity's smallest gift",
-  });
   // What the box shows: "for life" only when nothing is left to pay each month.
   const aiCover: Cover = { past: heroPast, ahead: aiPrice.monthly > 0 ? "monthly" : "lifetime" };
   // Paid for life shows everything it covers; paid for a stretch shows each month of it.
@@ -1213,8 +1204,6 @@ export function Store() {
   const heroOnceWhat = [heroCharge.lifeOnce >= 0.005 && `${heroLifeNames} for life`, heroCharge.pastOnce >= 0.005 && "past use"].filter(
     (x): x is string => Boolean(x),
   );
-  const heroNames = heroLines.map((l) => (l.p.id === "ai" ? "Chat" : heroName(l.p.id, l.p.name)));
-  const heroParts = heroNames.length > 1 ? `${heroNames.slice(0, -1).join(", ")} and ${heroNames.at(-1)}` : "Chat";
   const heroInPlan = heroIds.every((id) => plan.includes(id) || paidCover(covered[id]));
   // Only something outside AI opens the aisles, so offsetting AI images or coding keeps the page on AI (Ian, 2026-10-13).
   const aislesOpen = shelvesOpen || hasNonAi(plan) || hasNonAi(Object.keys(covered)) || Object.keys(linkedFrom).length > 0;
@@ -1453,45 +1442,48 @@ export function Store() {
               const costs = Object.fromEntries(Object.entries(impactCost(aiImpacts)).map(([k, v]) => [k, Math.ceil(v * 100 - 1e-9) / 100])) as Record<ImpactKey, number>;
               const gifts = payRows(harmSplit(heroTotals, ctx, billing), billing, autopay).filter((r) => !r.key.endsWith("-repeat"));
               const gets = (name: string) => gifts.filter((r) => CHARITIES[r.charity].name === name).reduce((sum, r) => sum + r.donation, 0);
+              // Every sum the same short shape, amount x price per unit (Ian, 2026-10-25). Air is priced as a share of
+              // health damage; here it's shown per liter of smog (or gram of soot) so it reads like the others.
+              const raw = impactCost(aiImpacts);
+              const smog = aiImpacts.smogL >= 0.05 || aiImpacts.sootG < 0.05;
+              const airPer = raw.air / (smog ? aiImpacts.smogL : aiImpacts.sootG || 1);
+              const bare = (k: "carbon" | "water" | "land") => IMPACT_INFO[k].format(aiImpacts[k], aiImpacts).replace(/ (CO₂e|water|land)$/, "");
               const sum: Record<"carbon" | "air" | "water" | "land", string> = {
-                carbon: `${IMPACT_INFO.carbon.format(aiImpacts.carbon, aiImpacts)} × $${CARBON_MODES[DEFAULT_CARBON_MODE].perTonne} a tonne`,
-                air: `${usd(aiImpacts.air)} of health damage × ${Math.round(AIR_DAMAGE_SHARE * 100)}%`,
-                water: `${IMPACT_INFO.water.format(aiImpacts.water, aiImpacts)} × $${(WATER_MODES[DEFAULT_WATER_MODE].per1000Gal / 3.78541).toFixed(2)} per 1,000 L`,
-                land: `${IMPACT_INFO.land.format(aiImpacts.land, aiImpacts)} × $${LAND_USD_PER_ACRE} an acre`,
+                carbon: `${bare("carbon")} × $${CARBON_MODES[DEFAULT_CARBON_MODE].perTonne}/t`,
+                air: `${airShort(aiImpacts)} × $${airPer.toFixed(2)}/${smog ? "L" : "g"}`,
+                water: `${bare("water")} × $${(WATER_MODES[DEFAULT_WATER_MODE].per1000Gal / 3.78541).toFixed(2)}/1,000 L`,
+                land: `${bare("land")} × $${LAND_USD_PER_ACRE}/acre`,
               };
               return (
                 <>
                   {/* The headings read as one story, top to bottom, like Wren's (Ian, 2026-10-25). */}
                   <h2 id="who-gets-it" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">
-                    Your money goes to charities that cut these harms.
+                    Where your money goes.
                   </h2>
                   <ul className="mt-10 grid gap-4 md:grid-cols-3">
                     {names.map((name) => {
                       const harms = (["carbon", "air", "water", "land"] as const).filter((k) => aiImpacts[k] > 0 && CHARITIES[k].name === name);
                       return (
-                        <li key={name} className="border-t-[6px] border-rule bg-background">
+                        <li key={name} className="flex flex-col border-t-[6px] border-rule bg-background">
                           {/* Stock photos of the thing itself, never people passed off as charity staff (Ian, 2026-10-25). Unsplash License; sources in the PR. */}
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={`/photos/${harms[0]}.jpg`} alt="" width={800} height={533} loading="lazy" className="aspect-[3/2] w-full object-cover" />
-                          <div className="px-5 pt-5 pb-6">
-                          <a href={CHARITIES[harms[0]].url} className="block text-xl font-semibold underline-offset-4 hover:underline">
+                          <div className="flex flex-1 flex-col px-5 pt-5 pb-6">
+                          <a href={CHARITIES[harms[0]].url} className="mb-4 block text-xl font-semibold underline-offset-4 hover:underline">
                             {name}
                           </a>
-                          <span className="mt-1 block text-muted">{CHARITIES[harms[harms.length - 1]].focus}</span>
                           {/* The sum as a bill: one font, amount x price on the left, dollars on the right (Ian, 2026-10-25). */}
-                          <Link href="/method" className="amount mt-4 block border-t border-border pt-3 text-sm hover:underline">
+                          <Link href="/method" className="amount mt-auto block border-t border-border pt-3 text-sm hover:underline">
                             {harms.map((k) => (
                               <span key={k} className="flex justify-between gap-3">
                                 <span>{sum[k]}</span>
                                 <span>{usd(costs[k])}</span>
                               </span>
                             ))}
-                            {harms.length > 1 && (
-                              <span className="mt-1 flex justify-between gap-3 border-t border-border pt-1">
-                                <span>Total</span>
-                                <span>{usd(gets(name))}</span>
-                              </span>
-                            )}
+                            <span className="mt-1 flex justify-between gap-3 border-t border-border pt-1 font-semibold">
+                              <span>Total</span>
+                              <span>{usd(gets(name))}</span>
+                            </span>
                           </Link>
                           </div>
                         </li>
@@ -1501,16 +1493,6 @@ export function Store() {
                 </>
               );
             })()}
-            <details className="mt-6 text-sm text-muted">
-              <summary className="cursor-pointer underline underline-offset-2 hover:text-foreground">What&apos;s counted</summary>
-              <p className="mt-1 max-w-2xl">
-                {heroParts}, plus a share of training the models and building the data centers. Future use counts {LIFETIME_GROWTH_BUFFER} times over in case it
-                grows, on a grid that gets cleaner each year. Past use is {pastNote(ai)}. The price includes {heroWhy}.{" "}
-                <Link href="/method" className="cursor-pointer underline underline-offset-2 hover:text-foreground">
-                  Every number&apos;s source
-                </Link>
-              </p>
-            </details>
           </section>
         )}
         {(heroPaid ? updatingNumbers : wantReal || aiLevel === null) && (
