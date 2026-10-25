@@ -1326,14 +1326,10 @@ export function Store() {
                     </>
                   )
               : (
-                  // Two lines on a computer: what it is, then the price (Ian, 2026-10-13).
+                  // The price shows once, in the box beside its switch (Ian, 2026-10-25: three prices felt weird).
                   <>
-                    <span className="block">{paidLines.length ? "Your other AI use" : "Your AI use"}, offset</span>
-                    <span className="block">
-                      {heroAhead === "lifetime" && aiCover.ahead === "lifetime"
-                        ? `for life: ${usd(heroBill.today)}.`
-                        : `for ${usd(heroBill.then)} ${BILLING[billing].per}.`}
-                    </span>
+                    <span className="block">{paidLines.length ? "Your other AI use" : "Your AI use"},</span>
+                    <span className="block">{heroAhead === "lifetime" && aiCover.ahead === "lifetime" ? "offset for life." : "offset."}</span>
                   </>
                 )}
           </h1>
@@ -1449,7 +1445,7 @@ export function Store() {
           // one idea per screen, pictures over words, like the sites he compared).
           <section aria-labelledby="pays-for" className="pt-16 pb-10">
             <h2 id="pays-for" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">
-              What {aiCover.ahead === "monthly" ? `${usd(heroBill.then)} ${BILLING[billing].per}` : usd(heroBill.today)} pays for
+              What it pays for
             </h2>
             <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {(["carbon", "air", "water", "land"] as const)
