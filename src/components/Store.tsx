@@ -1658,6 +1658,14 @@ export function Store() {
                   <span>You give</span>
                   <span>{usd(pay.total)}</span>
                 </p>
+                {/* A second way to give once the cost, the charities and the fees are all seen (Ian, 2026-10-25). */}
+                <button
+                  type="button"
+                  onClick={reviewAndPay}
+                  className="mt-6 min-h-12 w-full cursor-pointer rounded-md bg-accent px-4 font-sans text-lg font-semibold text-on-accent hover:bg-accent-strong"
+                >
+                  {giveLabel.startsWith("Give $") ? `Give ${usd(pay.total)}` : giveLabel}
+                </button>
               </div>
             );
           })()
