@@ -1382,12 +1382,12 @@ export function Store() {
                 <button
                   key={k}
                   type="button"
-                  aria-pressed={aiLevel === k}
+                  aria-pressed={!wantReal && aiLevel === k}
                   onClick={() => pickLevel(k, `you picked ${AI_LEVELS[k].label.toLowerCase()}`)}
-                  className={`min-h-12 cursor-pointer rounded px-1 py-1 text-center ${aiLevel === k ? "bg-foreground text-background" : "bg-card hover:bg-border"}`}
+                  className={`min-h-12 cursor-pointer rounded px-1 py-1 text-center ${!wantReal && aiLevel === k ? "bg-foreground text-background" : "bg-card hover:bg-border"}`}
                 >
                   <span className="block font-semibold">{AI_LEVELS[k].label}</span>
-                  <span className={`block text-[11px] whitespace-nowrap ${aiLevel === k ? "opacity-80" : "text-muted"}`}>{AI_LEVELS[k].promptsPerDay} prompts a day</span>
+                  <span className={`block text-[11px] whitespace-nowrap ${!wantReal && aiLevel === k ? "opacity-80" : "text-muted"}`}>{AI_LEVELS[k].promptsPerDay} prompts a day</span>
                 </button>
               ))}
               <button
