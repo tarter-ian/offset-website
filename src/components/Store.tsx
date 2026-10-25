@@ -1544,10 +1544,11 @@ export function Store() {
               const airPer = raw.air / (smog ? aiImpacts.smogL : aiImpacts.sootG || 1);
               const bare = (k: "carbon" | "water" | "land") => IMPACT_INFO[k].format(aiImpacts[k], aiImpacts).replace(/ (CO₂e|water|land)$/, "");
               const sum: Record<"carbon" | "air" | "water" | "land", string> = {
-                carbon: `${bare("carbon")} × $${CARBON_MODES[DEFAULT_CARBON_MODE].perTonne}/t`,
+                // The price uses the same unit as the amount: kg reads "per 1,000 kg", not "/t" (Ian, 2026-10-25).
+                carbon: `${bare("carbon")} × $${CARBON_MODES[DEFAULT_CARBON_MODE].perTonne}/${aiImpacts.carbon >= 1000 ? "t" : "1,000 kg"}`,
                 air: `${airShort(aiImpacts)} × $${airPer.toFixed(2)}/${smog ? "L" : "g"}`,
                 water: `${bare("water")} × $${(WATER_MODES[DEFAULT_WATER_MODE].per1000Gal / 3.78541).toFixed(2)}/1,000 L`,
-                land: `${bare("land")} × $${LAND_USD_PER_ACRE}/acre`,
+                land: `${bare("land")} × $${((LAND_USD_PER_ACRE / 4046.86) * 1000).toFixed(2)}/1,000 m²`,
               };
               return (
                 <>
