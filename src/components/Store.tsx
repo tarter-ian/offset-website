@@ -1459,31 +1459,51 @@ export function Store() {
         )}
         {!heroPaid && (
           // Who gets the money, each charity once with what it fixes (Ian, 2026-10-25: order the page by the reader's questions).
-          <section aria-labelledby="who-gets-it" className="pt-16 pb-10">
-            <h2 id="who-gets-it" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">
-              Where your money goes
-            </h2>
-            <ul className="mt-10 grid gap-4 md:grid-cols-3">
-              {[...new Set((["carbon", "air", "water", "land"] as const).filter((k) => aiImpacts[k] > 0).map((k) => CHARITIES[k].name))].map((name) => {
-                const harms = (["carbon", "air", "water", "land"] as const).filter((k) => aiImpacts[k] > 0 && CHARITIES[k].name === name);
-                return (
-                  <li key={name} className="border-t-[6px] border-rule bg-card px-5 pt-5 pb-6">
-                    <div className="flex gap-2">
-                      {harms.map((k) => (
-                        <HarmDrawing key={k} harm={k} />
-                      ))}
-                    </div>
-                    <a href={CHARITIES[harms[0]].url} className="mt-4 block text-xl font-semibold underline-offset-4 hover:underline">
-                      {name}
-                    </a>
-                    <span className="mt-1 block text-muted">{CHARITIES[harms[harms.length - 1]].focus}</span>
-                    <span className="amount mt-4 block text-lg font-semibold">
-                      {harms.map((k) => IMPACT_INFO[k].format(aiImpacts[k], aiImpacts)).join(" · ")}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
+          // A grey band per section, white between, so the eye sees where one ends (Ian, 2026-10-25, from Ecologi and GiveWell).
+          <section aria-labelledby="who-gets-it" className="relative isolate mt-16 py-16">
+            <div aria-hidden="true" className="absolute inset-y-0 left-1/2 -z-10 w-screen -translate-x-1/2 bg-card" />
+            {(() => {
+              const names = [...new Set((["carbon", "air", "water", "land"] as const).filter((k) => aiImpacts[k] > 0).map((k) => CHARITIES[k].name))];
+              return (
+                <>
+                  {/* The headings read as one story, top to bottom, like Wren's (Ian, 2026-10-25). */}
+                  <h2 id="who-gets-it" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">
+                    It all goes to {["one charity", "two charities", "three charities", "four charities"][names.length - 1]}.
+                  </h2>
+                  <ul className="mt-10 grid gap-4 md:grid-cols-3">
+                    {names.map((name) => {
+                      const harms = (["carbon", "air", "water", "land"] as const).filter((k) => aiImpacts[k] > 0 && CHARITIES[k].name === name);
+                      return (
+                        <li key={name} className="border-t-[6px] border-rule bg-background px-5 pt-5 pb-6">
+                          <div className="flex gap-2">
+                            {harms.map((k) => (
+                              <HarmDrawing key={k} harm={k} />
+                            ))}
+                          </div>
+                          {/* Each amount big with a short label under it, like Ecologi's numbers. */}
+                          <div className="mt-4 flex gap-6">
+                            {harms.map((k) => {
+                              const text = IMPACT_INFO[k].format(aiImpacts[k], aiImpacts);
+                              const m = /^([\d.,]+)\s(.+)$/.exec(text);
+                              return (
+                                <span key={k} className="block">
+                                  <span className="amount block text-3xl font-semibold">{m ? m[1] : text}</span>
+                                  {m && <span className="block text-sm text-muted">{m[2]}</span>}
+                                </span>
+                              );
+                            })}
+                          </div>
+                          <a href={CHARITIES[harms[0]].url} className="mt-5 block text-xl font-semibold underline-offset-4 hover:underline">
+                            {name}
+                          </a>
+                          <span className="mt-1 block text-muted">{CHARITIES[harms[harms.length - 1]].focus}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </>
+              );
+            })()}
             <details className="mt-6 text-sm text-muted">
               <summary className="cursor-pointer underline underline-offset-2 hover:text-foreground">What&apos;s counted</summary>
               <p className="mt-1 max-w-2xl">
@@ -1579,8 +1599,7 @@ export function Store() {
       )}
 
       {/* Can I check it: one claim and where to check it, on its own band instead of a rule (Ian, 2026-10-25). */}
-      <section aria-labelledby="no-cut" className="relative isolate py-16">
-        <div aria-hidden="true" className="absolute inset-y-0 left-1/2 -z-10 w-screen -translate-x-1/2 bg-card" />
+      <section aria-labelledby="no-cut" className="py-16">
         <h2 id="no-cut" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">
           I don&apos;t take a cut.
         </h2>
@@ -1614,36 +1633,36 @@ export function Store() {
           requestAnimationFrame(() => document.getElementById(`section-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
         };
         return open ? null : (
-          <section aria-labelledby="more-heading" className="py-16">
-            <h2 id="more-heading" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">Everything you can offset</h2>
+          <section aria-labelledby="more-heading" className="relative isolate py-16">
+            <div aria-hidden="true" className="absolute inset-y-0 left-1/2 -z-10 w-screen -translate-x-1/2 bg-card" />
+            <h2 id="more-heading" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">Then offset everything else.</h2>
             <ul className="mt-6 grid grid-cols-3 gap-2 sm:grid-cols-6">
               {SECTIONS.filter((x) => x.key !== "ai").map((x) => (
                 <li key={x.key}>
                   <button
                     type="button"
                     onClick={() => openAt(x.key)}
-                    className="min-h-11 w-full cursor-pointer rounded-md border-2 border-rule px-4 font-semibold hover:bg-foreground hover:text-background"
+                    className="min-h-11 w-full cursor-pointer rounded-md border-2 border-rule bg-background px-4 font-semibold hover:bg-foreground hover:text-background"
                   >
                     {x.title}
                   </button>
                 </li>
               ))}
             </ul>
+            {!heroPaid && (
+              <p className="mt-16 text-center">
+                <button
+                  type="button"
+                  onClick={reviewAndPay}
+                  className="min-h-14 cursor-pointer rounded-md bg-accent px-8 text-xl font-semibold text-on-accent hover:bg-accent-strong"
+                >
+                  {giveLabel}
+                </button>
+              </p>
+            )}
           </section>
         );
       })()}
-
-      {!heroPaid && !aislesOpen && (
-        <p className="pb-6 text-center">
-          <button
-            type="button"
-            onClick={reviewAndPay}
-            className="min-h-14 cursor-pointer rounded-md bg-accent px-8 text-xl font-semibold text-on-accent hover:bg-accent-strong"
-          >
-            {giveLabel}
-          </button>
-        </p>
-      )}
 
       {aislesOpen && (
       <>
