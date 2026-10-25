@@ -106,10 +106,9 @@ export default function PromisesPage() {
         ))}
       </dl>
       <section id="who" className="mt-10 flex scroll-mt-24 items-start gap-5 border-t-2 border-rule pt-6">
-        {/* Same photo as iantarter.com. Swap for a local copy once there's a final one. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="https://iantarter.com/wp-content/uploads/2023/08/img-2643-edited-1.png?w=240"
+          src="/ian.jpg"
           alt="Ian Tarter"
           width={96}
           height={96}
