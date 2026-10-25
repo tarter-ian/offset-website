@@ -1427,53 +1427,17 @@ export function Store() {
                 water: `${bare("water")} × $${(WATER_MODES[DEFAULT_WATER_MODE].per1000Gal / 3.78541).toFixed(2)}/1,000 L`,
                 land: `${bare("land")} × $${LAND_USD_PER_ACRE}/acre`,
               };
-              // Under each card, the answer to Ian's question for that harm (2026-10-25): how much CO2 and smog,
-              // how much water, how much data center. Each total splits by the shares inside aiImpacts for one kWh of answers.
-              const unit = aiImpactsOf(1);
-              const kwh1 = 1 / (1 - AI_TRAINING_SHARE);
-              const dcLand = aiImpacts.land * ((kwh1 * DATACENTER_M2_YEARS_PER_KWH) / unit.land);
-              const cooling = aiImpacts.water * (coolingWater(kwh1) / unit.water);
-              const built = aiImpacts.carbon * AI_HARDWARE_SHARE;
-              const answers: Partial<Record<ImpactKey, { q: string; total: string; rows: [string, string][] }>> = {
-                carbon: {
-                  q: "How much CO₂ and smog?",
-                  total: `${IMPACT_INFO.carbon.format(aiImpacts.carbon, aiImpacts)}, ${airShort(aiImpacts)}`,
-                  rows: [
-                    ["Training and running the models", `${IMPACT_INFO.carbon.format(aiImpacts.carbon - built, aiImpacts).replace(/ CO₂e$/, "")}`],
-                    ["Making the chips and buildings", `${IMPACT_INFO.carbon.format(built, aiImpacts).replace(/ CO₂e$/, "")}`],
-                    ["Smog from power plants", airShort(aiImpacts)],
-                  ],
-                },
-                water: {
-                  q: "How much water?",
-                  total: IMPACT_INFO.water.format(aiImpacts.water, aiImpacts),
-                  rows: [
-                    ["Cooling the servers", IMPACT_INFO.water.format(cooling, aiImpacts).replace(/ water$/, "")],
-                    ["Power plants", IMPACT_INFO.water.format(aiImpacts.water - cooling, aiImpacts).replace(/ water$/, "")],
-                  ],
-                },
-                land: {
-                  q: "How much data center space?",
-                  total: IMPACT_INFO.land.format(aiImpacts.land, aiImpacts),
-                  rows: [
-                    ["Data center buildings", IMPACT_INFO.land.format(dcLand, aiImpacts).replace(/ land$/, "")],
-                    ["Power plants", IMPACT_INFO.land.format(aiImpacts.land - dcLand, aiImpacts).replace(/ land$/, "")],
-                  ],
-                },
-              };
               return (
                 <>
                   {/* The headings read as one story, top to bottom, like Wren's (Ian, 2026-10-25). */}
                   <h2 id="who-gets-it" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">
                     Where your money goes
                   </h2>
-                  {/* Two rows on a shared grid, so each answer sits right under its card (Ian, 2026-10-25). */}
-                  <ul className="mt-10 grid gap-4 md:grid-flow-col md:grid-cols-3 md:grid-rows-[auto_auto]">
+                  <ul className="mt-10 grid gap-4 md:grid-cols-3">
                     {names.map((name) => {
                       const harms = (["carbon", "air", "water", "land"] as const).filter((k) => aiImpacts[k] > 0 && CHARITIES[k].name === name);
                       return (
-                        <li key={name} className="grid gap-3 md:row-span-2 md:grid-rows-subgrid">
-                          <div className="flex flex-col border-t-[6px] border-rule bg-background">
+                        <li key={name} className="flex flex-col border-t-[6px] border-rule bg-background">
                           {/* Stock photos of the thing itself, never people passed off as charity staff (Ian, 2026-10-25). Unsplash License; sources in the PR. */}
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={`/photos/${harms[0]}.jpg`} alt="" width={800} height={533} loading="lazy" className="aspect-[3/2] w-full object-cover" />
@@ -1497,30 +1461,10 @@ export function Store() {
                             </a>
                           </div>
                           </div>
-                          </div>
-                          {answers[harms[0]] && (
-                            <div className="flex flex-col bg-background px-5 pt-4 pb-5">
-                              <h4 className="font-semibold">{answers[harms[0]]!.q}</h4>
-                              <p className="amount mt-1 text-lg">{answers[harms[0]]!.total}</p>
-                              <div className="amount mt-auto pt-3 text-sm">
-                                {answers[harms[0]]!.rows.map(([label, v]) => (
-                                  <p key={label} className="flex justify-between gap-3 border-t border-border py-1">
-                                    <span>{label}</span>
-                                    <span>{v}</span>
-                                  </p>
-                                ))}
-                              </div>
-                            </div>
-                          )}
                         </li>
                       );
                     })}
                   </ul>
-                  <p className="mt-6 font-semibold">
-                    <Link href="/method" className="underline-offset-4 hover:underline">
-                      Every source →
-                    </Link>
-                  </p>
                 </>
               );
             })()}
@@ -1607,6 +1551,70 @@ export function Store() {
           </Link>
         </p>
       )}
+
+      {!heroPaid && aiImpacts.carbon > 0 && (() => {
+        // Its own section, same columns as the cards above (Ian, 2026-10-25): how much CO2 and smog, water, land.
+        // Each total splits by the shares inside aiImpacts for one kWh of answers.
+        const unit = aiImpactsOf(1);
+        const kwh1 = 1 / (1 - AI_TRAINING_SHARE);
+        const dcLand = aiImpacts.land * ((kwh1 * DATACENTER_M2_YEARS_PER_KWH) / unit.land);
+        const cooling = aiImpacts.water * (coolingWater(kwh1) / unit.water);
+        const built = aiImpacts.carbon * AI_HARDWARE_SHARE;
+        const bare = (k: "carbon" | "water" | "land", v: number) => IMPACT_INFO[k].format(v, aiImpacts).replace(/ (CO₂e|water|land)$/, "");
+        const answers = [
+          {
+            q: "How much CO₂ and smog?",
+            total: `${IMPACT_INFO.carbon.format(aiImpacts.carbon, aiImpacts)}, ${airShort(aiImpacts)}`,
+            rows: [
+              ["Training and running the models", bare("carbon", aiImpacts.carbon - built)],
+              ["Making the chips and buildings", bare("carbon", built)],
+              ["Smog from power plants", airShort(aiImpacts)],
+            ],
+          },
+          {
+            q: "How much water?",
+            total: IMPACT_INFO.water.format(aiImpacts.water, aiImpacts),
+            rows: [
+              ["Cooling the servers", bare("water", cooling)],
+              ["Power plants", bare("water", aiImpacts.water - cooling)],
+            ],
+          },
+          {
+            q: "How much land?",
+            total: IMPACT_INFO.land.format(aiImpacts.land, aiImpacts),
+            rows: [
+              ["Data centers", bare("land", dcLand)],
+              ["Power plants", bare("land", aiImpacts.land - dcLand)],
+            ],
+          },
+        ].filter((_, i) => [aiImpacts.carbon, aiImpacts.water, aiImpacts.land][i] > 0);
+        return (
+          <section aria-labelledby="how-numbers" className="py-16">
+            <h2 id="how-numbers" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">How I got these numbers</h2>
+            <ul className="mt-10 grid gap-4 md:grid-cols-3">
+              {answers.map((b) => (
+                <li key={b.q} className="flex flex-col border-t-[6px] border-rule bg-card px-5 pt-4 pb-5">
+                  <h3 className="text-xl font-semibold">{b.q}</h3>
+                  <p className="amount mt-1 text-lg">{b.total}</p>
+                  <div className="amount mt-auto pt-4 text-sm">
+                    {b.rows.map(([label, v]) => (
+                      <p key={label} className="flex justify-between gap-3 border-t border-border py-1">
+                        <span>{label}</span>
+                        <span>{v}</span>
+                      </p>
+                    ))}
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-6 font-semibold">
+              <Link href="/method" className="underline-offset-4 hover:underline">
+                Every source →
+              </Link>
+            </p>
+          </section>
+        );
+      })()}
 
       {/* Heading on the left, receipt on the right, on its own band (Ian, 2026-10-25). */}
       <section aria-labelledby="no-cut" className="relative isolate py-16 sm:grid sm:grid-cols-2 sm:gap-x-12">
