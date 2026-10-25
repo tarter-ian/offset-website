@@ -1594,8 +1594,8 @@ export function Store() {
             <ul className="mt-10 grid gap-4 md:grid-cols-3">
               {answers.map((b) => (
                 <li key={b.q} className="flex flex-col border-t-[6px] border-rule bg-card px-5 pt-4 pb-5">
-                  <h3 className="text-xl font-semibold">{b.q}</h3>
-                  <p className="amount mt-1 text-lg">{b.total}</p>
+                  {/* No question headings (Ian, 2026-10-25): the total is the heading, the rows say what it's made of. */}
+                  <h3 className="amount text-lg font-semibold">{b.total}</h3>
                   <div className="amount mt-auto pt-4 text-sm">
                     {b.rows.map(([label, v]) => (
                       <p key={label} className="flex justify-between gap-3 border-t border-border py-1">
