@@ -1409,18 +1409,18 @@ export function Store() {
                       ))}
                   </span>
                 </span>
-              ) : (
+              ) : heroAhead === "lifetime" && !heroInPlan ? null : (
                 <span className="amount text-2xl font-semibold">
-                  {usd(heroBill.today)}{heroAhead === "lifetime" ? <span className="text-base font-normal text-muted"> once</span> : aiCover.past ? " for life" : " once"}
+                  {usd(heroBill.today)} {aiCover.past ? "for life" : "once"}
                 </span>
               )}
               <button
                 type="button"
                 onClick={reviewAndPay}
-                className="min-h-11 shrink-0 cursor-pointer rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-strong"
+                className={`min-h-11 shrink-0 cursor-pointer rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-strong ${heroAhead === "lifetime" && aiCover.ahead === "lifetime" && !heroInPlan ? "min-h-14 w-full text-xl" : ""}`}
               >
                 {/* Each phrase once on the first screen (Ian, 2026-10-25). */}
-                {heroInPlan ? "Review and give" : "Offset it"}
+                {heroInPlan ? "Review and give" : aiCover.ahead === "lifetime" && heroAhead === "lifetime" ? <>Give <span className="amount">{usd(heroBill.today)}</span></> : "Offset it"}
               </button>
             </div>
           )}
