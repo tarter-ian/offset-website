@@ -1210,6 +1210,72 @@ export function Store() {
     resetAiCover();
     setEntered((e) => ({ ...e, ai: false }));
   };
+  // How each AI total was reached, one block per charity card (Ian, 2026-10-25). Shown in its own section on
+  // wide screens and under its card on phones, so each card keeps its numbers next to it.
+  const aiAnswers = (() => {
+    // Each total splits by the shares inside aiImpacts for one kWh of answers.
+    const unit = aiImpactsOf(1);
+    const kwh1 = 1 / (1 - AI_TRAINING_SHARE);
+    const dcLand = aiImpacts.land * ((kwh1 * DATACENTER_M2_YEARS_PER_KWH) / unit.land);
+    const cooling = aiImpacts.water * (coolingWater(kwh1) / unit.water);
+    const built = aiImpacts.carbon * AI_HARDWARE_SHARE;
+    const bare = (k: "carbon" | "water" | "land", v: number) => IMPACT_INFO[k].format(v, aiImpacts).replace(/ (CO₂e|water|land)$/, "");
+    // Each line also shows what 1,000 prompts cause (one gave tiny numbers), from the same factors at today's rates (Ian, 2026-10-25:
+    // electricity is unintuitive; show one prompt through every number).
+    const one = aiImpactsOf((ctx.aiWhPerPrompt ?? WH_PER_AI_PROMPT) / 1000);
+    const sig = (n: number) => Number(n.toPrecision(2)).toLocaleString();
+    const oneDc = one.land * ((kwh1 * DATACENTER_M2_YEARS_PER_KWH) / unit.land);
+    const oneCool = one.water * (coolingWater(kwh1) / unit.water);
+    const oneBuilt = one.carbon * AI_HARDWARE_SHARE;
+    return [
+      {
+        key: "carbon",
+        total: `${IMPACT_INFO.carbon.format(aiImpacts.carbon, aiImpacts)}, ${airShort(aiImpacts)}`,
+        rows: [
+          // Each row says where it comes from (Ian, 2026-10-25): burning fuel for power, and making servers (chips included).
+          ["Power plant CO₂", `${sig((one.carbon - oneBuilt) * 1e6)} g`, bare("carbon", aiImpacts.carbon - built)],
+          ["Making servers", `${sig(oneBuilt * 1e6)} g`, bare("carbon", built)],
+          ["Power plant smog", `${sig(one.smogL * 1e6)} mL`, airShort(aiImpacts).replace(/ smog$/, "")],
+        ],
+      },
+      {
+        key: "water",
+        total: IMPACT_INFO.water.format(aiImpacts.water, aiImpacts),
+        rows: [
+          // Power plants first in every block, as in the CO2 one (Ian, 2026-10-25).
+          ["Power plants", `${sig((one.water - oneCool) * 1e6)} mL`, bare("water", aiImpacts.water - cooling)],
+          ["Cooling servers", `${sig(oneCool * 1e6)} mL`, bare("water", cooling)],
+        ],
+      },
+      {
+        key: "land",
+        total: IMPACT_INFO.land.format(aiImpacts.land, aiImpacts),
+        rows: [
+          ["Power plants", `${sig((one.land - oneDc) * 1e7)} cm²`, bare("land", aiImpacts.land - dcLand)],
+          ["Data centers", `${sig(oneDc * 1e7)} cm²`, bare("land", dcLand)],
+        ],
+      },
+    ].filter((b) => aiImpacts[b.key as "carbon" | "water" | "land"] > 0);
+  })();
+  const numberBlock = (b: (typeof aiAnswers)[number], cls = "") => (
+    <li key={`${b.key}${cls}`} className={`flex flex-col border-t-[6px] border-rule bg-card px-5 pt-4 pb-5 ${cls}`}>
+      {/* No question headings (Ian, 2026-10-25): the total is the heading, the rows say what it's made of. */}
+      <h3 className="amount text-lg font-semibold">{b.total}</h3>
+      <div className="amount grid grid-cols-[1fr_auto_auto] gap-x-3 pt-4 text-sm">
+        <span />
+        <span className="pb-1 text-right text-xs whitespace-nowrap text-muted">1k prompts</span>
+        <span className="pb-1 text-right text-xs text-muted">You</span>
+        {b.rows.map(([label, prompt, v]) => (
+          <Fragment key={label}>
+            {/* Labels stay on one line (Ian, 2026-10-25). */}
+            <span className="border-t border-border py-1 whitespace-nowrap">{label}</span>
+            <span className="border-t border-border py-1 text-right text-muted">{prompt}</span>
+            <span className="border-t border-border py-1 text-right">{v}</span>
+          </Fragment>
+        ))}
+      </div>
+    </li>
+  );
   const reviewAndPay = () => {
     setPlan((cur) => [...cur, ...heroIds.filter((id) => !cur.includes(id) && !paidCover(covered[id]))]);
     setPicked((x) => ({ ...x, ...Object.fromEntries(heroLines.map((l) => [l.p.id, { ...x[l.p.id], ...l.cover }])) }));
@@ -1438,7 +1504,8 @@ export function Store() {
                     {names.map((name) => {
                       const harms = (["carbon", "air", "water", "land"] as const).filter((k) => aiImpacts[k] > 0 && CHARITIES[k].name === name);
                       return (
-                        <li key={name} className="flex flex-col border-t-[6px] border-rule bg-background">
+                        <Fragment key={name}>
+                        <li className="flex flex-col border-t-[6px] border-rule bg-background">
                           {/* Stock photos of the thing itself, never people passed off as charity staff (Ian, 2026-10-25). Unsplash License; sources in the PR. */}
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={`/photos/${harms[0]}.jpg`} alt="" width={800} height={533} loading="lazy" className="aspect-[3/2] w-full object-cover" />
@@ -1463,9 +1530,16 @@ export function Store() {
                           </div>
                           </div>
                         </li>
+                        {aiAnswers.filter((b) => (harms as readonly string[]).includes(b.key)).map((b) => numberBlock(b, "mb-6 md:hidden"))}
+                        </Fragment>
                       );
                     })}
                   </ul>
+                  <p className="mt-6 font-semibold md:hidden">
+                    <Link href="/method#ai" className="underline-offset-4 hover:underline">
+                      Read the full explanation →
+                    </Link>
+                  </p>
                 </>
               );
             })()}
@@ -1553,73 +1627,11 @@ export function Store() {
         </p>
       )}
 
-      {!heroPaid && aiImpacts.carbon > 0 && (() => {
-        // Its own section, same columns as the cards above (Ian, 2026-10-25): how much CO2 and smog, water, land.
-        // Each total splits by the shares inside aiImpacts for one kWh of answers.
-        const unit = aiImpactsOf(1);
-        const kwh1 = 1 / (1 - AI_TRAINING_SHARE);
-        const dcLand = aiImpacts.land * ((kwh1 * DATACENTER_M2_YEARS_PER_KWH) / unit.land);
-        const cooling = aiImpacts.water * (coolingWater(kwh1) / unit.water);
-        const built = aiImpacts.carbon * AI_HARDWARE_SHARE;
-        const bare = (k: "carbon" | "water" | "land", v: number) => IMPACT_INFO[k].format(v, aiImpacts).replace(/ (CO₂e|water|land)$/, "");
-        // Each line also shows what 1,000 prompts cause (one gave tiny numbers), from the same factors at today's rates (Ian, 2026-10-25:
-        // electricity is unintuitive; show one prompt through every number).
-        const one = aiImpactsOf((ctx.aiWhPerPrompt ?? WH_PER_AI_PROMPT) / 1000);
-        const sig = (n: number) => Number(n.toPrecision(2)).toLocaleString();
-        const oneDc = one.land * ((kwh1 * DATACENTER_M2_YEARS_PER_KWH) / unit.land);
-        const oneCool = one.water * (coolingWater(kwh1) / unit.water);
-        const oneBuilt = one.carbon * AI_HARDWARE_SHARE;
-        const answers = [
-          {
-            q: "How much CO₂ and smog?",
-            total: `${IMPACT_INFO.carbon.format(aiImpacts.carbon, aiImpacts)}, ${airShort(aiImpacts)}`,
-            rows: [
-              // Each row says where it comes from (Ian, 2026-10-25): burning fuel for power, and making servers (chips included).
-              ["Power plant CO₂", `${sig((one.carbon - oneBuilt) * 1e6)} g`, bare("carbon", aiImpacts.carbon - built)],
-              ["Making servers", `${sig(oneBuilt * 1e6)} g`, bare("carbon", built)],
-              ["Power plant smog", `${sig(one.smogL * 1e6)} mL`, airShort(aiImpacts).replace(/ smog$/, "")],
-            ],
-          },
-          {
-            q: "How much water?",
-            total: IMPACT_INFO.water.format(aiImpacts.water, aiImpacts),
-            rows: [
-              ["Cooling servers", `${sig(oneCool * 1e6)} mL`, bare("water", cooling)],
-              ["Power plants", `${sig((one.water - oneCool) * 1e6)} mL`, bare("water", aiImpacts.water - cooling)],
-            ],
-          },
-          {
-            q: "How much land?",
-            total: IMPACT_INFO.land.format(aiImpacts.land, aiImpacts),
-            rows: [
-              ["Data centers", `${sig(oneDc * 1e7)} cm²`, bare("land", dcLand)],
-              ["Power plants", `${sig((one.land - oneDc) * 1e7)} cm²`, bare("land", aiImpacts.land - dcLand)],
-            ],
-          },
-        ].filter((_, i) => [aiImpacts.carbon, aiImpacts.water, aiImpacts.land][i] > 0);
-        return (
-          <section aria-labelledby="how-numbers" className="py-16">
+      {!heroPaid && aiImpacts.carbon > 0 && (
+          <section aria-labelledby="how-numbers" className="hidden py-16 md:block">
             <h2 id="how-numbers" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">How I got these numbers</h2>
             <ul className="mt-10 grid gap-4 md:grid-cols-3">
-              {answers.map((b) => (
-                <li key={b.q} className="flex flex-col border-t-[6px] border-rule bg-card px-5 pt-4 pb-5">
-                  {/* No question headings (Ian, 2026-10-25): the total is the heading, the rows say what it's made of. */}
-                  <h3 className="amount text-lg font-semibold">{b.total}</h3>
-                  <div className="amount grid grid-cols-[1fr_auto_auto] gap-x-3 pt-4 text-sm">
-                    <span />
-                    <span className="pb-1 text-right text-xs whitespace-nowrap text-muted">1k prompts</span>
-                    <span className="pb-1 text-right text-xs text-muted">You</span>
-                    {b.rows.map(([label, prompt, v]) => (
-                      <Fragment key={label}>
-                        {/* Labels stay on one line (Ian, 2026-10-25). */}
-                        <span className="border-t border-border py-1 whitespace-nowrap">{label}</span>
-                        <span className="border-t border-border py-1 text-right text-muted">{prompt}</span>
-                        <span className="border-t border-border py-1 text-right">{v}</span>
-                      </Fragment>
-                    ))}
-                  </div>
-                </li>
-              ))}
+              {aiAnswers.map((b) => numberBlock(b))}
             </ul>
             <p className="mt-6 font-semibold">
               <Link href="/method#ai" className="underline-offset-4 hover:underline">
@@ -1627,8 +1639,7 @@ export function Store() {
               </Link>
             </p>
           </section>
-        );
-      })()}
+        )}
 
       {/* Heading on the left, receipt on the right, on its own band (Ian, 2026-10-25). */}
       <section aria-labelledby="no-cut" className="relative isolate py-16 sm:grid sm:grid-cols-2 sm:gap-x-12">
