@@ -1469,22 +1469,24 @@ export function Store() {
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={`/photos/${harms[0]}.jpg`} alt="" width={800} height={533} loading="lazy" className="aspect-[3/2] w-full object-cover" />
                           <div className="flex flex-1 flex-col px-5 pt-5 pb-6">
-                          <a href={CHARITIES[harms[0]].url} className="mb-4 block text-xl font-semibold underline-offset-4 hover:underline">
-                            {name}
-                          </a>
-                          {/* The sum as a bill: one font, amount x price on the left, dollars on the right (Ian, 2026-10-25). */}
-                          <Link href="/method" className="amount mt-auto block border-t border-border pt-3 text-sm hover:underline">
-                            {harms.map((k) => (
-                              <span key={k} className="flex justify-between gap-3">
-                                <span>{sum[k]}</span>
-                                <span>{usd(costs[k])}</span>
-                              </span>
-                            ))}
-                            <span className="mt-1 flex justify-between gap-3 border-t border-border pt-1 font-semibold">
-                              <span>Total</span>
+                          {/* Read top to bottom: the harm, what it costs to cut, who gets the money (Ian, 2026-10-25). */}
+                          <h3 className="mb-4 text-xl font-semibold">
+                            {harms.map((k) => IMPACT_INFO[k].label).join(" and ").replace(/^(.)(.*) and (.)/, (_, a, rest, c) => `${a}${rest} and ${c.toLowerCase()}`)}
+                          </h3>
+                          <div className="amount mt-auto border-t border-border pt-3 text-sm">
+                            <Link href="/method" className="block hover:underline">
+                              {harms.map((k) => (
+                                <span key={k} className="flex justify-between gap-3">
+                                  <span>{sum[k]}</span>
+                                  <span>{usd(costs[k])}</span>
+                                </span>
+                              ))}
+                            </Link>
+                            <a href={CHARITIES[harms[0]].url} className="mt-1 flex justify-between gap-3 border-t border-border pt-1 font-semibold hover:underline">
+                              <span>To {name}</span>
                               <span>{usd(gets(name))}</span>
-                            </span>
-                          </Link>
+                            </a>
+                          </div>
                           </div>
                         </li>
                       );
