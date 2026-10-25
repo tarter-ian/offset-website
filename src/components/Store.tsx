@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import { ActivityUpload } from "./ActivityUpload";
 import { CheckoutSteps, DirectPledgeForm } from "./Checkout";
 import { SteadyCheck } from "./SteadyCheck";
-import { LIFETIME_TO_AGE } from "@/lib/factors";
+import { AI_TRAINING_SHARE, LIFETIME_TO_AGE } from "@/lib/factors";
 import { joinList, ListInvite, ListOptIn } from "./ListOptIn";
 import { AiExportUpload } from "./AiExportUpload";
 import { AiQuickPick } from "./AiQuickPick";
@@ -21,7 +21,7 @@ import { NumberInput, Select } from "./fields";
 import { STATE_OPTIONS, STATES, type StateCode } from "@/lib/data/states";
 import { airShort, IMPACT_INFO, lifeText } from "@/lib/impacts";
 import { CHARITIES } from "@/lib/charities";
-import { IMPACT_KEYS, type ImpactKey, sumImpacts, type Impacts } from "@/lib/footprint";
+import { aiImpacts as aiImpactsOf, IMPACT_KEYS, type ImpactKey, sumImpacts, type Impacts } from "@/lib/footprint";
 import { howEstimated, whereItGoes } from "@/lib/methods";
 import { isPhone } from "@/lib/extension";
 import { PROVIDERS, type ProviderId } from "@/lib/providers";
@@ -1575,9 +1575,48 @@ export function Store() {
         </p>
       )}
 
-      {/* Can I check it: one claim and where to check it, on its own band instead of a rule (Ian, 2026-10-25). */}
-      {/* Heading on the left, receipt on the right (Ian, 2026-10-25). */}
-      <section aria-labelledby="no-cut" className="py-16 sm:grid sm:grid-cols-2 sm:gap-x-12">
+      {!heroPaid && aiImpacts.carbon > 0 && (
+        // How the cards' amounts were found, as a picture: use, then power, then harms (Ian, 2026-10-25).
+        // AI's harms all scale with its power, so the power is read back from the carbon.
+        <section aria-labelledby="how-numbers" className="py-16">
+          <h2 id="how-numbers" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">How I got these numbers</h2>
+          <div className="amount mt-8 grid items-center gap-3 text-sm sm:grid-cols-[1fr_auto_1fr_auto_1fr]">
+            <div className="border-t-[6px] border-rule bg-card px-4 py-3">
+              {dueLines.map((l) => (
+                <p key={l.p.id}>{amountText(l.p, l.amount)}</p>
+              ))}
+              <p className="text-muted">{heroAhead === "lifetime" ? `to age ${LIFETIME_TO_AGE}` : BILLING[billing].per}</p>
+            </div>
+            <span aria-hidden="true" className="text-center text-xl text-muted">
+              <span className="sm:hidden">↓</span>
+              <span className="hidden sm:inline">→</span>
+            </span>
+            <div className="border-t-[6px] border-rule bg-card px-4 py-3">
+              <p>{Math.round(aiImpacts.carbon / aiImpactsOf(1).carbon / (1 - AI_TRAINING_SHARE)).toLocaleString()} kWh</p>
+              <p className="text-muted">with training and data centers</p>
+            </div>
+            <span aria-hidden="true" className="text-center text-xl text-muted">
+              <span className="sm:hidden">↓</span>
+              <span className="hidden sm:inline">→</span>
+            </span>
+            <div className="border-t-[6px] border-rule bg-card px-4 py-3">
+              <p>{IMPACT_INFO.carbon.format(aiImpacts.carbon, aiImpacts)}</p>
+              <p>{airShort(aiImpacts)}</p>
+              <p>{IMPACT_INFO.water.format(aiImpacts.water, aiImpacts)}</p>
+              <p>{IMPACT_INFO.land.format(aiImpacts.land, aiImpacts)}</p>
+            </div>
+          </div>
+          <p className="mt-6 font-semibold">
+            <Link href="/method" className="underline-offset-4 hover:underline">
+              Every source →
+            </Link>
+          </p>
+        </section>
+      )}
+
+      {/* Heading on the left, receipt on the right, on its own band (Ian, 2026-10-25). */}
+      <section aria-labelledby="no-cut" className="relative isolate py-16 sm:grid sm:grid-cols-2 sm:gap-x-12">
+        <div aria-hidden="true" className="absolute inset-y-0 left-1/2 -z-10 w-screen -translate-x-1/2 bg-card" />
         <h2 id="no-cut" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">
           I don&apos;t take a cut.
         </h2>
