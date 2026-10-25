@@ -1411,7 +1411,7 @@ export function Store() {
                 </span>
               ) : (
                 <span className="amount text-2xl font-semibold">
-                  {usd(heroBill.today)}{heroAhead === "lifetime" ? "" : aiCover.past ? " for life" : " once"}
+                  {usd(heroBill.today)}{heroAhead === "lifetime" ? <span className="text-base font-normal text-muted"> once</span> : aiCover.past ? " for life" : " once"}
                 </span>
               )}
               <button
