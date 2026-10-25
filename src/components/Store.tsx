@@ -989,22 +989,23 @@ export function Store() {
         {info === p.id && infoPanel(p)}
         {/* An item offset for life shows nothing here: its pale green and "Offset for life" say it (Ian, 2026-10-13). */}
         {paid?.kind !== "life" && !nothing && (
-        <div className="mt-auto flex items-center justify-between gap-3 pt-3">
+        // The price row is always last and bottom-aligned, so every Add in a row lines up (Ian, 2026-10-25).
+        <div className="mt-auto flex items-end justify-between gap-3 pt-3">
           <span className="leading-tight">
             <span className="amount block text-lg font-semibold">{tp.big}</span>
             <span className="block text-xs text-muted">{tp.note}</span>
+            {alt && (
+              <button
+                type="button"
+                onClick={() => setPicked((x) => ({ ...x, [p.id]: { ...x[p.id], ahead: alt.ahead } }))}
+                className="mt-1 inline-flex min-h-9 items-center text-left text-xs underline underline-offset-4"
+              >
+                {alt.text}
+              </button>
+            )}
           </span>
           {addButton(p, true)}
         </div>
-        )}
-        {alt && !nothing && paid?.kind !== "life" && (
-          <button
-            type="button"
-            onClick={() => setPicked((x) => ({ ...x, [p.id]: { ...x[p.id], ahead: alt.ahead } }))}
-            className="mt-1 inline-flex min-h-9 items-center self-start text-left text-xs underline underline-offset-4"
-          >
-            {alt.text}
-          </button>
         )}
       </li>
     );
@@ -1450,17 +1451,53 @@ export function Store() {
                 water: `${bare("water")} × $${(WATER_MODES[DEFAULT_WATER_MODE].per1000Gal / 3.78541).toFixed(2)}/1,000 L`,
                 land: `${bare("land")} × $${LAND_USD_PER_ACRE}/acre`,
               };
+              // Under each card, the answer to Ian's question for that harm (2026-10-25): how much CO2 and smog,
+              // how much water, how much data center. Each total splits by the shares inside aiImpacts for one kWh of answers.
+              const unit = aiImpactsOf(1);
+              const kwh1 = 1 / (1 - AI_TRAINING_SHARE);
+              const dcLand = aiImpacts.land * ((kwh1 * DATACENTER_M2_YEARS_PER_KWH) / unit.land);
+              const cooling = aiImpacts.water * (coolingWater(kwh1) / unit.water);
+              const built = aiImpacts.carbon * AI_HARDWARE_SHARE;
+              const answers: Partial<Record<ImpactKey, { q: string; total: string; rows: [string, string][] }>> = {
+                carbon: {
+                  q: "How much CO₂ and smog?",
+                  total: `${IMPACT_INFO.carbon.format(aiImpacts.carbon, aiImpacts)}, ${airShort(aiImpacts)}`,
+                  rows: [
+                    ["Training and running the models", `${IMPACT_INFO.carbon.format(aiImpacts.carbon - built, aiImpacts).replace(/ CO₂e$/, "")}`],
+                    ["Making the chips and buildings", `${IMPACT_INFO.carbon.format(built, aiImpacts).replace(/ CO₂e$/, "")}`],
+                    ["Smog from power plants", airShort(aiImpacts)],
+                  ],
+                },
+                water: {
+                  q: "How much water?",
+                  total: IMPACT_INFO.water.format(aiImpacts.water, aiImpacts),
+                  rows: [
+                    ["Cooling the servers", IMPACT_INFO.water.format(cooling, aiImpacts).replace(/ water$/, "")],
+                    ["Power plants", IMPACT_INFO.water.format(aiImpacts.water - cooling, aiImpacts).replace(/ water$/, "")],
+                  ],
+                },
+                land: {
+                  q: "How much data center space?",
+                  total: IMPACT_INFO.land.format(aiImpacts.land, aiImpacts),
+                  rows: [
+                    ["Data center buildings", IMPACT_INFO.land.format(dcLand, aiImpacts).replace(/ land$/, "")],
+                    ["Power plants", IMPACT_INFO.land.format(aiImpacts.land - dcLand, aiImpacts).replace(/ land$/, "")],
+                  ],
+                },
+              };
               return (
                 <>
                   {/* The headings read as one story, top to bottom, like Wren's (Ian, 2026-10-25). */}
                   <h2 id="who-gets-it" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">
                     Where your money goes
                   </h2>
-                  <ul className="mt-10 grid gap-4 md:grid-cols-3">
+                  {/* Two rows on a shared grid, so each answer sits right under its card (Ian, 2026-10-25). */}
+                  <ul className="mt-10 grid gap-4 md:grid-flow-col md:grid-cols-3 md:grid-rows-[auto_auto]">
                     {names.map((name) => {
                       const harms = (["carbon", "air", "water", "land"] as const).filter((k) => aiImpacts[k] > 0 && CHARITIES[k].name === name);
                       return (
-                        <li key={name} className="flex flex-col border-t-[6px] border-rule bg-background">
+                        <li key={name} className="grid gap-3 md:row-span-2 md:grid-rows-subgrid">
+                          <div className="flex flex-col border-t-[6px] border-rule bg-background">
                           {/* Stock photos of the thing itself, never people passed off as charity staff (Ian, 2026-10-25). Unsplash License; sources in the PR. */}
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={`/photos/${harms[0]}.jpg`} alt="" width={800} height={533} loading="lazy" className="aspect-[3/2] w-full object-cover" />
@@ -1484,10 +1521,30 @@ export function Store() {
                             </a>
                           </div>
                           </div>
+                          </div>
+                          {answers[harms[0]] && (
+                            <div className="flex flex-col bg-background px-5 pt-4 pb-5">
+                              <h4 className="font-semibold">{answers[harms[0]]!.q}</h4>
+                              <p className="amount mt-1 text-lg">{answers[harms[0]]!.total}</p>
+                              <div className="amount mt-auto pt-3 text-sm">
+                                {answers[harms[0]]!.rows.map(([label, v]) => (
+                                  <p key={label} className="flex justify-between gap-3 border-t border-border py-1">
+                                    <span>{label}</span>
+                                    <span>{v}</span>
+                                  </p>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </li>
                       );
                     })}
                   </ul>
+                  <p className="mt-6 font-semibold">
+                    <Link href="/method" className="underline-offset-4 hover:underline">
+                      Every source →
+                    </Link>
+                  </p>
                 </>
               );
             })()}
@@ -1573,79 +1630,6 @@ export function Store() {
             Your record
           </Link>
         </p>
-      )}
-
-      {!heroPaid && aiImpacts.carbon > 0 && (
-        // How the cards' amounts were found, as a picture: use, then power, then harms (Ian, 2026-10-25).
-        // AI's harms all scale with its power, so the power is read back from the carbon.
-        <section aria-labelledby="how-numbers" className="py-16">
-          <h2 id="how-numbers" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">How I got these numbers</h2>
-          {(() => {
-            // Ian's three questions (2026-10-25): how much data center, how much water, how much CO2 and smog.
-            // Each total splits by the shares inside aiImpacts for one kWh of answers.
-            const unit = aiImpactsOf(1);
-            const kwh1 = 1 / (1 - AI_TRAINING_SHARE);
-            const fmt = (k: "carbon" | "water" | "land", v: number) => IMPACT_INFO[k].format(v, aiImpacts).replace(/ (CO₂e|water|land)$/, "");
-            const dcLand = aiImpacts.land * ((kwh1 * DATACENTER_M2_YEARS_PER_KWH) / unit.land);
-            const cooling = aiImpacts.water * (coolingWater(kwh1) / unit.water);
-            const built = aiImpacts.carbon * AI_HARDWARE_SHARE;
-            const blocks: { title: string; total: string; rows: [string, string][] }[] = [
-              {
-                title: "Data centers",
-                total: IMPACT_INFO.land.format(aiImpacts.land, aiImpacts),
-                rows: [
-                  ["Data center buildings", fmt("land", dcLand)],
-                  ["Power plants", fmt("land", aiImpacts.land - dcLand)],
-                ],
-              },
-              {
-                title: "Water",
-                total: IMPACT_INFO.water.format(aiImpacts.water, aiImpacts),
-                rows: [
-                  ["Cooling the servers", fmt("water", cooling)],
-                  ["Power plants", fmt("water", aiImpacts.water - cooling)],
-                ],
-              },
-              {
-                title: "CO₂ and smog",
-                total: `${IMPACT_INFO.carbon.format(aiImpacts.carbon, aiImpacts)}, ${airShort(aiImpacts)}`,
-                rows: [
-                  ["Training and running the models", fmt("carbon", aiImpacts.carbon - built)],
-                  ["Making the chips and buildings", fmt("carbon", built)],
-                  ["Smog from power plants", airShort(aiImpacts)],
-                ],
-              },
-            ];
-            return (
-              <>
-                <p className="amount mt-6 text-sm">
-                  {dueLines.map((l) => amountText(l.p, l.amount)).join(" and ")}, {heroAhead === "lifetime" ? `to age ${LIFETIME_TO_AGE}` : BILLING[billing].per}
-                </p>
-                <ul className="mt-6 grid gap-3 sm:grid-cols-3">
-                  {blocks.map((b) => (
-                    <li key={b.title} className="flex flex-col border-t-[6px] border-rule bg-card px-5 pt-4 pb-5">
-                      <h3 className="text-xl font-semibold">{b.title}</h3>
-                      <p className="amount mt-1 text-lg">{b.total}</p>
-                      <div className="amount mt-auto pt-4 text-sm">
-                        {b.rows.map(([label, v]) => (
-                          <p key={label} className="flex justify-between gap-3 border-t border-border py-1">
-                            <span>{label}</span>
-                            <span>{v}</span>
-                          </p>
-                        ))}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            );
-          })()}
-          <p className="mt-6 font-semibold">
-            <Link href="/method" className="underline-offset-4 hover:underline">
-              Every source →
-            </Link>
-          </p>
-        </section>
       )}
 
       {/* Heading on the left, receipt on the right, on its own band (Ian, 2026-10-25). */}
