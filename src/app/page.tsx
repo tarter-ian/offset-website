@@ -14,7 +14,7 @@ export default function Home() {
     <div className="mx-auto max-w-5xl px-4">
       <Store />
 
-      <section aria-labelledby="money" className="mt-12 grid gap-8 border-t-2 border-rule py-16 md:grid-cols-[14rem_minmax(0,1fr)]">
+      <section aria-labelledby="money" className="grid gap-8 border-t-2 border-rule py-16 md:grid-cols-[14rem_minmax(0,1fr)]">
         <h2 id="money" className="text-2xl font-bold">
           Where your money goes
         </h2>
