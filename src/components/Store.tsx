@@ -1565,13 +1565,13 @@ export function Store() {
         return open ? null : (
           <section aria-labelledby="more-heading" className="border-t-2 border-rule py-16">
             <h2 id="more-heading" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">Everything you can offset</h2>
-            <ul className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <ul className="mt-6 grid grid-cols-3 gap-2 sm:grid-cols-6">
               {SECTIONS.filter((x) => x.key !== "ai").map((x) => (
                 <li key={x.key}>
                   <button
                     type="button"
                     onClick={() => openAt(x.key)}
-                    className="min-h-20 w-full cursor-pointer rounded-md border-2 border-rule px-4 text-xl font-semibold hover:bg-foreground hover:text-background sm:text-2xl"
+                    className="min-h-11 w-full cursor-pointer rounded-md border-2 border-rule px-4 font-semibold hover:bg-foreground hover:text-background"
                   >
                     {x.title}
                   </button>
