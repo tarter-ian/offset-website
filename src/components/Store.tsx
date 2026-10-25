@@ -1580,7 +1580,8 @@ export function Store() {
       )}
 
       {/* Can I check it: one claim and where to check it, on its own band instead of a rule (Ian, 2026-10-25). */}
-      <section aria-labelledby="no-cut" className="py-16">
+      {/* Heading on the left, receipt on the right (Ian, 2026-10-25). */}
+      <section aria-labelledby="no-cut" className="py-16 sm:grid sm:grid-cols-2 sm:gap-x-12">
         <h2 id="no-cut" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">
           I don&apos;t take a cut.
         </h2>
@@ -1589,17 +1590,13 @@ export function Store() {
           (() => {
             const gifts = payRows(harmSplit(heroTotals, ctx, billing), billing, autopay).filter((r) => !r.key.endsWith("-repeat"));
             const pay = onePayment(gifts);
-            const to = new Map<string, number>();
-            for (const r of gifts) to.set(CHARITIES[r.charity].name, (to.get(CHARITIES[r.charity].name) ?? 0) + r.donation);
-            // A receipt in the same style as the cards above (Ian found the split bar read as one black bar).
+            // A receipt in the same style as the cards above, with the charities on one line (Ian, 2026-10-25).
             return (
-              <div className="amount mt-6 max-w-md text-sm">
-                {[...to].map(([name, amount]) => (
-                  <p key={name} className="flex justify-between gap-3 border-t border-border py-1">
-                    <span>To {name}</span>
-                    <span>{usd(amount)}</span>
-                  </p>
-                ))}
+              <div className="amount mt-6 text-sm sm:mt-0 sm:self-center">
+                <p className="flex justify-between gap-3 border-t border-border py-1">
+                  <span>To the charities</span>
+                  <span>{usd(pay.donation)}</span>
+                </p>
                 <p className="flex justify-between gap-3 border-t border-border py-1">
                   <span>Card and Pledge fees</span>
                   <span>{usd(pay.fee)}</span>
@@ -1627,12 +1624,14 @@ export function Store() {
           I buy no carbon credits.
         </p>
         )}
-        {/* One link, the proof (Ian, 2026-10-25: three links was too many). The cards above link to the method. */}
-        <p className="mt-6 font-semibold">
-          <Link href="/ledger" className="underline-offset-4 hover:underline">
-            Where every dollar went →
-          </Link>
-        </p>
+        {/* One link, the proof (Ian, 2026-10-25: three links was too many), and none beside the receipt, which already shows it. */}
+        {!(PAYMENT_MODE === "pledgeapi" && !heroPaid) && (
+          <p className="mt-6 font-semibold">
+            <Link href="/ledger" className="underline-offset-4 hover:underline">
+              Where every dollar went →
+            </Link>
+          </p>
+        )}
       </section>
 
       {(() => {
