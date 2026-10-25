@@ -223,7 +223,7 @@ export default function MethodPage() {
           </ul>
           <p className="mt-2 text-muted">Power plants, cooling, and building the servers and data centers, plus a safety margin.</p>
         </Step>
-        <Step n={3} title="What covers it">
+        <Step n={3} title="What offsets it">
           <ul className="figures space-y-1">
             {IMPACT_KEYS.filter((k) => EX_DOLLARS[k] > 0).map((k) => (
               <li key={k} className="flex justify-between gap-3">
@@ -308,7 +308,7 @@ export default function MethodPage() {
         <li>
           <strong className="font-medium text-foreground">Devices</strong> counts the carbon to make each phone, laptop, tablet, computer, TV and
           console you&apos;ll go through (for example {F.DEVICES.phone.kgToMake} kg for a phone kept {F.DEVICES.phone.yearsKept} years), the water and land used to mine and make them, plus the
-          power to run them. If you also cover home electricity month to month, the running power overlaps with it.
+          power to run them. If you also offset home electricity month to month, the running power overlaps with it.
         </li>
       </ul>
 
@@ -331,8 +331,7 @@ export default function MethodPage() {
 
       <h2 className="mt-10 text-xl font-semibold">Margins</h2>
       <p className="mt-2 text-muted">
-        I&apos;d rather cover too much than too little, so I add a margin to every estimate. Linking an account replaces an estimate
-        with measured data and shrinks its margin.
+        My numbers could be a bit low, so I add a little extra to be safe. Measured use gets a smaller margin than a guess.
       </p>
       <ul className="mt-4 space-y-2">
         {(Object.keys(MARGINS) as Confidence[]).map((c) => (
@@ -387,9 +386,9 @@ export default function MethodPage() {
 
       <h2 className="mt-10 text-xl font-semibold">What &ldquo;Fully Offset&rdquo; means</h2>
       <p className="mt-2 text-muted">
-        A Fully Offset month is one where you approved donations covering the estimate plus its margin for every kind of
-        harm I count. Covering an item or a whole area earns its badge; covering everything for all five kinds of harm earns the
-        complete badge. Donations fund charity work, not carbon credits. If you lower an estimate by hand by
+        A Fully Offset month is one where you approved donations for the estimate plus its margin, for every kind of harm I
+        count. Offsetting an item or a whole area earns its badge, and offsetting everything for all five kinds of harm earns the
+        complete badge. Donations go to charities, and I don&apos;t buy carbon credits. If you lower an estimate by hand by
         more than its margin, the badge pauses until a linked account confirms the new number.
       </p>
 

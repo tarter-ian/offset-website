@@ -74,7 +74,7 @@ export function QuestionPage({
       <h2 className="mt-10 text-xl font-semibold">How I got this</h2>
       <div className="mt-2 space-y-3 text-muted">{how}</div>
 
-      <h2 className="mt-10 text-xl font-semibold">What it costs to cover</h2>
+      <h2 className="mt-10 text-xl font-semibold">What it costs to offset</h2>
       <div className="mt-2 space-y-3 text-muted">{cover}</div>
 
       {/* The page's one action, as a button (Ian, 2026-10-25). */}
@@ -82,7 +82,7 @@ export function QuestionPage({
         <Link href="/" className="inline-flex min-h-11 items-center rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-strong">
           Measure your own use
         </Link>
-        <span className="text-muted">and see what it would cost to cover.</span>
+        <span className="text-muted">and see what it would cost to offset.</span>
       </div>
 
       <h2 className="mt-10 text-sm font-semibold text-muted">Other questions</h2>

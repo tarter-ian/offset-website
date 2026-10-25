@@ -90,7 +90,7 @@ const ROWS: Row[] = [
     topic: "What you can claim",
     usual: "\"Carbon neutral\" badges.",
     claim: "A Fully Offset badge",
-    ours: "It shows what you covered, without claiming your emissions disappeared.",
+    ours: "It shows what you offset, without claiming your emissions disappeared.",
   },
   {
     topic: "Your data",

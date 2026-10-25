@@ -71,8 +71,7 @@ export default function Page() {
         <>
           <p>
             A month at {TYPICAL_PROMPTS_PER_DAY} prompts a day comes to {usd(month.donation)} in donations, including my margin for an
-            estimate. That&apos;s below the {usd(month.monthly.donation)} smallest payment, so most people pay once instead. For someone
-            born in {DEFAULT_CONTEXT.birthYear}, {usd(month.lifetime.total)} with fees covers everything since late 2022 and every year to
+            estimate. For someone born in {DEFAULT_CONTEXT.birthYear}, {usd(month.lifetime.total)} with fees offsets everything since late 2022 and every year to
             age {F.LIFETIME_TO_AGE}, with room for use to grow.
           </p>
           <p>The money goes to charities that work on climate policy, clean air, water in dry places and protecting forest.</p>

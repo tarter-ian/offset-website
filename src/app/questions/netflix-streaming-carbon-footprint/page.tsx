@@ -61,8 +61,7 @@ export default function Page() {
         <>
           <p>
             A month at {TYPICAL_STREAMING_HOURS_PER_DAY} hours a day comes to {usd(month.donation)} in donations, including my margin for an
-            estimate. That&apos;s below the {usd(month.monthly.donation)} smallest payment, so you can add it to a plan with other items, or
-            pay once. For someone born in {DEFAULT_CONTEXT.birthYear}, {usd(month.lifetime.total)} with fees covers every hour since age{" "}
+            estimate. For someone born in {DEFAULT_CONTEXT.birthYear}, {usd(month.lifetime.total)} with fees offsets every hour since age{" "}
             {F.ONLINE_FROM_AGE} and every year to age {F.LIFETIME_TO_AGE}, on a grid that gets cleaner each year.
           </p>
         </>
