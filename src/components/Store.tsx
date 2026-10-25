@@ -1573,16 +1573,16 @@ export function Store() {
             q: "How much CO₂ and smog?",
             total: `${IMPACT_INFO.carbon.format(aiImpacts.carbon, aiImpacts)}, ${airShort(aiImpacts)}`,
             rows: [
-              ["Training and running the models", `${sig((one.carbon - oneBuilt) * 1e6)} g`, bare("carbon", aiImpacts.carbon - built)],
-              ["Making the chips and buildings", `${sig(oneBuilt * 1e6)} g`, bare("carbon", built)],
-              ["Smog from power plants", `${sig(one.smogL * 1e6)} mL`, airShort(aiImpacts)],
+              ["Training and running", `${sig((one.carbon - oneBuilt) * 1e6)} g`, bare("carbon", aiImpacts.carbon - built)],
+              ["Chips and buildings", `${sig(oneBuilt * 1e6)} g`, bare("carbon", built)],
+              ["Smog", `${sig(one.smogL * 1e6)} mL`, airShort(aiImpacts).replace(/ smog$/, "")],
             ],
           },
           {
             q: "How much water?",
             total: IMPACT_INFO.water.format(aiImpacts.water, aiImpacts),
             rows: [
-              ["Cooling the servers", `${sig(oneCool * 1e6)} mL`, bare("water", cooling)],
+              ["Cooling servers", `${sig(oneCool * 1e6)} mL`, bare("water", cooling)],
               ["Power plants", `${sig((one.water - oneCool) * 1e6)} mL`, bare("water", aiImpacts.water - cooling)],
             ],
           },
