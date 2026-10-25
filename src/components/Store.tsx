@@ -1330,10 +1330,14 @@ export function Store() {
                     </>
                   )
               : (
-                  // The price shows once, in the box beside its switch (Ian, 2026-10-25: three prices felt weird).
+                  // The price back in the headline (Ian, 2026-10-25: missed "offset for life: $3.46").
                   <>
-                    <span className="block">{paidLines.length ? "Your other AI use" : "Your AI use"},</span>
-                    <span className="block">{heroAhead === "lifetime" && aiCover.ahead === "lifetime" ? "offset for life." : "offset."}</span>
+                    <span className="block">{paidLines.length ? "Your other AI use" : "Your AI use"}, offset</span>
+                    <span className="block">
+                      {heroAhead === "lifetime" && aiCover.ahead === "lifetime"
+                        ? `for life: ${usd(heroBill.today)}.`
+                        : `for ${usd(heroBill.then)} ${BILLING[billing].per}.`}
+                    </span>
                   </>
                 )}
           </h1>
@@ -1366,7 +1370,7 @@ export function Store() {
                   type="button"
                   aria-pressed={aiLevel === k}
                   onClick={() => pickLevel(k, `you picked ${AI_LEVELS[k].label.toLowerCase()}`)}
-                  className={`min-h-12 cursor-pointer rounded px-1 py-1 text-center ${aiLevel === k ? "bg-foreground text-background" : "hover:bg-card"}`}
+                  className={`min-h-12 cursor-pointer rounded px-1 py-1 text-center ${aiLevel === k ? "bg-foreground text-background" : "bg-card hover:bg-border"}`}
                 >
                   <span className="block font-semibold">{AI_LEVELS[k].label}</span>
                   <span className={`block text-[11px] whitespace-nowrap ${aiLevel === k ? "opacity-80" : "text-muted"}`}>{AI_LEVELS[k].promptsPerDay} prompts a day</span>
@@ -1376,7 +1380,7 @@ export function Store() {
                 type="button"
                 aria-pressed={wantReal || aiLevel === null}
                 onClick={() => setWantReal(true)}
-                className={`min-h-12 cursor-pointer rounded px-1 py-1 text-center font-semibold ${wantReal || aiLevel === null ? "bg-foreground text-background" : "hover:bg-card"}`}
+                className={`min-h-12 cursor-pointer rounded px-1 py-1 text-center font-semibold ${wantReal || aiLevel === null ? "bg-foreground text-background" : "bg-card hover:bg-border"}`}
               >
                 Your real number
               </button>
@@ -1431,7 +1435,8 @@ export function Store() {
                 onClick={reviewAndPay}
                 className={`min-h-11 shrink-0 cursor-pointer rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-strong ${heroAhead === "lifetime" && aiCover.ahead === "lifetime" && !heroInPlan ? "min-h-14 w-full text-xl" : ""}`}
               >
-                {giveLabel}
+                {/* The headline carries the price, so the button doesn't repeat it. */}
+                {giveLabel.startsWith("Give $") ? "Offset it" : giveLabel}
               </button>
             </div>
           )}
@@ -1456,7 +1461,7 @@ export function Store() {
           // Who gets the money, each charity once with what it fixes (Ian, 2026-10-25: order the page by the reader's questions).
           <section aria-labelledby="who-gets-it" className="pt-16 pb-10">
             <h2 id="who-gets-it" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">
-              Who gets it
+              Where your money goes
             </h2>
             <ul className="mt-10 grid gap-4 md:grid-cols-3">
               {[...new Set((["carbon", "air", "water", "land"] as const).filter((k) => aiImpacts[k] > 0).map((k) => CHARITIES[k].name))].map((name) => {
