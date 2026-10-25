@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import { ActivityUpload } from "./ActivityUpload";
 import { CheckoutSteps, DirectPledgeForm } from "./Checkout";
 import { SteadyCheck } from "./SteadyCheck";
-import { AI_TRAINING_SHARE, LIFETIME_TO_AGE } from "@/lib/factors";
+import { AI_HARDWARE_SHARE, AI_TRAINING_SHARE, DATACENTER_M2_YEARS_PER_KWH, LIFETIME_TO_AGE } from "@/lib/factors";
 import { joinList, ListInvite, ListOptIn } from "./ListOptIn";
 import { AiExportUpload } from "./AiExportUpload";
 import { AiQuickPick } from "./AiQuickPick";
@@ -21,7 +21,7 @@ import { NumberInput, Select } from "./fields";
 import { STATE_OPTIONS, STATES, type StateCode } from "@/lib/data/states";
 import { airShort, IMPACT_INFO, lifeText } from "@/lib/impacts";
 import { CHARITIES } from "@/lib/charities";
-import { aiImpacts as aiImpactsOf, IMPACT_KEYS, type ImpactKey, sumImpacts, type Impacts } from "@/lib/footprint";
+import { aiImpacts as aiImpactsOf, coolingWater, IMPACT_KEYS, type ImpactKey, sumImpacts, type Impacts } from "@/lib/footprint";
 import { howEstimated, whereItGoes } from "@/lib/methods";
 import { isPhone } from "@/lib/extension";
 import { PROVIDERS, type ProviderId } from "@/lib/providers";
@@ -1581,53 +1581,63 @@ export function Store() {
         <section aria-labelledby="how-numbers" className="py-16">
           <h2 id="how-numbers" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">How I got these numbers</h2>
           {(() => {
-            const kwh = aiImpacts.carbon / aiImpactsOf(1).carbon / (1 - AI_TRAINING_SHARE);
-            const per = (v: number) => Number((v / kwh).toPrecision(2)).toLocaleString();
-            const arrow = (
-              <span aria-hidden="true" className="self-center text-center text-xl text-muted">
-                <span className="sm:hidden">↓</span>
-                <span className="hidden sm:inline">→</span>
-              </span>
-            );
-            // Each step is labeled, and each harm reads as rate × power = amount, like the bills on the cards (Ian, 2026-10-25).
-            const rows: [string, string][] = [
-              [`${per(aiImpacts.carbon)} kg/kWh`, IMPACT_INFO.carbon.format(aiImpacts.carbon, aiImpacts)],
-              ...(aiImpacts.smogL > 0 ? [[`${per(aiImpacts.smogL)} L/kWh`, airShort(aiImpacts)] as [string, string]] : []),
-              [`${per(aiImpacts.water)} L/kWh`, IMPACT_INFO.water.format(aiImpacts.water, aiImpacts)],
-              [`${per(aiImpacts.land)} m²/kWh`, IMPACT_INFO.land.format(aiImpacts.land, aiImpacts)],
+            // Ian's three questions (2026-10-25): how much data center, how much water, how much CO2 and smog.
+            // Each total splits by the shares inside aiImpacts for one kWh of answers.
+            const unit = aiImpactsOf(1);
+            const kwh1 = 1 / (1 - AI_TRAINING_SHARE);
+            const fmt = (k: "carbon" | "water" | "land", v: number) => IMPACT_INFO[k].format(v, aiImpacts).replace(/ (CO₂e|water|land)$/, "");
+            const dcLand = aiImpacts.land * ((kwh1 * DATACENTER_M2_YEARS_PER_KWH) / unit.land);
+            const cooling = aiImpacts.water * (coolingWater(kwh1) / unit.water);
+            const built = aiImpacts.carbon * AI_HARDWARE_SHARE;
+            const blocks: { title: string; total: string; rows: [string, string][] }[] = [
+              {
+                title: "Data centers",
+                total: IMPACT_INFO.land.format(aiImpacts.land, aiImpacts),
+                rows: [
+                  ["Data center buildings", fmt("land", dcLand)],
+                  ["Power plants", fmt("land", aiImpacts.land - dcLand)],
+                ],
+              },
+              {
+                title: "Water",
+                total: IMPACT_INFO.water.format(aiImpacts.water, aiImpacts),
+                rows: [
+                  ["Cooling the servers", fmt("water", cooling)],
+                  ["Power plants", fmt("water", aiImpacts.water - cooling)],
+                ],
+              },
+              {
+                title: "CO₂ and smog",
+                total: `${IMPACT_INFO.carbon.format(aiImpacts.carbon, aiImpacts)}, ${airShort(aiImpacts)}`,
+                rows: [
+                  ["Training and running the models", fmt("carbon", aiImpacts.carbon - built)],
+                  ["Making the chips and buildings", fmt("carbon", built)],
+                  ["Smog from power plants", airShort(aiImpacts)],
+                ],
+              },
             ];
             return (
-              <div className="amount mt-8 grid gap-3 text-sm sm:grid-cols-[1fr_auto_1fr_auto_1.4fr]">
-                <div className="flex flex-col">
-                  <p className="mb-2 font-semibold">Your AI use</p>
-                  <div className="flex-1 border-t-[6px] border-rule bg-card px-4 py-3">
-                    {dueLines.map((l) => (
-                      <p key={l.p.id}>{amountText(l.p, l.amount)}</p>
-                    ))}
-                    <p className="text-muted">{heroAhead === "lifetime" ? `to age ${LIFETIME_TO_AGE}` : BILLING[billing].per}</p>
-                  </div>
-                </div>
-                {arrow}
-                <div className="flex flex-col">
-                  <p className="mb-2 font-semibold">Power it takes</p>
-                  <div className="flex-1 border-t-[6px] border-rule bg-card px-4 py-3">
-                    <p>{Math.round(kwh).toLocaleString()} kWh</p>
-                    <p className="text-muted">with training and data centers</p>
-                  </div>
-                </div>
-                {arrow}
-                <div className="flex flex-col">
-                  <p className="mb-2 font-semibold">What that power causes</p>
-                  <div className="flex-1 border-t-[6px] border-rule bg-card px-4 py-3">
-                    {rows.map(([rate, amount]) => (
-                      <p key={rate} className="flex justify-between gap-3">
-                        <span className="text-muted">× {rate}</span>
-                        <span>{amount}</span>
-                      </p>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              <>
+                <p className="amount mt-6 text-sm">
+                  {dueLines.map((l) => amountText(l.p, l.amount)).join(" and ")}, {heroAhead === "lifetime" ? `to age ${LIFETIME_TO_AGE}` : BILLING[billing].per}
+                </p>
+                <ul className="mt-6 grid gap-3 sm:grid-cols-3">
+                  {blocks.map((b) => (
+                    <li key={b.title} className="flex flex-col border-t-[6px] border-rule bg-card px-5 pt-4 pb-5">
+                      <h3 className="text-xl font-semibold">{b.title}</h3>
+                      <p className="amount mt-1 text-lg">{b.total}</p>
+                      <div className="amount mt-auto pt-4 text-sm">
+                        {b.rows.map(([label, v]) => (
+                          <p key={label} className="flex justify-between gap-3 border-t border-border py-1">
+                            <span>{label}</span>
+                            <span>{v}</span>
+                          </p>
+                        ))}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </>
             );
           })()}
           <p className="mt-6 font-semibold">
