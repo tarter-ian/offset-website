@@ -1587,28 +1587,31 @@ export function Store() {
         {PAYMENT_MODE === "pledgeapi" && !heroPaid ? (
           // The price, taken apart: charities + fees + nothing to me (Ian, 2026-10-25).
           (() => {
-            const pay = onePayment(payRows(harmSplit(heroTotals, ctx, billing), billing, autopay).filter((r) => !r.key.endsWith("-repeat")));
-            // Drawn as one bar split by dollars, with an empty slot for me (Ian asked for it more pictorial).
+            const gifts = payRows(harmSplit(heroTotals, ctx, billing), billing, autopay).filter((r) => !r.key.endsWith("-repeat"));
+            const pay = onePayment(gifts);
+            const to = new Map<string, number>();
+            for (const r of gifts) to.set(CHARITIES[r.charity].name, (to.get(CHARITIES[r.charity].name) ?? 0) + r.donation);
+            // A receipt in the same style as the cards above (Ian found the split bar read as one black bar).
             return (
-              <div className="mt-6 flex items-start gap-1 text-sm" role="img" aria-label={`${usd(pay.donation)} to the charities, ${usd(pay.fee)} in card and Pledge fees, $0.00 to me, ${usd(pay.total)} in all`}>
-                <div style={{ flexGrow: pay.donation }} className="min-w-0 basis-0">
-                  <div className="h-10 bg-foreground" />
-                  <p className="amount mt-2 text-base font-semibold">{usd(pay.donation)}</p>
-                  <p className="text-muted">to the charities</p>
-                </div>
-                <div style={{ flexGrow: pay.fee }} className="min-w-[5.5rem] basis-0">
-                  <div className="h-10 bg-border" />
-                  <p className="amount mt-2 text-base font-semibold">{usd(pay.fee)}</p>
-                  <p className="text-muted">card and Pledge fees</p>
-                </div>
-                <div className="w-16 shrink-0">
-                  <div className="h-10 border-2 border-dashed border-border" />
-                  <p className="amount mt-2 text-base font-semibold">$0.00</p>
-                  <p className="text-muted">to me</p>
-                </div>
-                <div className="shrink-0 pl-2">
-                  <p className="amount flex h-10 items-center text-lg font-semibold">= {usd(pay.total)}</p>
-                </div>
+              <div className="amount mt-6 max-w-md text-sm">
+                {[...to].map(([name, amount]) => (
+                  <p key={name} className="flex justify-between gap-3 border-t border-border py-1">
+                    <span>To {name}</span>
+                    <span>{usd(amount)}</span>
+                  </p>
+                ))}
+                <p className="flex justify-between gap-3 border-t border-border py-1">
+                  <span>Card and Pledge fees</span>
+                  <span>{usd(pay.fee)}</span>
+                </p>
+                <p className="flex justify-between gap-3 border-t border-border py-1 font-semibold">
+                  <span>To me</span>
+                  <span>$0.00</span>
+                </p>
+                <p className="flex justify-between gap-3 border-t-2 border-foreground pt-2 text-base font-semibold">
+                  <span>You give</span>
+                  <span>{usd(pay.total)}</span>
+                </p>
               </div>
             );
           })()
