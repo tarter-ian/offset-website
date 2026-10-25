@@ -532,7 +532,8 @@ export function Store() {
       onceSum > 0 && `${once(onceSum)} once`,
     ]
       .filter(Boolean)
-      .join(" + ") + (t.pastSpread ? `, past use spread over ${t.pastSpread.years === 1 ? "a year" : `${t.pastSpread.years} years`}` : "");
+      // Tiles leave out card and Pledge fees, so the total says so (Ian, 2026-10-25).
+      .join(" + ") + " + fees" + (t.pastSpread ? `, past use spread over ${t.pastSpread.years === 1 ? "a year" : `${t.pastSpread.years} years`}` : "");
   };
   // Meat, dairy and plant foods are three parts of one diet, so they share one answer.
   const FOOD_IDS = PRODUCTS.filter((x) => x.section === "food").map((x) => x.id);
@@ -912,7 +913,7 @@ export function Store() {
     return (
       <li
         key={p.id}
-        className={`flex w-[78%] shrink-0 snap-start flex-col rounded-md p-4 md:w-auto ${
+        className={`flex flex-col rounded-md p-4 md:w-auto ${
           paid?.kind === "life" || offsetFree ? "bg-life" : paid ? "bg-period" : plan.includes(p.id) ? "bg-accent-soft" : "bg-card"
         } ${isOpen ? "outline-2 outline-rule" : ""}`}
       >
@@ -1381,8 +1382,8 @@ export function Store() {
                 onClick={reviewAndPay}
                 className={`min-h-11 shrink-0 cursor-pointer rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-strong ${heroAhead === "lifetime" && aiCover.ahead === "lifetime" && !heroInPlan ? "min-h-14 w-full text-xl" : ""}`}
               >
-                {/* The headline carries the price, so the button doesn't repeat it. */}
-                {giveLabel.startsWith("Give $") ? "Offset it" : giveLabel}
+                {/* Same words as the Give button under the receipt (Ian, 2026-10-25). */}
+                {giveLabel}
               </button>
             </div>
           )}
@@ -1754,7 +1755,7 @@ export function Store() {
                   ))}
               </div>
             </div>
-            <ul className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:grid-cols-3 md:overflow-visible md:px-0 md:pb-0">
+            <ul className="grid gap-3 md:grid-cols-3">
               {items.map((p) => tile(p))}
             </ul>
             {openItem && detailPanel(openItem)}
