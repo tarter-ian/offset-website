@@ -1605,8 +1605,8 @@ export function Store() {
                   <h3 className="amount text-lg font-semibold">{b.total}</h3>
                   <div className="amount mt-auto grid grid-cols-[1fr_auto_auto] gap-x-3 pt-4 text-sm">
                     <span />
-                    <span className="pb-1 text-right text-xs leading-tight text-muted">1,000<br />prompts</span>
-                    <span className="self-end pb-1 text-right text-xs text-muted">You</span>
+                    <span className="pb-1 text-right text-xs whitespace-nowrap text-muted">1k prompts</span>
+                    <span className="pb-1 text-right text-xs text-muted">You</span>
                     {b.rows.map(([label, prompt, v]) => (
                       <Fragment key={label}>
                         {/* Labels stay on one line (Ian, 2026-10-25). */}
