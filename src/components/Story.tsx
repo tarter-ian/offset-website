@@ -115,7 +115,12 @@ function YearDots({ count }: { count: number }) {
     let g = draw();
     const paint = (to: number) => {
       if (!g.c) return;
-      for (let i = shown; i < to; i++) g.c.fillRect((i % g.cols) * g.pitch, Math.floor(i / g.cols) * g.pitch, g.pitch - 1, g.pitch - 1);
+      const r = g.pitch * 0.3;
+      for (let i = shown; i < to; i++) {
+        g.c.beginPath();
+        g.c.arc((i % g.cols) * g.pitch + g.pitch / 2, Math.floor(i / g.cols) * g.pitch + g.pitch / 2, r, 0, 2 * Math.PI);
+        g.c.fill();
+      }
       shown = to;
     };
     const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
