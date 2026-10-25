@@ -1268,7 +1268,7 @@ export function Store() {
     setTimeout(() => document.getElementById("pay-steps")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
   };
   return (
-    <div className="pb-20">
+    <div className={aislesOpen || heroPaid ? "pb-20" : ""}>
       <section className="relative isolate">
         {heroPaid && !updatingNumbers ? (
           // Once all AI is paid, the photo carries what's offset instead of a price (Ian, 2026-10-13).
@@ -1460,7 +1460,7 @@ export function Store() {
         {!heroPaid && (
           // Who gets the money, each charity once with what it fixes (Ian, 2026-10-25: order the page by the reader's questions).
           // A grey band per section, white between, so the eye sees where one ends (Ian, 2026-10-25, from Ecologi and GiveWell).
-          <section aria-labelledby="who-gets-it" className="relative isolate mt-16 py-16">
+          <section aria-labelledby="who-gets-it" className="relative isolate py-16">
             <div aria-hidden="true" className="absolute inset-y-0 left-1/2 -z-10 w-screen -translate-x-1/2 bg-card" />
             {(() => {
               const names = [...new Set((["carbon", "air", "water", "land"] as const).filter((k) => aiImpacts[k] > 0).map((k) => CHARITIES[k].name))];
