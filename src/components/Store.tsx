@@ -1446,7 +1446,7 @@ export function Store() {
                 <>
                   {/* The headings read as one story, top to bottom, like Wren's (Ian, 2026-10-25). */}
                   <h2 id="who-gets-it" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">
-                    It all goes to {["one charity", "two charities", "three charities", "four charities"][names.length - 1]}.
+                    Each harm goes to a charity that cuts it.
                   </h2>
                   <ul className="mt-10 grid gap-4 md:grid-cols-3">
                     {names.map((name) => {
@@ -1613,7 +1613,7 @@ export function Store() {
         return open ? null : (
           <section aria-labelledby="more-heading" className="relative isolate py-16">
             <div aria-hidden="true" className="absolute inset-y-0 left-1/2 -z-10 w-screen -translate-x-1/2 bg-card" />
-            <h2 id="more-heading" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">Then offset everything else.</h2>
+            <h2 id="more-heading" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">Offset the rest of your life the same way.</h2>
             <ul className="mt-6 grid grid-cols-3 gap-2 sm:grid-cols-6">
               {SECTIONS.filter((x) => x.key !== "ai").map((x) => (
                 <li key={x.key}>
