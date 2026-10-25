@@ -75,6 +75,12 @@ import {
   feeParts,
   impactCost,
   usd,
+  AIR_DAMAGE_SHARE,
+  CARBON_MODES,
+  DEFAULT_CARBON_MODE,
+  DEFAULT_WATER_MODE,
+  LAND_USD_PER_ACRE,
+  WATER_MODES,
 } from "@/lib/pricing";
 import {
   aheadFor,
@@ -1442,6 +1448,17 @@ export function Store() {
             <div aria-hidden="true" className="absolute inset-y-0 left-1/2 -z-10 w-screen -translate-x-1/2 bg-card" />
             {(() => {
               const names = [...new Set((["carbon", "air", "water", "land"] as const).filter((k) => aiImpacts[k] > 0).map((k) => CHARITIES[k].name))];
+              // Each card shows its sum: amount x price = dollars (Ian, 2026-10-25), and what the charity gets after the $1 minimum.
+              const costs = impactCost(aiImpacts);
+              const rows = payRows(harmSplit(heroTotals, ctx, billing), billing, autopay);
+              const wanted = rows.filter((r) => (aiCover.ahead === "lifetime") !== r.key.endsWith("-repeat"));
+              const gets = (name: string) => (wanted.length ? wanted : rows).filter((r) => CHARITIES[r.charity].name === name).reduce((sum, r) => sum + r.donation, 0);
+              const sum: Record<"carbon" | "air" | "water" | "land", string> = {
+                carbon: `${IMPACT_INFO.carbon.format(aiImpacts.carbon, aiImpacts)} × $${CARBON_MODES[DEFAULT_CARBON_MODE].perTonne} a tonne`,
+                air: `${usd(aiImpacts.air)} of health damage × ${Math.round(AIR_DAMAGE_SHARE * 100)}%`,
+                water: `${IMPACT_INFO.water.format(aiImpacts.water, aiImpacts)} × $${(WATER_MODES[DEFAULT_WATER_MODE].per1000Gal / 3.78541).toFixed(2)} per 1,000 L`,
+                land: `${IMPACT_INFO.land.format(aiImpacts.land, aiImpacts)} × $${LAND_USD_PER_ACRE} an acre`,
+              };
               return (
                 <>
                   {/* The headings read as one story, top to bottom, like Wren's (Ian, 2026-10-25). */}
@@ -1470,6 +1487,16 @@ export function Store() {
                               );
                             })}
                           </div>
+                          <Link href="/method" className="amount mt-4 block text-sm hover:underline">
+                            {harms.map((k) => (
+                              <span key={k} className="block text-muted">
+                                {sum[k]} = {usd(costs[k])}
+                              </span>
+                            ))}
+                            <span className="mt-1 block border-t border-border pt-1 font-semibold">
+                              {usd(gets(name))} to the charity{gets(name) > harms.reduce((sum, k) => sum + costs[k], 0) + 0.005 ? ", at least $1" : ""}
+                            </span>
+                          </Link>
                           <a href={CHARITIES[harms[0]].url} className="mt-5 block text-xl font-semibold underline-offset-4 hover:underline">
                             {name}
                           </a>
@@ -1591,15 +1618,10 @@ export function Store() {
           })}{" "}
           I buy no carbon credits.
         </p>
-        <p className="mt-6 flex flex-col gap-2 font-semibold sm:flex-row sm:gap-8">
+        {/* One link, the proof (Ian, 2026-10-25: three links was too many). The cards above link to the method. */}
+        <p className="mt-6 font-semibold">
           <Link href="/ledger" className="underline-offset-4 hover:underline">
             Where every dollar went →
-          </Link>
-          <Link href="/promises" className="underline-offset-4 hover:underline">
-            My promises →
-          </Link>
-          <Link href="/method" className="underline-offset-4 hover:underline">
-            Every number I use →
           </Link>
         </p>
       </section>
