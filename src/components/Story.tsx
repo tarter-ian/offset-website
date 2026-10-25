@@ -99,7 +99,7 @@ function YearDots({ count }: { count: number }) {
     let started = false;
     const draw = () => {
       const width = canvas.clientWidth;
-      const pitch = width < 500 ? 3 : 4;
+      const pitch = width < 500 ? 4 : 6;
       const cols = Math.max(1, Math.floor(width / pitch));
       const rows = Math.ceil(count / cols);
       const dpr = window.devicePixelRatio || 1;
@@ -175,7 +175,8 @@ export function Story({ promptsPerDay, whPerPrompt }: { promptsPerDay: number; w
 
   return (
     <div aria-label="Why offset your AI use">
-      <section className={screen}>
+      {/* Shorter than the rest, so the next screen shows below it and the page doesn't look finished (NN/g). */}
+      <section className={screen.replace("min-h-[72svh]", "min-h-[60svh]")}>
         <div className="md:order-2">{chat}</div>
         <div>
           <h2 className={head}>What does your AI use cost the planet?</h2>
