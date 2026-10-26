@@ -46,7 +46,7 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: "Body isn't JSON." }, { status: 400 });
   }
-  const pledge = { apiKey: process.env.PLEDGE_API_KEY, host: pledgeApiHost() };
+  const pledge = { apiKey: process.env.PLEDGE_API_KEY, host: pledgeApiHost(), stripeKey: process.env.STRIPE_SECRET_KEY };
   try {
     const ended = parseSubscriptionEnded(event);
     if (ended) {
@@ -67,6 +67,12 @@ export async function POST(req: Request) {
             [
               `On ${when}, autopay will charge ${usd(due.amountCents / 100)} for this ${due.interval}'s gifts to your charities, fees included.`,
               "",
+              ...(due.last
+                ? [
+                    "This is the last autopay charge. After it, your past use is fully offset, so autopay ends on its own. To keep offsetting, come back to My Offset and turn autopay on again at the lower price.",
+                    "",
+                  ]
+                : []),
               stop ? `To stop autopay, or change your card: ${stop}` : "To stop autopay, reply to this email and I'll cancel it.",
               "",
               "Ian, My Offset",

@@ -68,7 +68,7 @@ export interface SessionInput {
    * Autopay (Ian, 2026-10-25): the part charged again each month or year, in cents, and how
    * often. It must be part of amountCents; the rest is charged once, today.
    */
-  repeat?: { cents: number; interval: "month" | "year" };
+  repeat?: { cents: number; interval: "month" | "year"; pastUntil?: string | null };
 }
 
 /**
@@ -224,4 +224,39 @@ export function modeMismatch(event: unknown, pledgeHost: string, liveHost: strin
   const live = (event as { livemode?: unknown } | null)?.livemode;
   if (typeof live !== "boolean") return true;
   return live !== (pledgeHost === liveHost);
+}
+
+/**
+ * When autopay should end for a plan that spreads past use over `years`: a day before the
+ * charge that would come after the last instalment, so that charge is never made.
+ */
+export function pastPaidOff(start: Date, years: number): Date {
+  const end = new Date(start);
+  end.setUTCMonth(end.getUTCMonth() + years * 12);
+  end.setUTCDate(end.getUTCDate() - 1);
+  return end;
+}
+
+/** Sets an autopay subscription to end on its own at `at`, with no charge for part of a period. Never throws. */
+export async function endSubscriptionAt(
+  subscriptionId: string,
+  at: Date,
+  secretKey: string,
+  fetcher: typeof fetch = fetch,
+): Promise<{ ok: boolean; error?: string }> {
+  const f = new URLSearchParams();
+  f.set("cancel_at", String(Math.floor(at.getTime() / 1000)));
+  f.set("proration_behavior", "none");
+  try {
+    const res = await fetcher(`${STRIPE_API}/subscriptions/${encodeURIComponent(subscriptionId)}`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${secretKey}`, "content-type": "application/x-www-form-urlencoded" },
+      body: f.toString(),
+    });
+    if (res.ok) return { ok: true };
+    const body = (await res.json().catch(() => null)) as { error?: { message?: unknown } } | null;
+    return { ok: false, error: typeof body?.error?.message === "string" ? body.error.message : `Stripe answered ${res.status}` };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "fetch failed" };
+  }
 }

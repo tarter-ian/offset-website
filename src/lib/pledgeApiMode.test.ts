@@ -242,7 +242,8 @@ describe("Pledge request builder", () => {
 function fakePledge(failing: Set<string>) {
   const calls: string[] = [];
   const fetcher = (async (url: string, init?: RequestInit) => {
-    calls.push(`${init?.method} ${url}`);
+    calls.push(`${init?.method} ${url}${url.includes("api.stripe.com") ? ` ${init?.body}` : ""}`);
+    if (url.includes("api.stripe.com")) return new Response("{}", { status: 200 });
     if (url.includes("/v1/organizations")) {
       const name = new URL(url).searchParams.get("q")!;
       const ein = Object.keys(PLEDGE_ORG_NAMES).find((e) => PLEDGE_ORG_NAMES[e] === name)!;
@@ -351,6 +352,30 @@ describe("settling a paid session", () => {
     await endSubscription("sub_a");
     expect((await settleRenewal({ ...renewal, invoiceId: "in_0003" }, { ...pledge, fetcher: r2.fetcher })).status).toBe("unknown");
     expect(await claimReminder("sub_a", "2026-12-25T00:00:00.000Z")).toBeNull();
+  });
+
+  it("with past use spread over years, ends autopay once it's paid off and says so before the last charge", async () => {
+    const { saveSession, settleSession, claimReminder, isLastCharge, planChargeRows, repeatPart } = await import("./stripeStore");
+    const { pastPaidOff } = await import("./stripe");
+    vi.stubEnv("NEXT_PUBLIC_AUTOPAY_ON", "1");
+    const rows = planChargeRows({ ...claim, autopay: true });
+    vi.unstubAllEnvs();
+    const amountCents = Math.round(onePayment(rows).total * 100);
+    const repeatCents = Math.round(onePayment(repeatPart(rows)).total * 100);
+    const pastUntil = pastPaidOff(new Date("2026-10-26T00:00:00.000Z"), 2).toISOString();
+    expect(pastUntil).toBe("2028-10-25T00:00:00.000Z");
+    await saveSession("cs_p", { source: "plan", sourceId: ID, rows, amountCents, repeat: { cents: repeatCents, interval: "month", pastUntil } });
+    const f = fakePledge(new Set());
+    const paid = { eventId: "e1", sessionId: "cs_p", paid: true, amountCents, currency: "usd", referenceId: ID, email: "a@b.test", name: "Jane", subscriptionId: "sub_p" };
+    await settleSession(paid, { apiKey: "k", host: "https://api-staging.pledge.to", fetcher: f.fetcher, stripeKey: "sk_test" });
+    await settleSession(paid, { apiKey: "k", host: "https://api-staging.pledge.to", fetcher: f.fetcher, stripeKey: "sk_test" });
+    // Set to end once, at the day before the charge after the last instalment, with nothing prorated.
+    const ends = f.calls.filter((c) => c.includes("api.stripe.com"));
+    expect(ends).toEqual([`POST https://api.stripe.com/v1/subscriptions/sub_p cancel_at=${Date.parse(pastUntil) / 1000}&proration_behavior=none`]);
+    expect(await claimReminder("sub_p", "2028-08-26T00:00:00.000Z")).toMatchObject({ last: false });
+    expect(await claimReminder("sub_p", "2028-09-26T00:00:00.000Z")).toMatchObject({ last: true });
+    expect(isLastCharge("2028-09-26T00:00:00.000Z", pastUntil, "month")).toBe(true);
+    expect(isLastCharge("2027-09-26T00:00:00.000Z", pastUntil, "year")).toBe(false);
   });
 
   it("never throws on a network error from Pledge", async () => {

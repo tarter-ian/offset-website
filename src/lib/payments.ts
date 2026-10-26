@@ -52,6 +52,7 @@ const httpsUrl = (u: string | undefined) => {
  * - "upcoming renewal events" on in Stripe's Billing settings, so invoice.upcoming arrives for the reminder email;
  * - STRIPE_PORTAL_URL: the customer portal's login link (Stripe, Settings, Billing, Customer portal), the "stop" link in reminders;
  * - RESEND_API_KEY and EMAIL_FROM, for the reminder email;
+ * - the restricted Stripe key allowed to write Subscriptions, so a plan that spreads past use can end autopay once it's paid off;
  * - migrations/0009_stripe_autopay.sql applied to the database;
  * - then NEXT_PUBLIC_AUTOPAY_ON=1 in the build variables, and a rebuild, to show the autopay box.
  */

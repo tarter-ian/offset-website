@@ -7,7 +7,7 @@ import { EVERY_SLUGS, partnerDonationId, payRows, PLEDGE_EINS, type PayRow } fro
 import { givePledgeDonation, type PledgeDonor, splitName } from "./pledgeApi";
 import { type ListItem, PAST, type PlanClaimInput } from "./publicList";
 import { harmSplit, planTotals } from "./store";
-import type { PaidSession } from "./stripe";
+import { endSubscriptionAt, type PaidSession } from "./stripe";
 
 // "pledgeapi" mode on the server: what a plan or gift charges in one Stripe payment,
 // the session as it's made, and, once Stripe says it's paid, one Pledge donation per
@@ -36,13 +36,13 @@ export interface StoredRow {
 /** Saves a session as it's made, with the gifts and the amount it was made for. */
 export async function saveSession(
   sessionId: string,
-  c: { source: "plan" | "gift"; sourceId: string; rows: PayRow[]; amountCents: number; repeat?: { cents: number; interval: "month" | "year" } | null },
+  c: { source: "plan" | "gift"; sourceId: string; rows: PayRow[]; amountCents: number; repeat?: { cents: number; interval: "month" | "year"; pastUntil?: string | null } | null },
   now = new Date(),
 ): Promise<void> {
   const rows: StoredRow[] = c.rows.map((r) => ({ key: r.key, charity: r.charity, donation: r.donation }));
   await (await db()).execute({
-    sql: "INSERT INTO stripe_payments (session_id, source, source_id, rows, amount_cents, status, created_at, repeat_cents, repeat_interval) VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?)",
-    args: [sessionId, c.source, c.sourceId, JSON.stringify(rows), c.amountCents, now.toISOString(), c.repeat?.cents ?? null, c.repeat?.interval ?? null],
+    sql: "INSERT INTO stripe_payments (session_id, source, source_id, rows, amount_cents, status, created_at, repeat_cents, repeat_interval, past_until) VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?, ?)",
+    args: [sessionId, c.source, c.sourceId, JSON.stringify(rows), c.amountCents, now.toISOString(), c.repeat?.cents ?? null, c.repeat?.interval ?? null, c.repeat?.pastUntil ?? null],
   });
 }
 
@@ -74,7 +74,7 @@ export interface Settled {
  */
 export async function settleSession(
   s: PaidSession,
-  o: { apiKey: string | undefined; host?: string; fetcher?: typeof fetch; now?: () => Date },
+  o: { apiKey: string | undefined; host?: string; fetcher?: typeof fetch; now?: () => Date; stripeKey?: string },
 ): Promise<Settled> {
   const now = o.now ?? (() => new Date());
   if (!s.paid) return { status: "unpaid", confirmed: 0, failed: 0 };
@@ -91,14 +91,22 @@ export async function settleSession(
   await database.execute({ sql: "UPDATE stripe_payments SET status = 'paid', paid_at = COALESCE(paid_at, ?) WHERE session_id = ?", args: [now().toISOString(), s.sessionId] });
   // Autopay: remember what each renewal must charge and give, from what was saved with the session.
   if (s.subscriptionId) {
-    const [extra] = rowsOf(await database.execute({ sql: "SELECT source, repeat_cents, repeat_interval FROM stripe_payments WHERE session_id = ?", args: [s.sessionId] }));
+    const [extra] = rowsOf(await database.execute({ sql: "SELECT source, repeat_cents, repeat_interval, past_until FROM stripe_payments WHERE session_id = ?", args: [s.sessionId] }));
     const repeatRows = parseRows(pay.rows).filter((r) => r.key.endsWith("-repeat"));
     if (extra && Number(extra.repeat_cents) > 0 && repeatRows.length) {
-      await database.execute({
-        sql: `INSERT OR IGNORE INTO stripe_subscriptions (subscription_id, session_id, source, source_id, rows, amount_cents, repeat_interval, status, created_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?)`,
-        args: [s.subscriptionId, s.sessionId, String(extra.source), sourceId, JSON.stringify(repeatRows), Number(extra.repeat_cents), String(extra.repeat_interval), now().toISOString()],
-      });
+      const pastUntil = typeof extra.past_until === "string" && extra.past_until ? extra.past_until : null;
+      const added = changesOf(
+        await database.execute({
+          sql: `INSERT OR IGNORE INTO stripe_subscriptions (subscription_id, session_id, source, source_id, rows, amount_cents, repeat_interval, status, created_at, past_until)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)`,
+          args: [s.subscriptionId, s.sessionId, String(extra.source), sourceId, JSON.stringify(repeatRows), Number(extra.repeat_cents), String(extra.repeat_interval), now().toISOString(), pastUntil],
+        }),
+      );
+      // Past use spread over years: autopay ends on its own once it's paid off (Ian, 2026-10-26).
+      if (added && pastUntil) {
+        const ended = o.stripeKey ? await endSubscriptionAt(s.subscriptionId, new Date(pastUntil), o.stripeKey, o.fetcher) : { ok: false, error: "STRIPE_SECRET_KEY isn't set" };
+        if (!ended.ok) console.error("stripe-autopay: couldn't set the end date", s.subscriptionId, ended.error);
+      }
     }
   }
   for (const r of parseRows(pay.rows)) {
@@ -216,20 +224,30 @@ async function extendListing(planId: string, interval: string, paidAt: Date): Pr
   await database.execute({ sql: "UPDATE list_claims SET items = ? WHERE source = 'plan' AND source_id = ?", args: [JSON.stringify(next), planId] });
 }
 
+/** Whether the charge due at `due` is autopay's last, because the next one would fall after it ends. */
+export function isLastCharge(due: string, pastUntil: string, interval: string): boolean {
+  const next = new Date(due);
+  if (Number.isNaN(next.getTime())) return false;
+  if (interval === "year") next.setUTCFullYear(next.getUTCFullYear() + 1);
+  else next.setUTCMonth(next.getUTCMonth() + 1);
+  return next.getTime() > Date.parse(pastUntil);
+}
+
 /**
  * Whether to email a reminder for an upcoming autopay charge: only for an active
  * subscription, and once per due date. Marks it reminded when it says yes.
  */
-export async function claimReminder(subscriptionId: string, dueAt: string | null): Promise<{ amountCents: number; interval: string } | null> {
+export async function claimReminder(subscriptionId: string, dueAt: string | null): Promise<{ amountCents: number; interval: string; last?: boolean } | null> {
   const database = await db();
   const [sub] = rowsOf(
-    await database.execute({ sql: "SELECT amount_cents, repeat_interval, status, reminded_for FROM stripe_subscriptions WHERE subscription_id = ?", args: [subscriptionId] }),
+    await database.execute({ sql: "SELECT amount_cents, repeat_interval, status, reminded_for, past_until FROM stripe_subscriptions WHERE subscription_id = ?", args: [subscriptionId] }),
   );
   if (!sub || sub.status !== "active") return null;
   const due = dueAt ?? "unknown";
   if (sub.reminded_for === due) return null;
   await database.execute({ sql: "UPDATE stripe_subscriptions SET reminded_for = ? WHERE subscription_id = ?", args: [due, subscriptionId] });
-  return { amountCents: Number(sub.amount_cents), interval: String(sub.repeat_interval) };
+  const pastUntil = typeof sub.past_until === "string" && sub.past_until ? sub.past_until : null;
+  return { amountCents: Number(sub.amount_cents), interval: String(sub.repeat_interval), ...(pastUntil ? { last: isLastCharge(due, pastUntil, String(sub.repeat_interval)) } : {}) };
 }
 
 /** Marks an autopay subscription ended, when Stripe says it was canceled. */

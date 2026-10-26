@@ -2028,7 +2028,7 @@ export function Store() {
                           ` It includes ${usd(totals.pastSpread.perMonth * (billing === "annual" ? 12 : 1))} toward past use until ${pastEnds}${
                             autopay
                               ? pledgeApi
-                                ? "; autopay keeps charging it after that, so stop autopay and pay again then."
+                                ? ". Autopay ends then, and I email you to turn it on again at the lower price."
                                 : "; Every.org can't stop that part on its own, so lower the gift in your Every.org account then."
                               : "."
                           }`}
