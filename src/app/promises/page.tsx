@@ -14,11 +14,11 @@ const PROMISES = [
       every:
         "You approve each gift yourself, on Every.org, one charity at a time. Nothing repeats unless you tick autopay at checkout. If you do, Every.org charges the same gifts each month or year until you cancel them in your Every.org account. I can't email you before those charges or hold one back, so leave autopay off if you want to approve each one.",
       endaoment:
-        "You approve each gift yourself, on Endaoment's page for the My Offset fund. Nothing repeats on its own: each month or year, you come back and give again.",
+        "You approve each gift yourself, on Endaoment's page for the My Offset fund. Nothing repeats on its own. Each month or year, you come back and give again.",
       pledge:
-        "You approve each gift yourself, in Pledge's form, one charity at a time. Nothing repeats on its own: each month or year, you come back and give again.",
+        "You approve each gift yourself, in Pledge's form, one charity at a time. Nothing repeats on its own. Each month or year, you come back and give again.",
       pledgeapi:
-        "You approve each payment yourself, on Stripe's checkout page. It's one payment for all the charities. Nothing repeats on its own: each month or year, you come back and pay again.",
+        "You approve each payment yourself, on Stripe's checkout page. It's one payment for all the charities. Nothing repeats unless you turn on autopay, and then I email you a few days before every charge, with a link to stop.",
       sponsor:
         "By default you approve each payment yourself, once a year or each month. Autopay is off unless you switch it on. If you do, I email you a few days before every charge with the amount and a one-click skip or stop, and a month that comes out more than $5 or 25% higher than the last, whichever is smaller, waits for your approval instead. The email shows the exact limit in dollars.",
     }),
@@ -28,7 +28,7 @@ const PROMISES = [
       every: "Your donation goes straight to charities",
       endaoment: "Your donation goes to the charities",
       pledge: "Your donation goes straight to charities",
-      pledgeapi: "Every dollar of your donation goes to the charities",
+      pledgeapi: "All of your donation reaches the charities",
       sponsor: "Your donation goes straight to charities",
     }),
     body: forMode({
@@ -39,40 +39,40 @@ const PROMISES = [
       endaoment:
         "You give to My Offset's fund at Endaoment, a nonprofit that sends you the tax receipt and grants the money on to each charity in the amounts checkout shows. I never hold the money myself.",
       pledgeapi:
-        "You pay My Offset once, through Stripe. I then give each charity its part through Pledge, a nonprofit giving platform, in the amounts checkout shows. Pledge records each gift in your name and emails you a receipt for it. Every month's totals are public.",
+        "You pay me once, through Stripe, and I give each charity its part through Pledge, a nonprofit giving platform. Pledge emails you a receipt for each gift, and every month's totals are public.",
       sponsor:
         "Your donation is held by my charity sponsor, a registered charity, which sends you the tax receipt and pays the charities on your summary each month. I never hold the money myself. Every month's totals are public.",
     }),
     link: { href: "/ledger", text: "Where the money goes" },
   },
   {
-    title: "No cut, just costs passed on",
+    title: "I don't make money on fees",
     body: forMode({
       every:
         "I don't make money on your donation. Each charity is paid separately through Every.org, which charges card payments 2.2% + 30¢ and bank payments nothing; the fee is shown for each charity. Paying yearly means one 30¢ fee per charity instead of twelve. There are no tips; I pay for running the site myself.",
       pledge: `I don't make money on your donation. Each charity is paid separately through Pledge, which pays the card fee on gifts up to ${PLEDGE_FREE_LABEL}. Above that, the card fee is shown for that charity. Pledge may ask for an optional tip, which goes to Pledge; My Offset gets none of it. I pay for running the site myself.`,
-      pledgeapi: `I don't make money on your donation. The fees are passed on at cost, each on its own line: Stripe's card fee (${STRIPE_CARD_LABEL}) on your payment, and Pledge's ${PLEDGE_API_FEE_LABEL} technology fee and ${PLEDGE_API_CARD_LABEL} card fee on the gifts I make through it. Paying yearly means one 30¢ fee instead of twelve. There are no tips; I pay for running the site myself.`,
+      pledgeapi: `The fees are passed on at cost, each on its own line: Stripe's card fee (${STRIPE_CARD_LABEL}) and Pledge's ${PLEDGE_API_FEE_LABEL} technology fee and ${PLEDGE_API_CARD_LABEL} card fee. There are no tips, and I pay for running the site myself.`,
       endaoment: `I don't make money on your donation. You make one gift, and the fees are passed on at cost, each on its own line: the card payment and Endaoment's ${ENDAOMENT_IN_LABEL} as the gift comes in and ${ENDAOMENT_GRANT_LABEL} as it is granted out. Paying yearly means one card fee instead of twelve. There are no tips; I pay for running the site myself.`,
       sponsor:
         "I don't make money on your donation. Two fees are passed on at cost, each on its own line: the card payment (30¢ plus 2.2%) and my charity sponsor's 8%, which pays for holding the money, sending tax receipts and paying the charities. Paying yearly means one 30¢ charge instead of twelve. There are no tips; I pay for running the site myself.",
     }),
   },
   {
-    title: "No cheap, unverified carbon credits",
-    body: "Many cheap carbon credits have turned out not to deliver what they claimed. I give to charities chosen on evidence of impact, and I buy no carbon credits. I never say tonnes were removed, because policy work can't be measured that way.",
+    title: "I don't buy carbon credits",
+    body: "Many cheap credits have turned out not to deliver what they claimed. I give to charities chosen on evidence of impact, and I never say tonnes were removed, because policy work can't be measured that way.",
   },
   {
-    title: "Every number is explained",
+    title: "I show where each number comes from",
     body: "Each line of your footprint shows where it came from and how sure I am. You can see every factor I use and correct any estimate.",
   },
   {
-    title: "Your data stays yours",
-    body: "Linked accounts are read-only and I take only what the estimate needs. Unlink or delete everything with one click. I will never sell your data.",
+    title: "I don't sell your data",
+    body: "Linked accounts are read-only, and I take only what the estimate needs. You can unlink or delete everything with one click.",
     link: { href: "/data", text: "What I read and keep" },
   },
   {
     title: "Giving is not a substitute for cutting back",
-    body: "Your summary shows the changes that would shrink your footprint most. Donations fund climate work alongside those changes, not instead of them.",
+    body: "Your summary shows the changes that would shrink your footprint most. Donations fund climate work alongside those changes.",
   },
   {
     title: "If I ever close the site",
@@ -85,8 +85,31 @@ export default function PromisesPage() {
     <article className="mx-auto max-w-4xl px-4 py-12">
       <h1 className="text-4xl font-extrabold [font-stretch:85%]">Promises</h1>
       <p className="mt-4 text-lg text-muted">
-        People have good reasons to distrust offset apps. Here is how I handle each one.
+        People have good reasons to distrust offset apps. These are the promises I make about each one.
       </p>
+      <section id="who" className="mt-8 flex scroll-mt-24 items-start gap-5">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/ian.jpg"
+          alt="Ian Tarter"
+          width={96}
+          height={96}
+          className="size-24 shrink-0 rounded-md border border-border object-cover"
+        />
+        <div>
+          <h2 className="font-display text-lg font-bold">Who&apos;s behind this</h2>
+          <p className="mt-1">
+            My Offset is made by Ian Tarter, a Master of Human-Computer Interaction student at Carnegie Mellon University. It&apos;s one person, with no
+            marketing team, and every number on this site traces back to a source you can check.{" "}
+            <a href="https://iantarter.com" target="_blank" rel="noreferrer" className="text-accent underline underline-offset-4">
+              iantarter.com
+            </a>
+          </p>
+          <p className="mt-2">
+            Questions, problems or a charge you didn&apos;t expect: <ContactLink />.
+          </p>
+        </div>
+      </section>
       <dl className="mt-8 border-t-2 border-rule">
         {PROMISES.map((p) => (
           <div key={p.title} className="grid gap-1 border-b border-border py-5 sm:grid-cols-[15rem_minmax(0,1fr)] sm:gap-8">
@@ -105,30 +128,6 @@ export default function PromisesPage() {
           </div>
         ))}
       </dl>
-      <section id="who" className="mt-10 flex scroll-mt-24 items-start gap-5 border-t-2 border-rule pt-6">
-        {/* Same photo as iantarter.com. Swap for a local copy once there's a final one. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="https://iantarter.com/wp-content/uploads/2023/08/img-2643-edited-1.png?w=240"
-          alt="Ian Tarter"
-          width={96}
-          height={96}
-          className="size-24 shrink-0 rounded-md border border-border object-cover"
-        />
-        <div>
-          <h2 className="font-display text-lg font-bold">Who&apos;s behind this</h2>
-          <p className="mt-1">
-            My Offset is made by Ian Tarter, a Master of Human-Computer Interaction student at Carnegie Mellon University. It&apos;s one person, not a company with a
-            marketing team, and every number on this site traces back to a source you can check.{" "}
-            <a href="https://iantarter.com" target="_blank" rel="noreferrer" className="text-accent underline underline-offset-4">
-              iantarter.com
-            </a>
-          </p>
-          <p className="mt-2">
-            Questions, problems or a charge you didn&apos;t expect: <ContactLink />.
-          </p>
-        </div>
-      </section>
       <p className="mt-8 text-muted">
         See <Link href="/method" className="text-accent underline underline-offset-4">how it&apos;s calculated</Link> for every factor and
         source.

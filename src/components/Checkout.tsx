@@ -520,7 +520,7 @@ function PledgeApiSteps({ checkout, onChange, onGo, saved = true, save = saveChe
     onGo?.();
     const body = checkout.gift
       ? { source: "gift", giftId: checkout.id }
-      : { source: "plan", planId: checkout.id, billing: checkout.billing, autopay: false, rows: checkout.rows, ...checkout.plan };
+      : { source: "plan", planId: checkout.id, billing: checkout.billing, autopay: !!checkout.autopay, rows: checkout.rows, ...checkout.plan };
     try {
       const r = await fetch("/api/stripe/checkout", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
       const d = (await r.json().catch(() => null)) as { url?: unknown; error?: unknown } | null;

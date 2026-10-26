@@ -46,6 +46,15 @@ const httpsUrl = (u: string | undefined) => {
  * - PLEDGE_API_KEY: Pledge's REST API key (already set for Pledge's webhook).
  * - PLEDGE_API_HOST (optional): https://api-staging.pledge.to for Pledge's sandbox; https://api.pledge.to by default.
  * Without a secret, its route answers 503 and nothing is charged.
+ *
+ * Autopay (a Stripe subscription for the monthly or yearly part, off unless the donor ticks it) also needs:
+ * - the webhook endpoint sent invoice.paid, invoice.upcoming and customer.subscription.deleted as well;
+ * - "upcoming renewal events" on in Stripe's Billing settings, so invoice.upcoming arrives for the reminder email;
+ * - STRIPE_PORTAL_URL: the customer portal's login link (Stripe, Settings, Billing, Customer portal), the "stop" link in reminders;
+ * - RESEND_API_KEY and EMAIL_FROM, for the reminder email;
+ * - the restricted Stripe key allowed to write Subscriptions, so a plan that spreads past use can end autopay once it's paid off;
+ * - migrations/0009_stripe_autopay.sql applied to the database;
+ * - then NEXT_PUBLIC_AUTOPAY_ON=1 in the build variables, and a rebuild, to show the autopay box.
  */
 export const paymentModeFrom = (mode: string | undefined, fundUrl: string | undefined, pledgeKey?: string): PaymentMode =>
   mode === "endaoment" && httpsUrl(fundUrl)
@@ -218,10 +227,18 @@ export const payRows = (split: HarmSplit, billing: Billing, autopay: boolean, mo
   splitRows(split, billing, autopay && autopayOffered(mode), mode);
 
 /**
- * Whether a mode can repeat gifts on their own. Every.org can; Pledge's forms take no frequency,
- * and the one Stripe payment in "pledgeapi" mode is made once.
+ * Whether a mode can repeat gifts on their own. Every.org can, and so can "pledgeapi" mode, where
+ * Stripe repeats the monthly or yearly part as a subscription (Ian, 2026-10-25). Pledge's own
+ * forms take no frequency.
  */
-export const autopayOffered = (mode: PaymentMode = PAYMENT_MODE) => mode !== "pledge" && mode !== "pledgeapi";
+export const autopayOffered = (mode: PaymentMode = PAYMENT_MODE) => (mode === "pledgeapi" ? autopayOn() : mode !== "pledge");
+
+/**
+ * Autopay in "pledgeapi" mode stays hidden until NEXT_PUBLIC_AUTOPAY_ON is "1", set once
+ * everything listed above is in place. Without the webhook events a renewal would be charged
+ * with no gifts made, and without email the promised reminder wouldn't go out.
+ */
+export const autopayOn = () => process.env.NEXT_PUBLIC_AUTOPAY_ON === "1";
 
 /** payRows without the autopay check, for working out what each later month or year costs in any mode. */
 function splitRows(split: HarmSplit, billing: Billing, autopay: boolean, mode: PaymentMode): PayRow[] {

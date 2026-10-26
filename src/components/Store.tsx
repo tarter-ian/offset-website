@@ -6,22 +6,22 @@ import { type Covered, STORAGE_KEY } from "@/lib/covered";
 import { inForce, recordStatus, untilOf } from "@/lib/record";
 import { steadyPlan } from "@/lib/steady";
 import { pullCovered, pushCovered } from "@/lib/accountClient";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { ActivityUpload } from "./ActivityUpload";
 import { CheckoutSteps, DirectPledgeForm } from "./Checkout";
 import { SteadyCheck } from "./SteadyCheck";
-import { LIFETIME_TO_AGE } from "@/lib/factors";
+import { AI_HARDWARE_SHARE, AI_TRAINING_SHARE, DATACENTER_M2_YEARS_PER_KWH, LIFETIME_TO_AGE, WH_PER_AI_PROMPT } from "@/lib/factors";
 import { joinList, ListInvite, ListOptIn } from "./ListOptIn";
 import { AiExportUpload } from "./AiExportUpload";
 import { AiQuickPick } from "./AiQuickPick";
 import { OffsetTimeline } from "./OffsetTimeline";
 import { fullBadges, zeroUse } from "@/lib/badges";
-import { AI_LEVELS, levelOf } from "@/lib/ai/levels";
+import { AI_LEVELS, levelOf, type AiLevel } from "@/lib/ai/levels";
 import { NumberInput, Select } from "./fields";
 import { STATE_OPTIONS, STATES, type StateCode } from "@/lib/data/states";
 import { airShort, IMPACT_INFO, lifeText } from "@/lib/impacts";
 import { CHARITIES } from "@/lib/charities";
-import { IMPACT_KEYS, type ImpactKey, sumImpacts, type Impacts } from "@/lib/footprint";
+import { aiImpacts as aiImpactsOf, coolingWater, IMPACT_KEYS, type ImpactKey, sumImpacts, type Impacts } from "@/lib/footprint";
 import { howEstimated, whereItGoes } from "@/lib/methods";
 import { isPhone } from "@/lib/extension";
 import { PROVIDERS, type ProviderId } from "@/lib/providers";
@@ -56,7 +56,6 @@ import { SOURCE_NAMES, type ActivitySource } from "@/lib/activity";
 import { monthName } from "@/lib/history";
 import { ONLINE_FROM_AGE } from "@/lib/factors";
 import {
-  LIFETIME_GROWTH_BUFFER,
   BILLING,
   type Billing,
   DEFAULT_BILLING,
@@ -75,10 +74,15 @@ import {
   feeParts,
   impactCost,
   usd,
+  CARBON_MODES,
+  DEFAULT_CARBON_MODE,
+  DEFAULT_WATER_MODE,
+  LAND_USD_PER_ACRE,
+  WATER_MODES,
+  minGift,
 } from "@/lib/pricing";
 import {
   aheadFor,
-  SMALL_MONTHLY_USD,
   AI_LIFETIME_FIRST_MAX_USD,
   BEFORE_GROUPS,
   lifestyleBadge,
@@ -86,7 +90,6 @@ import {
   codingAmountText,
   addedMonthly,
   chargeParts,
-  hasNonAi,
   type Cover,
   coverBadge,
   coverPrice,
@@ -261,6 +264,7 @@ export function Store() {
   const [payState, setPayState] = useState<Checkout | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [adjusting, setAdjusting] = useState(false);
+  const [wantReal, setWantReal] = useState(false);
   const [measuring, setMeasuring] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
   // Which downloaded histories filled in each tile's amount.
@@ -275,7 +279,6 @@ export function Store() {
   const [details, setDetails] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   /** The aisles stay folded until someone asks for them, so the first visit is about AI alone. */
-  const [shelvesOpen, setShelvesOpen] = useState(false);
   // Nothing is saved until the saved plan has loaded, so the first render's empty state never
   // overwrites it, and nothing at all while the page is leaving for the record.
   const [ready, setReady] = useState(false);
@@ -292,10 +295,9 @@ export function Store() {
         })
         .catch(() => {});
     }
-    // A link straight to an aisle opens the folded aisles and goes there.
+    // A link straight to an aisle goes there.
     const hash = window.location.hash.slice(1);
     if (hash.startsWith("section-") || hash === "everything-heading") {
-      setShelvesOpen(true);
       setTimeout(() => document.getElementById(hash)?.scrollIntoView(), 150);
     }
     if (!s) {
@@ -531,7 +533,8 @@ export function Store() {
       onceSum > 0 && `${once(onceSum)} once`,
     ]
       .filter(Boolean)
-      .join(" + ") + (t.pastSpread ? `, past use spread over ${t.pastSpread.years === 1 ? "a year" : `${t.pastSpread.years} years`}` : "");
+      // Tiles leave out card and Pledge fees, so the total says so (Ian, 2026-10-25).
+      .join(" + ") + " + fees" + (t.pastSpread ? `, past use spread over ${t.pastSpread.years === 1 ? "a year" : `${t.pastSpread.years} years`}` : "");
   };
   // Meat, dairy and plant foods are three parts of one diet, so they share one answer.
   const FOOD_IDS = PRODUCTS.filter((x) => x.section === "food").map((x) => x.id);
@@ -901,21 +904,7 @@ export function Store() {
     const tp = tilePrice(price, cover, billing, cardSpread);
     // Nothing to offset, like meat on a vegan diet: say so instead of a $0 price.
     const nothing = price.once + price.monthly < 0.005;
-    // The other way to pay, one tap away: once for life, or back to monthly.
-    const options = aheadFor(p, amount, ctx, anyway[p.id]);
-    const other: Cover["ahead"] = cover.ahead === "monthly" ? "lifetime" : "monthly";
-    const otherPrice = coverPrice(p, amount, { ...cover, ahead: other }, ctx);
-    const alt = options.includes(other)
-      ? {
-          ahead: other,
-          text:
-            other === "lifetime"
-              ? `or ${once(otherPrice.once)} once, ${cover.past ? "for life" : "for all future use"}`
-              : otherPrice.monthly < SMALL_MONTHLY_USD
-                ? `or under $1 ${BILLING.monthly.per}`
-                : `or ${usd((billing === "annual" ? 12 : 1) * otherPrice.monthly)} ${BILLING[billing].per}`,
-        }
-      : null;
+    // No "or under $1 a month" link on tiles (Ian, 2026-10-25: drop it); the plan sets how to pay.
     const isOpen = details === p.id;
     const paid = paidCover(covered[p.id]);
     // A lifestyle choice that leaves nothing to pay going forward, like meat on a vegan diet, counts as covered.
@@ -925,7 +914,7 @@ export function Store() {
     return (
       <li
         key={p.id}
-        className={`flex w-[78%] shrink-0 snap-start flex-col rounded-md p-4 md:w-auto ${
+        className={`flex flex-col rounded-md p-4 md:w-auto ${
           paid?.kind === "life" || offsetFree ? "bg-life" : paid ? "bg-period" : plan.includes(p.id) ? "bg-accent-soft" : "bg-card"
         } ${isOpen ? "outline-2 outline-rule" : ""}`}
       >
@@ -987,22 +976,14 @@ export function Store() {
         {info === p.id && infoPanel(p)}
         {/* An item offset for life shows nothing here: its pale green and "Offset for life" say it (Ian, 2026-10-13). */}
         {paid?.kind !== "life" && !nothing && (
-        <div className="mt-auto flex items-center justify-between gap-3 pt-3">
+        // The price row is always last and bottom-aligned, so every Add in a row lines up (Ian, 2026-10-25).
+        <div className="mt-auto flex items-end justify-between gap-3 pt-3">
           <span className="leading-tight">
             <span className="amount block text-lg font-semibold">{tp.big}</span>
             <span className="block text-xs text-muted">{tp.note}</span>
           </span>
           {addButton(p, true)}
         </div>
-        )}
-        {alt && !nothing && paid?.kind !== "life" && (
-          <button
-            type="button"
-            onClick={() => setPicked((x) => ({ ...x, [p.id]: { ...x[p.id], ahead: alt.ahead } }))}
-            className="mt-1 inline-flex min-h-9 items-center self-start text-left text-xs underline underline-offset-4"
-          >
-            {alt.text}
-          </button>
         )}
       </li>
     );
@@ -1178,19 +1159,6 @@ export function Store() {
   const aiPrice = { once: heroCharge.pastOnce + heroCharge.lifeOnce, monthly: heroCharge.monthly };
   // The hero shows what checkout charges, from the same gifts: each charity's $1 minimum and card fees in (Ian, 2026-10-13).
   const heroBill = chargesOf(heroTotals);
-  const heroUseOnly = [
-    (aiPrice.monthly > 0 || heroSpread) && per(aiPrice.monthly + (heroSpread?.perMonth ?? 0), billing),
-    aiPrice.once >= 0.005 && `${once(aiPrice.once)}${aiPrice.monthly > 0 || heroSpread ? " once" : ""}`,
-  ]
-    .filter(Boolean)
-    .join(" and ");
-  const heroWhy = forMode({
-    every: "card fees and at least $1 to each charity",
-    pledge: "at least $1 to each charity",
-    pledgeapi: "Stripe's and Pledge's fees",
-    endaoment: "card fees and Endaoment's fee",
-    sponsor: "card fees and each charity's smallest gift",
-  });
   // What the box shows: "for life" only when nothing is left to pay each month.
   const aiCover: Cover = { past: heroPast, ahead: aiPrice.monthly > 0 ? "monthly" : "lifetime" };
   // Paid for life shows everything it covers; paid for a stretch shows each month of it.
@@ -1212,12 +1180,103 @@ export function Store() {
   const heroOnceWhat = [heroCharge.lifeOnce >= 0.005 && `${heroLifeNames} for life`, heroCharge.pastOnce >= 0.005 && "past use"].filter(
     (x): x is string => Boolean(x),
   );
-  const heroNames = heroLines.map((l) => (l.p.id === "ai" ? "Chat" : heroName(l.p.id, l.p.name)));
-  const heroParts = heroNames.length > 1 ? `${heroNames.slice(0, -1).join(", ")} and ${heroNames.at(-1)}` : "Chat";
   const heroInPlan = heroIds.every((id) => plan.includes(id) || paidCover(covered[id]));
   // Only something outside AI opens the aisles, so offsetting AI images or coding keeps the page on AI (Ian, 2026-10-13).
-  const aislesOpen = shelvesOpen || hasNonAi(plan) || hasNonAi(Object.keys(covered)) || Object.keys(linkedFrom).length > 0;
   /** The hero's green button: puts every AI part in the plan on the hero's cover, then opens checkout. */
+  // The level shown as picked: none when the numbers came from real data or were typed in.
+  const giveLabel = heroInPlan ? "Review and give" : aiCover.ahead === "lifetime" && heroAhead === "lifetime" ? `Give ${usd(heroBill.today)}` : "Offset it";
+  const aiLevel: AiLevel | null =
+    ctx.aiFromExport || entered.ai
+      ? null
+      : (ctx.aiEstimate?.level ??
+        levelOf({
+          promptsPerDay: Number(aiAmount),
+          imagesPerWeek: Number(amountOf(productById("ai-media")!)),
+          videosPerWeek: Number(amountOf(productById("ai-video")!)),
+          codingHoursPerWeek: Number(amountOf(productById("ai-coding")!)),
+        }));
+  // "Your real number" on the size switch opens the ways to count real use (Ian, 2026-10-25).
+  const pickLevel = (level: AiLevel, from: string) => {
+    setWantReal(false);
+    setCtx((c) => ({ ...c, aiEstimate: { level, from }, aiFromExport: false, aiWhPerPrompt: undefined, aiPastWh: undefined, aiCode: undefined, aiAgent: undefined, aiCodingPastWh: undefined }));
+    // Images and video follow the pick too, unless the person typed their own. A pick replaces connected data
+    // entirely, so measured coding goes back to none (Ian, 2026-10-13).
+    setAmounts((a) => ({
+      ...a,
+      ai: AI_LEVELS[level].promptsPerDay,
+      ...(entered["ai-media"] ? {} : { "ai-media": AI_LEVELS[level].imagesPerWeek }),
+      ...(entered["ai-video"] ? {} : { "ai-video": AI_LEVELS[level].videosPerWeek }),
+      ...(entered["ai-coding"] ? {} : { "ai-coding": 0 }),
+    }));
+    resetAiCover();
+    setEntered((e) => ({ ...e, ai: false }));
+  };
+  // How each AI total was reached, one block per charity card (Ian, 2026-10-25). Shown in its own section on
+  // wide screens and under its card on phones, so each card keeps its numbers next to it.
+  const aiAnswers = (() => {
+    // Each total splits by the shares inside aiImpacts for one kWh of answers.
+    const unit = aiImpactsOf(1);
+    const kwh1 = 1 / (1 - AI_TRAINING_SHARE);
+    const dcLand = aiImpacts.land * ((kwh1 * DATACENTER_M2_YEARS_PER_KWH) / unit.land);
+    const cooling = aiImpacts.water * (coolingWater(kwh1) / unit.water);
+    const built = aiImpacts.carbon * AI_HARDWARE_SHARE;
+    const bare = (k: "carbon" | "water" | "land", v: number) => IMPACT_INFO[k].format(v, aiImpacts).replace(/ (CO₂e|water|land)$/, "");
+    // Each line also shows what 1,000 prompts cause (one gave tiny numbers), from the same factors at today's rates (Ian, 2026-10-25:
+    // electricity is unintuitive; show one prompt through every number).
+    const one = aiImpactsOf((ctx.aiWhPerPrompt ?? WH_PER_AI_PROMPT) / 1000);
+    const sig = (n: number) => Number(n.toPrecision(2)).toLocaleString();
+    const oneDc = one.land * ((kwh1 * DATACENTER_M2_YEARS_PER_KWH) / unit.land);
+    const oneCool = one.water * (coolingWater(kwh1) / unit.water);
+    const oneBuilt = one.carbon * AI_HARDWARE_SHARE;
+    return [
+      {
+        key: "carbon",
+        total: `${IMPACT_INFO.carbon.format(aiImpacts.carbon, aiImpacts)}, ${airShort(aiImpacts)}`,
+        rows: [
+          // Each row says where it comes from (Ian, 2026-10-25): burning fuel for power, and making servers (chips included).
+          ["Power plant CO₂", `${sig((one.carbon - oneBuilt) * 1e6)} g`, bare("carbon", aiImpacts.carbon - built)],
+          ["Making servers", `${sig(oneBuilt * 1e6)} g`, bare("carbon", built)],
+          ["Power plant smog", `${sig(one.smogL * 1e6)} mL`, airShort(aiImpacts).replace(/ smog$/, "")],
+        ],
+      },
+      {
+        key: "water",
+        total: IMPACT_INFO.water.format(aiImpacts.water, aiImpacts),
+        rows: [
+          // Power plants first in every block, as in the CO2 one (Ian, 2026-10-25).
+          ["Power plants", `${sig((one.water - oneCool) * 1e6)} mL`, bare("water", aiImpacts.water - cooling)],
+          ["Cooling servers", `${sig(oneCool * 1e6)} mL`, bare("water", cooling)],
+        ],
+      },
+      {
+        key: "land",
+        total: IMPACT_INFO.land.format(aiImpacts.land, aiImpacts),
+        rows: [
+          ["Power plants", `${sig((one.land - oneDc) * 1e7)} cm²`, bare("land", aiImpacts.land - dcLand)],
+          ["Data centers", `${sig(oneDc * 1e7)} cm²`, bare("land", dcLand)],
+        ],
+      },
+    ].filter((b) => aiImpacts[b.key as "carbon" | "water" | "land"] > 0);
+  })();
+  const numberBlock = (b: (typeof aiAnswers)[number], cls = "") => (
+    <li key={`${b.key}${cls}`} className={`flex flex-col border-t-[6px] border-rule bg-card px-5 pt-4 pb-5 ${cls}`}>
+      {/* No question headings (Ian, 2026-10-25): the total is the heading, the rows say what it's made of. */}
+      <h3 className="amount text-lg font-semibold">{b.total}</h3>
+      <div className="amount grid grid-cols-[1fr_auto_auto] gap-x-3 pt-4 text-sm">
+        <span />
+        <span className="pb-1 text-right text-xs whitespace-nowrap text-muted">1k prompts</span>
+        <span className="pb-1 text-right text-xs text-muted">You</span>
+        {b.rows.map(([label, prompt, v]) => (
+          <Fragment key={label}>
+            {/* Labels stay on one line (Ian, 2026-10-25). */}
+            <span className="border-t border-border py-1 whitespace-nowrap">{label}</span>
+            <span className="border-t border-border py-1 text-right text-muted">{prompt}</span>
+            <span className="border-t border-border py-1 text-right">{v}</span>
+          </Fragment>
+        ))}
+      </div>
+    </li>
+  );
   const reviewAndPay = () => {
     setPlan((cur) => [...cur, ...heroIds.filter((id) => !cur.includes(id) && !paidCover(covered[id]))]);
     setPicked((x) => ({ ...x, ...Object.fromEntries(heroLines.map((l) => [l.p.id, { ...x[l.p.id], ...l.cover }])) }));
@@ -1227,7 +1286,7 @@ export function Store() {
   };
   return (
     <div className="pb-20">
-      <section className="relative isolate pb-12">
+      <section className="relative isolate">
         {heroPaid && !updatingNumbers ? (
           // Once all AI is paid, the photo carries what's offset instead of a price (Ian, 2026-10-13).
           <div className="relative py-10 lg:py-14">
@@ -1273,7 +1332,7 @@ export function Store() {
             </div>
           </div>
         ) : (
-        <div className="relative grid gap-10 py-10 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-14 lg:py-12">
+        <div className="relative grid min-h-[70svh] content-center gap-10 py-10 lg:grid-cols-[minmax(0,1fr)_400px] lg:items-center lg:gap-14 lg:py-12">
         {/* A photo behind the headline (Ian, 2026-10-13); a drawn landscape until a charity photo is in. */}
         <div aria-hidden="true" className="hero-band" />
         <div className="self-center">
@@ -1288,14 +1347,11 @@ export function Store() {
                     </>
                   )
               : (
-                  // Two lines on a computer: what it is, then the price (Ian, 2026-10-13).
+                  // The headline itself says what the site is (Ian, 2026-10-25: no secondary headline).
                   <>
-                    <span className="block">{paidLines.length ? "Your other AI use" : "Your AI use"}, offset</span>
-                    <span className="block">
-                      {heroAhead === "lifetime" && aiCover.ahead === "lifetime"
-                        ? `for life: ${usd(heroBill.today)}.`
-                        : `for ${usd(heroBill.then)} ${BILLING[billing].per}.`}
-                    </span>
+                    {heroAhead === "lifetime" && aiCover.ahead === "lifetime"
+                      ? `${usd(heroBill.today)} to charities offsets your ${paidLines.length ? "other " : ""}AI use for life.`
+                      : `${usd(heroBill.then)} ${BILLING[billing].per} to charities offsets your ${paidLines.length ? "other " : ""}AI use.`}
                   </>
                 )}
           </h1>
@@ -1308,29 +1364,46 @@ export function Store() {
               {paidGift && `, a gift from ${paidGift}`}
             </p>
           )}
-          <dl className={`amount divide-y divide-border text-sm ${heroPaid ? "" : "-mt-2"}`}>
-            {[
-              // A harm shows unless it's truly zero; checkout gives every one shown to its charity (Ian, 2026-10-13).
-              ...(["carbon", "air", "water", "land"] as const)
+          {heroPaid ? (
+            <dl className="amount divide-y divide-border text-sm">
+              {(["carbon", "air", "water", "land"] as const)
                 .filter((k) => aiImpacts[k] > 0)
-                .map((k) => [IMPACT_INFO[k].label, IMPACT_INFO[k].format(aiImpacts[k], aiImpacts)]),
-            ].map(([k, v]) => (
-              <div key={k} className="flex justify-between gap-4 py-2">
-                <dt className="text-muted">{k}</dt>
-                <dd className="text-right">{v}</dd>
-              </div>
-            ))}
-          </dl>
-          <details className="mt-1 text-xs text-muted">
-            <summary className="cursor-pointer underline underline-offset-2 hover:text-foreground">What&apos;s counted</summary>
-            <p className="mt-1">
-              {heroParts}, plus a share of training the models and building the data centers. Future use counts {LIFETIME_GROWTH_BUFFER} times over in case it
-              grows, on a grid that gets cleaner each year. Past use is {pastNote(ai)}.{" "}
-              <Link href="/method" className="cursor-pointer underline underline-offset-2 hover:text-foreground">
-                Every number&apos;s source
-              </Link>
-            </p>
-          </details>
+                .map((k) => (
+                  <div key={k} className="flex justify-between gap-4 py-2">
+                    <dt className="text-muted">{IMPACT_INFO[k].label}</dt>
+                    <dd className="text-right">{IMPACT_INFO[k].format(aiImpacts[k], aiImpacts)}</dd>
+                  </div>
+                ))}
+            </dl>
+          ) : (
+            // The price sits with the choice that sets it (Ian, 2026-10-25).
+            <div role="group" aria-label="How much you use AI" className="grid grid-cols-2 gap-1">
+              {(Object.keys(AI_LEVELS) as AiLevel[]).map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  aria-pressed={!wantReal && aiLevel === k}
+                  onClick={() => pickLevel(k, `you picked ${AI_LEVELS[k].label.toLowerCase()}`)}
+                  className={`min-h-12 cursor-pointer rounded px-1 py-1 text-center ${!wantReal && aiLevel === k ? "bg-foreground text-background" : "bg-card hover:bg-border"}`}
+                >
+                  <span className="block font-semibold">{AI_LEVELS[k].label}</span>
+                  <span className={`block text-[11px] whitespace-nowrap ${!wantReal && aiLevel === k ? "opacity-80" : "text-muted"}`}>{AI_LEVELS[k].promptsPerDay} prompts a day</span>
+                </button>
+              ))}
+              <button
+                type="button"
+                aria-pressed={wantReal || aiLevel === null}
+                onClick={() => {
+                  setWantReal(true);
+                  // The ways to count open right under the hero; bring them on screen (Ian, 2026-10-25: it looked like nothing happened).
+                  setTimeout(() => document.getElementById("real-number")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+                }}
+                className={`min-h-12 cursor-pointer rounded px-1 py-1 text-center font-semibold ${wantReal || aiLevel === null ? "bg-foreground text-background" : "bg-card hover:bg-border"}`}
+              >
+                Your real number
+              </button>
+            </div>
+          )}
           {heroPaid ? (
             <div className="mt-4 flex items-center justify-between gap-4 border-t border-border pt-3">
               <span className="text-sm">
@@ -1370,7 +1443,7 @@ export function Store() {
                       ))}
                   </span>
                 </span>
-              ) : (
+              ) : heroAhead === "lifetime" && !heroInPlan ? null : (
                 <span className="amount text-2xl font-semibold">
                   {usd(heroBill.today)} {aiCover.past ? "for life" : "once"}
                 </span>
@@ -1378,63 +1451,30 @@ export function Store() {
               <button
                 type="button"
                 onClick={reviewAndPay}
-                className="min-h-11 shrink-0 cursor-pointer rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-strong"
+                className={`min-h-11 shrink-0 cursor-pointer rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-strong ${heroAhead === "lifetime" && aiCover.ahead === "lifetime" && !heroInPlan ? "min-h-14 w-full text-xl" : ""}`}
               >
-                {heroInPlan ? "Review and give" : "Offset my AI use"}
+                {/* Same words as the Give button under the receipt (Ian, 2026-10-25). */}
+                {giveLabel}
               </button>
             </div>
-          )}
-          {!heroPaid && heroUseOnly && (
-            <p className="mt-2 text-xs text-muted">
-              Includes {heroWhy}. Your use alone comes to <span className="amount">{heroUseOnly}</span>.
-            </p>
           )}
           {!heroPaid && paidNames.length > 0 && (
             <p className="mt-2 text-sm text-muted">
               {paidNames.join(" and ")} {paidNames.length > 1 ? "are" : "is"} already offset.
             </p>
           )}
-          {heroIds.some((id) => plan.includes(id) && !paidCover(covered[id])) && (
-            <button
-              type="button"
-              onClick={() => setPlan((cur) => cur.filter((id) => !heroIds.includes(id) || paidCover(covered[id])))}
-              className="mt-2 min-h-10 cursor-pointer text-sm text-muted underline underline-offset-4 hover:text-foreground"
-            >
-              Take AI out of your plan
-            </button>
-          )}
         </aside>
         </div>
         )}
-        {heroPaid && !updatingNumbers ? null : (
-          <div className="mt-10">
+        {(heroPaid ? updatingNumbers : wantReal || aiLevel === null) && (
+          <div id="real-number" className="mt-10 scroll-mt-4">
+            <div>
             <AiQuickPick
               keepGuess={Boolean(ctx.aiEstimate?.level)}
-              level={
-                ctx.aiFromExport || entered.ai
-                  ? null
-                  : (ctx.aiEstimate?.level ??
-                    levelOf({
-                      promptsPerDay: Number(aiAmount),
-                      imagesPerWeek: Number(amountOf(productById("ai-media")!)),
-                      videosPerWeek: Number(amountOf(productById("ai-video")!)),
-                      codingHoursPerWeek: Number(amountOf(productById("ai-coding")!)),
-                    }))
-              }
-              onPick={(level, from) => {
-                setCtx((c) => ({ ...c, aiEstimate: { level, from }, aiFromExport: false, aiWhPerPrompt: undefined, aiPastWh: undefined, aiCode: undefined, aiAgent: undefined, aiCodingPastWh: undefined }));
-                // Images and video follow the pick too, unless the person typed their own. A pick replaces connected data
-                // entirely, so measured coding goes back to none (Ian, 2026-10-13).
-                setAmounts((a) => ({
-                  ...a,
-                  ai: AI_LEVELS[level].promptsPerDay,
-                  ...(entered["ai-media"] ? {} : { "ai-media": AI_LEVELS[level].imagesPerWeek }),
-                  ...(entered["ai-video"] ? {} : { "ai-video": AI_LEVELS[level].videosPerWeek }),
-                  ...(entered["ai-coding"] ? {} : { "ai-coding": 0 }),
-                }));
-                resetAiCover();
-                setEntered((e) => ({ ...e, ai: false }));
-              }}
+              level={aiLevel}
+              onPick={pickLevel}
+              hideLevels={!heroPaid}
+              connectOnMount={wantReal}
               onExact={() => setMeasuring(true)}
               onVideo={(h, from) => measuredAmount("video", h, from)}
               onVideoPast={(videoPast) => setCtx((c) => ({ ...c, videoPast }))}
@@ -1470,6 +1510,7 @@ export function Store() {
               )}
             </div>
           </div>
+          </div>
           )}
           {measuring && (
             <div className="mt-6 max-w-xl">
@@ -1484,6 +1525,89 @@ export function Store() {
               />
             </div>
           )}
+        {!heroPaid && (
+          // Who gets the money, each charity once with what it fixes (Ian, 2026-10-25: order the page by the reader's questions).
+          // A grey band per section, white between, so the eye sees where one ends (Ian, 2026-10-25, from Ecologi and GiveWell).
+          <section aria-labelledby="who-gets-it" className="relative isolate py-16">
+            <div aria-hidden="true" className="absolute inset-y-0 left-1/2 -z-10 w-screen -translate-x-1/2 bg-card" />
+            {(() => {
+              const names = [...new Set((["carbon", "air", "water", "land"] as const).filter((k) => aiImpacts[k] > 0).map((k) => CHARITIES[k].name))];
+              // Each card shows its sum: amount x price = dollars (Ian, 2026-10-25).
+              // Rounded up to the cent, as each gift is, so the cards add up to the line under "I don't take a cut".
+              const costs = Object.fromEntries(Object.entries(impactCost(aiImpacts)).map(([k, v]) => [k, Math.ceil(v * 100 - 1e-9) / 100])) as Record<ImpactKey, number>;
+              const gifts = payRows(harmSplit(heroTotals, ctx, billing), billing, autopay).filter((r) => !r.key.endsWith("-repeat"));
+              const gets = (name: string) => gifts.filter((r) => CHARITIES[r.charity].name === name).reduce((sum, r) => sum + r.donation, 0);
+              // Every sum the same short shape, amount x price per unit (Ian, 2026-10-25). Air is priced as a share of
+              // health damage; here it's shown per liter of smog (or gram of soot) so it reads like the others.
+              const raw = impactCost(aiImpacts);
+              const smog = aiImpacts.smogL >= 0.05 || aiImpacts.sootG < 0.05;
+              const airPer = raw.air / (smog ? aiImpacts.smogL : aiImpacts.sootG || 1);
+              const bare = (k: "carbon" | "water" | "land") => IMPACT_INFO[k].format(aiImpacts[k], aiImpacts).replace(/ (CO₂e|water|land)$/, "");
+              const sum: Record<"carbon" | "air" | "water" | "land", string> = {
+                // The price uses the same unit as the amount: kg reads "per 1,000 kg", not "/t" (Ian, 2026-10-25).
+                carbon: `${bare("carbon")} × $${CARBON_MODES[DEFAULT_CARBON_MODE].perTonne}/${aiImpacts.carbon >= 1000 ? "t" : "1,000 kg"}`,
+                air: `${airShort(aiImpacts)} × $${airPer.toFixed(2)}/${smog ? "L" : "g"}`,
+                water: `${bare("water")} × $${(WATER_MODES[DEFAULT_WATER_MODE].per1000Gal / 3.78541).toFixed(2)}/1,000 L`,
+                land: `${bare("land")} × $${((LAND_USD_PER_ACRE / 4046.86) * 1000).toFixed(2)}/1,000 m²`,
+              };
+              return (
+                <>
+                  {/* The headings read as one story, top to bottom, like Wren's (Ian, 2026-10-25). */}
+                  <h2 id="who-gets-it" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">
+                    Where your money goes
+                  </h2>
+                  <ul className="mt-10 grid gap-4 md:grid-cols-3">
+                    {names.map((name) => {
+                      const harms = (["carbon", "air", "water", "land"] as const).filter((k) => aiImpacts[k] > 0 && CHARITIES[k].name === name);
+                      return (
+                        <Fragment key={name}>
+                        <li className="flex flex-col border-t-[6px] border-rule bg-background">
+                          {/* Stock photos of the thing itself, never people passed off as charity staff (Ian, 2026-10-25). Unsplash License; sources in the PR. */}
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={`/photos/${harms[0]}.jpg`} alt="" width={800} height={533} loading="lazy" className="aspect-[3/2] w-full object-cover" />
+                          <div className="flex flex-1 flex-col px-5 pt-5 pb-6">
+                          {/* Read top to bottom: the harm, what it costs to cut, who gets the money (Ian, 2026-10-25). */}
+                          <h3 className="mb-4 text-xl font-semibold">
+                            {harms.map((k) => IMPACT_INFO[k].label).join(" and ").replace(/^(.)(.*) and (.)/, (_, a, rest, c) => `${a}${rest} and ${c.toLowerCase()}`)}
+                          </h3>
+                          <div className="amount mt-auto border-t border-border pt-3 text-sm">
+                            <Link href="/method" className="block hover:underline">
+                              {harms.map((k) => (
+                                <span key={k} className="flex justify-between gap-3">
+                                  <span>{sum[k]}</span>
+                                  <span>{usd(costs[k])}</span>
+                                </span>
+                              ))}
+                            </Link>
+                            {/* Outside Pledge's API a gift is raised to the charity's minimum; show the step so the lines add up. */}
+                            {gets(name) - harms.reduce((t, k) => t + costs[k], 0) >= 0.005 && (
+                              <span className="flex justify-between gap-3">
+                                <span>Up to the {usd(minGift(PAYMENT_MODE))} minimum</span>
+                                <span>+{usd(gets(name) - harms.reduce((t, k) => t + costs[k], 0))}</span>
+                              </span>
+                            )}
+                            <a href={CHARITIES[harms[0]].url} className="mt-1 flex justify-between gap-3 border-t border-border pt-1 font-semibold hover:underline">
+                              <span>To {name}</span>
+                              <span>{usd(gets(name))}</span>
+                            </a>
+                          </div>
+                          </div>
+                        </li>
+                        {aiAnswers.filter((b) => (harms as readonly string[]).includes(b.key)).map((b) => numberBlock(b, "mb-6 md:hidden"))}
+                        </Fragment>
+                      );
+                    })}
+                  </ul>
+                  <p className="mt-6 font-semibold md:hidden">
+                    <Link href="/method#ai" className="underline-offset-4 hover:underline">
+                      Read the full explanation →
+                    </Link>
+                  </p>
+                </>
+              );
+            })()}
+          </section>
+        )}
       </section>
 
       {activityOpen && (
@@ -1499,61 +1623,103 @@ export function Store() {
         </section>
       )}
 
-      <nav aria-label="Other things you can do" className="mb-10 flex flex-col text-sm sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3">
-        {/* Paid AI: the hero already has the record's button, so the line doesn't link it twice (Ian, 2026-10-13). */}
-        {recordStatus(covered).kind !== "none" && !previewing && !heroPaid && (
-          <>
-            <Link href="/record" className="inline-flex min-h-10 items-center font-semibold underline underline-offset-4 hover:text-muted">
-              Your record
-            </Link>
-            <span aria-hidden className="hidden text-muted sm:inline">·</span>
-          </>
-        )}
-        {/* Someone who has paid isn't "not sure yet" (Ian, 2026-10-13). */}
-        {!heroPaid && <span className="hidden text-muted sm:inline">Not sure yet?</span>}
-        <Link href="/ledger" className="inline-flex min-h-10 items-center underline underline-offset-4 hover:text-muted">
-          Where the money goes
-        </Link>
-        <Link href="/method" className="inline-flex min-h-10 items-center underline underline-offset-4 hover:text-muted">
-          How it&apos;s calculated
-        </Link>
-        <span aria-hidden className="hidden text-muted sm:inline">·</span>
-        <span className="hidden text-muted sm:inline">Giving?</span>
-        <Link href="/gift" className="inline-flex min-h-10 items-center underline underline-offset-4 hover:text-muted">
-          Give an offset as a gift
-        </Link>
-      </nav>
+      {recordStatus(covered).kind !== "none" && !previewing && !heroPaid && (
+        <p className="mb-10 text-sm">
+          <Link href="/record" className="inline-flex min-h-10 items-center font-semibold underline underline-offset-4 hover:text-muted">
+            Your record
+          </Link>
+        </p>
+      )}
 
-      {(() => {
-        const open = aislesOpen;
-        const openAt = (key: string) => {
-          setShelvesOpen(true);
-          requestAnimationFrame(() => document.getElementById(`section-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
-        };
-        return open ? null : (
-          <section aria-labelledby="more-heading" className="mb-10">
-            <h2 id="more-heading" className="font-display text-3xl font-extrabold [font-stretch:85%]">Everything you can offset</h2>
-            <ul className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
-              {SECTIONS.filter((x) => x.key !== "ai").map((x) => (
-                <li key={x.key}>
-                  <button
-                    type="button"
-                    onClick={() => openAt(x.key)}
-                    className="min-h-11 w-full cursor-pointer rounded-md border-2 border-rule px-4 font-semibold hover:bg-foreground hover:text-background"
-                  >
-                    {x.title}
-                  </button>
-                </li>
-              ))}
+      {!heroPaid && aiImpacts.carbon > 0 && (
+          <section aria-labelledby="how-numbers" className="hidden py-16 md:block">
+            <h2 id="how-numbers" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">How I got these numbers</h2>
+            <ul className="mt-10 grid gap-4 md:grid-cols-3">
+              {aiAnswers.map((b) => numberBlock(b))}
             </ul>
+            <p className="mt-6 font-semibold">
+              <Link href="/method#ai" className="underline-offset-4 hover:underline">
+                Read the full explanation →
+              </Link>
+            </p>
           </section>
-        );
-      })()}
+        )}
 
-      {aislesOpen && (
-      <>
-      <div className="mb-4">
-        <h2 className="font-display text-3xl font-extrabold [font-stretch:85%]">Everything you can offset</h2>
+      {/* Heading on the left, receipt on the right, on its own band (Ian, 2026-10-25). */}
+      <section aria-labelledby="no-cut" className="relative isolate py-16 sm:grid sm:grid-cols-2 sm:gap-x-12">
+        <div aria-hidden="true" className="absolute inset-y-0 left-1/2 -z-10 w-screen -translate-x-1/2 bg-card" />
+        <h2 id="no-cut" className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">
+          I don&apos;t take a cut.
+        </h2>
+        {!heroPaid ? (
+          // The price, taken apart: charities + fees + nothing to me (Ian, 2026-10-25).
+          (() => {
+            const gifts = payRows(harmSplit(heroTotals, ctx, billing), billing, autopay).filter((r) => !r.key.endsWith("-repeat"));
+            // Every payment mode gets the receipt (Ian, 2026-10-25: it went missing outside Pledge).
+            const total = rowsTotal(gifts);
+            const donation = Math.round(gifts.reduce((t, g) => t + g.donation, 0) * 100) / 100;
+            const pay = { donation, fee: Math.round((total - donation) * 100) / 100, total };
+            // A receipt in the same style as the cards above, with the charities on one line (Ian, 2026-10-25).
+            return (
+              <div className="amount mt-6 text-sm sm:mt-0 sm:self-center">
+                <p className="flex justify-between gap-3 border-t border-border py-1">
+                  <span>To the charities</span>
+                  <span>{usd(pay.donation)}</span>
+                </p>
+                <p className="flex justify-between gap-3 border-t border-border py-1">
+                  <span>{forMode({ every: "Card and Every.org fees", pledge: "Card and Pledge fees", pledgeapi: "Card and Pledge fees", endaoment: "Card and Endaoment fees", sponsor: "Card and sponsor fees" })}</span>
+                  <span>{usd(pay.fee)}</span>
+                </p>
+                <p className="flex justify-between gap-3 border-t border-border py-1 font-semibold">
+                  <span>To me</span>
+                  <span>$0.00</span>
+                </p>
+                <p className="flex justify-between gap-3 border-t-2 border-foreground pt-2 text-base font-semibold">
+                  <span>You give</span>
+                  <span>{usd(pay.total)}</span>
+                </p>
+                {/* A second way to give once the cost, the charities and the fees are all seen (Ian, 2026-10-25). */}
+                <button
+                  type="button"
+                  onClick={reviewAndPay}
+                  className="mt-6 min-h-12 w-full cursor-pointer rounded-md bg-accent px-4 font-sans text-lg font-semibold text-on-accent hover:bg-accent-strong"
+                >
+                  {giveLabel.startsWith("Give $") ? `Give ${usd(pay.total)}` : giveLabel}
+                </button>
+                {/* The way in for gift-givers (Ian, 2026-10-25). */}
+                <p className="mt-3 text-center font-sans font-semibold">
+                  <Link href="/gift" className="underline-offset-4 hover:underline">
+                    Give it as a gift →
+                  </Link>
+                </p>
+              </div>
+            );
+          })()
+        ) : (
+        <p className="mt-4 max-w-2xl text-lg">
+          {forMode({
+            every: "You give to each charity yourself through Every.org, which sends you the tax receipt.",
+            pledge: "You give to each charity yourself through Pledge, which emails you the tax receipt.",
+            pledgeapi: "I give every dollar to the charities through Pledge, which emails you a receipt for each gift.",
+            endaoment: "Endaoment grants your gift on to each charity and sends you the tax receipt.",
+            sponsor: "My charity sponsor pays each charity and sends you the tax receipt.",
+          })}{" "}
+          I buy no carbon credits.
+        </p>
+        )}
+        {/* One link, the proof (Ian, 2026-10-25: three links was too many), and none beside the receipt, which already shows it. */}
+        {heroPaid && (
+          <p className="mt-6 font-semibold">
+            <Link href="/ledger" className="underline-offset-4 hover:underline">
+              Where every dollar went →
+            </Link>
+          </p>
+        )}
+      </section>
+
+      {/* Every aisle stays open on the home page (Ian, 2026-10-25: don't hide the rest of the offsets). */}
+      <div className="mt-16 mb-6">
+        <h2 className="font-display text-3xl leading-[1.1] font-semibold sm:text-5xl">Offset the rest of your life the same way.</h2>
       </div>
 
       {/* The aisle bar sticks only while the shelves are on screen. */}
@@ -1607,7 +1773,7 @@ export function Store() {
                   ))}
               </div>
             </div>
-            <ul className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:grid-cols-3 md:overflow-visible md:px-0 md:pb-0">
+            <ul className="grid gap-3 md:grid-cols-3">
               {items.map((p) => tile(p))}
             </ul>
             {openItem && detailPanel(openItem)}
@@ -1652,8 +1818,6 @@ export function Store() {
             </button>
           )}
         </section>
-      )}
-      </>
       )}
 
       {plan.length > 0 && (
@@ -1853,10 +2017,20 @@ export function Store() {
                       <p className="figures mt-1 font-sans text-sm text-muted">
                         Then {usd(repeatTotal)} {BILLING[billing].per}
                         {pledgeApi ? "" : `, one gift to each charity${pledge ? "" : " with its own card fee"}`}.{" "}
-                        {autopay ? "Every.org charges it until you stop it." : pledgeApi ? "Nothing repeats on its own." : "Nothing repeats on its own: you come back and give again."}
+                        {autopay
+                          ? pledgeApi
+                            ? "Autopay charges it until you stop it, and I email you before every charge."
+                            : "Every.org charges it until you stop it."
+                          : pledgeApi
+                            ? "Nothing repeats unless you turn on autopay."
+                            : "Nothing repeats on its own. You come back and give again."}
                         {totals.pastSpread &&
                           ` It includes ${usd(totals.pastSpread.perMonth * (billing === "annual" ? 12 : 1))} toward past use until ${pastEnds}${
-                            autopay ? "; Every.org can't stop that part on its own, so lower the gift in your Every.org account then." : "."
+                            autopay
+                              ? pledgeApi
+                                ? ". Autopay ends then, and I email you to turn it on again at the lower price."
+                                : "; Every.org can't stop that part on its own, so lower the gift in your Every.org account then."
+                              : "."
                           }`}
                       </p>
                     )}
@@ -2247,8 +2421,17 @@ function PaySection({
               <span>
                 <span className="font-medium">Repeat these gifts automatically {BILLING[billing].approve}</span>
                 <span className="block text-muted">
-                  Off unless you tick it. With it on, Every.org charges your card {BILLING[billing].approve} until you cancel in your
-                  Every.org account. I can&apos;t email you first or hold a charge back, so leave it off to approve each one yourself.
+                  {PAYMENT_MODE === "pledgeapi" ? (
+                    <>
+                      Off unless you tick it. With it on, Stripe charges your card {BILLING[billing].approve} until you stop it. I email you a
+                      few days before every charge, with a link to stop.
+                    </>
+                  ) : (
+                    <>
+                      Off unless you tick it. With it on, Every.org charges your card {BILLING[billing].approve} until you cancel in your
+                      Every.org account. I can&apos;t email you first or hold a charge back, so leave it off to approve each one yourself.
+                    </>
+                  )}
                 </span>
               </span>
             </label>

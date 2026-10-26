@@ -8,7 +8,7 @@ import { donationId, donationRequest, givePledgeDonation, orgLookupRequest, pick
 import { minGift, PLEDGE_API_CARD_RATE, PLEDGE_API_FEE_RATE, STRIPE_CARD } from "./pricing";
 import { parsePlanClaim, planRows } from "./publicList";
 import { DEFAULT_CONTEXT as C, harmSplit, planTotals } from "./store";
-import { lineItemName, modeMismatch, parseSessionEvent, sessionForm, verifyStripeSignature } from "./stripe";
+import { lineItemName, modeMismatch, parseInvoiceEvent, parseSessionEvent, parseSubscriptionEnded, sessionForm, verifyStripeSignature } from "./stripe";
 
 // "pledgeapi" mode (2026-10-24): one Stripe payment for every charity, then one Pledge
 // donation per charity made by the server. Off by default.
@@ -66,10 +66,56 @@ describe("pledgeapi mode: rows and fees", () => {
     expect(onePayment([])).toEqual({ donation: 0, stripe: 0, pledge: 0, fee: 0, total: 0 });
   });
 
-  it("offers no autopay, and the list checks the same rows checkout charges", () => {
+  it("offers autopay as a Stripe subscription, and the list checks the same rows checkout charges", () => {
+    // Hidden until the webhook events, email and migration are in place and Ian turns it on.
+    vi.stubEnv("NEXT_PUBLIC_AUTOPAY_ON", "");
     expect(autopayOffered("pledgeapi")).toBe(false);
-    expect(payRows(split, "monthly", true, "pledgeapi").every((r) => r.frequency === "ONCE")).toBe(true);
-    expect(planRows({ ...claim, autopay: true }, "pledgeapi")).toEqual(payRows(split, "monthly", false, "pledgeapi"));
+    expect(payRows(split, "monthly", true, "pledgeapi")).toEqual(payRows(split, "monthly", false, "pledgeapi"));
+    vi.stubEnv("NEXT_PUBLIC_AUTOPAY_ON", "1");
+    expect(autopayOffered("pledgeapi")).toBe(true);
+    const withAutopay = payRows(split, "monthly", true, "pledgeapi");
+    expect(withAutopay.some((r) => r.frequency === "MONTHLY" && r.key.endsWith("-repeat"))).toBe(true);
+    expect(planRows({ ...claim, autopay: true }, "pledgeapi")).toEqual(withAutopay);
+    expect(planRows(claim, "pledgeapi")).toEqual(payRows(split, "monthly", false, "pledgeapi"));
+    vi.unstubAllEnvs();
+  });
+
+  it("makes a subscription session that still charges today's total, with the repeating part on its own line", () => {
+    const f = sessionForm({ referenceId: ID, source: "plan", charities: 3, amountCents: 500, successUrl: "s", cancelUrl: "c", repeat: { cents: 120, interval: "month" } });
+    expect(f.get("mode")).toBe("subscription");
+    expect(f.get("submit_type")).toBeNull();
+    expect(f.get("line_items[0][price_data][unit_amount]")).toBe("120");
+    expect(f.get("line_items[0][price_data][recurring][interval]")).toBe("month");
+    expect(f.get("line_items[1][price_data][unit_amount]")).toBe("380");
+    expect(f.get("line_items[1][price_data][recurring][interval]")).toBeNull();
+    expect(f.get("subscription_data[metadata][plan]")).toBe(ID);
+    expect(f.get("payment_intent_data[metadata][plan]")).toBeNull();
+    // Only a repeating part: one line, no one-time line.
+    const only = sessionForm({ referenceId: ID, source: "plan", charities: 1, amountCents: 120, successUrl: "s", cancelUrl: "c", repeat: { cents: 120, interval: "year" } });
+    expect(only.get("line_items[1][price_data][unit_amount]")).toBeNull();
+    // Without autopay it's the same one payment as before.
+    const once = sessionForm({ referenceId: ID, source: "plan", charities: 1, amountCents: 500, successUrl: "s", cancelUrl: "c" });
+    expect(once.get("mode")).toBe("payment");
+    expect(once.get("submit_type")).toBe("donate");
+  });
+
+  it("reads renewals, reminders and cancellations from Stripe's events", () => {
+    const paid = parseInvoiceEvent({
+      id: "evt_9",
+      type: "invoice.paid",
+      data: { object: { id: "in_123", billing_reason: "subscription_cycle", amount_paid: 120, currency: "usd", customer_email: "a@b.test", customer_name: "Jane", parent: { subscription_details: { subscription: "sub_1" } } } },
+    });
+    expect(paid).toMatchObject({ type: "paid", invoiceId: "in_123", subscriptionId: "sub_1", renewal: true, amountCents: 120, email: "a@b.test" });
+    const first = parseInvoiceEvent({ type: "invoice.paid", data: { object: { id: "in_1", subscription: "sub_1", billing_reason: "subscription_create", amount_paid: 500 } } });
+    expect(first?.renewal).toBe(false);
+    const soon = parseInvoiceEvent({ type: "invoice.upcoming", data: { object: { subscription: "sub_1", amount_due: 120, next_payment_attempt: 1_800_000_000 } } });
+    expect(soon).toMatchObject({ type: "upcoming", invoiceId: null, amountCents: 120 });
+    expect(soon?.dueAt).toBe(new Date(1_800_000_000 * 1000).toISOString());
+    expect(parseInvoiceEvent({ type: "invoice.paid", data: { object: { id: "in_2", amount_paid: 5 } } })).toBeNull();
+    expect(parseInvoiceEvent({ type: "checkout.session.completed", data: { object: {} } })).toBeNull();
+    expect(parseSubscriptionEnded({ type: "customer.subscription.deleted", data: { object: { id: "sub_1" } } })).toBe("sub_1");
+    expect(parseSubscriptionEnded({ type: "customer.subscription.updated", data: { object: { id: "sub_1" } } })).toBeNull();
+    expect(parseSessionEvent({ type: "checkout.session.completed", data: { object: { id: "cs_1", subscription: "sub_1", payment_status: "paid" } } })?.subscriptionId).toBe("sub_1");
   });
 
   it("charges a gift in one payment too, and counts it paid from Pledge's gifts", () => {
@@ -196,7 +242,8 @@ describe("Pledge request builder", () => {
 function fakePledge(failing: Set<string>) {
   const calls: string[] = [];
   const fetcher = (async (url: string, init?: RequestInit) => {
-    calls.push(`${init?.method} ${url}`);
+    calls.push(`${init?.method} ${url}${url.includes("api.stripe.com") ? ` ${init?.body}` : ""}`);
+    if (url.includes("api.stripe.com")) return new Response("{}", { status: 200 });
     if (url.includes("/v1/organizations")) {
       const name = new URL(url).searchParams.get("q")!;
       const ein = Object.keys(PLEDGE_ORG_NAMES).find((e) => PLEDGE_ORG_NAMES[e] === name)!;
@@ -254,6 +301,81 @@ describe("settling a paid session", () => {
     expect((await settleSession({ ...base, sessionId: "cs_x", amountCents: 999 }, { apiKey: "k", fetcher })).status).toBe("unknown");
     expect((await settleSession({ ...base, sessionId: "cs_2", amountCents: 999, paid: false }, { apiKey: "k", fetcher })).status).toBe("unpaid");
     expect(calls).toEqual([]);
+  });
+
+  it("with autopay, gives each renewal's repeating gifts once, checks the amount, and stops when autopay ends", async () => {
+    const { saveSession, settleSession, settleRenewal, claimReminder, endSubscription, planChargeRows, repeatPart } = await import("./stripeStore");
+    const { rowsOf } = await import("./db");
+    vi.stubEnv("NEXT_PUBLIC_AUTOPAY_ON", "1");
+    const rows = planChargeRows({ ...claim, autopay: true });
+    vi.unstubAllEnvs();
+    const again = repeatPart(rows);
+    expect(again.length).toBeGreaterThan(0);
+    const amountCents = Math.round(onePayment(rows).total * 100);
+    const repeatCents = Math.round(onePayment(again).total * 100);
+    await saveSession("cs_a", { source: "plan", sourceId: ID, rows, amountCents, repeat: { cents: repeatCents, interval: "month" } });
+    const pledge = { apiKey: "k", host: "https://api-staging.pledge.to" };
+    const first = await settleSession(
+      { eventId: "e1", sessionId: "cs_a", paid: true, amountCents, currency: "usd", referenceId: ID, email: "a@b.test", name: "Jane", subscriptionId: "sub_a" },
+      { ...pledge, fetcher: fakePledge(new Set()).fetcher },
+    );
+    expect(first).toEqual({ status: "given", confirmed: rows.length, failed: 0 });
+    const [sub] = rowsOf(await memory.client!.execute({ sql: "SELECT amount_cents, repeat_interval, status FROM stripe_subscriptions WHERE subscription_id = 'sub_a'" }));
+    expect(sub).toMatchObject({ amount_cents: repeatCents, repeat_interval: "month", status: "active" });
+
+    const renewal = { eventId: "e2", invoiceId: "in_0001", subscriptionId: "sub_a", amountCents: repeatCents, currency: "usd", email: "a@b.test", name: "Jane" };
+    const r1 = fakePledge(new Set());
+    expect(await settleRenewal(renewal, { ...pledge, fetcher: r1.fetcher })).toEqual({ status: "given", confirmed: again.length, failed: 0 });
+    // The same invoice again gives nothing more; a different amount gives nothing at all.
+    const r2 = fakePledge(new Set());
+    expect(await settleRenewal(renewal, { ...pledge, fetcher: r2.fetcher })).toEqual({ status: "given", confirmed: 0, failed: 0 });
+    expect(r2.calls.filter((c) => c.startsWith("POST"))).toHaveLength(0);
+    expect((await settleRenewal({ ...renewal, invoiceId: "in_0002", amountCents: repeatCents + 1 }, { ...pledge, fetcher: r2.fetcher })).status).toBe("mismatch");
+    // Each renewal's gifts are recorded under their own ids, apart from the first payment's.
+    const ids = rowsOf(await memory.client!.execute({ sql: "SELECT partner_donation_id FROM donations" })).map((r) => String(r.partner_donation_id));
+    expect(ids.filter((i) => i.endsWith(".in_0001")).length).toBe(again.length);
+
+    // A listing from the plan stays up for the month the renewal paid for.
+    await memory.client!.execute({
+      sql: "INSERT INTO list_claims (person_id, source, source_id, rows, items, created_at) VALUES ('p1', 'plan', ?, '[]', ?, ?)",
+      args: [ID, JSON.stringify([{ productId: "ai", until: "2026-01-01T00:00:00.000Z" }, { productId: "web", until: null }]), "2025-12-01T00:00:00.000Z"],
+    });
+    await settleRenewal({ ...renewal, invoiceId: "in_0004" }, { ...pledge, fetcher: fakePledge(new Set()).fetcher, now: () => new Date("2026-03-10T00:00:00.000Z") });
+    const [listed] = rowsOf(await memory.client!.execute({ sql: "SELECT items FROM list_claims WHERE source_id = ?", args: [ID] }));
+    expect(JSON.parse(String(listed.items))).toEqual([{ productId: "ai", until: "2026-04-10T00:00:00.000Z" }, { productId: "web", until: null }]);
+
+    // One reminder per due date.
+    expect(await claimReminder("sub_a", "2026-11-25T00:00:00.000Z")).toEqual({ amountCents: repeatCents, interval: "month" });
+    expect(await claimReminder("sub_a", "2026-11-25T00:00:00.000Z")).toBeNull();
+    expect(await claimReminder("sub_unknown", null)).toBeNull();
+    // Once autopay ends, renewals and reminders stop.
+    await endSubscription("sub_a");
+    expect((await settleRenewal({ ...renewal, invoiceId: "in_0003" }, { ...pledge, fetcher: r2.fetcher })).status).toBe("unknown");
+    expect(await claimReminder("sub_a", "2026-12-25T00:00:00.000Z")).toBeNull();
+  });
+
+  it("with past use spread over years, ends autopay once it's paid off and says so before the last charge", async () => {
+    const { saveSession, settleSession, claimReminder, isLastCharge, planChargeRows, repeatPart } = await import("./stripeStore");
+    const { pastPaidOff } = await import("./stripe");
+    vi.stubEnv("NEXT_PUBLIC_AUTOPAY_ON", "1");
+    const rows = planChargeRows({ ...claim, autopay: true });
+    vi.unstubAllEnvs();
+    const amountCents = Math.round(onePayment(rows).total * 100);
+    const repeatCents = Math.round(onePayment(repeatPart(rows)).total * 100);
+    const pastUntil = pastPaidOff(new Date("2026-10-26T00:00:00.000Z"), 2).toISOString();
+    expect(pastUntil).toBe("2028-10-25T00:00:00.000Z");
+    await saveSession("cs_p", { source: "plan", sourceId: ID, rows, amountCents, repeat: { cents: repeatCents, interval: "month", pastUntil } });
+    const f = fakePledge(new Set());
+    const paid = { eventId: "e1", sessionId: "cs_p", paid: true, amountCents, currency: "usd", referenceId: ID, email: "a@b.test", name: "Jane", subscriptionId: "sub_p" };
+    await settleSession(paid, { apiKey: "k", host: "https://api-staging.pledge.to", fetcher: f.fetcher, stripeKey: "sk_test" });
+    await settleSession(paid, { apiKey: "k", host: "https://api-staging.pledge.to", fetcher: f.fetcher, stripeKey: "sk_test" });
+    // Set to end once, at the day before the charge after the last instalment, with nothing prorated.
+    const ends = f.calls.filter((c) => c.includes("api.stripe.com"));
+    expect(ends).toEqual([`POST https://api.stripe.com/v1/subscriptions/sub_p cancel_at=${Date.parse(pastUntil) / 1000}&proration_behavior=none`]);
+    expect(await claimReminder("sub_p", "2028-08-26T00:00:00.000Z")).toMatchObject({ last: false });
+    expect(await claimReminder("sub_p", "2028-09-26T00:00:00.000Z")).toMatchObject({ last: true });
+    expect(isLastCharge("2028-09-26T00:00:00.000Z", pastUntil, "month")).toBe(true);
+    expect(isLastCharge("2027-09-26T00:00:00.000Z", pastUntil, "year")).toBe(false);
   });
 
   it("never throws on a network error from Pledge", async () => {
