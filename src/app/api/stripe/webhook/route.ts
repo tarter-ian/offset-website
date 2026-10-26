@@ -71,7 +71,7 @@ export async function POST(req: Request) {
                 ? [
                     "This is the last autopay charge. After it, your past use is fully offset, so autopay ends on its own and nothing more is charged.",
                     "",
-                    `To keep offsetting your ongoing use, come back to ${new URL(req.url).origin} and turn autopay on again. It costs less now, since only your ongoing use is left.`,
+                    `To keep offsetting your ongoing use, go to ${new URL(req.url).origin} in the browser you used before, open "Your plan" at the bottom of the page, and tick "Repeat these gifts automatically" before you pay. It costs less now, since only your ongoing use is left.`,
                     "",
                   ]
                 : []),
