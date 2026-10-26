@@ -69,7 +69,9 @@ export async function POST(req: Request) {
               "",
               ...(due.last
                 ? [
-                    "This is the last autopay charge. After it, your past use is fully offset, so autopay ends on its own. To keep offsetting, come back to My Offset and turn autopay on again at the lower price.",
+                    "This is the last autopay charge. After it, your past use is fully offset, so autopay ends on its own and nothing more is charged.",
+                    "",
+                    `To keep offsetting your ongoing use, come back to ${new URL(req.url).origin} and turn autopay on again. It costs less now, since only your ongoing use is left.`,
                     "",
                   ]
                 : []),
