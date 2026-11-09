@@ -235,79 +235,106 @@ export function GiftMaker() {
         else start();
       }}
     >
+      {/* The card they'll get, at the top, so the gift is clear before the form (Ian, 2026-10-25). */}
+      <GiftCard gift={{ items, from, to: names.find((n) => n.trim()) ?? "", note, birthYear }} />
+      {people > 1 && <p className="-mt-3 text-sm text-muted">Each person gets a card like this with their own name.</p>}
       <fieldset>
         <legend className="font-semibold">What to offset</legend>
-        <div className="mt-1 flex flex-wrap gap-x-4 text-sm">
-          {GIFT_PRESETS.map((preset) => {
-            const chosen = presetItems(preset);
+        {/* Quick choices as cards: their AI for life, then the two smallest whole-footprint presets. */}
+        <div className="mt-2 grid gap-2 sm:grid-cols-3">
+          {[
+            { label: "Their AI, for life", chosen: GIFTABLE.filter((p) => p.section === "ai").map((p) => ({ productId: p.id, span: "life" as GiftSpan })) },
+            ...GIFT_PRESETS.map((preset) => ({ label: preset.label, chosen: presetItems(preset) }))
+              .map((c) => ({ ...c, total: chargeTotal(giftCharge(c.chosen, birthYear)) }))
+              .sort((x, y) => x.total - y.total)
+              .slice(0, 2),
+          ].map((c) => {
+            const picked = c.chosen.length === items.length && c.chosen.every((i) => picks[i.productId] === i.span);
             return (
               <button
-                key={preset.label}
+                key={c.label}
                 type="button"
-                onClick={() => setPicks(Object.fromEntries(chosen.map((i) => [i.productId, i.span])))}
-                className="min-h-10 cursor-pointer text-left font-semibold underline underline-offset-4 hover:text-muted"
+                aria-pressed={picked}
+                onClick={() => setPicks(Object.fromEntries(c.chosen.map((i) => [i.productId, i.span])))}
+                className={`min-h-16 cursor-pointer rounded-md border-2 px-3 py-2 text-left ${picked ? "border-foreground bg-foreground text-background" : "border-border hover:border-foreground"}`}
               >
-                {preset.label} · <span className="figures">{usd(chargeTotal(giftCharge(chosen, birthYear)))}</span>
+                <span className="block font-semibold">{c.label}</span>
+                <span className="figures block text-sm">{usd(chargeTotal(giftCharge(c.chosen, birthYear)))}</span>
               </button>
             );
           })}
-          {items.length > 0 && (
-            <button type="button" onClick={() => setPicks({})} className="min-h-10 cursor-pointer text-muted underline underline-offset-4 hover:text-foreground">
-              Clear
-            </button>
-          )}
         </div>
+        {/* Every item stays visible, as small toggles grouped by section. */}
+        <p className="mt-4 text-sm font-semibold">Or pick items</p>
         {SECTIONS.map((sec) => {
           const ps = GIFTABLE.filter((p) => p.section === sec.key);
           if (!ps.length) return null;
           return (
-            <div key={sec.key} className="mt-3">
-              <h2 className="text-sm font-bold">{sec.title}</h2>
-              <ul className="divide-y divide-border border-y border-border">
+            <div key={sec.key} className="mt-2 sm:flex sm:items-baseline sm:gap-3">
+              <h2 className="w-20 shrink-0 text-sm font-bold">{sec.title}</h2>
+              <div className="mt-1 flex flex-wrap gap-1.5 sm:mt-0">
                 {ps.map((p) => {
-                  const span = picks[p.id];
+                  const on = !!picks[p.id];
                   return (
-                    <li key={p.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-1.5 text-sm">
-                      <label className="inline-flex min-h-10 cursor-pointer items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={!!span}
-                          onChange={(e) =>
-                            setPicks((x) => {
-                              const next = { ...x };
-                              if (e.target.checked) next[p.id] = defaultGiftSpan(p);
-                              else delete next[p.id];
-                              return next;
-                            })
-                          }
-                          className="h-4 w-4 cursor-pointer accent-[var(--accent)]"
-                        />
-                        {p.name}
-                      </label>
-                      {span && (
-                        <span className="flex items-center gap-2">
-                          <select
-                            aria-label={`How long to offset ${p.name}`}
-                            value={span}
-                            onChange={(e) => setPicks((x) => ({ ...x, [p.id]: e.target.value as GiftSpan }))}
-                            className="min-h-10 cursor-pointer rounded-md border border-border bg-background px-2"
-                          >
-                            {GIFT_SPANS.map((sp) => (
-                              <option key={sp} value={sp}>
-                                {SPAN_LABEL[sp].replace(/^for /, "For ")}
-                              </option>
-                            ))}
-                          </select>
-                          <span className="figures w-20 text-right">{usd(itemPrice(p, span, birthYear))}</span>
-                        </span>
-                      )}
-                    </li>
+                    <button
+                      key={p.id}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() =>
+                        setPicks((x) => {
+                          const next = { ...x };
+                          if (on) delete next[p.id];
+                          else next[p.id] = defaultGiftSpan(p);
+                          return next;
+                        })
+                      }
+                      className={`min-h-9 cursor-pointer rounded-full border px-3 text-sm ${on ? "border-foreground bg-foreground text-background" : "border-border hover:border-foreground"}`}
+                    >
+                      {p.name}
+                    </button>
                   );
                 })}
-              </ul>
+              </div>
             </div>
           );
         })}
+        {/* What's picked, each with how long and its price. */}
+        {items.length > 0 && (
+          <ul className="mt-4 divide-y divide-border border-y-2 border-rule">
+            {items.map((i) => {
+              const p = productById(i.productId);
+              if (!p) return null;
+              return (
+                <li key={p.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-1.5 text-sm">
+                  <span>{p.name}</span>
+                  <span className="flex items-center gap-2">
+                    <select
+                      aria-label={`How long to offset ${p.name}`}
+                      value={i.span}
+                      onChange={(e) => setPicks((x) => ({ ...x, [p.id]: e.target.value as GiftSpan }))}
+                      className="min-h-10 cursor-pointer rounded-md border border-border bg-background px-2"
+                    >
+                      {GIFT_SPANS.map((sp) => (
+                        <option key={sp} value={sp}>
+                          {SPAN_LABEL[sp].replace(/^for /, "For ")}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="figures w-20 text-right">{usd(itemPrice(p, i.span, birthYear))}</span>
+                    <button
+                      type="button"
+                      aria-label={`Remove ${p.name}`}
+                      onClick={() => setPicks((x) => { const next = { ...x }; delete next[p.id]; return next; })}
+                      className="min-h-10 cursor-pointer px-1 text-muted hover:text-foreground"
+                    >
+                      ×
+                    </button>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
         <p className="mt-2 text-sm text-muted">
           {people > 1 && `Prices are for each person. `}At typical use. If they measure theirs and it&apos;s higher, they can offset the rest.
           {everydayForLife && " Everyday items for life assume today's habits until age 85, which is a rough guess."}
@@ -372,8 +399,6 @@ export function GiftMaker() {
         <span className="font-semibold">A note</span> <span className="text-muted">(optional)</span>
         <textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={GIFT_LIMITS.note} rows={2} className={`${inputClass} py-2`} />
       </label>
-      <GiftCard gift={{ items, from, to: names.find((n) => n.trim()) ?? "", note, birthYear }} />
-      {people > 1 && <p className="-mt-3 text-sm text-muted">Each person gets a card like this with their own name.</p>}
       <p className="text-sm text-muted">
         {forMode({
           every: "Every.org emails you a receipt for each charity.",

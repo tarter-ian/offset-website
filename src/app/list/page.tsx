@@ -45,7 +45,12 @@ export default async function ListPage({ searchParams }: { searchParams: Promise
   // What stands in for the rows: the list didn't load, nobody's on it yet, or the filter finds nobody.
   const fallback =
     people === null ? (
-      <p className="mt-8 border-y-2 border-rule py-6">The list couldn&apos;t load just now. Try again in a minute.</p>
+      <div role="alert" className="mt-8 flex flex-wrap items-center justify-between gap-3 border-2 border-rule px-4 py-4">
+        <p>The list couldn&apos;t load just now.</p>
+        <a href="/list" className="min-h-10 rounded-md border-2 border-foreground px-4 py-2 font-semibold hover:bg-foreground hover:text-background">
+          Try again
+        </a>
+      </div>
     ) : people.length === 0 ? (
       <section aria-labelledby="empty-heading" className="mt-8 border-y-2 border-rule py-6">
         <h2 id="empty-heading" className="text-xl font-semibold">
@@ -110,10 +115,15 @@ export default async function ListPage({ searchParams }: { searchParams: Promise
               />
             ))}
             </div>
-            <h2 id="filter-badge" className="mt-2 text-sm font-semibold sm:mt-0 sm:leading-10">
+            {/* Status stays in view; the eight badge filters sit in one small menu, open whenever one is chosen (Ian, 2026-10-25). */}
+            <h2 id="filter-badge" className="sr-only">
               Badge
             </h2>
-            <div role="group" aria-labelledby="filter-badge" className="flex flex-wrap gap-2">
+            <details className="sm:col-start-2" open={filter.kind === "full" || filter.kind === "aisle" || filter.kind === "item"}>
+              <summary className="inline-flex min-h-10 cursor-pointer items-center text-sm font-semibold underline underline-offset-4">
+                Filter by badge
+              </summary>
+            <div role="group" aria-labelledby="filter-badge" className="mt-2 flex flex-wrap gap-2">
             <FilterTag kind="full" label="Fully Offset" name="aisle" value="everything" on={filter.kind === "full"} count={counts.everything || undefined} />
             {SECTIONS.map((s) => (
               <FilterTag
@@ -128,6 +138,7 @@ export default async function ListPage({ searchParams }: { searchParams: Promise
               />
             ))}
             </div>
+            </details>
           </form>
           {aisle && (
             <form id="list-items" action="/list" method="get" aria-label={`Items in ${SECTIONS.find((s) => s.key === aisle)?.title}`} className="mt-2 flex flex-wrap gap-2 border-l-2 border-rule pl-3 sm:ml-[4.75rem]">
@@ -183,9 +194,8 @@ export default async function ListPage({ searchParams }: { searchParams: Promise
           ))}
         </ul>
         <p className="mt-4 text-sm text-muted">
-          Green replaces yellow and blue: a badge shows one color, or yellow and blue together. An aisle or Fully Offset is green
-          only when every item in it is. Items someone uses none of, like AI video for someone who makes none, count as green. A badge whose date
-          passes drops off the list unless past use was paid.
+          An aisle or Fully Offset badge turns green only when every item in it is. A badge whose date passes drops off the list unless
+          past use was paid.
         </p>
       </section>
 

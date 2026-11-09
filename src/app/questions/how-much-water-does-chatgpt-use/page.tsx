@@ -70,13 +70,12 @@ export default function Page() {
       cover={
         <>
           <p>
-            The water in a month of everyday use costs {usd(waterCost)} to cover, at {usd(WATER_MODES[DEFAULT_WATER_MODE].per1000Gal)} per
-            1,000 scarce gallons, which funds paid water-saving work in dry regions. Covering all of a month&apos;s AI use, with its carbon and
+            The water in a month of everyday use costs {usd(waterCost)} to offset, at {usd(WATER_MODES[DEFAULT_WATER_MODE].per1000Gal)} per
+            1,000 scarce gallons, which funds paid water-saving work in dry regions. Offsetting all of a month&apos;s AI use, with its carbon and
             air pollution, comes to {usd(month.donation)} in donations.
           </p>
           <p>
-            That&apos;s below the {usd(month.monthly.donation)} smallest payment, so most people pay once: {usd(month.lifetime.total)} with
-            fees covers past use and every year ahead.
+            Paying once instead, {usd(month.lifetime.total)} with fees offsets past use and every year ahead.
           </p>
         </>
       }

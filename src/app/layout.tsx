@@ -63,6 +63,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                 What&apos;s different
               </Link>
               <FooterMoneyLink />
+              <Link href="/gift" className="underline hover:text-foreground">
+                Give as a gift
+              </Link>
               <Link href="/questions" className="underline hover:text-foreground">
                 Questions
               </Link>

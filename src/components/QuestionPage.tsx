@@ -74,15 +74,16 @@ export function QuestionPage({
       <h2 className="mt-10 text-xl font-semibold">How I got this</h2>
       <div className="mt-2 space-y-3 text-muted">{how}</div>
 
-      <h2 className="mt-10 text-xl font-semibold">What it costs to cover</h2>
+      <h2 className="mt-10 text-xl font-semibold">What it costs to offset</h2>
       <div className="mt-2 space-y-3 text-muted">{cover}</div>
 
-      <p className="mt-8 border-y-2 border-rule py-4 text-lg">
-        <Link href="/" className="font-semibold underline underline-offset-4">
+      {/* The page's one action, as a button (Ian, 2026-10-25). */}
+      <div className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-2 border-y-2 border-rule py-4">
+        <Link href="/" className="inline-flex min-h-11 items-center rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-strong">
           Measure your own use
-        </Link>{" "}
-        <span className="text-muted">and see what it would cost to cover.</span>
-      </p>
+        </Link>
+        <span className="text-muted">and see what it would cost to offset.</span>
+      </div>
 
       <h2 className="mt-10 text-sm font-semibold text-muted">Other questions</h2>
       <ul className="mt-2 space-y-1">

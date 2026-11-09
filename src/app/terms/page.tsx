@@ -106,7 +106,7 @@ const SECTIONS: { title: string; body: React.ReactNode; computer?: boolean }[] =
         "You approve each gift yourself unless you tick autopay at checkout. With autopay on, Every.org charges the same gifts each month or year until you cancel them in your Every.org account. I can't email you first or hold a charge back.",
       endaoment: "You approve each gift yourself. Nothing repeats on its own: each month or year, you come back and give again.",
       pledge: "You approve each gift yourself. Nothing repeats on its own: each month or year, you come back and give again.",
-      pledgeapi: "You approve each payment yourself. Nothing repeats on its own: each month or year, you come back and pay again.",
+      pledgeapi: "You approve each payment yourself. Nothing repeats unless you turn on autopay. With autopay on, Stripe charges the same amount each month or year until you stop it, and I email you a few days before every charge, with a link to stop.",
       sponsor:
         "You approve each payment yourself unless you switch on autopay. With autopay on, I email you a few days before every charge with the amount and a one-click skip or stop. A charge more than $5 or 25% above the last one, whichever is smaller, waits for your approval. You can stop autopay at any time, and it takes effect before the next charge.",
     }),

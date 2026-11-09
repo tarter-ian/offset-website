@@ -47,7 +47,7 @@ export default function Page() {
               ["Carbon", `${mass(pro.impacts.carbon)} CO₂e`],
               ["Healthy life lost", life(pro.impacts.air)],
             ]}
-            total={["To cover, a month", usd(pro.charged.total)]}
+            total={["To offset, a month", usd(pro.charged.total)]}
           />
         </>
       }
@@ -75,7 +75,7 @@ export default function Page() {
       }
       cover={
         <>
-          <p>If you used your whole weekly limit every week, covering it would cost about this each month, with fees:</p>
+          <p>If you used your whole weekly limit every week, offsetting it would cost about this each month, with fees:</p>
           <ul className="figures divide-y divide-border border-y border-rule text-sm text-foreground">
             {PLANS.map((p) => {
               const m = codingPlanMonth(p.key);
