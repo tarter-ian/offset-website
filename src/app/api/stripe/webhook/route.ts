@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { NoDatabaseError } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
 import { PLEDGE_API_LIVE, pledgeApiHost } from "@/lib/pledgeApi";
+import { stripePortalUrl } from "@/lib/payments";
 import { usd } from "@/lib/pricing";
 import {
   modeMismatch,
@@ -25,7 +26,7 @@ export const dynamic = "force-dynamic";
  * - invoice.paid: a renewal was charged, so that period's gifts are made (settleRenewal).
  *   The first invoice is skipped; its gifts come from the Checkout Session.
  * - invoice.upcoming: a reminder email a few days before each renewal, with the amount and
- *   the link to stop (STRIPE_PORTAL_URL, Stripe's customer portal login link). Stripe sends it
+ *   the link to stop (NEXT_PUBLIC_STRIPE_PORTAL_URL, Stripe's customer portal login link). Stripe sends it
  *   only when "upcoming renewal events" is on in its Billing settings.
  * - customer.subscription.deleted: autopay was stopped, so no more renewals are given.
  *
@@ -60,7 +61,7 @@ export async function POST(req: Request) {
         const due = await claimReminder(invoice.subscriptionId, invoice.dueAt);
         if (due && invoice.email) {
           const when = invoice.dueAt ? new Date(invoice.dueAt).toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: "UTC" }) : "soon";
-          const stop = process.env.STRIPE_PORTAL_URL;
+          const stop = stripePortalUrl();
           await sendEmail(
             invoice.email,
             `Your My Offset autopay of ${usd(due.amountCents / 100)} is on ${when}`,

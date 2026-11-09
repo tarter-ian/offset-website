@@ -10,7 +10,7 @@ import { accountsOn } from "@/lib/account";
 import { fetchAccount, pullCovered, pushCovered } from "@/lib/accountClient";
 import { canInstallExtension, savedResults } from "@/lib/extension";
 import { AI_CHAT_SERVICES, type AiChatService, monthlyUse, monthTotal, type MonthUse, offsetCount, recordStatus, untilOf } from "@/lib/record";
-import { loadCheckout, PAYMENT_MODE } from "@/lib/payments";
+import { autopayOn, loadCheckout, PAYMENT_MODE, stripePortalUrl } from "@/lib/payments";
 import { itemName } from "@/lib/reminders";
 import { type SteadyPlan, steadyIds, steadyPlan } from "@/lib/steady";
 import { SteadyCheck } from "./SteadyCheck";
@@ -220,6 +220,8 @@ export function Record() {
             ["/ledger", "Where the money goes", "Every charity, and what each gift pays for."],
             // Repeating gifts are stopped in the person's Every.org account, not here (Ian, 2026-10-13).
             ...(PAYMENT_MODE === "every" ? [[EVERY_GIVING, "Manage repeating gifts", "Stop or change autopay on Every.org."]] : []),
+            // Autopay through Stripe is stopped on Stripe's customer portal (Ian, 2026-10-25).
+            ...(PAYMENT_MODE === "pledgeapi" && autopayOn() && steady ? [[stripePortalUrl()!, "Manage autopay", "Stop autopay or change your card on Stripe."]] : []),
             ["/data", "See or clear your data", "What this browser and your account keep, and how to clear it."],
           ].map(([href, title, note]) => {
             const inner = (

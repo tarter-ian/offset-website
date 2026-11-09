@@ -72,6 +72,8 @@ describe("pledgeapi mode: rows and fees", () => {
     expect(autopayOffered("pledgeapi")).toBe(false);
     expect(payRows(split, "monthly", true, "pledgeapi")).toEqual(payRows(split, "monthly", false, "pledgeapi"));
     vi.stubEnv("NEXT_PUBLIC_AUTOPAY_ON", "1");
+    expect(autopayOffered("pledgeapi")).toBe(false);
+    vi.stubEnv("NEXT_PUBLIC_STRIPE_PORTAL_URL", "https://billing.stripe.com/p/login/test");
     expect(autopayOffered("pledgeapi")).toBe(true);
     const withAutopay = payRows(split, "monthly", true, "pledgeapi");
     expect(withAutopay.some((r) => r.frequency === "MONTHLY" && r.key.endsWith("-repeat"))).toBe(true);
@@ -307,6 +309,7 @@ describe("settling a paid session", () => {
     const { saveSession, settleSession, settleRenewal, claimReminder, endSubscription, planChargeRows, repeatPart } = await import("./stripeStore");
     const { rowsOf } = await import("./db");
     vi.stubEnv("NEXT_PUBLIC_AUTOPAY_ON", "1");
+    vi.stubEnv("NEXT_PUBLIC_STRIPE_PORTAL_URL", "https://billing.stripe.com/p/login/test");
     const rows = planChargeRows({ ...claim, autopay: true });
     vi.unstubAllEnvs();
     const again = repeatPart(rows);
@@ -358,6 +361,7 @@ describe("settling a paid session", () => {
     const { saveSession, settleSession, claimReminder, isLastCharge, planChargeRows, repeatPart } = await import("./stripeStore");
     const { pastPaidOff } = await import("./stripe");
     vi.stubEnv("NEXT_PUBLIC_AUTOPAY_ON", "1");
+    vi.stubEnv("NEXT_PUBLIC_STRIPE_PORTAL_URL", "https://billing.stripe.com/p/login/test");
     const rows = planChargeRows({ ...claim, autopay: true });
     vi.unstubAllEnvs();
     const amountCents = Math.round(onePayment(rows).total * 100);

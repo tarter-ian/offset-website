@@ -50,7 +50,7 @@ const httpsUrl = (u: string | undefined) => {
  * Autopay (a Stripe subscription for the monthly or yearly part, off unless the donor ticks it) also needs:
  * - the webhook endpoint sent invoice.paid, invoice.upcoming and customer.subscription.deleted as well;
  * - "upcoming renewal events" on in Stripe's Billing settings, so invoice.upcoming arrives for the reminder email;
- * - STRIPE_PORTAL_URL: the customer portal's login link (Stripe, Settings, Billing, Customer portal), the "stop" link in reminders;
+ * - NEXT_PUBLIC_STRIPE_PORTAL_URL: the customer portal's login link (Stripe, Settings, Billing, Customer portal), the "stop" link on the record page and in reminders;
  * - RESEND_API_KEY and EMAIL_FROM, for the reminder email;
  * - the restricted Stripe key allowed to write Subscriptions, so a plan that spreads past use can end autopay once it's paid off;
  * - migrations/0009_stripe_autopay.sql applied to the database;
@@ -238,7 +238,13 @@ export const autopayOffered = (mode: PaymentMode = PAYMENT_MODE) => (mode === "p
  * everything listed above is in place. Without the webhook events a renewal would be charged
  * with no gifts made, and without email the promised reminder wouldn't go out.
  */
-export const autopayOn = () => process.env.NEXT_PUBLIC_AUTOPAY_ON === "1";
+export const autopayOn = () => process.env.NEXT_PUBLIC_AUTOPAY_ON === "1" && !!stripePortalUrl();
+
+/** Stripe's customer portal login link, where a donor stops autopay or changes their card. Public, so it's a build variable. */
+export const stripePortalUrl = () => {
+  const u = process.env.NEXT_PUBLIC_STRIPE_PORTAL_URL?.trim();
+  return u && /^https:\/\/billing\.stripe\.com\//.test(u) ? u : null;
+};
 
 /** payRows without the autopay check, for working out what each later month or year costs in any mode. */
 function splitRows(split: HarmSplit, billing: Billing, autopay: boolean, mode: PaymentMode): PayRow[] {
